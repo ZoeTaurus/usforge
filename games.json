@@ -1,5 +1,16 @@
 [
   {
+    "slug": "snack-squad-showdown",
+    "title": "Snack Squad Showdown",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Snack Squad Showdown is a food themed game where you fight bosses. Could you kill them all?",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "added": 1790435280
+  },
+  {
     "slug": "the-last-signal",
     "title": "The Last Signal",
     "author": "Henrique",

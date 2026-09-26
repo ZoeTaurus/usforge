@@ -3,5 +3,7 @@
   "name": "usforge",
   "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
-  "assets": { "directory": ".", "binding": "ASSETS" }
+  "assets": { "directory": ".", "binding": "ASSETS" },
+  // keep variables set in the Cloudflare dashboard (like GITHUB_TOKEN) when the site redeploys
+  "keep_vars": true
 }

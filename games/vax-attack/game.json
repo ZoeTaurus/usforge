@@ -1,7 +1,7 @@
 {
   "title": "Vax Attack",
   "author": "Taurus",
+  "owner": "Taurus",
   "blurb": "You're the vaccine. Fifty-three bosses stand between you and Patient Zero.",
-  "pixel": true,
-  "owner": "Taurus"
+  "pixel": true
 }

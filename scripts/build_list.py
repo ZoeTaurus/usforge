@@ -3,7 +3,7 @@
 Runs automatically on GitHub before each deploy, so nobody has to edit a shared list.
 Run it yourself to preview locally:  python3 scripts/build_list.py
 """
-import json, pathlib, subprocess, sys
+import json, pathlib, subprocess, sys, time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GAMES = ROOT / 'games'
@@ -15,9 +15,9 @@ def added_at(folder):
     try:
         out = subprocess.run(['git', 'log', '--diff-filter=A', '--format=%at', '--', str(folder)],
                              cwd=ROOT, capture_output=True, text=True, timeout=20).stdout.split()
-        return int(out[-1]) if out else 0
+        return int(out[-1]) if out else int(time.time())   # not committed yet: it's brand new
     except Exception:
-        return 0
+        return int(time.time())
 
 
 games, problems = [], []

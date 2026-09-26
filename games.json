@@ -1,5 +1,16 @@
 [
   {
+    "slug": "gravity-golf",
+    "title": "Gravity Golf",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "Mini-golf in space: planets bend every shot. 18 holes, plus a hole editor to share your own.",
+    "cover": "games/gravity-golf/cover.png",
+    "pixel": true,
+    "url": null,
+    "added": 1790437918
+  },
+  {
     "slug": "reel-deep",
     "title": "Reel Deep",
     "author": "Alex",
@@ -42,16 +53,5 @@
     "pixel": true,
     "url": null,
     "added": 1790427753
-  },
-  {
-    "slug": "gravity-golf",
-    "title": "Gravity Golf",
-    "author": "Taurus",
-    "owner": "Taurus",
-    "blurb": "Mini-golf in space: planets bend every shot. 18 holes, plus a hole editor to share your own.",
-    "cover": "games/gravity-golf/cover.png",
-    "pixel": true,
-    "url": null,
-    "added": 0
   }
 ]

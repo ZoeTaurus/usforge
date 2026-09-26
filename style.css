@@ -2,16 +2,22 @@
    warm near-black, ember-orange light, sparks drifting up behind the pages. */
 :root {
   --bg: #0c0a09; --card: #16110e; --ink: #f4efe8; --dim: #a39585; --line: #2c231d; --hover: #1f1814;
-  --accent: #ff6a33; --accent-ink: #1a0a04; --glow: rgba(255, 90, 31, .45);
+  --accent: #ff6a33; --accent-ink: #1a0a04; --glow: rgba(255, 90, 31, .45); --glow-bg: #3a1406; --bar: #0f0b09;
   --radius: 10px;
   --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
   color-scheme: dark;
 }
+/* light mode: the forge by day — warm paper, the same ember orange (chosen with the theme button, or Auto by the clock) */
+:root[data-theme="light"] {
+  --bg: #f8f2ea; --card: #fffbf6; --ink: #1f160f; --dim: #76675a; --line: #e8dccd; --hover: #f1e5d7;
+  --accent: #e0501a; --accent-ink: #ffffff; --glow: rgba(224, 80, 26, .28); --glow-bg: #ffd6b8; --bar: #fffbf6;
+  color-scheme: light;
+}
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }   /* hidden always wins over layout rules like .panel's flex */
 html, body { margin: 0; }
-body { background: radial-gradient(110% 55% at 50% 118%, #3a1406 0%, rgba(58, 20, 6, 0) 62%) fixed, var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; min-height: 100vh; }
+body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, transparent 62%) fixed, var(--bg); transition: background-color .3s ease; color: var(--ink); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; min-height: 100vh; }
 /* the faint sparks behind every page (embers.js) */
 .bg-embers { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: -1; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
@@ -61,7 +67,7 @@ img { max-width: 100%; display: block; }
 /* play page: always dark, so the game is the only bright thing on screen */
 .play { background: var(--bg); color: var(--ink); height: 100%; display: flex; flex-direction: column; overflow: hidden; }
 html:has(.play) { height: 100%; }
-.bar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: #0f0b09; font-size: 14px; min-height: 48px; }
+.bar { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--bar); font-size: 14px; min-height: 48px; }
 .bar .mark { font-size: 15px; }
 .bar .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
 .bar .title b { color: var(--ink); font-weight: 600; }
@@ -169,3 +175,46 @@ html:has(.play) { height: 100%; }
 @media (prefers-reduced-motion: reduce) {
   .welcome, .welcome-in, .grid article, .spark.big { animation: none !important; transition: none !important; }
 }
+
+/* ---------- theme switch + scroll buttons (site.js) ---------- */
+.theme-btn { font: 500 13px var(--sans); color: var(--dim); background: transparent; border: 1px solid var(--line); border-radius: 99px; padding: 4px 11px; cursor: pointer; white-space: nowrap; }
+.theme-btn:hover, .theme-btn:focus-visible { color: var(--ink); border-color: var(--accent); outline: none; }
+.theme-btn span { color: var(--accent); }
+.scroll-btns { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 8px; z-index: 20; }
+.sb { width: 42px; height: 42px; border-radius: 50%; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: 600 18px var(--sans); cursor: pointer; box-shadow: 0 6px 20px -8px rgba(0, 0, 0, .5); transition: opacity .2s, transform .15s, border-color .15s; }
+.sb:hover, .sb:focus-visible { border-color: var(--accent); color: var(--accent); transform: translateY(-2px); outline: none; }
+.sb.off { opacity: 0; pointer-events: none; }
+
+/* ---------- games counter ---------- */
+.stats { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 18px; }
+.stat b { display: block; font: 800 clamp(30px, 5vw, 40px)/1 var(--sans); letter-spacing: -.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.stat span { font: 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+
+/* ---------- credits ---------- */
+.credits { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; padding-bottom: 40px; }
+.person { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 10px; position: relative; overflow: hidden; }
+.person::before { content: ""; position: absolute; inset: -40% -40% auto auto; width: 160px; height: 160px; background: radial-gradient(circle, var(--glow) 0%, transparent 70%); opacity: .5; }
+.person h2 { margin: 0; font-size: 26px; font-weight: 750; letter-spacing: -.03em; }
+.person .initial { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font: 800 22px var(--sans); color: var(--accent-ink); background: var(--accent); box-shadow: 0 8px 24px -10px var(--glow); }
+.roles { display: flex; gap: 6px; flex-wrap: wrap; }
+.role { font: 12px var(--mono); letter-spacing: .04em; border: 1px solid var(--line); border-radius: 99px; padding: 3px 9px; color: var(--ink); }
+.role.lead { border-color: var(--accent); color: var(--accent); }
+.person a { font-size: 14px; color: var(--dim); }
+.person a:hover { color: var(--accent); }
+.studio { color: var(--dim); max-width: 52ch; }
+
+/* ---------- game page (details before you play) ---------- */
+.detail { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 32px; align-items: start; padding-block: 12px 40px; }
+.detail .cover { box-shadow: 0 24px 60px -28px var(--glow); }
+.detail h1 { margin: 0 0 6px; font-size: clamp(30px, 4.5vw, 44px); font-weight: 800; letter-spacing: -.04em; line-height: 1.05; text-wrap: balance; }
+.detail .desc { font-size: 17px; line-height: 1.55; margin: 14px 0 0; }
+.detail .facts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 16px; font: 13px var(--mono); color: var(--dim); }
+.detail .acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; align-items: center; }
+.big-play { font: 700 18px var(--sans); border: 0; cursor: pointer; background: var(--accent); color: var(--accent-ink); border-radius: 99px; padding: 14px 40px; box-shadow: 0 12px 34px -12px var(--glow); transition: transform .15s ease, box-shadow .15s ease; text-decoration: none; }
+.big-play:hover, .big-play:focus-visible { transform: translateY(-2px); box-shadow: 0 16px 42px -12px var(--glow); outline: none; }
+.more h3 { font-size: 15px; font-weight: 600; margin: 0 0 12px; color: var(--dim); }
+@media (max-width: 760px) { .detail { grid-template-columns: 1fr; gap: 20px; } }
+/* while playing, the page becomes the full-screen game */
+body.playing { height: 100vh; overflow: hidden; }
+body.playing .wrap { display: none; }
+.player { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; z-index: 30; }

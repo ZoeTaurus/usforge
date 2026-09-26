@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="site.js" defer></script>
 <script>
   // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
   try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
@@ -32,12 +34,17 @@
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
-    <nav><a href="add.html">Share your game</a><a href="upload.html">Upload</a></nav>
+    <nav><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><span data-theme-switch></span></nav>
   </header>
 
   <section class="intro">
     <h1>Games by Taurus, Igor, Henrique, and Alex.</h1>
     <p>Site by Taurus · Lazy Studios</p>
+    <div class="stats" id="stats" aria-live="polite">
+      <div class="stat"><b id="statGames">0</b><span>Games</span></div>
+      <div class="stat"><b id="statMakers">0</b><span>Makers</span></div>
+      <div class="stat"><b id="statNew">0</b><span>New this week</span></div>
+    </div>
   </section>
 
   <section class="feature" id="feature" hidden></section>
@@ -92,8 +99,8 @@
   const cover = (g, wide) => g.cover
     ? `<img src="${esc(g.cover)}" alt="" loading="lazy">`
     : `<div class="blank${wide ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(wide ? g.title : initials(g.title))}</div>`;   // (the featured card shows the whole name)
-  const href = g => g.url || `play.html?g=${encodeURIComponent(g.slug)}`;
-  const ext = g => g.url ? ' target="_blank" rel="noopener"' : '';
+  const href = g => `play.html?g=${encodeURIComponent(g.slug)}`;   // every game opens its page first (picture, description, Play)
+  const ext = () => '';
 
   function paintFeature(g) {
     const f = $('feature');
@@ -105,7 +112,7 @@
         <h2>${esc(g.title)}</h2>
         <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
         ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
-        <a class="play-btn" href="${esc(href(g))}"${ext(g)}>${g.url ? 'Open ↗' : 'Play'}</a>
+        <a class="play-btn" href="${esc(href(g))}">View game</a>
       </div>`;
   }
   function paintMakers() {
@@ -144,10 +151,19 @@
     for (const b of document.querySelectorAll('[data-by]')) b.onclick = () => setBy(b.dataset.by);
   }
 
+  // the games counter: numbers tick up to their value
+  function countUp() {
+    const makers = new Set(games.map(g => g.author.toLowerCase())).size, fresh = games.filter(isNew).length;
+    for (const [id, n] of [['statGames', games.length], ['statMakers', makers], ['statNew', fresh]]) {
+      const el = $(id); if (calm) { el.textContent = n; continue; }
+      const t0 = performance.now(); (function tick(now) { const k = Math.min(1, (now - t0) / 900); el.textContent = Math.round(n * (1 - (1 - k) ** 3)); if (k < 1) requestAnimationFrame(tick); })(t0);
+      setTimeout(() => { el.textContent = n; }, 1100);   // (always lands on the real number, even if animation is throttled)
+    }
+  }
   $('q').addEventListener('input', paint);
   $('surprise').onclick = () => { const pool = games.filter(g => !g.url); const g = (pool.length ? pool : games)[Math.floor(Math.random() * (pool.length || games.length))]; if (g) location.href = href(g); };
   fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(list => {
-    games = list; $('surprise').hidden = games.length < 2; paintMakers(); paint();
+    games = list; $('surprise').hidden = games.length < 2; paintMakers(); paint(); countUp();
   }).catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
 })();
 </script>

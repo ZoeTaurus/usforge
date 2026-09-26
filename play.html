@@ -3,51 +3,117 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Play · UsForge</title>
+<title>Game · UsForge</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="site.js" defer></script>
 </head>
-<body class="play">
+<body>
+<canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
+
+<!-- the game page: picture, description, Play -->
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">All games</a><a href="credits.html">Credits</a><span data-theme-switch></span></nav>
+  </header>
+  <main id="page"></main>
+  <footer class="foot">
+    <span>UsForge · by Lazy Studios</span>
+    <a href="./">Back to the games →</a>
+  </footer>
+</div>
+
+<!-- the game itself, full screen, once you press Play -->
+<div class="player" id="player" hidden>
   <header class="bar">
-    <a class="mark" href="./" aria-label="Back to UsForge"><span class="spark"></span>UsForge</a>
+    <button class="btn" id="back" type="button">← Back</button>
     <span class="title" id="title"></span>
     <button class="btn hide-sm" id="restart" type="button">Restart</button>
     <a class="btn hide-sm" id="alone" href="#" target="_blank" rel="noopener">Open alone ↗</a>
     <button class="btn hot" id="full" type="button">Fullscreen</button>
   </header>
   <main class="stage" id="stage"></main>
+</div>
 
+<script src="embers.js"></script>
 <script>
-// Play: finds the game in games.json and runs it in a sandboxed frame (a crash there can't break the site).
 (() => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const slug = new URLSearchParams(location.search).get('g') || '';
-  const notice = (h, p, extra = '') => { $('stage').innerHTML = `<div class="notice"><h2>${h}</h2><p>${p}</p>${extra}</div>`; for (const id of ['restart', 'alone', 'full']) $(id).hidden = true; };
+  Embers($('bgEmbers'), { count: 26, alpha: .4, speed: .55 });
 
-  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(games => {
+  const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const coverOf = (g, named) => g.cover ? `<img src="${esc(g.cover)}" alt="">` : `<div class="blank${named ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(named ? g.title : g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
+  const ago = s => { if (!s) return ''; const d = Math.floor((Date.now() / 1000 - s) / 86400); return d < 1 ? 'Added today' : d === 1 ? 'Added yesterday' : d < 30 ? `Added ${d} days ago` : `Added ${new Date(s * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`; };
+
+  let game = null, frame = null;
+  function detail(games) {
     const g = games.find(x => x.slug === slug);
-    if (!g) return notice('Game not found', 'It may have been renamed or removed.', '<p><a class="btn" href="./">Back to all games</a></p>');
+    if (!g) { $('page').innerHTML = `<section class="intro"><h1>Game not found</h1><p>It may have been renamed or removed.</p></section>`; return; }
+    game = g;
     document.title = `${g.title} · UsForge`;
-    $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
-    if (g.url) return notice(esc(g.title), 'This game lives somewhere else (like a Claude artifact link), so it opens in its own tab.', `<p><a class="btn hot" href="${esc(g.url)}" target="_blank" rel="noopener">Open ${esc(g.title)} ↗</a></p>`);
+    const i = games.indexOf(g), others = games.filter(x => x !== g);
+    const byThem = others.filter(x => x.author === g.author), rest = others.filter(x => x.author !== g.author);
+    const more = [...byThem, ...rest].slice(0, 4);
+    $('page').innerHTML = `
+      <section class="detail">
+        <div class="cover${g.pixel ? ' pixel' : ''}">${coverOf(g, true)}</div>
+        <div>
+          <h1>${esc(g.title)}</h1>
+          <a class="by" href="./?by=${encodeURIComponent(g.author)}">by ${esc(g.author)}</a>
+          ${g.blurb ? `<p class="desc">${esc(g.blurb)}</p>` : ''}
+          <div class="facts"><span>${ago(g.added)}</span><span>Game ${games.length - i} of ${games.length}</span>${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          <div class="acts">
+            ${g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">▶ Play</button>`}
+            ${g.url ? '' : `<a class="btn-l" href="games/${encodeURIComponent(g.slug)}/" target="_blank" rel="noopener">Open in a new tab ↗</a>`}
+          </div>
+        </div>
+      </section>
+      ${more.length ? `<section class="more"><h3>${byThem.length ? `More from ${esc(g.author)} and friends` : 'More games'}</h3>
+        <div class="grid">${more.map(o => `<article><a class="card" href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}</div></a>
+          <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
+    $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
+    setTimeout(() => $('playBtn')?.focus(), 50);
+    if (history.state?.playing) play();   // came back to a page that was playing
+  }
+
+  // ---------- playing ----------
+  function play() {
+    const g = game; if (!g || g.url) return;
     const src = `games/${encodeURIComponent(g.slug)}/`;
+    $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
     $('alone').href = src;
-    const frame = document.createElement('iframe');
-    frame.title = g.title;
-    frame.src = src;
-    // scripts and saves work; the game can go fullscreen and use a gamepad
-    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals allow-popups');
-    frame.allow = 'fullscreen; autoplay; gamepad';
-    frame.addEventListener('load', () => frame.focus());   // so the keyboard goes straight to the game
-    $('stage').append(frame);
-    $('restart').onclick = () => { frame.src = src; };
-    $('full').onclick = () => (frame.requestFullscreen?.() || frame.webkitRequestFullscreen?.())?.catch?.(() => {});
-    $('stage').addEventListener('pointerdown', () => frame.focus());
-  }).catch(() => notice('Couldn’t load', 'The game list didn’t load. Try refreshing.'));
+    if (!frame) {
+      frame = document.createElement('iframe');
+      frame.title = g.title;
+      // scripts and saves work; the game can go fullscreen and use a gamepad
+      frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals allow-popups');
+      frame.allow = 'fullscreen; autoplay; gamepad';
+      frame.addEventListener('load', () => frame.focus());   // so the keyboard goes straight to the game
+      frame.src = src;
+      $('stage').append(frame);
+    }
+    $('player').hidden = false; document.body.classList.add('playing'); frame.focus(); window.UsForge?.refreshScroll();
+  }
+  function stop() {   // back to the game page (the game is removed so it stops making noise)
+    $('player').hidden = true; document.body.classList.remove('playing');
+    frame?.remove(); frame = null; window.UsForge?.refreshScroll();
+    setTimeout(() => $('playBtn')?.focus(), 50);
+  }
+  $('back').onclick = () => history.state?.playing ? history.back() : stop();
+  addEventListener('popstate', () => { if (history.state?.playing) play(); else stop(); });
+  $('restart').onclick = () => { if (frame) frame.src = frame.src; };
+  $('full').onclick = () => (frame?.requestFullscreen?.() || frame?.webkitRequestFullscreen?.())?.catch?.(() => {});
+  $('stage').addEventListener('pointerdown', () => frame?.focus());
+
+  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(detail)
+    .catch(() => { $('page').innerHTML = '<section class="intro"><h1>Couldn’t load</h1><p>The game list didn’t load. Try refreshing.</p></section>'; });
 })();
 </script>
 </body>

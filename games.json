@@ -5,7 +5,7 @@
     "author": "Henrique",
     "owner": "Henrique",
     "blurb": "Terminal-based sci-fi horror game",
-    "cover": null,
+    "cover": "games/the-last-signal/cover.png",
     "pixel": false,
     "url": null,
     "added": 1790434184

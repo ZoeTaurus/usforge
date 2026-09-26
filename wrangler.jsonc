@@ -1,0 +1,7 @@
+// Cloudflare Worker settings: serve the site's files, and run worker/index.js for /api (uploads).
+{
+  "name": "usforge",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": { "directory": ".", "binding": "ASSETS" }
+}

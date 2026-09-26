@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Upload · UsForge</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">All games</a><span id="whoNav"></span></nav>
+  </header>
+
+  <main class="doc">
+    <h1>Upload</h1>
+    <p class="dim" id="lead">Members can add and update their own games here.</p>
+
+    <!-- only the Cloudflare address can save uploads -->
+    <div id="elsewhere" hidden>
+      <p>Uploading only works on the main address:</p>
+      <p><a class="btn-l" href="https://usforge.usforge.workers.dev/upload.html">usforge.usforge.workers.dev/upload.html →</a></p>
+    </div>
+
+    <!-- sign in -->
+    <form class="panel" id="signin" hidden>
+      <label>Account name <input id="inName" autocomplete="username" required maxlength="16"></label>
+      <label>Password <input id="inPass" type="password" autocomplete="current-password" required></label>
+      <button class="go" type="submit">Sign in</button>
+      <p class="msg" id="signMsg" role="alert"></p>
+    </form>
+
+    <div id="member" hidden>
+      <h2>Your games</h2>
+      <div id="mine" class="mine"></div>
+
+      <h2 id="formTitle">Add a game</h2>
+      <form class="panel" id="up">
+        <label>Game name <input id="fTitle" required maxlength="60" placeholder="Potato Dash"></label>
+        <label>Folder name <span class="hint">lowercase and dashes — it’s part of the game’s address</span>
+          <input id="fSlug" required maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="potato-dash"></label>
+        <label>One-line description <input id="fBlurb" maxlength="140" placeholder="Dodge the forks."></label>
+        <label class="check"><input id="fPixel" type="checkbox"> Pixel art (keeps the cover crisp)</label>
+
+        <fieldset>
+          <legend>Game files</legend>
+          <div class="pick">
+            <label class="btn-l">Choose a folder <input id="fFolder" type="file" webkitdirectory multiple hidden></label>
+            <label class="btn-l">…or one HTML file <input id="fFile" type="file" accept=".html,.htm" hidden></label>
+          </div>
+          <p class="hint" id="picked">Nothing chosen. The folder needs an <code>index.html</code>; add a <code>cover.png</code> screenshot for a nicer card.</p>
+          <label>…or just a link <span class="hint">(e.g. a Claude artifact link — it opens in its own tab)</span>
+            <input id="fUrl" type="url" placeholder="https://claude.ai/…"></label>
+        </fieldset>
+
+        <div class="row">
+          <button class="go" type="submit" id="send">Upload</button>
+          <button class="ghost" type="button" id="cancelEdit" hidden>Cancel update</button>
+        </div>
+        <p class="msg" id="upMsg" role="status"></p>
+      </form>
+
+      <div id="adminBox" hidden>
+        <h2>Add a friend’s account</h2>
+        <p class="dim">Your friend makes a password code below and sends it to you. You never see their password.</p>
+        <form class="panel" id="memberForm">
+          <label>Their account name <input id="mName" required maxlength="16" pattern="[A-Za-z0-9_\-]{2,16}"></label>
+          <label>Their password code <input id="mHash" required placeholder="pbkdf2$100000$…"></label>
+          <button class="go" type="submit">Add account</button>
+          <p class="msg" id="memMsg" role="status"></p>
+        </form>
+      </div>
+    </div>
+
+    <h2>New member? Make your password code</h2>
+    <p class="dim">Pick a password (8+ characters) and make a code from it. Send only the code to Taurus — the code can check your password, but can’t be turned back into it. This all happens on your device.</p>
+    <form class="panel" id="codeForm">
+      <label>Your account name <input id="cName" required maxlength="16" pattern="[A-Za-z0-9_\-]{2,16}" placeholder="Igor"></label>
+      <label>Password <input id="cPass" type="password" required minlength="8" autocomplete="new-password"></label>
+      <label>Password again <input id="cPass2" type="password" required minlength="8" autocomplete="new-password"></label>
+      <button class="go" type="submit">Make my code</button>
+      <p class="msg" id="codeMsg" role="status"></p>
+      <div id="codeOut" hidden><pre><code id="codeText"></code></pre><button class="ghost" type="button" id="copy">Copy</button></div>
+    </form>
+  </main>
+
+  <footer class="foot">
+    <span>UsForge · Site by Taurus</span>
+    <a href="./">Back to the games →</a>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
+  const canUpload = /workers\.dev$/.test(location.hostname) || ['localhost', '127.0.0.1'].includes(location.hostname);
+  // the password stays in this page's memory only (not saved anywhere), so reloading signs you out
+  let me = null, pass = '', editing = null, chosen = [];
+
+  const api = async (path, body) => {
+    const r = await fetch('/api/' + path, body instanceof FormData ? { method: 'POST', body } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    let d = {}; try { d = await r.json(); } catch (e) {}
+    if (!r.ok) throw new Error(d.error || `That didn’t work (${r.status}).`);
+    return d;
+  };
+  const say = (el, text, bad) => { $(el).textContent = text; $(el).classList.toggle('bad', !!bad); };
+
+  if (!canUpload) { $('elsewhere').hidden = false; $('lead').hidden = true; } else $('signin').hidden = false;
+
+  // ---------- sign in ----------
+  $('signin').onsubmit = async e => {
+    e.preventDefault(); say('signMsg', 'Checking…');
+    try {
+      me = await api('login', { name: $('inName').value, password: $('inPass').value });
+      pass = $('inPass').value; $('inPass').value = '';
+      $('signin').hidden = true; $('member').hidden = false; $('adminBox').hidden = !me.admin;
+      $('whoNav').innerHTML = ` · ${esc(me.name)} <button class="link" id="out" type="button">Sign out</button>`;
+      $('out').onclick = () => location.reload();
+      say('signMsg', ''); listMine();
+    } catch (err) { say('signMsg', err.message, true); }
+  };
+
+  // ---------- your games ----------
+  let games = [];
+  async function listMine() {
+    try { games = await (await fetch('games.json', { cache: 'no-cache' })).json(); } catch (e) { games = []; }
+    const mine = games.filter(g => me.admin || (g.owner || g.author).toLowerCase() === me.name.toLowerCase());
+    $('mine').innerHTML = mine.length ? mine.map(g => `<div class="mine-row" data-slug="${esc(g.slug)}">
+        <span><b>${esc(g.title)}</b> <span class="dim">· ${esc(g.slug)}${me.admin ? ' · ' + esc(g.author) : ''}</span></span>
+        <span class="acts"><button class="ghost" data-act="edit">Update</button><button class="ghost" data-act="del">Remove</button></span>
+      </div>`).join('') : '<p class="dim">None yet — add one below.</p>';
+    for (const b of $('mine').querySelectorAll('button')) b.onclick = () => (b.dataset.act === 'edit' ? startEdit : askRemove)(b.closest('.mine-row').dataset.slug, b);
+  }
+  function startEdit(slug) {
+    const g = games.find(x => x.slug === slug); if (!g) return;
+    editing = slug;
+    $('fTitle').value = g.title; $('fSlug').value = g.slug; $('fSlug').readOnly = true; $('fBlurb').value = g.blurb || ''; $('fPixel').checked = !!g.pixel; $('fUrl').value = g.url || '';
+    $('formTitle').textContent = `Update ${g.title}`; $('send').textContent = 'Save update'; $('cancelEdit').hidden = false;
+    chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name and description.');
+    $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function endEdit() {
+    editing = null; $('up').reset(); $('fSlug').readOnly = false; chosen = []; showPicked();
+    $('formTitle').textContent = 'Add a game'; $('send').textContent = 'Upload'; $('cancelEdit').hidden = true;
+  }
+  $('cancelEdit').onclick = endEdit;
+  function askRemove(slug, btn) {   // a two-step confirm, right in the row
+    const row = btn.closest('.mine-row'), g = games.find(x => x.slug === slug);
+    row.querySelector('.acts').innerHTML = `<span class="dim">Remove ${esc(g.title)} for good?</span><button class="danger" data-yes>Remove</button><button class="ghost" data-no>Keep</button>`;
+    row.querySelector('[data-no]').onclick = listMine;
+    row.querySelector('[data-yes]').onclick = async () => {
+      row.querySelector('.acts').innerHTML = '<span class="dim">Removing…</span>';
+      try { await api('delete', { name: me.name, password: pass, slug }); row.innerHTML = `<span class="dim">${esc(g.title)} removed — gone from the site in about a minute.</span>`; }
+      catch (err) { row.querySelector('.acts').innerHTML = `<span class="msg bad">${esc(err.message)}</span>`; }
+    };
+  }
+
+  // ---------- the form ----------
+  const slugify = s => s.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 40);
+  $('fTitle').addEventListener('input', () => { if (!editing && !$('fSlug').dataset.touched) $('fSlug').value = slugify($('fTitle').value); });
+  $('fSlug').addEventListener('input', () => { $('fSlug').dataset.touched = '1'; });
+  const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB';
+  function showPicked(note) {
+    if (!chosen.length) { $('picked').innerHTML = note || 'Nothing chosen. The folder needs an <code>index.html</code>; add a <code>cover.png</code> screenshot for a nicer card.'; return; }
+    const rel = f => f.webkitRelativePath ? f.webkitRelativePath.split('/').slice(1).join('/') : f.name;
+    const hasIndex = chosen.length === 1 || chosen.some(f => rel(f) === 'index.html'), hasCover = chosen.some(f => /^cover\.(png|jpe?g|webp|gif)$/i.test(rel(f)));
+    $('picked').innerHTML = `${chosen.length} file${chosen.length === 1 ? '' : 's'}, ${size(chosen.reduce((a, f) => a + f.size, 0))}` +
+      (hasIndex ? ' · has index.html ✓' : ' · <b>no index.html at the top — it won’t play</b>') + (hasCover ? ' · cover ✓' : '');
+  }
+  $('fFolder').onchange = () => { chosen = [...$('fFolder').files]; $('fFile').value = ''; showPicked(); };
+  $('fFile').onchange = () => { chosen = [...$('fFile').files]; $('fFolder').value = ''; showPicked(); };
+
+  $('up').onsubmit = async e => {
+    e.preventDefault();
+    const fd = new FormData();
+    fd.append('name', me.name); fd.append('password', pass);
+    fd.append('slug', $('fSlug').value.trim()); fd.append('title', $('fTitle').value.trim()); fd.append('blurb', $('fBlurb').value.trim());
+    fd.append('pixel', String($('fPixel').checked)); fd.append('url', $('fUrl').value.trim());
+    for (const f of chosen) fd.append('files', f, f.webkitRelativePath || f.name);
+    $('send').disabled = true; say('upMsg', 'Uploading…');
+    try {
+      const r = await api('upload', fd);
+      say('upMsg', ''); $('upMsg').innerHTML = `${r.updated ? 'Updated' : 'Added'}! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">play it</a>.`;
+      endEdit(); listMine();
+    } catch (err) { say('upMsg', err.message, true); }
+    $('send').disabled = false;
+  };
+
+  // ---------- admin: add a friend ----------
+  $('memberForm').onsubmit = async e => {
+    e.preventDefault(); say('memMsg', 'Adding…');
+    try { const r = await api('member', { name: me.name, password: pass, member: $('mName').value.trim(), hash: $('mHash').value.trim() });
+      say('memMsg', `${r.member} ${r.reset ? 'has a new password' : 'can upload now'} (after about a minute).`); $('memberForm').reset(); }
+    catch (err) { say('memMsg', err.message, true); }
+  };
+
+  // ---------- password code (PBKDF2, same as the upload service checks) ----------
+  $('codeForm').onsubmit = async e => {
+    e.preventDefault();
+    if ($('cPass').value !== $('cPass2').value) return say('codeMsg', 'The two passwords don’t match.', true);
+    if (!crypto.subtle) return say('codeMsg', 'This browser can’t make codes — try another one.', true);
+    say('codeMsg', 'Making your code…');
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode($('cPass').value), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(salt), iterations: 100000 }, key, 256);
+    $('cPass').value = $('cPass2').value = '';
+    $('codeText').textContent = `name: ${$('cName').value.trim()}\ncode: pbkdf2$100000$${salt}$${hex(bits)}`;
+    $('codeOut').hidden = false; say('codeMsg', 'Send this to Taurus. Remember your password — it can’t be recovered, only reset.');
+  };
+  $('copy').onclick = async () => { try { await navigator.clipboard.writeText($('codeText').textContent); $('copy').textContent = 'Copied'; } catch (e) { getSelection().selectAllChildren($('codeText')); } };
+})();
+</script>
+</body>
+</html>

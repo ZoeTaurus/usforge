@@ -41,6 +41,7 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         'slug': folder.name,
         'title': str(info.get('title') or folder.name.replace('-', ' ').title())[:60],
         'author': str(info.get('author') or 'someone')[:30],
+        'owner': str(info.get('owner') or info.get('author') or ''),   # the account allowed to update it
         'blurb': str(info.get('blurb') or '')[:140],
         'cover': f'games/{folder.name}/{cover}' if cover else None,
         'pixel': bool(info.get('pixel')),   # pixel-art covers stay crisp instead of blurry

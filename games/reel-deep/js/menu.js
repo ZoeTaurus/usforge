@@ -76,6 +76,19 @@ const MenuScene = {
     this.wakeT = 0;
     Sound.play('wake');
   },
+  drawSleeper(cx, dir, w, pal, t) {
+    const cy = 78;
+    if (this.state === 'idle' || w < 0) {
+      drawFisher(cx, cy, dir, 'sleep', { hatOnFace: true, breath: Math.sin(t * 1.7) > 0, pal });
+    } else if (w < 1.6) {
+      const lift = w < 0.35 ? Math.round(easeOut(w / 0.35) * 5) : Math.max(0, Math.round(5 - (w - 0.35) * 14));
+      drawFisher(cx, cy, dir, 'sit', { hatLift: lift, blink: w > 0.5 && w < 0.62, mouthOpen: w > 0.85 && w < 1.4, pal });
+      if (w < 0.7) drawText('!', cx - 1, cy - 30 - Math.round(Math.sin(w * 20)), '#ffe14a');
+    } else {
+      const jump = w < 1.8 ? -Math.round(Math.sin(((w - 1.6) / 0.2) * Math.PI) * 3) : 0;
+      drawFisher(cx + (dir < 0 ? -4 : 4), cy + jump, 1, w < 1.9 ? 'cheer' : 'stand', { pal });
+    }
+  },
   update(dt) {
     this.t += dt;
     this.amb.update(dt);
@@ -85,7 +98,7 @@ const MenuScene = {
     // snoring Zzz drifting off in the breeze
     if (this.state === 'idle') {
       this.zTimer -= dt;
-      if (this.zTimer <= 0) { this.zTimer = 1.3; this.zs.push({ x: 46, y: 60, t: 0 }); }
+      if (this.zTimer <= 0) { this.zTimer = 1.3; this.zs.push({ x: 46, y: 60, t: 0 }); if (Game.players === 2) this.zs.push({ x: 72, y: 62, t: -0.6 }); }
     }
     for (const z of this.zs) { z.t += dt; z.y -= 5 * dt; z.x -= 4 * dt + Math.sin(z.t * 3) * 0.1; }
     this.zs = this.zs.filter(z => z.t < 2.6);
@@ -93,7 +106,7 @@ const MenuScene = {
     if (this.state === 'waking') {
       this.wakeT += dt;
       if (this.wakeT > 0.9 && !this.yawned) { this.yawned = true; Sound.play('yawn'); }
-      if (this.wakeT > 2.3 && !Fx.busy()) Fx.transition(() => Game.setScene(BeachScene, { fresh: true }));
+      if (this.wakeT > 2.6 && !Fx.busy()) Fx.transition(() => Game.setScene(BeachScene, { fresh: true }));
       return;
     }
     if (this.help) {
@@ -140,24 +153,15 @@ const MenuScene = {
       drawCampfire(22, 78, t);
       drawBarrel(53, 78);
       drawLantern(57, 57, true);
-      pline(67, 78, 74, 50, '#9b6a3c'); P(74, 50, '#e8d5b0');
-      drawLine(74, 50, 76, 70, 2, 'rgba(255,255,255,0.35)');
-      drawBucket(69, 79);
-      // the fisher
-      const cx = 48, cy = 78;
-      if (this.state === 'idle') {
-        drawFisher(cx, cy, -1, 'sleep', { hatOnFace: true, breath: Math.sin(t * 1.7) > 0 });
-      } else {
-        const w = this.wakeT;
-        if (w < 1.6) {
-          const lift = w < 0.35 ? Math.round(easeOut(w / 0.35) * 5) : Math.max(0, Math.round(5 - (w - 0.35) * 14));
-          drawFisher(cx, cy, -1, 'sit', { hatLift: lift, blink: w > 0.5 && w < 0.62, mouthOpen: w > 0.85 && w < 1.4 });
-          if (w < 0.7) drawText('!', cx - 1, cy - 30 - Math.round(Math.sin(w * 20)), '#ffe14a');
-        } else {
-          const jump = w < 1.8 ? -Math.round(Math.sin(((w - 1.6) / 0.2) * Math.PI) * 3) : 0;
-          drawFisher(cx - 4, cy + jump, 1, w < 1.9 ? 'cheer' : 'stand', {});
-        }
-      }
+      const two = Game.players === 2;
+      // with two players the bucket and rod shuffle over to make room
+      const rx = two ? 90 : 67;
+      pline(rx, 78, rx + 7, 50, '#9b6a3c'); P(rx + 7, 50, '#e8d5b0');
+      drawLine(rx + 7, 50, rx + 9, 70, 2, 'rgba(255,255,255,0.35)');
+      drawBucket(two ? 92 : 69, 79);
+      // the fisher (and a friend on the other side of the barrel)
+      this.drawSleeper(48, -1, this.wakeT, PAL, t);
+      if (two) this.drawSleeper(71, 1, this.wakeT - 0.3, P2_PAL, t + 1.1);
       for (const z of this.zs) {
         G.globalAlpha = clamp(2.6 - z.t, 0, 1) * clamp(z.t * 3, 0, 1);
         drawText('Z', z.x, z.y, '#f4f0ff', { shadow: '#3a2a55' });

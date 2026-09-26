@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>Snack Squad Showdown</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Pixelify+Sans:wght@500;600;700&display=swap">
 <style>
 :root{--bg:#05080d;--card:#0a1420;--ink:#cdeeff;--accent:#00e5ff;--accent2:#2979ff;--danger:#ff3860;--line:#123a52;--sky1:#001d3d;--sky2:#003566;--ground:#062138}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#05080d;--card:#0a1420;--ink:#cdeeff;--line:#123a52;--sky1:#001d3d;--sky2:#003566;--ground:#062138}}
@@ -99,6 +99,26 @@ button.small{padding:7px 14px;border:none;border-radius:10px;background:linear-g
 #battleWrap:fullscreen{background:#000308;display:flex;flex-direction:column;justify-content:center;align-items:stretch;border-radius:0;max-width:100vw;padding:20px}
 #battleWrap:fullscreen canvas#cv{width:100%;height:80vh;max-height:80vh;object-fit:contain}
 #battleWrap:fullscreen .hud,#battleWrap:fullscreen .hint{color:#cdeeff;flex:0 0 auto}
+
+/* ===== PIXEL UI OVERHAUL: everything blocky, everything pixel-fonted ===== */
+*{font-family:'Pixelify Sans','Fredoka',sans-serif!important}
+h1,p,span,div,small,b,strong,label{letter-spacing:0.3px}
+h1,.card,.charBtn,.vowCard,.gfxCard,.upgRow,.chatPanel,.chatMessages,.chatMsg,.pauseBox,
+button.act,button.small,.fsbtn,.chatBtn,.pauseBtn,.chatInputRow input,input,textarea,
+.vowTimerWrap,canvas#cv,.prev{border-radius:0!important}
+.card,.vowCard,.gfxCard,.pauseBox,.chatPanel{box-shadow:5px 5px 0 #000,0 0 0 2px #00e5ff55!important;image-rendering:pixelated}
+.charBtn{box-shadow:4px 4px 0 #000!important}
+.charBtn:hover{box-shadow:6px 6px 0 #000!important;transform:translate(-2px,-2px)!important}
+button.act{box-shadow:4px 4px 0 #000!important;border:2px solid #000!important}
+button.act:active{transform:translate(4px,4px)!important;box-shadow:0 0 0 #000!important}
+button.small{box-shadow:3px 3px 0 #000!important;border:2px solid #000!important}
+button.small:active{transform:translate(3px,3px)!important;box-shadow:0 0 0 #000!important}
+input,textarea{border:2px solid #00e5ff55!important}
+.gfxIcon,.vowIcon{image-rendering:pixelated}
+img,canvas,.prev{image-rendering:pixelated;image-rendering:crisp-edges}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#00e5ff88;border:2px solid #000}
+::-webkit-scrollbar-track{background:#0a1420}
 </style>
 </head>
 <body>
@@ -1367,7 +1387,7 @@ function draw(){
     else { ctx.beginPath(); ctx.arc(0,0,6,0,Math.PI*2); ctx.fill(); }
     ctx.restore();
   });
-  pops.forEach(pp=>{ctx.globalAlpha=Math.max(0,pp.life/40);ctx.fillStyle=pp.color;ctx.font='bold 15px Fredoka, sans-serif';ctx.textAlign='center';strokeFill(ctx,pp.text,pp.x,pp.y);ctx.globalAlpha=1;});
+  pops.forEach(pp=>{ctx.globalAlpha=Math.max(0,pp.life/40);ctx.fillStyle=pp.color;ctx.font='bold 15px Pixelify Sans, monospace';ctx.textAlign='center';strokeFill(ctx,pp.text,pp.x,pp.y);ctx.globalAlpha=1;});
   ctx.restore();
   ctx.font='12px sans-serif'; ctx.textAlign='left';
   const cc=CHARS[S.char].main;
@@ -1375,9 +1395,9 @@ function draw(){
   barAt(ctx,W-200,14,180,10,B.hp/B.maxhp,'#ff7a5c','#c0392b'); ctx.fillStyle='#cdeeff'; strokeFill(ctx,B.hp+'/'+B.maxhp,W-200,38);
   ctx.textAlign='center'; ctx.fillStyle='#cdeeff';
   strokeFill(ctx,P.cd>0?'Ability charging...':'Ability Ready!',W/2,20);
-  if(P.godMode){ ctx.fillStyle='#ffd54f'; ctx.font='bold 13px Fredoka, sans-serif'; strokeFill(ctx,'👑 GOD MODE',W/2,70); }
-  if(P.flyMode){ ctx.fillStyle='#00e5ff'; ctx.font='bold 13px Fredoka, sans-serif'; strokeFill(ctx,'🕊️ FREE FLY',W/2,P.godMode?90:70); }
-  if(P.opFun){ ctx.fillStyle='#4dffb0'; ctx.font='bold 13px Fredoka, sans-serif'; strokeFill(ctx,'🔁 OP FUN',W/2,(P.godMode?20:0)+(P.flyMode?90:70)); }
+  if(P.godMode){ ctx.fillStyle='#ffd54f'; ctx.font='bold 13px Pixelify Sans, monospace'; strokeFill(ctx,'👑 GOD MODE',W/2,70); }
+  if(P.flyMode){ ctx.fillStyle='#00e5ff'; ctx.font='bold 13px Pixelify Sans, monospace'; strokeFill(ctx,'🕊️ FREE FLY',W/2,P.godMode?90:70); }
+  if(P.opFun){ ctx.fillStyle='#4dffb0'; ctx.font='bold 13px Pixelify Sans, monospace'; strokeFill(ctx,'🔁 OP FUN',W/2,(P.godMode?20:0)+(P.flyMode?90:70)); }
   ctx.fillStyle='#00142099'; ctx.fillRect(W/2-40,26,80,6);
   ctx.fillStyle=cc; ctx.fillRect(W/2-40,26,80*(1-P.cd/P.cdMax),6);
   const ultReady=P.ult>=P.ultMax;
@@ -1388,9 +1408,9 @@ function draw(){
   if(flashA>0){ ctx.fillStyle='#fff'; ctx.globalAlpha=flashA; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
   if(P.qte){
     ctx.fillStyle='#000a'; ctx.fillRect(0,0,W,H);
-    ctx.fillStyle='#ff1744'; ctx.textAlign='center'; ctx.font='bold 46px Fredoka, sans-serif';
+    ctx.fillStyle='#ff1744'; ctx.textAlign='center'; ctx.font='bold 46px Pixelify Sans, monospace';
     strokeFill(ctx,'PRESS '+P.qte.key.toUpperCase()+'!',W/2,H/2-14,5);
-    ctx.fillStyle='#fff'; ctx.font='bold 16px Fredoka, sans-serif'; strokeFill(ctx,'Escape the grip!',W/2,H/2+16);
+    ctx.fillStyle='#fff'; ctx.font='bold 16px Pixelify Sans, monospace'; strokeFill(ctx,'Escape the grip!',W/2,H/2+16);
     ctx.fillStyle='#fff3'; ctx.fillRect(W/2-120,H/2+30,240,16);
     ctx.fillStyle='#ff1744'; ctx.fillRect(W/2-120,H/2+30,240*(P.qte.timeLeft/P.qte.maxTime),16);
   }
@@ -1402,23 +1422,23 @@ function draw(){
       const scale=(0.3+local*0.7)*overshoot;
       ctx.save(); ctx.globalAlpha=Math.min(1,local*1.3);
       ctx.translate(W/2,H*0.36); ctx.scale(scale,scale);
-      ctx.textAlign='center'; ctx.font='bold 58px Fredoka, sans-serif';
+      ctx.textAlign='center'; ctx.font='bold 58px Pixelify Sans, monospace';
       ctx.shadowColor='#00e5ff'; ctx.shadowBlur=24;
       ctx.fillStyle='#00e5ff'; strokeFill(ctx,winSeq.isUltimate?'VICTORY!':'BOSS DOWN!',0,0,6);
       ctx.restore();
       if(!winSeq.isUltimate && t>=115){
         ctx.globalAlpha=Math.min(1,(t-115)/15);
-        ctx.fillStyle='#ffd54f'; ctx.font='bold 22px Fredoka, sans-serif'; ctx.textAlign='center';
+        ctx.fillStyle='#ffd54f'; ctx.font='bold 22px Pixelify Sans, monospace'; ctx.textAlign='center';
         strokeFill(ctx,'+'+winSeq.goldEarned+' Stat Points ⭐',W/2,H*0.36+46);
         ctx.globalAlpha=1;
       }
       if(t>=130){
         const rc={S:'#ffd54f',A:'#4dffb0',B:'#00e5ff',C:'#ff9e5c'}[winSeq.rank]||'#fff';
         ctx.globalAlpha=Math.min(1,(t-130)/15);
-        ctx.font='bold 30px Fredoka, sans-serif'; ctx.textAlign='center';
+        ctx.font='bold 30px Pixelify Sans, monospace'; ctx.textAlign='center';
         ctx.shadowColor=rc; ctx.shadowBlur=18; ctx.fillStyle=rc;
         strokeFill(ctx,'RANK '+winSeq.rank,W/2,H*0.36+82);
-        ctx.font='13px Fredoka, sans-serif'; ctx.shadowBlur=0; ctx.fillStyle='#cdeeff';
+        ctx.font='13px Pixelify Sans, monospace'; ctx.shadowBlur=0; ctx.fillStyle='#cdeeff';
         strokeFill(ctx,winSeq.timeSec+'s · '+winSeq.hits+' hit'+(winSeq.hits===1?'':'s')+' taken',W/2,H*0.36+104);
         ctx.globalAlpha=1;
       }
@@ -1449,7 +1469,7 @@ function draw(){
     if(t>14){
       const tp=Math.min(1,(t-14)/24);
       ctx.save(); ctx.globalAlpha=tp; ctx.textAlign='center';
-      ctx.font='bold '+Math.round(26+tp*8)+'px Fredoka, sans-serif';
+      ctx.font='bold '+Math.round(26+tp*8)+'px Pixelify Sans, monospace';
       ctx.shadowColor=tint; ctx.shadowBlur=18;
       ctx.fillStyle='#fff'; strokeFill(ctx,CHARS[S.char].name.toUpperCase()+' IS POWERING UP!',cx,H*0.13,4);
       ctx.restore();
@@ -1457,7 +1477,7 @@ function draw(){
     if(t>=68){
       const fp=Math.min(1,(t-68)/14);
       ctx.save(); ctx.globalAlpha=Math.max(0,1-fp*0.6); ctx.textAlign='center';
-      ctx.font='bold 34px Fredoka, sans-serif'; ctx.fillStyle=tint; ctx.shadowColor='#fff'; ctx.shadowBlur=20;
+      ctx.font='bold 34px Pixelify Sans, monospace'; ctx.fillStyle=tint; ctx.shadowColor='#fff'; ctx.shadowBlur=20;
       strokeFill(ctx,'ULTIMATE UNLEASHED!',cx,H*0.24,4);
       ctx.restore();
     }

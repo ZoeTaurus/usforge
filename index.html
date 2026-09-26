@@ -4,14 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>UsForge</title>
-<meta name="description" content="Games by Taurus, Igor, Henrique, and Alex. Site by Taurus.">
+<meta name="description" content="Games by Taurus, Igor, Henrique, and Alex. By Lazy Studios.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
+<script>
+  // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
+  try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
+</script>
 </head>
 <body>
+
+<!-- title screen -->
+<div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+  <canvas class="embers" id="embers" aria-hidden="true"></canvas>
+  <div class="welcome-in">
+    <span class="spark big" aria-hidden="true"></span>
+    <h1 id="welcomeTitle">Welcome to UsForge</h1>
+    <p>by Lazy Studios</p>
+    <button class="continue" id="continue" type="button">Continue</button>
+  </div>
+</div>
+
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
@@ -20,64 +36,131 @@
 
   <section class="intro">
     <h1>Games by Taurus, Igor, Henrique, and Alex.</h1>
-    <p>Site by Taurus.</p>
+    <p>Site by Taurus · Lazy Studios</p>
   </section>
+
+  <section class="feature" id="feature" hidden></section>
 
   <div class="tools">
     <input class="search" id="q" type="search" placeholder="Search games or makers" aria-label="Search games or makers">
-    <span id="who"></span>
+    <div class="makers" id="makers" role="group" aria-label="Filter by maker"></div>
+    <button class="surprise" id="surprise" type="button" hidden>Surprise me</button>
     <span class="count" id="count"></span>
   </div>
 
   <main class="grid" id="grid" aria-live="polite"></main>
 
   <footer class="foot">
-    <span>UsForge</span>
+    <span>UsForge · by Lazy Studios</span>
     <a href="add.html">Share your game →</a>
   </footer>
 </div>
 
 <script>
-// Home: loads games.json (built automatically from every games/<folder>/game.json) and shows a searchable grid.
 (() => {
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- title screen ----------
+  const welcome = $('welcome');
+  let embersOn = !document.documentElement.classList.contains('welcomed');
+  function enter() {
+    if (welcome.classList.contains('leaving')) return;
+    try { sessionStorage.setItem('usforge-welcomed', '1'); } catch (e) {}
+    welcome.classList.add('leaving');
+    setTimeout(() => { welcome.hidden = true; embersOn = false; $('q').focus({ preventScroll: true }); }, calm ? 0 : 650);
+  }
+  if (embersOn) {
+    $('continue').onclick = enter;
+    addEventListener('keydown', e => { if (!welcome.hidden && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); enter(); } });
+    setTimeout(() => $('continue').focus({ preventScroll: true }), 50);
+    // sparks rising from a forge below the screen
+    const cv = $('embers'), g = cv.getContext('2d'), sparks = [];
+    const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
+    fit(); addEventListener('resize', fit);
+    const spawn = () => ({ x: Math.random() * cv.width, y: cv.height + 10, vy: -(0.6 + Math.random() * 1.8) * devicePixelRatio, vx: (Math.random() - .5) * .6, r: (1 + Math.random() * 2.2) * devicePixelRatio, life: 1, fade: .002 + Math.random() * .004, hue: 12 + Math.random() * 28 });
+    for (let i = 0; i < 70; i++) { const s = spawn(); s.y = Math.random() * cv.height; sparks.push(s); }
+    (function tick() {
+      if (!embersOn) return;
+      g.clearRect(0, 0, cv.width, cv.height);
+      for (const s of sparks) {
+        s.x += s.vx + Math.sin(s.y * .01) * .3; s.y += s.vy; s.life -= s.fade;
+        if (s.life <= 0 || s.y < -10) Object.assign(s, spawn());
+        g.globalAlpha = Math.max(0, s.life); g.fillStyle = `hsl(${s.hue} 100% 60%)`;
+        g.beginPath(); g.arc(s.x, s.y, s.r, 0, Math.PI * 2); g.fill();
+      }
+      if (!calm) requestAnimationFrame(tick);
+    })();
+  } else welcome.hidden = true;
+
+  // ---------- games ----------
   const params = new URLSearchParams(location.search);
   let games = [], by = params.get('by') || '';
-
-  // games without a cover get a quiet tile with their initials, tinted by their name
+  const WEEK = 7 * 24 * 3600, now = Date.now() / 1000;
+  const isNew = g => g.added && now - g.added < WEEK;
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const initials = t => t.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  const cover = g => g.cover
+  const cover = (g, big) => g.cover
     ? `<img src="${esc(g.cover)}" alt="" loading="lazy">`
-    : `<div class="blank" style="background:hsl(${hue(g.title)} 40% 50% / .16)">${esc(initials(g.title))}</div>`;
+    : `<div class="blank${big ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(big ? g.title : initials(g.title))}</div>`;   // (the featured card shows the whole name)
+  const href = g => g.url || `play.html?g=${encodeURIComponent(g.slug)}`;
+  const ext = g => g.url ? ' target="_blank" rel="noopener"' : '';
 
+  function paintFeature(g) {
+    const f = $('feature');
+    f.hidden = !g;
+    if (!g) return;
+    f.innerHTML = `<a class="feature-cover cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}"${ext(g)} tabindex="-1" aria-hidden="true">${cover(g, true)}</a>
+      <div class="feature-text">
+        <span class="eyebrow">${isNew(g) ? 'New this week' : 'Newest game'}</span>
+        <h2>${esc(g.title)}</h2>
+        <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
+        ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
+        <a class="play-btn" href="${esc(href(g))}"${ext(g)}>${g.url ? 'Open ↗' : 'Play'}</a>
+      </div>`;
+  }
+  function paintMakers() {
+    const counts = {};
+    for (const g of games) counts[g.author] = (counts[g.author] || 0) + 1;
+    const names = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
+    $('makers').innerHTML = (names.length > 1 ? [['', games.length, 'Everyone']] : []).concat(names.map(n => [n, counts[n], n]))
+      .map(([key, n, label]) => `<button type="button" class="maker" data-maker="${esc(key)}" aria-pressed="${by.toLowerCase() === key.toLowerCase()}">${esc(label)} <span>${n}</span></button>`).join('');
+    for (const b of $('makers').children) b.onclick = () => setBy(b.dataset.maker);
+  }
+  function setBy(name) {
+    by = name;
+    history.replaceState(null, '', by ? '?by=' + encodeURIComponent(by) : './');
+    paint();
+  }
   function paint() {
     const q = $('q').value.trim().toLowerCase();
     const list = games.filter(g => (!by || g.author.toLowerCase() === by.toLowerCase())
       && (!q || (g.title + ' ' + g.author + ' ' + g.blurb).toLowerCase().includes(q)));
+    // the newest game gets the big card when you're just browsing
+    const showFeature = !q && !by && games.length > 1;
+    paintFeature(showFeature ? games[0] : null);
+    const rest = showFeature ? list.slice(1) : list;
     $('count').textContent = `${list.length} ${list.length === 1 ? 'game' : 'games'}`;
-    $('who').innerHTML = by ? `<button class="chip" id="clearBy" type="button">by ${esc(by)} <span aria-hidden="true">×</span></button>` : '';
-    if ($('clearBy')) $('clearBy').onclick = () => { by = ''; history.replaceState(null, '', './'); paint(); };
-    $('grid').innerHTML = list.length ? list.map(g => {
-      const href = g.url || `play.html?g=${encodeURIComponent(g.slug)}`, ext = !!g.url;
-      return `<article>
-        <a class="card" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>
-          <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${ext ? '<span class="tag">opens elsewhere ↗</span>' : ''}</div>
+    for (const b of $('makers').children) b.setAttribute('aria-pressed', String(by.toLowerCase() === b.dataset.maker.toLowerCase()));
+    $('grid').innerHTML = rest.length ? rest.map((g, i) => `<article style="--i:${i}">
+        <a class="card" href="${esc(href(g))}"${ext(g)}>
+          <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.url ? '<span class="tag">opens elsewhere ↗</span>' : isNew(g) ? '<span class="tag new">New</span>' : ''}</div>
         </a>
         <div class="meta">
           <b>${esc(g.title)}</b>
           <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
           ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
         </div>
-      </article>`;
-    }).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
-    for (const b of document.querySelectorAll('[data-by]')) b.onclick = () => { by = b.dataset.by; history.replaceState(null, '', '?by=' + encodeURIComponent(by)); paint(); };
+      </article>`).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
+    for (const b of document.querySelectorAll('[data-by]')) b.onclick = () => setBy(b.dataset.by);
   }
 
   $('q').addEventListener('input', paint);
-  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(list => { games = list; paint(); })
-    .catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
+  $('surprise').onclick = () => { const pool = games.filter(g => !g.url); const g = (pool.length ? pool : games)[Math.floor(Math.random() * (pool.length || games.length))]; if (g) location.href = href(g); };
+  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(list => {
+    games = list; $('surprise').hidden = games.length < 2; paintMakers(); paint();
+  }).catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
 })();
 </script>
 </body>

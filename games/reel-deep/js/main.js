@@ -23,6 +23,7 @@ function frame(now) {
   Toasts.update(dt);
 
   G = ctx;
+  ctx.setTransform(RES, 0, 0, RES, 0, 0);
   ctx.fillStyle = '#0d0a14';
   ctx.fillRect(0, 0, W, H);
   ctx.save();

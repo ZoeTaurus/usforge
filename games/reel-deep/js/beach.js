@@ -680,11 +680,21 @@ const BeachScene = {
     if (tab === 'SELL') {
       const total = s.cooler.reduce((a, f) => a + f.value * (f.id === s.wanted ? 2 : 1), 0);
       const w = FISH_BY_ID[s.wanted];
-      L.push({ name: 'SELL ALL (' + s.cooler.length + '/' + coolerCap(s) + ')', desc: 'TODAY THE CAT WANTS ' + (w ? w.name : '?') + ': X2!', cost: null, own: '+' + total,
+      L.push({ name: 'SELL ALL (' + s.cooler.length + '/' + coolerCap(s) + ')', desc: s.cooler.length ? 'TODAY THE CAT WANTS ' + (w ? w.name : '?') + ': X2!' : 'YOUR COOLER IS EMPTY', cost: null, own: '+' + total,
         act: s.cooler.length ? () => { s.coins += total; s.cooler = []; writeSave(); Sound.play('sell'); Toasts.add('SOLD! +' + total + ' COINS', '#ffe98a', 2, 160); } : null });
-      const groups = {};
-      for (const f of s.cooler) { const g = (groups[f.id] = groups[f.id] || { n: 0, v: 0 }); g.n++; g.v += f.value * (f.id === s.wanted ? 2 : 1); }
-      for (const id in groups) L.push({ name: FISH_BY_ID[id].name + ' X' + groups[id].n, desc: id === s.wanted ? 'WANTED TODAY! DOUBLE PRICE.' : '', cost: null, own: '+' + groups[id].v, act: null, fish: id });
+      // every fish in the cooler can also be sold on its own
+      const order = s.cooler.slice().sort((x, y) => x.id.localeCompare(y.id) || y.cm - x.cm);
+      for (const f of order) {
+        const sp = FISH_BY_ID[f.id], wanted = f.id === s.wanted, v = f.value * (wanted ? 2 : 1);
+        L.push({ name: sp.name + ' ' + f.cm + ' CM', desc: wanted ? 'WANTED! X2 - SPACE/CLICK: SELL' : 'SPACE/CLICK: SELL THIS ONE', cost: null, own: '+' + v, fish: f.id,
+          act: () => {
+            const i = s.cooler.indexOf(f);
+            if (i < 0) return;
+            s.cooler.splice(i, 1); s.coins += v; writeSave();
+            Sound.play('coin');
+            Toasts.add('SOLD ' + sp.name + '! +' + v, '#ffe98a', 1.5, 160);
+          } });
+      }
     }
     L.push({ name: 'LEAVE', desc: '', cost: null, own: '', act: () => { this.overlay = null; } });
     return L;

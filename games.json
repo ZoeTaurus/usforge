@@ -38,8 +38,8 @@
     "author": "Alex",
     "owner": "Alex",
     "blurb": "A chill fishing game. Travel between islands to get rarer, cooler fish. But watch out for the big silhouettes…",
-    "cover": "games/reel-deep/cover.jpg",
-    "pixel": false,
+    "cover": null,
+    "pixel": true,
     "url": null,
     "added": 1790437527
   },

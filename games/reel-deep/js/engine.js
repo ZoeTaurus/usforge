@@ -5,9 +5,12 @@
 // ============================================================
 
 const W = 320, H = 180;
+// the game is drawn in 320x180 "game pixels", but the canvas has 2x2 real
+// pixels per game pixel so Chinese/Japanese text can be drawn crisply
+const RES = 2;
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d', { alpha: false });
-canvas.width = W; canvas.height = H;
+canvas.width = W * RES; canvas.height = H * RES;
 ctx.imageSmoothingEnabled = false;
 let G = ctx; // current draw target
 
@@ -180,14 +183,60 @@ function textCells(s) {
   let c = _cells.get(s);
   if (c) return c;
   c = [];
-  for (const ch of s.normalize('NFD')) {
-    const cp = ch.codePointAt(0);
-    if (cp >= 0x0300 && cp <= 0x036f) { if (c.length && MARKS[cp]) c[c.length - 1].m.push(MARKS[cp]); continue; }
-    c.push({ ch, m: [] });
+  for (const ch0 of s) {
+    // Chinese/Japanese characters stay whole (so ブ keeps its marks)
+    if (isWide(ch0.codePointAt(0))) { c.push({ ch: ch0, m: [], w: 6 }); continue; }
+    for (const ch of ch0.normalize('NFD')) {
+      const cp = ch.codePointAt(0);
+      if (cp >= 0x0300 && cp <= 0x036f) { if (c.length && MARKS[cp]) c[c.length - 1].m.push(MARKS[cp]); continue; }
+      c.push({ ch, m: [], w: 4 });
+    }
   }
   if (_cells.size > 4000) _cells.clear();
   _cells.set(s, c);
   return c;
+}
+// ---------- Chinese / Japanese characters ----------
+// drawn with the system (or web) font at 12 real pixels, then snapped to
+// hard pixels so they match the pixel-art look
+function isWide(cp) { return cp >= 0x2e80 && !(cp >= 0xff61 && cp <= 0xff9f); }
+const WIDE_FONTS = {
+  zh: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", "WenQuanYi Zen Hei", sans-serif',
+  ja: '"Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", "IPAGothic", sans-serif',
+};
+const _wideMask = new Map(), _wideGlyph = new Map();
+function wideFont() { return typeof LANG !== 'undefined' && LANGS[LANG].id === 'ja' ? WIDE_FONTS.ja : WIDE_FONTS.zh; }
+function wideGlyph(ch, color) {
+  const font = wideFont(), k = ch + '|' + color + '|' + font;
+  let g = _wideGlyph.get(k);
+  if (g) return g;
+  let mask = _wideMask.get(ch + '|' + font);
+  if (!mask) {
+    const c = makeCanvas(12, 14), x = c.getContext('2d');
+    x.font = '500 12px ' + font;
+    x.textBaseline = 'alphabetic';
+    x.fillStyle = '#000';
+    x.fillText(ch, 0, 11);
+    const d = x.getImageData(0, 0, 12, 14).data;
+    mask = new Uint8Array(12 * 14);
+    for (let i = 0; i < mask.length; i++) mask[i] = d[i * 4 + 3] >= 96 ? 1 : 0;
+    _wideMask.set(ch + '|' + font, mask);
+  }
+  g = makeCanvas(12, 14);
+  const x = g.getContext('2d');
+  x.fillStyle = color;
+  for (let i = 0; i < mask.length; i++) if (mask[i]) x.fillRect(i % 12, (i / 12) | 0, 1, 1);
+  if (_wideGlyph.size > 6000) _wideGlyph.clear();
+  _wideGlyph.set(k, g);
+  return g;
+}
+// web fonts arrive late: re-draw glyphs once they have loaded
+function loadWideFonts(text) {
+  if (!document.fonts || !document.fonts.load) return;
+  const fam = LANGS[LANG].id === 'ja' ? 'Noto Sans JP' : 'Noto Sans SC';
+  document.fonts.load('500 12px "' + fam + '"', text || '钓魚')
+    .then(() => { _wideMask.clear(); _wideGlyph.clear(); })
+    .catch(() => { /* offline: the system font is used */ });
 }
 const _glyphs = {};
 function glyph(ch, color) {
@@ -202,11 +251,14 @@ function glyph(ch, color) {
   for (let i = 0; i < 15; i++) if (bits[i] === '1') x.fillRect(i % 3, (i / 3) | 0, 1, 1);
   return (_glyphs[k] = c);
 }
-function textWidth(s, sc = 1) { const n = textCells(String(s).toUpperCase()).length; return n ? (n * 4 - 1) * sc : 0; }
+function cellsWidth(cells) { let w = 0; for (const c of cells) w += c.w; return w ? w - 1 : 0; }
+function textWidth(s, sc = 1) { return cellsWidth(textCells(tr(String(s)).toUpperCase())) * sc; }
 function rawText(s, x, y, c, sc) {
   const cells = textCells(s);
-  for (let i = 0; i < cells.length; i++) {
-    const g = glyph(cells[i].ch, c), gx = x + i * 4 * sc;
+  let gx = x;
+  for (let i = 0; i < cells.length; i++, gx += cells[i - 1].w * sc) {
+    if (cells[i].w === 6) { G.drawImage(wideGlyph(cells[i].ch, c), gx, y - sc, 6 * sc, 7 * sc); continue; }
+    const g = glyph(cells[i].ch, c);
     if (g) G.drawImage(g, gx, y, 3 * sc, 5 * sc);
     const d = DESC[cells[i].ch];
     if (d) { G.fillStyle = c; for (const [dx, dy] of d) G.fillRect(gx + dx * sc, y + dy * sc, sc, sc); }
@@ -216,7 +268,7 @@ function rawText(s, x, y, c, sc) {
 function drawText(s, x, y, color = '#ffffff', o = {}) {
   s = tr(String(s)).toUpperCase();
   const sc = o.scale || 1;
-  const n = textCells(s).length, w = n ? (n * 4 - 1) * sc : 0;
+  const w = cellsWidth(textCells(s)) * sc;
   if (o.align === 'center') x -= Math.floor(w / 2);
   else if (o.align === 'right') x -= w;
   x = Math.round(x); y = Math.round(y);
@@ -229,7 +281,19 @@ function drawText(s, x, y, color = '#ffffff', o = {}) {
   return w;
 }
 function wrapText(s, maxChars) {
-  const words = tr(String(s)).split(' '), lines = [];
+  s = tr(String(s));
+  if ([...s].some(ch => isWide(ch.codePointAt(0)))) {
+    // Chinese/Japanese: break anywhere, by width
+    const lines = [], maxW = maxChars * 4;
+    let cur = '';
+    for (const ch of s) {
+      if (cur && cellsWidth(textCells((cur + ch).toUpperCase())) > maxW) { lines.push(cur.trim()); cur = ch.trim() ? ch : ''; }
+      else cur += ch;
+    }
+    if (cur.trim()) lines.push(cur.trim());
+    return lines;
+  }
+  const words = s.split(' '), lines = [];
   let cur = '';
   for (const w of words) {
     if ((cur + ' ' + w).trim().length > maxChars) { lines.push(cur); cur = w; }
@@ -394,7 +458,7 @@ const Toasts = {
   draw() {
     const covered = Game.scene && Game.scene.overlay;
     for (const t of this.list) {
-      if (covered && t.y >= 140) continue;
+      if (covered && t.y === 150) continue;
       const k = 1 - t.t / t.max;
       G.globalAlpha = clamp(t.t * 3, 0, 1);
       const pop = k < 0.08 ? 1 : 0;

@@ -51,10 +51,11 @@
         <fieldset>
           <legend>Game files</legend>
           <div class="pick">
-            <label class="btn-l">Choose a folder <input id="fFolder" type="file" webkitdirectory multiple hidden></label>
+            <label class="btn-l">Choose a .zip <input id="fZip" type="file" accept=".zip,application/zip" hidden></label>
+            <label class="btn-l">…or a folder <input id="fFolder" type="file" webkitdirectory multiple hidden></label>
             <label class="btn-l">…or one HTML file <input id="fFile" type="file" accept=".html,.htm" hidden></label>
           </div>
-          <p class="hint" id="picked">Nothing chosen. The folder needs an <code>index.html</code>; add a <code>cover.png</code> screenshot for a nicer card.</p>
+          <p class="hint" id="picked">Nothing chosen. Zip up your game’s folder (right-click → Compress) and pick the zip. It needs an <code>index.html</code>; a <code>cover.png</code> screenshot makes a nicer card.</p>
           <label>…or just a link <span class="hint">(e.g. a Claude artifact link — it opens in its own tab)</span>
             <input id="fUrl" type="url" placeholder="https://claude.ai/…"></label>
         </fieldset>
@@ -168,15 +169,51 @@
   $('fTitle').addEventListener('input', () => { if (!editing && !$('fSlug').dataset.touched) $('fSlug').value = slugify($('fTitle').value); });
   $('fSlug').addEventListener('input', () => { $('fSlug').dataset.touched = '1'; });
   const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB';
+  // paths inside the game, without the one top folder a zip or folder pick usually adds (the upload service does the same)
+  const inner = () => { const ps = chosen.map(c => c.path), top = ps.length && ps.every(p => p.includes('/') && p.split('/')[0] === ps[0].split('/')[0]) ? ps[0].split('/')[0].length + 1 : 0; return ps.map(p => p.slice(top)); };
   function showPicked(note) {
-    if (!chosen.length) { $('picked').innerHTML = note || 'Nothing chosen. The folder needs an <code>index.html</code>; add a <code>cover.png</code> screenshot for a nicer card.'; return; }
-    const rel = f => f.webkitRelativePath ? f.webkitRelativePath.split('/').slice(1).join('/') : f.name;
-    const hasIndex = chosen.length === 1 || chosen.some(f => rel(f) === 'index.html'), hasCover = chosen.some(f => /^cover\.(png|jpe?g|webp|gif)$/i.test(rel(f)));
-    $('picked').innerHTML = `${chosen.length} file${chosen.length === 1 ? '' : 's'}, ${size(chosen.reduce((a, f) => a + f.size, 0))}` +
+    if (!chosen.length) { $('picked').innerHTML = note || 'Nothing chosen. Zip up your game’s folder (right-click → Compress) and pick the zip. It needs an <code>index.html</code>; a <code>cover.png</code> screenshot makes a nicer card.'; return; }
+    const rel = inner();
+    const hasIndex = (chosen.length === 1 && /\.html?$/i.test(rel[0])) || rel.includes('index.html'), hasCover = rel.some(p => /^cover\.(png|jpe?g|webp|gif)$/i.test(p));
+    $('picked').innerHTML = `${chosen.length} file${chosen.length === 1 ? '' : 's'}, ${size(chosen.reduce((a, c) => a + c.file.size, 0))}` +
       (hasIndex ? ' · has index.html ✓' : ' · <b>no index.html at the top — it won’t play</b>') + (hasCover ? ' · cover ✓' : '');
   }
-  $('fFolder').onchange = () => { chosen = [...$('fFolder').files]; $('fFile').value = ''; showPicked(); };
-  $('fFile').onchange = () => { chosen = [...$('fFile').files]; $('fFolder').value = ''; showPicked(); };
+  const clearOthers = keep => { for (const id of ['fZip', 'fFolder', 'fFile']) if (id !== keep) $(id).value = ''; };
+  $('fFolder').onchange = () => { chosen = [...$('fFolder').files].map(f => ({ file: f, path: f.webkitRelativePath || f.name })); clearOthers('fFolder'); showPicked(); };
+  $('fFile').onchange = () => { chosen = [...$('fFile').files].map(f => ({ file: f, path: f.name })); clearOthers('fFile'); showPicked(); };
+  $('fZip').onchange = async () => {
+    const z = $('fZip').files[0]; clearOthers('fZip'); if (!z) return;
+    $('picked').textContent = 'Opening the zip…';
+    try { chosen = await unzip(z); showPicked(); }
+    catch (err) { chosen = []; $('picked').innerHTML = `<span class="msg bad">${esc(err.message)}</span>`; }
+  };
+
+  // ---------- a tiny zip reader (no library): reads the zip's table of contents and inflates each file ----------
+  async function unzip(zipFile) {
+    const buf = new Uint8Array(await zipFile.arrayBuffer()), dv = new DataView(buf.buffer);
+    let end = -1;
+    for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { end = i; break; }
+    if (end < 0) throw new Error('That doesn’t look like a zip file.');
+    const count = dv.getUint16(end + 10, true), out = [];
+    let p = dv.getUint32(end + 16, true);
+    for (let k = 0; k < count; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) throw new Error('This zip looks damaged — try making it again.');
+      const method = dv.getUint16(p + 10, true), csize = dv.getUint32(p + 20, true), nlen = dv.getUint16(p + 28, true),
+        xlen = dv.getUint16(p + 30, true), clen = dv.getUint16(p + 32, true), at = dv.getUint32(p + 42, true);
+      const name = new TextDecoder().decode(buf.subarray(p + 46, p + 46 + nlen));
+      p += 46 + nlen + xlen + clen;
+      if (name.endsWith('/') || name.startsWith('__MACOSX/') || name.split('/').some(s => s.startsWith('.'))) continue;   // folders and Mac/hidden extras
+      const start = at + 30 + dv.getUint16(at + 26, true) + dv.getUint16(at + 28, true), data = buf.subarray(start, start + csize);
+      let bytes;
+      if (method === 0) bytes = data;
+      else if (method === 8) bytes = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+      else throw new Error('This zip uses a kind of compression we can’t open. Make it with your computer’s built-in Compress instead.');
+      out.push({ file: new File([bytes], name.split('/').pop()), path: name });
+    }
+    if (!out.length) throw new Error('That zip is empty.');
+    return out;
+  }
+  window.usforgeUnzip = unzip;   // (lets the site be tested)
 
   $('up').onsubmit = async e => {
     e.preventDefault();
@@ -184,7 +221,7 @@
     fd.append('name', me.name); fd.append('password', pass);
     fd.append('slug', $('fSlug').value.trim()); fd.append('title', $('fTitle').value.trim()); fd.append('blurb', $('fBlurb').value.trim());
     fd.append('pixel', String($('fPixel').checked)); fd.append('url', $('fUrl').value.trim());
-    for (const f of chosen) fd.append('files', f, f.webkitRelativePath || f.name);
+    for (const c of chosen) fd.append('files', c.file, c.path);
     $('send').disabled = true; say('upMsg', 'Uploading…');
     try {
       const r = await api('upload', fd);

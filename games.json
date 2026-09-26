@@ -1,16 +1,5 @@
 [
   {
-    "slug": "artificial-evader",
-    "title": "Artificial Evader",
-    "author": "Henrique",
-    "owner": "Henrique",
-    "blurb": "AI vs Hunter",
-    "cover": "games/artificial-evader/cover.png",
-    "pixel": false,
-    "url": "https://ai-adaption-simulator--henriquexc.replit.app",
-    "added": 1790453477
-  },
-  {
     "slug": "die-famous",
     "title": "Die Famous",
     "author": "Henrique",

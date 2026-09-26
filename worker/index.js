@@ -101,6 +101,17 @@ async function upload(req, env) {
   if (!title) throw fail(400, 'Give your game a name.');
   if (link && !/^https:\/\/[^\s"<>]+$/.test(link)) throw fail(400, 'The link must start with https://');
 
+  // an optional cover picture sent on its own (drag-and-drop on the upload page); it wins over any cover in the game files
+  const coverIn = form.get('cover');
+  let coverPath = null;
+  if (coverIn && typeof coverIn === 'object' && coverIn.size > 0) {
+    const ext = (String(coverIn.name).match(/\.(png|jpe?g|webp|gif)$/i) || [])[1];
+    if (!ext) throw fail(400, 'The cover must be a PNG, JPG, WEBP or GIF picture.');
+    if (coverIn.size > 3 * 1024 * 1024) throw fail(400, 'That cover picture is over 3 MB — try a smaller one.');
+    coverPath = `games/${slug}/cover.${ext.toLowerCase()}`;
+  }
+  const rootCover = p => new RegExp(`^games/${slug}/cover\\.(png|jpe?g|webp|gif)$`, 'i').test(p);
+
   // gather files; strip the top folder the browser adds ("MyGame/index.html" → "index.html")
   const raw = form.getAll('files').filter(f => typeof f === 'object' && f.size >= 0);
   const names = raw.map(f => String(f.name).replace(/\\/g, '/'));
@@ -118,22 +129,27 @@ async function upload(req, env) {
     if (text === undefined) binaries++;
     files.push(text !== undefined ? { path: `games/${slug}/${rel}`, text } : { path: `games/${slug}/${rel}`, bytes });
   }
+  const replacing = files.length > 0;   // new game files replace the old ones; no files = keep them
+  if (coverPath) {
+    for (let i = files.length - 1; i >= 0; i--) if (rootCover(files[i].path)) { if (files[i].text === undefined) binaries--; files.splice(i, 1); }
+    files.push({ path: coverPath, bytes: new Uint8Array(await coverIn.arrayBuffer()) }); binaries++; total += coverIn.size;
+  }
   if (files.length > MAX_FILES) throw fail(400, `That’s ${files.length} files — the limit is ${MAX_FILES}.`);
   if (binaries > MAX_BINARIES) throw fail(400, `Too many images/sounds (${binaries}) — the limit is ${MAX_BINARIES}. Combine some, or ask Taurus to add it.`);
   if (total > MAX_BYTES) throw fail(400, 'That game is over 20 MB — too big.');
   const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
   const before = await ownerCheck(env, head, slug, who);
   const existing = before ? await existingPaths(env, head, slug) : [];
-  const kept = files.length ? [] : existing.filter(p => !p.endsWith('/game.json'));   // details-only edit keeps the files
+  const kept = replacing ? [] : existing.filter(p => !p.endsWith('/game.json') && !(coverPath && rootCover(p)));   // details-only edit keeps the files
   const playable = files.some(f => f.path === `games/${slug}/index.html`) || kept.includes(`games/${slug}/index.html`);
-  if (!playable && !link) throw fail(400, files.length ? 'Your game needs an index.html at the top of its folder.' : 'Choose your game’s folder (or HTML file), or give a link.');
+  if (!playable && !link) throw fail(400, replacing ? 'Your game needs an index.html at the top of its folder.' : 'Choose your game’s folder (or HTML file), or give a link.');
   const owner = before?.owner || (before?.author && who.admin ? before.author : who.name);
   const info = { title, author: before?.author && who.admin ? before.author : who.name, owner, blurb, ...(pixel ? { pixel: true } : {}), ...(link && !playable ? { url: link } : {}) };
   const now = Math.floor(Date.now() / 1000), list = await readJson(env, 'games.json', head);
   const all = new Set([...files.map(f => f.path), ...kept]);
   const cover = COVERS.find(c => all.has(`games/${slug}/${c}`));
   const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null, added: (list || []).find(g => g.slug === slug)?.added || now };
-  const stale = files.length ? existing.filter(p => !all.has(p) && !p.endsWith('/game.json')).map(path => ({ path, remove: true })) : [];
+  const stale = existing.filter(p => !all.has(p) && !p.endsWith('/game.json')).map(path => ({ path, remove: true }));   // old files (and an old cover) that were replaced
   await commit(env, head, [...files, ...stale,
     { path: `games/${slug}/game.json`, text: JSON.stringify(info, null, 2) + '\n' },
     { path: 'games.json', text: relist(list, entry, slug) }],

@@ -48,6 +48,16 @@
         <label>One-line description <input id="fBlurb" maxlength="140" placeholder="Dodge the forks."></label>
         <label class="check"><input id="fPixel" type="checkbox"> Pixel art (keeps the cover crisp)</label>
 
+        <div class="cover-field">
+          <span class="lbl">Cover picture <span class="hint">(optional — shown on the game’s card)</span></span>
+          <label class="drop" id="coverDrop" tabindex="0">
+            <input id="fCover" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            <img id="coverImg" alt="" hidden>
+            <span id="coverHint">Drag a picture here, or click to choose one<br><span class="hint">PNG, JPG, WEBP or GIF · wide pictures look best</span></span>
+          </label>
+          <button class="link" type="button" id="coverClear" hidden>Remove picture</button>
+        </div>
+
         <fieldset>
           <legend>Game files</legend>
           <div class="pick">
@@ -104,7 +114,7 @@
   const hex = b => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join('');
   const canUpload = /workers\.dev$/.test(location.hostname) || ['localhost', '127.0.0.1'].includes(location.hostname);
   // the password stays in this page's memory only (not saved anywhere), so reloading signs you out
-  let me = null, pass = '', editing = null, chosen = [];
+  let me = null, pass = '', editing = null, chosen = [], coverPick = null;
 
   const api = async (path, body) => {
     const r = await fetch('/api/' + path, body instanceof FormData ? { method: 'POST', body } : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -145,11 +155,12 @@
     editing = slug;
     $('fTitle').value = g.title; $('fSlug').value = g.slug; $('fSlug').readOnly = true; $('fBlurb').value = g.blurb || ''; $('fPixel').checked = !!g.pixel; $('fUrl').value = g.url || '';
     $('formTitle').textContent = `Update ${g.title}`; $('send').textContent = 'Save update'; $('cancelEdit').hidden = false;
-    chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name and description.');
+    chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name, description or cover.');
+    $('fCover').value = ''; setCover(null, g.cover);
     $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function endEdit() {
-    editing = null; $('up').reset(); $('fSlug').readOnly = false; chosen = []; showPicked();
+    editing = null; $('up').reset(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null);
     $('formTitle').textContent = 'Add a game'; $('send').textContent = 'Upload'; $('cancelEdit').hidden = true;
   }
   $('cancelEdit').onclick = endEdit;
@@ -188,6 +199,34 @@
     catch (err) { chosen = []; $('picked').innerHTML = `<span class="msg bad">${esc(err.message)}</span>`; }
   };
 
+  // ---------- cover picture: drag and drop, or click ----------
+  const COVER_OK = /\.(png|jpe?g|webp|gif)$/i;
+  function setCover(file, currentUrl) {
+    coverPick = file || null;
+    const src = file ? URL.createObjectURL(file) : currentUrl;
+    $('coverImg').hidden = !src; if (src) $('coverImg').src = src;
+    $('coverImg').classList.toggle('pixel', $('fPixel').checked);
+    $('coverHint').hidden = !!src; $('coverClear').hidden = !file;
+    $('coverDrop').classList.toggle('has', !!src);
+  }
+  function takeCover(file) {
+    if (!file) return;
+    if (!COVER_OK.test(file.name)) return say('upMsg', 'The cover must be a PNG, JPG, WEBP or GIF picture.', true);
+    if (file.size > 3 * 1024 * 1024) return say('upMsg', 'That picture is over 3 MB — try a smaller one.', true);
+    say('upMsg', ''); setCover(file);
+  }
+  $('fCover').onchange = () => takeCover($('fCover').files[0]);
+  $('coverClear').onclick = () => { $('fCover').value = ''; setCover(null, editing && games.find(g => g.slug === editing)?.cover); };
+  $('fPixel').onchange = () => $('coverImg').classList.toggle('pixel', $('fPixel').checked);
+  const drop = $('coverDrop');
+  drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('fCover').click(); } });
+  for (const t of ['dragenter', 'dragover']) drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); });
+  for (const t of ['dragleave', 'drop']) drop.addEventListener(t, () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); takeCover([...(e.dataTransfer?.files || [])].find(f => f.type.startsWith('image/') || COVER_OK.test(f.name))); });
+  // a picture dropped anywhere else on the page shouldn't open it in the browser and lose the form
+  addEventListener('dragover', e => e.preventDefault());
+  addEventListener('drop', e => { if (!drop.contains(e.target)) e.preventDefault(); });
+
   // ---------- a tiny zip reader (no library): reads the zip's table of contents and inflates each file ----------
   async function unzip(zipFile) {
     const buf = new Uint8Array(await zipFile.arrayBuffer()), dv = new DataView(buf.buffer);
@@ -222,6 +261,7 @@
     fd.append('slug', $('fSlug').value.trim()); fd.append('title', $('fTitle').value.trim()); fd.append('blurb', $('fBlurb').value.trim());
     fd.append('pixel', String($('fPixel').checked)); fd.append('url', $('fUrl').value.trim());
     for (const c of chosen) fd.append('files', c.file, c.path);
+    if (coverPick) fd.append('cover', coverPick, coverPick.name);
     $('send').disabled = true; say('upMsg', 'Uploading…');
     try {
       const r = await api('upload', fd);

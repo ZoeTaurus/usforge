@@ -1,6 +1,7 @@
 // UsForge upload service (a Cloudflare Worker). Serves the static site, plus a small /api that lets
 // listed accounts upload, update or remove their own games. It saves by committing to the GitHub project,
 // which then republishes the site. The GitHub key lives only in Cloudflare (the GITHUB_TOKEN secret).
+import { DurableObject } from 'cloudflare:workers';
 import ACCOUNTS from '../accounts.json';
 
 const REPO = 'ZoeTaurus/usforge', BRANCH = 'main';
@@ -13,6 +14,7 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
+      if (url.pathname === '/api/plays') return plays(req, env, url);
       if (req.method !== 'POST') throw fail(405, 'Use POST.');
       if (url.pathname === '/api/login') return ok(await login(req));
       if (url.pathname === '/api/upload') return ok(await upload(req, env));
@@ -24,6 +26,29 @@ export default {
     }
   },
 };
+
+// ---------- play counts ----------
+// One tiny Durable Object keeps every game's count. GET /api/plays → {slug: n}; POST /api/plays?g=slug adds one.
+export class Plays extends DurableObject {
+  async all() { return (await this.ctx.storage.get('counts')) || {}; }
+  async hit(slug) {
+    const c = await this.all();
+    c[slug] = (c[slug] || 0) + 1;
+    await this.ctx.storage.put('counts', c);
+    return c;
+  }
+}
+async function plays(req, env, url) {
+  const box = env.PLAYS.get(env.PLAYS.idFromName('all'));
+  if (req.method === 'POST') {
+    const slug = url.searchParams.get('g') || '';
+    if (!/^[a-z0-9-]{1,60}$/.test(slug)) throw fail(400, 'Unknown game.');
+    const known = await env.ASSETS.fetch(new URL('/games.json', url)).then(r => r.json()).catch(() => []);
+    if (!known.some(g => g.slug === slug)) throw fail(404, 'Unknown game.');
+    return ok(await box.hit(slug));
+  }
+  return new Response(JSON.stringify(await box.all()), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=15' } });
+}
 
 const fail = (status, msg) => Object.assign(new Error(msg), { status, msg });
 const ok = data => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });

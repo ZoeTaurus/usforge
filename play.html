@@ -68,7 +68,7 @@
           <h1>${esc(g.title)}</h1>
           <a class="by" href="./?by=${encodeURIComponent(g.author)}">by ${esc(g.author)}</a>
           ${g.blurb ? `<p class="desc">${esc(g.blurb)}</p>` : ''}
-          <div class="facts"><span>${ago(g.added)}</span><span>Game ${games.length - i} of ${games.length}</span>${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          <div class="facts"><span>${ago(g.added)}</span><span id="plays" hidden></span><span>Game ${games.length - i} of ${games.length}</span>${g.url ? '<span>Opens on another site</span>' : ''}</div>
           <div class="acts">
             ${g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">▶ Play</button>`}
             ${g.url ? '' : `<a class="btn-l" href="games/${encodeURIComponent(g.slug)}/" target="_blank" rel="noopener">Open in a new tab ↗</a>`}
@@ -79,13 +79,29 @@
         <div class="grid">${more.map(o => `<article><a class="card" href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}</div></a>
           <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
+    document.querySelector('.big-play[href]')?.addEventListener('click', countPlay);   // link-only games count when you head off to play
+    fetch('/api/plays').then(r => r.ok ? r.json() : null).then(showPlays).catch(() => {});
     setTimeout(() => $('playBtn')?.focus(), 50);
     if (history.state?.playing) play();   // came back to a page that was playing
+  }
+
+  // ---------- play counter (once per game per visit, so refreshing doesn't pad it) ----------
+  function showPlays(counts) {
+    if (!counts || !game || !$('plays')) return;
+    const n = counts[game.slug] || 0;
+    $('plays').textContent = `▶ ${n.toLocaleString()} play${n === 1 ? '' : 's'}`; $('plays').hidden = false;
+  }
+  function countPlay() {
+    const key = 'usforge-played:' + game.slug;
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
+    fetch('/api/plays?g=' + encodeURIComponent(game.slug), { method: 'POST', keepalive: true })
+      .then(r => r.ok ? r.json() : null).then(showPlays).catch(() => {});
   }
 
   // ---------- playing ----------
   function play() {
     const g = game; if (!g || g.url) return;
+    countPlay();
     const src = `games/${encodeURIComponent(g.slug)}/`;
     $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
     $('alone').href = src;

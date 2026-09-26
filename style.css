@@ -218,3 +218,7 @@ html:has(.play) { height: 100%; }
 body.playing { height: 100vh; overflow: hidden; }
 body.playing .wrap { display: none; }
 .player { position: fixed; inset: 0; display: flex; flex-direction: column; background: #000; z-index: 30; }
+
+/* play counts */
+.plays { font: 12px var(--mono); color: var(--dim); letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.feature-text .plays { display: block; margin-top: 4px; }

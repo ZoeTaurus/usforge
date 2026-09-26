@@ -5,5 +5,8 @@
   "compatibility_date": "2025-09-01",
   "assets": { "directory": ".", "binding": "ASSETS" },
   // keep variables set in the Cloudflare dashboard (like GITHUB_TOKEN) when the site redeploys
-  "keep_vars": true
+  "keep_vars": true,
+  // play counts live in one small Durable Object (created automatically on deploy; free plan)
+  "durable_objects": { "bindings": [{ "name": "PLAYS", "class_name": "Plays" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Plays"] }]
 }

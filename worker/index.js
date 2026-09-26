@@ -14,7 +14,7 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
-      if (url.pathname === '/api/plays') return plays(req, env, url);
+      if (url.pathname === '/api/plays') return await plays(req, env, url);
       if (req.method !== 'POST') throw fail(405, 'Use POST.');
       if (url.pathname === '/api/login') return ok(await login(req));
       if (url.pathname === '/api/upload') return ok(await upload(req, env));

@@ -1,5 +1,16 @@
 [
   {
+    "slug": "die-famous",
+    "title": "Die Famous",
+    "author": "Henrique",
+    "owner": "Henrique",
+    "blurb": "Die Famous - self explanatory",
+    "cover": "games/die-famous/cover.png",
+    "pixel": false,
+    "url": null,
+    "added": 1790438289
+  },
+  {
     "slug": "gravity-golf",
     "title": "Gravity Golf",
     "author": "Taurus",

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gravity Golf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+  :root { --bg: #07060d; --ink: #f2eefa; --dim: #9a94b8; --panel: #120f1f; --line: #2c2645; --hot: #ffd23a; --cyan: #7fe0d4; --scale: 3; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 16px/1.4 'Pixelify Sans', ui-monospace, monospace; overflow: hidden; }
+  #stage { position: fixed; inset: 0; display: grid; place-items: center; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #game { image-rendering: pixelated; image-rendering: crisp-edges; display: block; touch-action: none; cursor: crosshair; box-shadow: 0 0 0 2px #1a1530, 0 20px 60px rgba(0, 0, 0, .6); }
+  .overlay { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+  .frame { position: relative; padding-top: 34px; }
+  .field { position: relative; }
+  /* HUD: a bar above the playfield, so it never covers the ball */
+  #hud { position: absolute; top: 0; left: 0; right: 0; height: 30px; display: flex; align-items: center; gap: 12px; padding: 0 2px; font: 12px 'Silkscreen', monospace; letter-spacing: .02em; white-space: nowrap; overflow: hidden; }
+  #hud b { color: var(--hot); font-weight: 700; }
+  #hud .nm { color: var(--dim); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #menuBtn { margin-left: auto; font: 12px 'Silkscreen', monospace; color: var(--ink); background: #1a1530cc; border: 1px solid var(--line); padding: 3px 8px; cursor: pointer; }
+  #menuBtn:hover { border-color: var(--hot); }
+  .msg { position: absolute; left: 0; right: 0; top: 34%; text-align: center; font: 700 22px 'Silkscreen', monospace; color: #fff; text-shadow: 3px 3px 0 #000; opacity: 0; transform: scale(.8); transition: opacity .2s, transform .2s; pointer-events: none; }
+  .msg.show { opacity: 1; transform: scale(1); }
+  .msg.big { color: var(--hot); font-size: 34px; }
+  #hint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; font-size: 15px; color: var(--ink); text-shadow: 2px 2px 0 #000; pointer-events: none; animation: bob 1.4s ease-in-out infinite; }
+  @keyframes bob { 50% { transform: translateY(-4px); } }
+  /* screens */
+  .screen { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; background: #07060dd9; padding: 16px; overflow: auto; }
+  .box { width: min(440px, 100%); background: var(--panel); border: 2px solid var(--line); box-shadow: 6px 6px 0 #000; padding: 22px; display: flex; flex-direction: column; gap: 12px; align-items: stretch; text-align: center; }
+  .box.wide { width: min(620px, 100%); }
+  h1 { margin: 0; font: 700 clamp(30px, 7vw, 48px)/1 'Silkscreen', monospace; letter-spacing: .02em; color: var(--hot); text-shadow: 4px 4px 0 #6a2a00; }
+  h1 span { display: block; color: var(--cyan); text-shadow: 4px 4px 0 #0f4a44; }
+  h2 { margin: 0; font: 700 20px 'Silkscreen', monospace; }
+  .sub { margin: 0; color: var(--dim); }
+  .btn { font: 15px 'Silkscreen', monospace; color: var(--ink); background: #1d1833; border: 2px solid var(--line); padding: 10px 14px; cursor: pointer; box-shadow: 3px 3px 0 #000; transition: transform .08s; }
+  .btn:hover, .btn:focus-visible { border-color: var(--hot); outline: none; transform: translate(-1px, -1px); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #000; }
+  .btn.go { background: var(--hot); color: #1a1000; border-color: #fff3b0; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .row .btn { flex: 1 1 auto; }
+  .small { font-size: 13px; color: var(--dim); }
+  #holeGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  #holeGrid button { font: 13px 'Pixelify Sans', monospace; color: var(--ink); background: #1d1833; border: 2px solid var(--line); padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; text-align: left; }
+  #holeGrid button b { font: 700 16px 'Silkscreen', monospace; color: var(--hot); }
+  #holeGrid button small { color: var(--dim); }
+  #holeGrid button:disabled { opacity: .35; cursor: default; }
+  #holeGrid button:not(:disabled):hover { border-color: var(--hot); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 3px 6px; border-bottom: 1px solid var(--line); text-align: left; }
+  td:first-child, td:nth-child(3), td:nth-child(4) { text-align: center; font-family: 'Silkscreen', monospace; }
+  tr.now { background: #241d40; }
+  tr.head td { color: var(--dim); font: 11px 'Silkscreen', monospace; }
+  td.good { color: var(--cyan); } td.bad { color: #ff7a8a; }
+  .scroll { max-height: 42vh; overflow: auto; }
+  textarea, input[type=text] { font: 14px ui-monospace, monospace; background: #0b0916; color: var(--ink); border: 2px solid var(--line); padding: 8px; width: 100%; }
+  textarea { height: 90px; resize: none; }
+  .err { color: #ff7a8a; min-height: 1em; margin: 0; }
+  /* editor bar */
+  #editbar { position: fixed; left: 0; right: 0; bottom: 0; background: #0d0a1acc; border-top: 2px solid var(--line); padding: 8px 10px calc(8px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 6px; backdrop-filter: blur(4px); }
+  #editbar .tools, #editbar .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; justify-content: center; }
+  #editbar button { font: 12px 'Silkscreen', monospace; color: var(--ink); background: #1d1833; border: 2px solid var(--line); padding: 5px 8px; cursor: pointer; }
+  #editbar button[aria-pressed="true"] { border-color: var(--hot); color: var(--hot); }
+  #editbar button:hover { border-color: var(--cyan); }
+  #editbar input { width: 140px; font: 13px 'Pixelify Sans', monospace; padding: 4px 6px; background: #0b0916; color: var(--ink); border: 2px solid var(--line); }
+  #edTip { text-align: center; font-size: 13px; color: var(--dim); margin: 0; }
+  .sw { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="frame">
+    <div class="field">
+      <canvas id="game" width="320" height="180" aria-label="Gravity Golf playfield"></canvas>
+      <div class="msg" id="msg"></div>
+      <div id="hint" hidden>Drag back anywhere, then let go to shoot</div>
+    </div>
+
+    <div id="hud" hidden>
+      <span id="hHole">Hole 1</span><span class="nm" id="hName"></span>
+      <span>Par <b id="hPar">2</b></span><span>Strokes <b id="hStrokes">0</b></span><span id="hTotalWrap">Total <b id="hTotal"></b></span>
+      <button id="menuBtn" type="button">Menu</button>
+    </div>
+
+    <!-- title -->
+    <div class="screen" id="title" hidden>
+      <div class="box">
+        <h1>Gravity<span>Golf</span></h1>
+        <p class="sub">by Taurus · Lazy Studios</p>
+        <button class="btn go" id="tPlay" type="button">Play 18 holes</button>
+        <button class="btn" id="tContinue" type="button" hidden>Continue</button>
+        <div class="row"><button class="btn" id="tHoles" type="button">Pick a hole</button><button class="btn" id="tEdit" type="button">Hole editor</button></div>
+        <div class="row"><button class="btn" id="tCode" type="button">Play a friend's hole</button><button class="btn" type="button" data-mute>Sound: on</button></div>
+        <p class="small" id="tBest"></p>
+        <p class="small">Drag back to aim · Arrows + Space work too · M mutes · Esc for the menu</p>
+      </div>
+    </div>
+
+    <!-- hole select -->
+    <div class="screen" id="holes" hidden>
+      <div class="box wide"><h2>Pick a hole</h2><div id="holeGrid"></div><button class="btn" type="button" data-back>Back</button></div>
+    </div>
+
+    <!-- scorecard -->
+    <div class="screen" id="card" hidden>
+      <div class="box">
+        <h2 id="cardTitle"></h2>
+        <div class="scroll"><table><tbody id="cardRows"></tbody></table></div>
+        <p id="cardTotal"></p><p class="small" id="cardBest"></p>
+        <div class="row"><button class="btn go" id="cardNext" type="button">Next hole</button><button class="btn" type="button" data-back>Menu</button></div>
+      </div>
+    </div>
+
+    <!-- pause -->
+    <div class="screen" id="pause" hidden>
+      <div class="box"><h2>Paused</h2>
+        <button class="btn go" id="pResume" type="button">Resume</button>
+        <button class="btn" id="pRestart" type="button">Restart hole</button>
+        <button class="btn" type="button" data-mute>Sound: on</button>
+        <button class="btn" id="pQuit" type="button">Quit to menu</button>
+      </div>
+    </div>
+
+    <!-- play a friend's hole -->
+    <div class="screen" id="codeIn" hidden>
+      <div class="box"><h2>Play a friend's hole</h2>
+        <p class="sub">Paste the code they sent you (it starts with GG1-).</p>
+        <textarea id="codeText" spellcheck="false" aria-label="Hole code"></textarea>
+        <p class="err" id="codeErr"></p>
+        <div class="row"><button class="btn go" id="codeGo" type="button">Play it</button><button class="btn" type="button" data-back>Back</button></div>
+      </div>
+    </div>
+    <div class="screen" id="customDone" hidden>
+      <div class="box"><h2>Hole complete!</h2><p id="cdText"></p>
+        <div class="row"><button class="btn go" id="cdAgain" type="button">Play again</button><button class="btn" type="button" data-back>Menu</button></div>
+      </div>
+    </div>
+
+    <!-- share your hole -->
+    <div class="screen" id="codeOut" hidden>
+      <div class="box"><h2>Share your hole</h2>
+        <p class="sub">Send this code to a friend. They pick "Play a friend's hole" and paste it.</p>
+        <textarea id="shareText" readonly spellcheck="false" aria-label="Your hole's code"></textarea>
+        <div class="row"><button class="btn go" id="shareCopy" type="button">Copy</button><button class="btn" id="shareClose" type="button">Back to editor</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- editor toolbar -->
+<div id="editbar" hidden>
+  <div class="tools">
+    <button type="button" data-tool="move">Move</button>
+    <button type="button" data-tool="home"><i class="sw" style="background:#4fae5c"></i>Grass</button>
+    <button type="button" data-tool="rock"><i class="sw" style="background:#8a7a86"></i>Rock</button>
+    <button type="button" data-tool="ice"><i class="sw" style="background:#7cc2e8"></i>Ice</button>
+    <button type="button" data-tool="sand"><i class="sw" style="background:#d6ae5c"></i>Sand</button>
+    <button type="button" data-tool="bouncy"><i class="sw" style="background:#ee5ea2"></i>Bouncy</button>
+    <button type="button" data-tool="repel"><i class="sw" style="background:#8f6ef2"></i>Repel</button>
+    <button type="button" data-tool="sun"><i class="sw" style="background:#ffb000"></i>Sun</button>
+    <button type="button" data-tool="asteroid"><i class="sw" style="background:#786a60"></i>Asteroid</button>
+    <button type="button" data-tool="warp"><i class="sw" style="background:#9f7bff"></i>Wormhole</button>
+    <button type="button" data-tool="tee">Tee</button>
+    <button type="button" data-tool="hole">Cup</button>
+    <button type="button" data-tool="del">Delete</button>
+  </div>
+  <div class="acts">
+    <input id="edName" maxlength="24" aria-label="Hole name">
+    <span>Par <button type="button" id="edParDown">−</button> <b id="edPar">3</b> <button type="button" id="edParUp">+</button></span>
+    <button type="button" id="edTest">Test</button>
+    <button type="button" id="edShare">Share</button>
+    <button type="button" id="edClear">Clear</button>
+    <button type="button" id="edExit">Menu</button>
+  </div>
+  <p id="edTip"></p>
+</div>
+
+<script src="js/levels.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

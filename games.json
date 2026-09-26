@@ -8,7 +8,7 @@
     "cover": "games/reel-deep/cover.png",
     "pixel": false,
     "url": null,
-    "added": 1790437525
+    "added": 1790437527
   },
   {
     "slug": "snack-squad-showdown",
@@ -19,7 +19,7 @@
     "cover": "games/snack-squad-showdown/cover.png",
     "pixel": false,
     "url": null,
-    "added": 1790435280
+    "added": 1790435282
   },
   {
     "slug": "the-last-signal",
@@ -30,7 +30,7 @@
     "cover": "games/the-last-signal/cover.png",
     "pixel": false,
     "url": null,
-    "added": 1790434184
+    "added": 1790434185
   },
   {
     "slug": "vax-attack",
@@ -42,5 +42,16 @@
     "pixel": true,
     "url": null,
     "added": 1790427753
+  },
+  {
+    "slug": "gravity-golf",
+    "title": "Gravity Golf",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "Mini-golf in space: planets bend every shot. 18 holes, plus a hole editor to share your own.",
+    "cover": "games/gravity-golf/cover.png",
+    "pixel": true,
+    "url": null,
+    "added": 0
   }
 ]

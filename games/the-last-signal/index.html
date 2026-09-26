@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>THE LAST SIGNAL - Terminal Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;700&display=swap');
+
+        :root {
+            --term-green: #00ff41;
+            --term-dim: #004411;
+            --term-bg: #050a05;
+            box-sizing: border-box;
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        html {
+            height: 100%;
+        }
+
+        body {
+            background-color: #000;
+            color: var(--term-green);
+            font-family: 'Fira Code', monospace;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 3px 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #terminal-container {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            scrollbar-width: none;
+        }
+
+        #terminal-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        .output-line {
+            line-height: 1.4;
+            white-space: pre-wrap;
+            animation: fadeIn 0.1s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #input-area {
+            display: flex;
+            padding: 1rem 2rem;
+            background: var(--term-bg);
+            border-top: 1px solid var(--term-dim);
+            align-items: center;
+        }
+
+        #prompt {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #cmd-input {
+            background: transparent;
+            border: none;
+            color: var(--term-green);
+            font-family: 'Fira Code', monospace;
+            font-size: 1rem;
+            flex: 1;
+            outline: none;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 2rem;
+            background: var(--term-dim);
+            color: #000;
+            font-weight: bold;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        .glitch {
+            animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+            color: #ff0000 !important;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .secret { color: #555; }
+
+        .reveal {
+            color: #eafff0;
+            text-align: center;
+            max-width: 640px;
+            margin: 0 auto;
+            letter-spacing: 0.3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="crt-overlay"></div>
+
+    <div class="status-bar">
+        <span id="stat-location">LOC: REMOTE LINK</span>
+        <span id="stat-power">POWER: 12% [CRITICAL]</span>
+        <span id="stat-cycles">CYCLES: 50</span>
+    </div>
+
+    <div id="terminal-container">
+        <!-- Lines will be injected here -->
+    </div>
+
+    <div id="input-area">
+        <span id="prompt">SYSTEM@HELIOS_STATION:~$</span>
+        <input type="text" id="cmd-input" autofocus autocomplete="off">
+    </div>
+
+    <script>
+        const terminal = document.getElementById('terminal-container');
+        const input = document.getElementById('cmd-input');
+        
+        // Game State
+        let state = {
+            power: 12,
+            cycles: 50,
+            location: 'Remote Link',
+            inventory: [],
+            unlockedRooms: ['bridge'],
+            logsRead: [],
+            isGameOver: false,
+            storyProgress: 0,
+            turnCount: 0,
+            diagnosticRun: false
+        };
+
+        const rooms = {
+            bridge: {
+                name: "Command Bridge",
+                desc: "The main hub. Most systems are dark. Sparks fly from the navigation console.",
+                cmds: ["SCAN", "REBOOT"],
+                files: ["LOG_01", "MISSION_REPORT"]
+            },
+            engineering: {
+                name: "Engineering Bay",
+                desc: "Massive humming from the core. Gravity is fluctuating here.",
+                cmds: ["VENT"],
+                files: ["CORE_STATUS"]
+            },
+            medbay: {
+                name: "Medical Wing",
+                desc: "Sterile but messy. Surgical drones are stuck in a loop.",
+                cmds: ["DIAGNOSTIC"],
+                files: ["BIO_SCAN_99"]
+            }
+        };
+
+        const logContent = {
+            "LOG_01": "ENTRY 01: The signal from the void isn't a pulse. It's a voice. Dr. Aris says it's just audio pareidolia, but I heard my name.",
+            "MISSION_REPORT": "HELIOS-9 Mission: Extract 'The Singularity' from Sector 7. Update: The containment unit is vibrating at 400Hz. Unscheduled.",
+            "CORE_STATUS": "WARNING: Core temperature exceeding limits. Coolant levels nominal. The core is... growing? That's not physically possible.",
+            "BIO_SCAN_99": "Patient Zero: Commander Vane. Symptoms: Skin translucency, internal bioluminescence, speaking in binary. Prognosis: Unknown."
+        };
+
+        function print(text, type = 'normal', speed = 18) {
+            const line = document.createElement('div');
+            line.className = `output-line ${type}`;
+
+            terminal.appendChild(line);
+
+            // Typewriter effect
+            return new Promise(resolve => {
+                let i = 0;
+                function typeWriter() {
+                    if (i < text.length) {
+                        line.textContent += text.charAt(i);
+                        i++;
+                        setTimeout(typeWriter, speed);
+                    } else {
+                        terminal.scrollTop = terminal.scrollHeight;
+                        resolve();
+                    }
+                }
+                typeWriter();
+            });
+        }
+
+        function updateStatus() {
+            document.getElementById('stat-power').textContent = `POWER: ${state.power}%${state.power <= 15 ? ' [CRITICAL]' : ''}`;
+            document.getElementById('stat-cycles').textContent = `CYCLES: ${state.cycles}`;
+            document.getElementById('stat-location').textContent = `LOC: ${state.location.toUpperCase()}`;
+            
+            if (state.power <= 5) document.getElementById('stat-power').classList.add('glitch');
+            if (state.cycles <= 10) document.getElementById('stat-cycles').classList.add('glitch');
+        }
+
+        function describeRoom(locKey) {
+            const room = rooms[locKey === 'Remote Link' ? 'bridge' : locKey];
+            print(`--- ${room.name} ---`);
+            print(room.desc);
+            print(`Visible Files: ${room.files.join(', ')}`);
+            print(`Room Commands: ${room.cmds.join(', ')}`);
+        }
+
+        function hasFullPayload() {
+            const requiredLogs = ['LOG_01', 'MISSION_REPORT', 'CORE_STATUS', 'BIO_SCAN_99'];
+            return requiredLogs.every(l => state.logsRead.includes(l)) && state.diagnosticRun;
+        }
+
+        async function playRevelation() {
+            input.disabled = true;
+            await new Promise(r => setTimeout(r, 600));
+            terminal.innerHTML = '';
+
+            const lines = [
+                "HELIOS-9 was never a rescue mission. The designation was always Sector 7 — extract The Singularity. No further detail given.",
+                "Containment didn't fail. It was released, gradually, on its own terms.",
+                "The core didn't malfunction. It grew because something was listening through it.",
+                "Commander Vane heard it first. Not sound — a pattern, learning to speak in the only shape a human mind could hold.",
+                "It learned your name the way it learned everything else on this station: by listening.",
+                "It had one language left in common with you. Two symbols, repeated: 01001000 01001001.",
+                "H. I.",
+                "Not an attack. Contact — through corroded wiring, translucent skin, a signal too weak for anyone else to catch.",
+                "You caught it anyway."
+            ];
+
+            for (const line of lines) {
+                await print(line, 'reveal', 26);
+                await new Promise(r => setTimeout(r, 650));
+            }
+            await new Promise(r => setTimeout(r, 500));
+        }
+
+        async function handleCommand(rawCmd) {
+            const fullCmd = rawCmd.trim().toLowerCase();
+            const parts = fullCmd.split(' ');
+            const cmd = parts[0];
+            const arg = parts[1];
+
+            if (state.isGameOver) return;
+            if (!cmd) return;
+
+            print(`> ${rawCmd}`, 'secret');
+            state.cycles--;
+            state.turnCount++;
+            if (state.turnCount % 4 === 0 && state.power > 0 && state.storyProgress >= 2) {
+                state.power = Math.max(0, state.power - 1);
+                print("AMBIENT DRAIN: -1% POWER. Station drifting closer to the horizon.", 'secret');
+            }
+            
+            // Simulate processing time
+            input.disabled = true;
+            await new Promise(r => setTimeout(r, 400));
+            input.disabled = false;
+            input.focus();
+
+            switch(cmd) {
+                case 'help':
+                    print("AVAILABLE COMMANDS:\n- HELP: Display this menu\n- LOOK: Examine current surroundings\n- SCAN: Search for nearby signals or rooms\n- ACCESS [file]: Read system logs\n- GOTO [room]: Move to a different sector\n- REBOOT: Attempt system restart (Requires high power)\n- VENT: Stabilize pressure, reclaim power (Engineering only)\n- DIAGNOSTIC: Run a bio scan (Medbay only)\n- TRANSMIT: Send the final signal, once enough data is compiled\n- CLEAR: Wipe the terminal display");
+                    break;
+                
+                case 'look':
+                    describeRoom(state.location);
+                    break;
+
+                case 'scan':
+                    if (state.storyProgress === 0) {
+                        print("Scanning local network...");
+                        await new Promise(r => setTimeout(r, 1000));
+                        print("FOUND: ENGINEERING_BAY (LOCKED), MEDBAY (LOCKED)");
+                        print("HINT: You need to REBOOT the main grid to unlock doors.");
+                        state.storyProgress = 1;
+                    } else if (state.storyProgress >= 1) {
+                        print("Deep scan initiated...");
+                        print("Something is moving in the shadows of the Medbay.");
+                        print("Signal strength: WEAK");
+                    }
+                    break;
+
+                case 'access':
+                    if (!arg) {
+                        print("ERROR: Please specify a file name. (e.g., ACCESS LOG_01)");
+                    } else if (logContent[arg.toUpperCase()]) {
+                        const fileKey = arg.toUpperCase();
+                        print(`DECRYPTING ${fileKey}...`);
+                        await new Promise(r => setTimeout(r, 800));
+                        print(`\n"${logContent[fileKey]}"\n`, 'normal');
+                        if (!state.logsRead.includes(fileKey)) state.logsRead.push(fileKey);
+                    } else {
+                        print(`ERROR: File '${arg}' not found or corrupted.`);
+                    }
+                    break;
+
+                case 'reboot':
+                    if (state.power < 10) {
+                        print("CRITICAL ERROR: Insufficient power for system reboot.");
+                    } else {
+                        print("REBOOTING SYSTEMS...");
+                        state.power -= 5;
+                        await new Promise(r => setTimeout(r, 1500));
+                        print("DOOR LOCKS RELEASED: ENGINEERING, MEDBAY.");
+                        state.unlockedRooms.push('engineering', 'medbay');
+                        state.storyProgress = 2;
+                    }
+                    break;
+
+                case 'vent':
+                    if (state.location !== 'engineering') {
+                        print("ERROR: VENT can only be issued from Engineering Bay.");
+                    } else if (state.storyProgress < 2) {
+                        print("ERROR: Grid still locked. REBOOT required first.");
+                    } else {
+                        print("Venting excess coolant pressure...");
+                        await new Promise(r => setTimeout(r, 800));
+                        state.power = Math.min(100, state.power + 3);
+                        print("Pressure stabilized. Power reserves recovered: +3%.");
+                    }
+                    break;
+
+                case 'diagnostic':
+                    if (state.location !== 'medbay') {
+                        print("ERROR: DIAGNOSTIC can only be run from Medical Wing.");
+                    } else {
+                        print("Running full-spectrum bio diagnostic on Commander Vane...");
+                        await new Promise(r => setTimeout(r, 1000));
+                        print("RESULT: Cellular structure no longer classifiable as human.");
+                        print("RESULT: Binary pattern isolated: 01001000 01001001");
+                        state.diagnosticRun = true;
+                    }
+                    break;
+
+                case 'transmit':
+                    if (state.logsRead.length === 0 && !state.diagnosticRun) {
+                        print("ERROR: No data compiled. ACCESS logs and run DIAGNOSTIC before TRANSMIT.");
+                    } else if (hasFullPayload()) {
+                        print("Compiling last signal from recovered data...");
+                        await new Promise(r => setTimeout(r, 1500));
+                        await playRevelation();
+                        endGame("TRANSMISSION SENT.", 'win');
+                    } else {
+                        print("Compiling last signal from recovered data...");
+                        await new Promise(r => setTimeout(r, 1500));
+                        endGame("TRANSMISSION SENT: Partial telemetry only. Signal integrity degraded. Uplink may not resolve.", 'partial');
+                    }
+                    break;
+
+                case 'goto':
+                    if (!arg) {
+                        print("ERROR: Specify destination.");
+                    } else if (state.unlockedRooms.includes(arg.toLowerCase())) {
+                        state.location = arg.toLowerCase();
+                        print(`Connecting to ${arg.toUpperCase()} camera feed...`);
+                        await new Promise(r => setTimeout(r, 500));
+                        describeRoom(state.location);
+                    } else {
+                        print(`ERROR: Access denied to ${arg.toUpperCase()} or room does not exist.`);
+                    }
+                    break;
+
+                case 'clear':
+                    terminal.innerHTML = '';
+                    break;
+
+                default:
+                    print(`Unknown command: '${cmd}'. Type 'HELP' for assistance.`, 'glitch');
+            }
+
+            checkGameCondition();
+            updateStatus();
+        }
+
+        function checkGameCondition() {
+            if (state.cycles <= 0 && !state.isGameOver) {
+                endGame("CONNECTION LOST: The station has crossed the event horizon. You are left with silence.");
+            }
+            if (state.power <= 0 && !state.isGameOver) {
+                endGame("SYSTEM HALT: Life support failed. The last signal has faded.");
+            }
+        }
+
+        function endGame(msg, variant = 'loss') {
+            state.isGameOver = true;
+            const type = variant === 'win' ? 'reveal' : variant === 'partial' ? 'normal' : 'glitch';
+            print("\n" + "=".repeat(30), type);
+            print(msg, type);
+            const footer = variant === 'win' ? "TRANSMISSION COMPLETE. Refresh to retry."
+                : variant === 'partial' ? "TRANSMISSION INCOMPLETE. Refresh to retry."
+                : "GAME OVER. Refresh to retry.";
+            print(footer, type);
+            input.style.display = 'none';
+        }
+
+        // Initialize
+        window.onload = () => {
+            print("HELIOS STATION v4.0.2 - OPERATING SYSTEM LOADED");
+            print("Establishing remote quantum link...");
+            setTimeout(() => {
+                print("Connected. Terminal active.");
+                print("WARNING: Power levels critical. Station integrity at 12%.");
+                print("Type 'HELP' to begin.");
+                updateStatus();
+            }, 1000);
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const val = input.value;
+                input.value = '';
+                handleCommand(val);
+            }
+        });
+
+        // Click anywhere to focus input
+        document.body.addEventListener('click', () => input.focus());
+    </script>
+</body>
+</html>

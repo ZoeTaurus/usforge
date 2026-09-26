@@ -1,5 +1,16 @@
 [
   {
+    "slug": "the-last-signal",
+    "title": "The Last Signal",
+    "author": "Henrique",
+    "owner": "Henrique",
+    "blurb": "Terminal-based sci-fi horror game",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "added": 1790434184
+  },
+  {
     "slug": "vax-attack",
     "title": "Vax Attack",
     "author": "Taurus",

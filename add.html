@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Add a game · UsForge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">All games</a></nav>
+  </header>
+
+  <main class="doc">
+    <h1>Add your game</h1>
+    <p class="dim">Takes about two minutes, all in the browser. You need to be a member of the UsForge project on GitHub — ask whoever runs it to invite you.</p>
+
+    <h2>1 · Get your game as files</h2>
+    <p>Your game needs an <code>index.html</code> (plus any other files it uses). If your game is a Claude artifact link, ask Claude in that chat: <em>“give me this game as an HTML file I can download.”</em></p>
+    <p class="dim">Can’t get files? You can still list it: skip the HTML and put a <code>"url"</code> in step 2 instead — the card will open your link in a new tab.</p>
+
+    <h2>2 · Make a folder with a <code>game.json</code></h2>
+    <p>Name the folder with lowercase letters and dashes, like <code>potato-dash</code>. Put your game files in it, plus a file called <code>game.json</code>:</p>
+<pre><code>{
+  "title": "Potato Dash",
+  "author": "potato",
+  "blurb": "Dodge the forks. One sentence is plenty."
+}</code></pre>
+    <p class="dim">Optional extras: a screenshot named <code>cover.png</code> (wide, like 16:10) · <code>"pixel": true</code> if it’s pixel art · <code>"url": "https://…"</code> for link-only games.</p>
+
+    <h2>3 · Upload it</h2>
+    <ol>
+      <li>Open the UsForge project on GitHub and go into the <code>games</code> folder.</li>
+      <li>Click <b>Add file → Upload files</b>.</li>
+      <li>Drag your whole game folder onto the page.</li>
+      <li>Scroll down and click <b>Commit changes</b>.</li>
+    </ol>
+    <p>That’s it. In about a minute your game shows up on the site — the list builds itself. (To change your game later, upload the new files into the same folder.)</p>
+
+    <h2>House rules</h2>
+    <ol>
+      <li>Only change your own games’ folders.</li>
+      <li>First names or nicknames only — no last names, photos, schools or addresses.</li>
+      <li>Nothing mean about real people.</li>
+      <li>If you want a game taken down, it comes down. No arguing.</li>
+    </ol>
+  </main>
+
+  <footer class="foot">
+    <span>UsForge · Site by Taurus</span>
+    <a href="./">Back to the games →</a>
+  </footer>
+</div>
+</body>
+</html>

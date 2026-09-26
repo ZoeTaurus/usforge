@@ -1,0 +1,384 @@
+<meta charset="utf-8">
+<title>Vax Attack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500;700&family=VT323&display=swap">
+<link rel="stylesheet" href="css/style.css">
+
+<!-- ============ HOME SCREEN ============ -->
+<main class="home" id="home">
+  <canvas class="home-art" id="homeArt" width="256" height="160" aria-hidden="true"></canvas>
+
+  <div class="home-card">
+    <!-- main menu -->
+    <div class="home-view" id="view-menu">
+      <button class="acct-chip" id="acctBtn" type="button" data-view="account"></button>
+      <div class="logo-row">
+        <img class="logo-vax" id="logoVax" alt="">
+        <h1 class="logo">VAX<br><span>ATTACK</span></h1>
+      </div>
+      <p class="tagline" data-i18n="home.tagline"></p>
+      <p class="streak" id="streakNote"></p>
+
+      <div class="menu">
+        <button class="btn big continue" id="continueBtn2" type="button" hidden></button>
+        <button class="btn big" id="playBtn" type="button" data-i18n="home.play"></button>
+        <button class="btn ghost watch" id="watchBtn" type="button" data-i18n="home.watch"></button>
+        <div class="seg-wrap">
+          <span class="lbl" data-i18n="home.mode"></span>
+          <div class="seg" role="group" data-i18n-label="home.mode">
+            <button type="button" id="modeWaves" data-mode="waves" data-i18n="mode.waves"></button>
+            <button type="button" id="modeRush" data-mode="rush" data-i18n="mode.rush"></button>
+            <button type="button" id="modeDaily" data-mode="daily" data-i18n="mode.daily"></button>
+          </div>
+        </div>
+        <p class="mode-note" id="modeNote"></p>
+        <div class="seg-wrap">
+          <span class="lbl" data-i18n="home.difficulty"></span>
+          <div class="seg" role="group" data-i18n-label="home.difficulty">
+            <button type="button" id="diffChill" data-diff="chill" data-i18n="diff.chill"></button>
+            <button type="button" id="diffNormal" data-diff="normal" data-i18n="diff.normal"></button>
+            <button type="button" id="diffHard" data-diff="hard" data-i18n="diff.hard"></button>
+            <button type="button" id="diffNightmare" data-diff="nightmare" data-i18n="diff.nightmare"></button>
+          </div>
+        </div>
+        <p class="diff-note" id="diffNote"></p>
+        <div class="vl-row" id="vlRow">
+          <span class="lbl" data-i18n="vl.title"></span>
+          <button type="button" class="vl-btn" id="vlDown" data-i18n-label="vl.less">−</button>
+          <b id="vlNum">0</b>
+          <button type="button" class="vl-btn" id="vlUp" data-i18n-label="vl.more">+</button>
+          <small id="vlNote"></small>
+        </div>
+        <div class="menu-grid">
+          <button class="btn ghost lab-btn" type="button" data-view="lab"><span data-i18n="home.lab"></span> <b class="dna-pill" id="dnaPill">0</b></button>
+          <button class="btn ghost trophy-btn" type="button" data-view="trophies"><span data-i18n="home.trophies"></span> <b class="dna-pill" id="trophyPill">0</b></button>
+          <button class="btn ghost" type="button" data-view="wardrobe" data-i18n="home.wardrobe"></button>
+          <button class="btn ghost" type="button" data-view="howto" data-i18n="home.howto"></button>
+          <button class="btn ghost" type="button" data-view="guide" data-i18n="home.guide"></button>
+          <button class="btn ghost" type="button" data-view="settings" data-i18n="home.settings"></button>
+        </div>
+      </div>
+
+      <div class="acct-lv" id="acctLv"><b id="lvNum"></b><span class="bar"><i id="lvBar"></i></span><small id="lvXp"></small></div>
+      <dl class="records" id="records">
+        <div><dt data-i18n="rec.score"></dt><dd id="recScore">0</dd></div>
+        <div><dt data-i18n="rec.wave"></dt><dd id="recWave">0</dd></div>
+        <div><dt data-i18n="rec.kills"></dt><dd id="recKills">0</dd></div>
+        <div><dt data-i18n="rec.rush"></dt><dd id="recRush">0</dd></div>
+      </dl>
+      <button class="link-btn" type="button" data-view="history" data-i18n="hist.link"></button>
+      <section class="missions">
+        <h3 data-i18n="m.title"></h3>
+        <ul id="missionList"></ul>
+      </section>
+      <p class="hint-line" data-i18n-html="home.hint"></p>
+    </div>
+
+    <!-- profiles: sign in / sign out -->
+    <section class="home-view" id="view-account" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="auth.title"></h2></header>
+      <div class="view-body account">
+        <p class="acct-now" id="acctNow"></p>
+        <p class="set-note" data-i18n="auth.intro"></p>
+        <form class="acct-form" id="acctForm" autocomplete="off">
+          <label><span data-i18n="auth.name"></span><input id="acctName" maxlength="16" autocomplete="username" spellcheck="false"></label>
+          <label><span data-i18n="auth.pass"></span><input id="acctPass" type="password" maxlength="40" autocomplete="current-password"></label>
+          <button class="btn" type="submit" data-i18n="auth.go"></button>
+          <p class="acct-err" id="acctErr" role="alert"></p>
+        </form>
+        <h3 class="set-h" data-i18n="auth.existing"></h3>
+        <div class="acct-list" id="acctList"></div>
+        <button class="btn ghost" id="signOutBtn" type="button" data-i18n="auth.signOut" hidden></button>
+      </div>
+    </section>
+
+    <!-- run history -->
+    <section class="home-view" id="view-history" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="hist.title"></h2></header>
+      <div class="view-body" id="historyList"></div>
+    </section>
+
+    <!-- trophies -->
+    <section class="home-view" id="view-trophies" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="home.trophies"></h2></header>
+      <div class="view-body" id="trophyList"></div>
+    </section>
+
+    <!-- wardrobe: cosmetic skins and backgrounds -->
+    <section class="home-view" id="view-wardrobe" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="home.wardrobe"></h2><span class="dna-bank"><b id="wardDna">0</b> DNA</span></header>
+      <div class="view-body">
+        <canvas id="wardPreview" width="160" height="64" aria-hidden="true"></canvas>
+        <p class="set-note" data-i18n="ward.intro"></p>
+        <h3 class="set-h" data-i18n="ward.skins"></h3>
+        <div class="ward-list" id="wardSkins"></div>
+        <h3 class="set-h" data-i18n="ward.scenes"></h3>
+        <div class="ward-list" id="wardScenes"></div>
+      </div>
+    </section>
+
+    <!-- research lab -->
+    <section class="home-view" id="view-lab" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="home.lab"></h2><span class="dna-bank"><b id="labDna">0</b> DNA</span></header>
+      <div class="view-body">
+        <p class="set-note" data-i18n="lab.intro"></p>
+        <div class="lab-list" id="labList"></div>
+      </div>
+    </section>
+
+    <!-- how to play -->
+    <section class="home-view" id="view-howto" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="home.howto"></h2></header>
+      <div class="view-body">
+        <h3 data-i18n="howto.controls"></h3>
+        <div class="keys">
+          <b>WASD</b><span data-i18n="ctl.move"></span>
+          <b data-i18n="key.mouse"></b><span data-i18n="ctl.mouse"></span>
+          <b data-i18n="key.arrows"></b><span data-i18n="ctl.arrows"></span>
+          <b data-i18n="key.space"></b><span data-i18n="ctl.space"></span>
+          <b data-i18n="key.dash"></b><span data-i18n="ctl.dash"></span>
+          <b data-i18n="key.touch"></b><span data-i18n="ctl.touch"></span>
+          <b>P / M</b><span data-i18n="ctl.pm"></span>
+        </div>
+        <h3 data-i18n="howto.survive"></h3>
+        <ul class="tips">
+          <li data-i18n-html="tip.waves"></li>
+          <li data-i18n-html="tip.adapt"></li>
+          <li data-i18n-html="tip.atp"></li>
+          <li data-i18n-html="tip.dash"></li>
+          <li data-i18n-html="tip.combo"></li>
+          <li data-i18n-html="tip.powers"></li>
+          <li data-i18n-html="tip.bosses"></li>
+          <li data-i18n-html="tip.priming"></li>
+          <li data-i18n-html="tip.rush"></li>
+          <li data-i18n-html="tip.perm"></li>
+          <li data-i18n-html="tip.elites"></li>
+          <li data-i18n-html="tip.enrage"></li>
+          <li data-i18n-html="tip.smart"></li>
+          <li data-i18n-html="tip.mutants"></li>
+          <li data-i18n-html="tip.meta"></li>
+          <li data-i18n-html="tip.save"></li>
+          <li data-i18n-html="tip.lastheart"></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- field guide -->
+    <section class="home-view" id="view-guide" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="home.guide"></h2></header>
+      <div class="view-body">
+        <h3 data-i18n="guide.pathogens"></h3>
+        <div class="roster" id="rosterEnemies"></div>
+        <h3 data-i18n="guide.powers"></h3>
+        <div class="roster" id="rosterPowers"></div>
+        <h3 data-i18n="guide.adaptations"></h3>
+        <div class="roster" id="rosterUpgrades"></div>
+      </div>
+    </section>
+
+    <!-- settings -->
+    <section class="home-view" id="view-settings" hidden>
+      <header class="view-head"><button class="icon-btn" type="button" data-view="menu" data-i18n="nav.back"></button><h2 data-i18n="set.title"></h2></header>
+      <div class="view-body settings">
+        <h3 data-i18n="set.language"></h3>
+        <p class="set-note" data-i18n="set.languageDesc"></p>
+        <div class="lang-grid" id="langGrid" role="radiogroup" data-i18n-label="set.language"></div>
+
+        <h3 data-i18n="set.audio"></h3>
+        <div class="setting slider">
+          <label for="volMaster"><b data-i18n="set.master"></b></label>
+          <input type="range" id="volMaster" min="0" max="100" step="5"><output id="volMasterOut"></output>
+        </div>
+        <div class="setting">
+          <div><b data-i18n="set.music"></b><small data-i18n="set.musicDesc"></small></div>
+          <button class="toggle" id="setMusic" type="button" aria-pressed="true"></button>
+        </div>
+        <div class="setting slider sub">
+          <label for="volMusic"><span data-i18n="set.music"></span></label>
+          <input type="range" id="volMusic" min="0" max="100" step="5"><output id="volMusicOut"></output>
+        </div>
+        <div class="setting">
+          <div><b data-i18n="set.sfx"></b><small data-i18n="set.sfxDesc"></small></div>
+          <button class="toggle" id="setSound" type="button" aria-pressed="true"></button>
+        </div>
+        <div class="setting slider sub">
+          <label for="volSfx"><span data-i18n="set.sfx"></span></label>
+          <input type="range" id="volSfx" min="0" max="100" step="5"><output id="volSfxOut"></output>
+        </div>
+        <div class="setting"><div><b data-i18n="set.track"></b><small data-i18n="set.trackDesc"></small></div><select class="track-pick" id="trackPick" data-i18n-label="set.track"></select></div>
+
+        <h3 data-i18n="set.gameplay"></h3>
+        <div class="setting"><div><b data-i18n="set.autofire"></b><small data-i18n="set.autofireDesc"></small></div><button class="toggle" id="setAutofire" type="button" aria-pressed="false"></button></div>
+        <div class="setting"><div><b data-i18n="set.aimAssist"></b><small data-i18n="set.aimAssistDesc"></small></div><button class="toggle" id="setAimAssist" type="button" aria-pressed="false"></button></div>
+        <div class="setting"><div><b data-i18n="set.shake"></b><small data-i18n="set.shakeDesc"></small></div><button class="toggle" id="setShake" type="button" aria-pressed="true"></button></div>
+        <div class="setting"><div><b data-i18n="set.glow"></b><small data-i18n="set.glowDesc"></small></div><button class="toggle" id="setGlow" type="button" aria-pressed="true"></button></div>
+        <div class="setting"><div><b data-i18n="set.popups"></b><small data-i18n="set.popupsDesc"></small></div><button class="toggle" id="setPopups" type="button" aria-pressed="true"></button></div>
+        <div class="setting"><div><b data-i18n="set.hpbars"></b><small data-i18n="set.hpbarsDesc"></small></div><button class="toggle" id="setHpbars" type="button" aria-pressed="true"></button></div>
+
+        <h3 data-i18n="set.data"></h3>
+        <div class="setting"><div><b data-i18n="set.tutorial"></b><small data-i18n="set.tutorialDesc"></small></div><button class="toggle" id="replayTut" type="button" data-i18n="set.tutorialBtn"></button></div>
+        <div class="setting"><div><b data-i18n="set.reset"></b><small data-i18n="set.resetDesc"></small></div><button class="toggle danger" id="resetStats" type="button" data-i18n="set.resetBtn"></button></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ============ GAME ============ -->
+<div class="wrap" id="gameView" hidden>
+  <div class="col">
+    <div class="hud">
+      <div class="grp"><span class="lbl" data-i18n="hud.immunity"></span><span class="hearts" id="hearts"></span></div>
+      <div class="grp"><span class="lbl" id="waveLbl" data-i18n="hud.wave"></span><span class="val" id="wave">0</span><span class="left" id="left"></span></div>
+      <div class="grp"><span class="lbl" data-i18n="hud.score"></span><span class="val" id="score">0</span></div>
+      <div class="grp"><span class="lbl" data-i18n="hud.atp"></span><span class="val atp" id="atp">0</span></div>
+      <div class="grp"><span class="lbl" data-i18n="hud.best"></span><span class="val" id="best">0</span>
+        <button class="icon-btn" id="pauseBtn" type="button" hidden></button>
+        <button class="icon-btn" id="mute" type="button" aria-pressed="false"></button></div>
+    </div>
+    <div class="powers" id="powers"></div>
+
+    <div class="stage" id="stage">
+      <canvas id="game" width="256" height="160" aria-label="Vax Attack"></canvas>
+      <div class="banner" id="banner"><div class="big" id="bannerBig"></div><div class="sub" id="bannerSub"></div></div>
+      <div class="toast" id="toast"></div>
+      <div class="boss-name" id="bossName" hidden></div>
+      <div class="tut-box" id="tutBox" hidden aria-live="polite">
+        <span class="tut-step" id="tutStep"></span><span class="tut-text" id="tutText"></span>
+        <button class="tut-skip" id="tutSkip" type="button" data-i18n="tut.skip"></button>
+      </div>
+      <div class="boss-intro" id="bossIntro" hidden aria-live="assertive">
+        <div class="bi-warn" data-i18n="intro.warning"></div>
+        <div class="bi-count" id="biCount"></div>
+        <div class="bi-name" id="biName"></div>
+        <div class="bi-sub" id="biSub"></div>
+      </div>
+      <button class="dash-btn" id="dashBtn" type="button" hidden data-i18n="hud.dash"></button>
+
+      <div class="overlay break" id="upgrade" tabindex="-1" hidden>
+        <h2 id="upgradeTitle"></h2>
+        <p id="upgradeNote"></p>
+        <div class="choices" id="choices"></div>
+        <section class="shop">
+          <header class="shop-head"><h3 data-i18n="brk.pharmacy"></h3><span class="wallet">ATP <b id="shopAtp">0</b></span></header>
+          <div class="shop-items" id="shopItems"></div>
+        </section>
+        <button class="btn" id="continueBtn" type="button"></button>
+      </div>
+
+      <div class="overlay" id="pause" tabindex="-1" hidden>
+        <h2 data-i18n="pause.title"></h2>
+        <p class="build" id="pauseBuild"></p>
+        <div class="quick" id="pauseQuick"></div>
+        <div class="row">
+          <button class="btn" id="resumeBtn" type="button" data-i18n="pause.resume"></button>
+          <button class="btn ghost" id="restartBtn" type="button" data-i18n="pause.restart"></button>
+          <button class="btn ghost" id="quitBtn" type="button" data-i18n="pause.quit"></button>
+        </div>
+      </div>
+
+      <div class="overlay victory" id="victory" tabindex="-1" hidden>
+        <div class="vic-kicker" data-i18n="vic.kicker"></div>
+        <h2 data-i18n="vic.title"></h2>
+        <p data-i18n="vic.sub"></p>
+        <dl class="stats">
+          <dt data-i18n="over.score"></dt><dd id="vScore">0</dd>
+          <dt data-i18n="over.wave"></dt><dd id="vWave">0</dd>
+          <dt data-i18n="over.kills"></dt><dd id="vKills">0</dd>
+          <dt data-i18n="vic.bosses"></dt><dd id="vBosses">0</dd>
+          <dt data-i18n="vic.time"></dt><dd id="vTime">0</dd>
+        </dl>
+        <div class="vic-reward" id="vReward"></div>
+        <div class="row">
+          <button class="btn" id="keepBtn" type="button" data-i18n="vic.keep"></button>
+          <button class="btn ghost" id="vicHomeBtn" type="button" data-i18n="over.home"></button>
+        </div>
+      </div>
+      <div class="overlay" id="over" tabindex="-1" hidden>
+        <h2 data-i18n="over.title"></h2>
+        <div class="new-best" id="newBest" hidden data-i18n="over.newBest"></div>
+        <dl class="stats">
+          <dt data-i18n="over.score"></dt><dd id="oScore">0</dd>
+          <dt id="oWaveLbl"></dt><dd id="oWave">0</dd>
+          <dt data-i18n="over.kills"></dt><dd id="oKills">0</dd>
+          <dt data-i18n="over.combo"></dt><dd id="oCombo">0</dd>
+        </dl>
+        <div class="run-summary" id="runSummary"></div>
+        <div class="row">
+          <button class="btn" id="againBtn" type="button"></button>
+          <button class="btn ghost" id="labBtn" type="button" data-i18n="home.lab"></button>
+          <button class="btn ghost" id="titleBtn" type="button" data-i18n="over.home"></button>
+        </div>
+      </div>
+    </div>
+
+    <section class="coach" id="coach" hidden aria-live="polite">
+      <div class="coach-head">
+        <span class="bot-badge"><i></i><span data-i18n="coach.badge"></span></span>
+        <div class="coach-ctrl">
+          <button class="icon-btn" id="botSpeed" type="button"></button>
+          <button class="icon-btn" id="botTakeover" type="button" data-i18n="coach.takeover"></button>
+          <button class="icon-btn" id="botStop" type="button" data-i18n="coach.stop"></button>
+        </div>
+      </div>
+      <p class="coach-intent" id="coachIntent"></p>
+      <ul class="coach-tips" id="coachTips"></ul>
+    </section>
+  </div>
+</div>
+
+<!-- admin console (admin profile only) -->
+<div class="console" id="console" hidden>
+  <div class="console-log" id="consoleLog" aria-live="polite"></div>
+  <form id="consoleForm" class="console-row"><span aria-hidden="true">&gt;</span><input id="consoleInput" autocomplete="off" spellcheck="false" aria-label="Admin command"></form>
+</div>
+<button class="console-btn" id="consoleBtn" type="button" hidden data-i18n="auth.console"></button>
+
+<script src="js/config.js"></script>
+<script src="js/profile.js"></script>
+<script src="js/expansion.js"></script>
+<script src="js/expansion2.js"></script>
+<script src="js/expansion3.js"></script>
+<script src="js/expansion4.js"></script>
+<script src="js/expansion5.js"></script>
+<script src="js/expansion6.js"></script>
+<script src="js/expansion7.js"></script>
+<script src="js/expansion8.js"></script>
+<script src="js/lang/zh.js"></script>
+<script src="js/lang/th.js"></script>
+<script src="js/lang/es.js"></script>
+<script src="js/lang/fr.js"></script>
+<script src="js/lang/ja.js"></script>
+<script src="js/lang/ko.js"></script>
+<script src="js/lang/de.js"></script>
+<script src="js/lang/pt.js"></script>
+<script src="js/lang/ru.js"></script>
+<script src="js/lang/vi.js"></script>
+<script src="js/lang/id.js"></script>
+<script src="js/lang/hi.js"></script>
+<script src="js/lang/ar.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/meta.js"></script>
+<script src="js/trophies.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/cosmetics.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+<script src="js/expansion-ai.js"></script>
+<script src="js/expansion2-ai.js"></script>
+<script src="js/expansion3-ai.js"></script>
+<script src="js/expansion4-ai.js"></script>
+<script src="js/expansion5-ai.js"></script>
+<script src="js/expansion6-ai.js"></script>
+<script src="js/expansion7-ai.js"></script>
+<script src="js/expansion8-ai.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/bot.js"></script>
+<script src="js/home.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/main.js"></script>

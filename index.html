@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UsForge</title>
+<meta name="description" content="Games by Taurus, Igor, Henrique, and Alex. Site by Taurus.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="add.html">Add a game</a></nav>
+  </header>
+
+  <section class="intro">
+    <h1>Games by Taurus, Igor, Henrique, and Alex.</h1>
+    <p>Site by Taurus.</p>
+  </section>
+
+  <div class="tools">
+    <input class="search" id="q" type="search" placeholder="Search games or makers" aria-label="Search games or makers">
+    <span id="who"></span>
+    <span class="count" id="count"></span>
+  </div>
+
+  <main class="grid" id="grid" aria-live="polite"></main>
+
+  <footer class="foot">
+    <span>UsForge</span>
+    <a href="add.html">Add your game →</a>
+  </footer>
+</div>
+
+<script>
+// Home: loads games.json (built automatically from every games/<folder>/game.json) and shows a searchable grid.
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const params = new URLSearchParams(location.search);
+  let games = [], by = params.get('by') || '';
+
+  // games without a cover get a quiet tile with their initials, tinted by their name
+  const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const initials = t => t.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const cover = g => g.cover
+    ? `<img src="${esc(g.cover)}" alt="" loading="lazy">`
+    : `<div class="blank" style="background:hsl(${hue(g.title)} 40% 50% / .16)">${esc(initials(g.title))}</div>`;
+
+  function paint() {
+    const q = $('q').value.trim().toLowerCase();
+    const list = games.filter(g => (!by || g.author.toLowerCase() === by.toLowerCase())
+      && (!q || (g.title + ' ' + g.author + ' ' + g.blurb).toLowerCase().includes(q)));
+    $('count').textContent = `${list.length} ${list.length === 1 ? 'game' : 'games'}`;
+    $('who').innerHTML = by ? `<button class="chip" id="clearBy" type="button">by ${esc(by)} <span aria-hidden="true">×</span></button>` : '';
+    if ($('clearBy')) $('clearBy').onclick = () => { by = ''; history.replaceState(null, '', './'); paint(); };
+    $('grid').innerHTML = list.length ? list.map(g => {
+      const href = g.url || `play.html?g=${encodeURIComponent(g.slug)}`, ext = !!g.url;
+      return `<article>
+        <a class="card" href="${esc(href)}"${ext ? ' target="_blank" rel="noopener"' : ''}>
+          <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${ext ? '<span class="tag">opens elsewhere ↗</span>' : ''}</div>
+        </a>
+        <div class="meta">
+          <b>${esc(g.title)}</b>
+          <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
+          ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
+        </div>
+      </article>`;
+    }).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
+    for (const b of document.querySelectorAll('[data-by]')) b.onclick = () => { by = b.dataset.by; history.replaceState(null, '', '?by=' + encodeURIComponent(by)); paint(); };
+  }
+
+  $('q').addEventListener('input', paint);
+  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(list => { games = list; paint(); })
+    .catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Play · UsForge</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="play">
+  <header class="bar">
+    <a class="mark" href="./" aria-label="Back to UsForge"><span class="spark"></span>UsForge</a>
+    <span class="title" id="title"></span>
+    <button class="btn hide-sm" id="restart" type="button">Restart</button>
+    <a class="btn hide-sm" id="alone" href="#" target="_blank" rel="noopener">Open alone ↗</a>
+    <button class="btn hot" id="full" type="button">Fullscreen</button>
+  </header>
+  <main class="stage" id="stage"></main>
+
+<script>
+// Play: finds the game in games.json and runs it in a sandboxed frame (a crash there can't break the site).
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const slug = new URLSearchParams(location.search).get('g') || '';
+  const notice = (h, p, extra = '') => { $('stage').innerHTML = `<div class="notice"><h2>${h}</h2><p>${p}</p>${extra}</div>`; for (const id of ['restart', 'alone', 'full']) $(id).hidden = true; };
+
+  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(games => {
+    const g = games.find(x => x.slug === slug);
+    if (!g) return notice('Game not found', 'It may have been renamed or removed.', '<p><a class="btn" href="./">Back to all games</a></p>');
+    document.title = `${g.title} · UsForge`;
+    $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
+    if (g.url) return notice(esc(g.title), 'This game lives somewhere else (like a Claude artifact link), so it opens in its own tab.', `<p><a class="btn hot" href="${esc(g.url)}" target="_blank" rel="noopener">Open ${esc(g.title)} ↗</a></p>`);
+    const src = `games/${encodeURIComponent(g.slug)}/`;
+    $('alone').href = src;
+    const frame = document.createElement('iframe');
+    frame.title = g.title;
+    frame.src = src;
+    // scripts and saves work; the game can go fullscreen and use a gamepad
+    frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-modals allow-popups');
+    frame.allow = 'fullscreen; autoplay; gamepad';
+    frame.addEventListener('load', () => frame.focus());   // so the keyboard goes straight to the game
+    $('stage').append(frame);
+    $('restart').onclick = () => { frame.src = src; };
+    $('full').onclick = () => (frame.requestFullscreen?.() || frame.webkitRequestFullscreen?.())?.catch?.(() => {});
+    $('stage').addEventListener('pointerdown', () => frame.focus());
+  }).catch(() => notice('Couldn’t load', 'The game list didn’t load. Try refreshing.'));
+})();
+</script>
+</body>
+</html>

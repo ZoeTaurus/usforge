@@ -16,6 +16,7 @@
 </script>
 </head>
 <body>
+<canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
 
 <!-- title screen -->
 <div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
@@ -56,6 +57,7 @@
   </footer>
 </div>
 
+<script src="embers.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -64,34 +66,20 @@
 
   // ---------- title screen ----------
   const welcome = $('welcome');
-  let embersOn = !document.documentElement.classList.contains('welcomed');
+  const showWelcome = !document.documentElement.classList.contains('welcomed');
+  let big = null;
+  Embers($('bgEmbers'), { count: 26, alpha: .4, speed: .55 });   // faint sparks behind the whole page
   function enter() {
     if (welcome.classList.contains('leaving')) return;
     try { sessionStorage.setItem('usforge-welcomed', '1'); } catch (e) {}
     welcome.classList.add('leaving');
-    setTimeout(() => { welcome.hidden = true; embersOn = false; $('q').focus({ preventScroll: true }); }, calm ? 0 : 650);
+    setTimeout(() => { welcome.hidden = true; big?.stop(); $('q').focus({ preventScroll: true }); }, calm ? 0 : 650);
   }
-  if (embersOn) {
+  if (showWelcome) {
     $('continue').onclick = enter;
     addEventListener('keydown', e => { if (!welcome.hidden && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); enter(); } });
     setTimeout(() => $('continue').focus({ preventScroll: true }), 50);
-    // sparks rising from a forge below the screen
-    const cv = $('embers'), g = cv.getContext('2d'), sparks = [];
-    const fit = () => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; };
-    fit(); addEventListener('resize', fit);
-    const spawn = () => ({ x: Math.random() * cv.width, y: cv.height + 10, vy: -(0.6 + Math.random() * 1.8) * devicePixelRatio, vx: (Math.random() - .5) * .6, r: (1 + Math.random() * 2.2) * devicePixelRatio, life: 1, fade: .002 + Math.random() * .004, hue: 12 + Math.random() * 28 });
-    for (let i = 0; i < 70; i++) { const s = spawn(); s.y = Math.random() * cv.height; sparks.push(s); }
-    (function tick() {
-      if (!embersOn) return;
-      g.clearRect(0, 0, cv.width, cv.height);
-      for (const s of sparks) {
-        s.x += s.vx + Math.sin(s.y * .01) * .3; s.y += s.vy; s.life -= s.fade;
-        if (s.life <= 0 || s.y < -10) Object.assign(s, spawn());
-        g.globalAlpha = Math.max(0, s.life); g.fillStyle = `hsl(${s.hue} 100% 60%)`;
-        g.beginPath(); g.arc(s.x, s.y, s.r, 0, Math.PI * 2); g.fill();
-      }
-      if (!calm) requestAnimationFrame(tick);
-    })();
+    big = Embers($('embers'), { count: 70 });   // sparks rising from a forge below the screen
   } else welcome.hidden = true;
 
   // ---------- games ----------
@@ -101,9 +89,9 @@
   const isNew = g => g.added && now - g.added < WEEK;
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const initials = t => t.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  const cover = (g, big) => g.cover
+  const cover = (g, wide) => g.cover
     ? `<img src="${esc(g.cover)}" alt="" loading="lazy">`
-    : `<div class="blank${big ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(big ? g.title : initials(g.title))}</div>`;   // (the featured card shows the whole name)
+    : `<div class="blank${wide ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(wide ? g.title : initials(g.title))}</div>`;   // (the featured card shows the whole name)
   const href = g => g.url || `play.html?g=${encodeURIComponent(g.slug)}`;
   const ext = g => g.url ? ' target="_blank" rel="noopener"' : '';
 

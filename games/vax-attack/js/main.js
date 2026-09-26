@@ -32,8 +32,9 @@
     }
   }
 
-  // language: what you picked last time, otherwise your browser's language
-  V.i18n.set(V.ui.load('lang', null) || V.i18n.detect());
+  // language: English unless the player picked another one in Settings (browser language lists often put a
+  // second language first, which made the game open in Chinese for some players)
+  V.i18n.set(V.ui.load('lang', null) || 'en');
   V.ui.resetHud();
   requestAnimationFrame(frame);
 })();

@@ -8,14 +8,14 @@
     "cover": "games/die-famous/cover.png",
     "pixel": false,
     "url": null,
-    "added": 1790438289
+    "added": 1790438292
   },
   {
     "slug": "gravity-golf",
     "title": "Gravity Golf",
     "author": "Taurus",
     "owner": "Taurus",
-    "blurb": "Mini-golf in space: planets bend every shot. 18 holes, plus a hole editor to share your own.",
+    "blurb": "Mini-golf in space: planets bend every shot. Two courses (18 Classic + 9 Deep Space holes), party mode for friends, unlockable ball skins, a",
     "cover": "games/gravity-golf/cover.png",
     "pixel": true,
     "url": null,

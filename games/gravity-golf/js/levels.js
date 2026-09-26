@@ -91,3 +91,52 @@ GG.COURSE = [
     w: [[60, 150, 226, 34]],
     tee: { b: 0, a: -20 }, hole: { b: 5, a: -135 } },
 ];
+
+// Course 2 — Deep Space: nine harder holes. (Pars were set by testing, like the Classic course.)
+GG.DEEP = [
+  { name: 'Event Horizon', par: 3,
+    b: [{ k: 'home', x: 36, y: 90, r: 15 }, { k: 'sun', x: 150, y: 90, r: 22 }, { k: 'repel', x: 226, y: 40, r: 12 }, { k: 'rock', x: 284, y: 112, r: 16 }],
+    tee: { b: 0, a: -60 }, hole: { b: 3, a: -150 } },
+
+  { name: 'Moon Maze', par: 4,
+    b: [{ k: 'home', x: 44, y: 140, r: 16 }, { k: 'rock', x: 220, y: 80, r: 20 }],
+    moons: [{ of: 1, d: 38, r: 6, w: 1.2, ph: 0 }, { of: 1, d: 58, r: 7, w: -.8, ph: 2.5 }],
+    tee: { b: 0, a: -50 }, hole: { b: 1, a: -140 } },
+
+  { name: 'Ricochet', par: 4,
+    b: [{ k: 'home', x: 30, y: 40, r: 13 }, { k: 'bouncy', x: 96, y: 96, r: 13 }, { k: 'bouncy', x: 160, y: 40, r: 12 }, { k: 'bouncy', x: 214, y: 118, r: 13 },
+        { k: 'rock', x: 286, y: 150, r: 15 }],
+    tee: { b: 0, a: 20 }, hole: { b: 4, a: -110 } },
+
+  { name: 'Warp Relay', par: 5,
+    b: [{ k: 'home', x: 40, y: 150, r: 15 }, { k: 'sun', x: 250, y: 44, r: 12 }, { k: 'sun', x: 300, y: 110, r: 11 }, { k: 'sun', x: 214, y: 96, r: 10 },
+        { k: 'rock', x: 268, y: 76, r: 12 }],
+    w: [[120, 150, 90, 30], [170, 30, 262, 132]],
+    tee: { b: 0, a: -30 }, hole: { b: 4, a: 90 } },
+
+  { name: 'Ice Rink', par: 3,
+    b: [{ k: 'ice', x: 46, y: 60, r: 16 }, { k: 'ice', x: 130, y: 128, r: 20 }, { k: 'ice', x: 206, y: 60, r: 14 }, { k: 'ice', x: 282, y: 124, r: 13 }],
+    tee: { b: 0, a: -90 }, hole: { b: 3, a: 70 } },
+
+  { name: 'Gravity Well', par: 4,
+    b: [{ k: 'home', x: 34, y: 150, r: 14 }, { k: 'rock', x: 176, y: 88, r: 40 }, { k: 'rock', x: 258, y: 26, r: 10 }],
+    tee: { b: 0, a: -45 }, hole: { b: 2, a: 150 } },
+
+  { name: 'Repel Gate', par: 3,
+    b: [{ k: 'home', x: 36, y: 90, r: 15 }, { k: 'repel', x: 160, y: 40, r: 14 }, { k: 'repel', x: 160, y: 140, r: 14 }, { k: 'repel', x: 200, y: 90, r: 11 },
+        { k: 'sand', x: 284, y: 90, r: 18 }],
+    tee: { b: 0, a: -90 }, hole: { b: 4, a: 180 } },
+
+  { name: 'Asteroid Storm', par: 4,
+    b: [{ k: 'home', x: 30, y: 150, r: 14 }, { k: 'rock', x: 286, y: 36, r: 14 },
+        ...[[90, 60], [110, 110], [130, 36], [150, 84], [170, 140], [186, 50], [206, 100], [226, 150], [240, 70], [118, 150], [70, 100], [262, 110]].map(([x, y], i) => ({ k: 'asteroid', x, y, r: 3 + (i % 3) }))],
+    moons: [{ of: 1, d: 30, r: 5, w: 1.4, ph: 1 }],
+    tee: { b: 0, a: -45 }, hole: { b: 1, a: 135 } },
+
+  { name: 'Singularity', par: 3,
+    b: [{ k: 'home', x: 30, y: 30, r: 12 }, { k: 'sun', x: 160, y: 96, r: 16 }, { k: 'repel', x: 96, y: 150, r: 12 }, { k: 'ice', x: 230, y: 40, r: 14 },
+        { k: 'rock', x: 290, y: 150, r: 10 }, { k: 'bouncy', x: 90, y: 80, r: 10 }],
+    moons: [{ of: 1, d: 34, r: 5, w: -1.1, ph: 0 }],
+    w: [[40, 150, 250, 100]],
+    tee: { b: 0, a: 40 }, hole: { b: 4, a: -150 } },
+];

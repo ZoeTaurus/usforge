@@ -67,6 +67,31 @@
   #editbar button:hover { border-color: var(--cyan); }
   #editbar input { width: 140px; font: 13px 'Pixelify Sans', monospace; padding: 4px 6px; background: #0b0916; color: var(--ink); border: 2px solid var(--line); }
   #edTip { text-align: center; font-size: 13px; color: var(--dim); margin: 0; }
+  .ptag { color: #07060d; background: var(--pc, var(--cyan)); padding: 1px 6px; font-weight: 700; }
+  #ffBtn { position: absolute; right: 8px; bottom: 8px; font: 16px monospace; color: var(--ink); background: #1d1833cc; border: 2px solid var(--line); padding: 4px 9px; cursor: pointer; touch-action: none; user-select: none; }
+  #ffBtn:active { border-color: var(--hot); color: var(--hot); }
+  #toast { position: absolute; left: 50%; top: 10px; transform: translate(-50%, -10px); font: 700 13px 'Silkscreen', monospace; color: #1a1000; background: var(--hot); padding: 5px 10px; box-shadow: 3px 3px 0 #000; opacity: 0; pointer-events: none; white-space: nowrap; }
+  #toast.show { animation: toast 2.6s ease both; }
+  @keyframes toast { 10%, 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -6px); } }
+  .btn.party { background: #2a1d4a; border-color: #6a4ac0; }
+  .tabs { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
+  .tab { font: 13px 'Silkscreen', monospace; color: var(--ink); background: #1d1833; border: 2px solid var(--line); padding: 6px 10px; cursor: pointer; }
+  .tab[aria-pressed="true"] { border-color: var(--hot); color: var(--hot); }
+  .course { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; text-align: left; background: #1d1833; border: 2px solid var(--line); padding: 12px; margin-bottom: 8px; }
+  .course b { font: 700 17px 'Silkscreen', monospace; color: var(--hot); display: block; }
+  .course small { color: var(--dim); }
+  .course .btn { padding: 7px 12px; font-size: 13px; }
+  #partyNames { display: flex; flex-direction: column; gap: 8px; }
+  #partyNames label { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 14px; height: 14px; flex: none; box-shadow: 2px 2px 0 #000; }
+  #skinGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .skin { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 8px; background: #1d1833; border: 2px solid var(--line); color: var(--ink); cursor: pointer; font: 13px 'Pixelify Sans', monospace; }
+  .skin b { font: 700 14px 'Silkscreen', monospace; }
+  .skin small { color: var(--dim); text-align: center; }
+  .skin.on { border-color: var(--hot); }
+  .skin:disabled { cursor: default; opacity: .6; }
+  .ballpv { width: 14px; height: 14px; image-rendering: pixelated; }
+  .trail { display: flex; gap: 3px; } .trail i { width: 6px; height: 3px; }
   .sw { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
 </style>
 </head>
@@ -77,10 +102,12 @@
       <canvas id="game" width="320" height="180" aria-label="Gravity Golf playfield"></canvas>
       <div class="msg" id="msg"></div>
       <div id="hint" hidden>Drag back anywhere, then let go to shoot</div>
+      <button id="ffBtn" type="button" hidden aria-label="Hold to fast-forward">⏩</button>
+      <div id="toast" role="status"></div>
     </div>
 
     <div id="hud" hidden>
-      <span id="hHole">Hole 1</span><span class="nm" id="hName"></span>
+      <span class="ptag" id="hPlayer" hidden></span><span id="hHole">Hole 1</span><span class="nm" id="hName"></span>
       <span>Par <b id="hPar">2</b></span><span>Strokes <b id="hStrokes">0</b></span><span id="hTotalWrap">Total <b id="hTotal"></b></span>
       <button id="menuBtn" type="button">Menu</button>
     </div>
@@ -90,18 +117,18 @@
       <div class="box">
         <h1>Gravity<span>Golf</span></h1>
         <p class="sub">by Taurus · Lazy Studios</p>
-        <button class="btn go" id="tPlay" type="button">Play 18 holes</button>
-        <button class="btn" id="tContinue" type="button" hidden>Continue</button>
+        <button class="btn go" id="tPlay" type="button">Play</button>
+        <button class="btn party" id="tParty" type="button">Party mode · 2–4 players</button>
         <div class="row"><button class="btn" id="tHoles" type="button">Pick a hole</button><button class="btn" id="tEdit" type="button">Hole editor</button></div>
-        <div class="row"><button class="btn" id="tCode" type="button">Play a friend's hole</button><button class="btn" type="button" data-mute>Sound: on</button></div>
+        <div class="row"><button class="btn" id="tCode" type="button">Friend's hole</button><button class="btn" id="tSkins" type="button">Balls</button><button class="btn" id="tSettings" type="button">Settings</button></div>
         <p class="small" id="tBest"></p>
-        <p class="small">Drag back to aim · Arrows + Space work too · M mutes · Esc for the menu</p>
+        <p class="small">Drag back to aim · Arrows + Space work too · hold F to fast-forward · M mutes · Esc for the menu</p>
       </div>
     </div>
 
     <!-- hole select -->
     <div class="screen" id="holes" hidden>
-      <div class="box wide"><h2>Pick a hole</h2><div id="holeGrid"></div><button class="btn" type="button" data-back>Back</button></div>
+      <div class="box wide"><h2>Pick a hole</h2><div class="tabs" id="holeTabs"></div><div id="holeGrid"></div><button class="btn" type="button" data-back>Back</button></div>
     </div>
 
     <!-- scorecard -->
@@ -119,8 +146,39 @@
       <div class="box"><h2>Paused</h2>
         <button class="btn go" id="pResume" type="button">Resume</button>
         <button class="btn" id="pRestart" type="button">Restart hole</button>
-        <button class="btn" type="button" data-mute>Sound: on</button>
+        <button class="btn" id="pSettings" type="button">Settings</button>
         <button class="btn" id="pQuit" type="button">Quit to menu</button>
+      </div>
+    </div>
+
+    <!-- pick a course -->
+    <div class="screen" id="courses" hidden>
+      <div class="box wide"><h2 id="coursesTitle">Pick a course</h2><div id="courseList"></div><button class="btn" type="button" data-back>Back</button></div>
+    </div>
+
+    <!-- party mode setup -->
+    <div class="screen" id="party" hidden>
+      <div class="box"><h2>Party mode</h2>
+        <p class="sub">Take turns on one device. Everyone plays each hole, lowest total wins.</p>
+        <div class="tabs" id="partyCount"></div>
+        <div id="partyNames"></div>
+        <div class="row"><button class="btn go" id="partyGo" type="button">Choose a course</button><button class="btn" type="button" data-back>Back</button></div>
+      </div>
+    </div>
+
+    <!-- ball skins -->
+    <div class="screen" id="skins" hidden>
+      <div class="box wide"><h2>Balls</h2><p class="sub">Unlock new balls by playing well.</p><div id="skinGrid"></div><button class="btn" type="button" data-back>Back</button></div>
+    </div>
+
+    <!-- settings -->
+    <div class="screen" id="settings" hidden>
+      <div class="box"><h2>Settings</h2>
+        <button class="btn" id="sSound" type="button"></button>
+        <button class="btn" id="sShake" type="button"></button>
+        <button class="btn" id="sGuide" type="button"></button>
+        <p class="small">Long aim guide shows about a second of flight; short shows half.</p>
+        <button class="btn go" id="settingsBack" type="button">Done</button>
       </div>
     </div>
 

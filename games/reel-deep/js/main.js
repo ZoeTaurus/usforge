@@ -17,6 +17,7 @@ function frame(now) {
   last = now;
   Game.time += dt;
   if (Input.hit('m')) Sound.toggleMute();
+  if (Input.hit('l')) { setLang(LANG + 1); Toasts.add(LANGS[LANG].name, '#ffe9b0', 1.5, 20); Sound.play('select'); }
   Fx.update(dt);
   Game.scene.update(dt);
   Toasts.update(dt);

@@ -656,7 +656,7 @@ const BeachScene = {
     if (tab === 'GEAR') {
       for (const u of UPGRADES) {
         const lvl = s.up[u.id], max = lvl >= 3, cost = upgradeCost(u, lvl);
-        L.push({ name: u.name + ' ' + '*'.repeat(lvl) + '-'.repeat(3 - lvl), desc: u.desc + (u.id === 'cooler' ? ' NOW: ' + coolerCap(s) : ''), cost: max ? null : cost, own: max ? 'MAX' : '', act: max ? null : () => buy(cost, () => s.up[u.id]++, u.name) });
+        L.push({ name: tr(u.name) + ' ' + '*'.repeat(lvl) + '-'.repeat(3 - lvl), desc: u.desc + (u.id === 'cooler' ? ' NOW: ' + coolerCap(s) : ''), cost: max ? null : cost, own: max ? 'MAX' : '', act: max ? null : () => buy(cost, () => s.up[u.id]++, u.name) });
       }
       L.push({ name: 'ROWBOAT', desc: s.boat ? 'ROW TO NEW SPOTS WITH T!' : s.rod < 1 ? 'BEAT OLD GNARLY TO UNLOCK.' : 'ROW TO FARAWAY FISHING SPOTS!', cost: s.boat ? null : BOAT_COST, own: s.boat ? 'OWNED' : '',
         act: s.boat ? null : () => { if (s.rod < 1) { Sound.play('nope'); Toasts.add('BEAT OLD GNARLY FIRST!', '#ffb0a0', 2, 160); return; } buy(BOAT_COST, () => { s.boat = true; Toasts.add('PRESS T TO TRAVEL!', '#ffe14a', 3, 40); }, 'A ROWBOAT'); } });
@@ -1101,7 +1101,7 @@ const BeachScene = {
     });
     rows.forEach((r, i) => {
       const y = 36 + i * 26;
-      if (this.jpage === 1) drawText(SPOT_BY_ID[r.key].name.split(' ')[0], 178, y, '#8a6a4a');
+      if (this.jpage === 1) drawText(SPOT_BY_ID[r.key].short, 178, y, '#8a6a4a');
       if (s.rows.includes(r.key)) iconStar(this.jpage === 1 ? 222 : 180, y);
     });
     const f = list[this.jsel], c = s.caught[f.id];
@@ -1132,7 +1132,7 @@ const BeachScene = {
       const y = 38 + i * 11, beat = s.bosses.includes(b.id);
       if (beat) iconStar(170, y - 1);
       drawText(beat ? b.name : '???', 178, y, beat ? '#2a6a3a' : '#8a6a4a');
-      drawText(SPOT_BY_ID[b.spot].name.split(' ')[0], 300, y, '#b0a080', { align: 'right' });
+      drawText(SPOT_BY_ID[b.spot].short, 300, y, '#b0a080', { align: 'right' });
     });
     drawText('DAYS: ' + s.day + '   CATCHES: ' + s.catches + '   QUESTS: ' + s.questsDone, 170, 134, '#4a2e1c');
     drawText('BEAST TROPHIES: ' + s.bosses.length + '/' + BOSSES.length, 170, 144, '#4a2e1c');

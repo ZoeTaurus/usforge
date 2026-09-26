@@ -577,7 +577,8 @@ function drawStall(x, y, t) {
     R(x - 2 + i + 1, y - 30, 2, 1, c);
   }
   R(x - 2, y - 37, 44, 1, '#8a2a24');
-  R(x + 8, y - 45, 24, 8, '#8a5a35'); R(x + 8, y - 45, 24, 1, '#b07a4c');
+  const sw = Math.max(24, textWidth(tr('BAIT')) + 6);
+  R(x + 20 - sw / 2, y - 45, sw, 8, '#8a5a35'); R(x + 20 - sw / 2, y - 45, sw, 1, '#b07a4c');
   R(x + 12, y - 38, 1, 1, '#6b4428'); R(x + 27, y - 38, 1, 1, '#6b4428');
   drawText('BAIT', x + 20, y - 43, '#fff1c8', { align: 'center' });
   R(x + 5, y - 18, 7, 4, '#5e7ea0'); R(x + 6, y - 19, 5, 1, '#8ab0d0');

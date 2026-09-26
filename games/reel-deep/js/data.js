@@ -58,10 +58,10 @@ FISH.push(
 const FISH_BY_ID = Object.fromEntries(FISH.map(f => [f.id, f]));
 
 const SPOTS = [
-  { id: 'pier', name: 'SUNNY PIER', desc: 'HOME SWEET HOME.' },
-  { id: 'wreck', name: 'SHIPWRECK COVE', desc: 'SPOOKY, FOGGY WATER. A GHOST WHALE HAUNTS IT.', need: 'boat', boss: 5 },
-  { id: 'ice', name: 'FROSTBITE LAKE', desc: 'BRRR! A GIANT CRAB RULES THE ICE.', need: 'whale', boss: 6 },
-  { id: 'volcano', name: 'MAGMA LAGOON', desc: 'HOT HOT HOT. SOMETHING SLITHERS IN THE LAVA.', need: 'crab', boss: 7 },
+  { id: 'pier', short: 'PIER', name: 'SUNNY PIER', desc: 'HOME SWEET HOME.' },
+  { id: 'wreck', short: 'WRECK', name: 'SHIPWRECK COVE', desc: 'SPOOKY, FOGGY WATER. A GHOST WHALE HAUNTS IT.', need: 'boat', boss: 5 },
+  { id: 'ice', short: 'ICE', name: 'FROSTBITE LAKE', desc: 'BRRR! A GIANT CRAB RULES THE ICE.', need: 'whale', boss: 6 },
+  { id: 'volcano', short: 'VOLCANO', name: 'MAGMA LAGOON', desc: 'HOT HOT HOT. SOMETHING SLITHERS IN THE LAVA.', need: 'crab', boss: 7 },
 ];
 const SPOT_BY_ID = Object.fromEntries(SPOTS.map(s => [s.id, s]));
 

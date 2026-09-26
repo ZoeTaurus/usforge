@@ -152,6 +152,43 @@ const FONT = {
   '~': '000011110000000', '"': '101101000000000', '#': '101111101111101', '_': '000000000000111',
   '$': '011110010011110', '[': '011010010010011', ']': '110010010010110', '@': '101111111010000',
 };
+// Cyrillic capitals (letters shaped like Latin ones reuse those glyphs)
+Object.assign(FONT, {
+  'А': FONT.A, 'В': FONT.B, 'Е': FONT.E, 'К': FONT.K, 'М': FONT.M, 'Н': FONT.H, 'О': FONT.O, 'Р': FONT.P, 'С': FONT.C, 'Т': FONT.T, 'Х': FONT.X,
+  'Б': '111100110101110', 'Г': '111100100100100', 'Д': '011101101101111', 'Ж': '101111010111101', 'З': '110001010001110',
+  'И': '101101111111101', 'Л': '001011101101101', 'П': '111101101101101', 'У': '101101011001110', 'Ф': '010111101111010',
+  'Ц': '101101101101111', 'Ч': '101101111001001', 'Ш': '101101101111111', 'Щ': '101101101111111', 'Ъ': '110010011011011',
+  'Ы': '101101111101111', 'Ь': '100100110101110', 'Э': '110001011001110', 'Ю': '101111111111101', 'Я': '011101011101101',
+  '¡': '010000010010010', '¿': '010000010100011',
+});
+// letters with a little tail below the line
+const DESC = { 'Д': [[0, 5], [2, 5]], 'Ц': [[2, 5]], 'Щ': [[2, 5]] };
+// accent marks drawn above (or below) a letter: [dx, dy] pixels
+const MARKS = {
+  0x0301: [[1, -2], [2, -3]],          // acute
+  0x0300: [[0, -3], [1, -2]],          // grave
+  0x0302: [[0, -2], [1, -3], [2, -2]], // circumflex
+  0x0303: [[0, -2], [1, -3], [2, -3]], // tilde
+  0x0308: [[0, -2], [2, -2]],          // diaeresis
+  0x0306: [[0, -3], [1, -2], [2, -3]], // breve
+  0x0327: [[1, 5], [0, 6]],            // cedilla
+  0x030a: [[1, -3]],                   // ring
+};
+// split a string into letters + their accent marks
+const _cells = new Map();
+function textCells(s) {
+  let c = _cells.get(s);
+  if (c) return c;
+  c = [];
+  for (const ch of s.normalize('NFD')) {
+    const cp = ch.codePointAt(0);
+    if (cp >= 0x0300 && cp <= 0x036f) { if (c.length && MARKS[cp]) c[c.length - 1].m.push(MARKS[cp]); continue; }
+    c.push({ ch, m: [] });
+  }
+  if (_cells.size > 4000) _cells.clear();
+  _cells.set(s, c);
+  return c;
+}
 const _glyphs = {};
 function glyph(ch, color) {
   const bits = FONT[ch];
@@ -165,17 +202,21 @@ function glyph(ch, color) {
   for (let i = 0; i < 15; i++) if (bits[i] === '1') x.fillRect(i % 3, (i / 3) | 0, 1, 1);
   return (_glyphs[k] = c);
 }
-function textWidth(s, sc = 1) { s = String(s); return s.length ? (s.length * 4 - 1) * sc : 0; }
+function textWidth(s, sc = 1) { const n = textCells(String(s).toUpperCase()).length; return n ? (n * 4 - 1) * sc : 0; }
 function rawText(s, x, y, c, sc) {
-  for (let i = 0; i < s.length; i++) {
-    const g = glyph(s[i], c);
-    if (g) G.drawImage(g, x + i * 4 * sc, y, 3 * sc, 5 * sc);
+  const cells = textCells(s);
+  for (let i = 0; i < cells.length; i++) {
+    const g = glyph(cells[i].ch, c), gx = x + i * 4 * sc;
+    if (g) G.drawImage(g, gx, y, 3 * sc, 5 * sc);
+    const d = DESC[cells[i].ch];
+    if (d) { G.fillStyle = c; for (const [dx, dy] of d) G.fillRect(gx + dx * sc, y + dy * sc, sc, sc); }
+    if (cells[i].m.length) { G.fillStyle = c; for (const mk of cells[i].m) for (const [dx, dy] of mk) G.fillRect(gx + dx * sc, y + dy * sc, sc, sc); }
   }
 }
 function drawText(s, x, y, color = '#ffffff', o = {}) {
-  s = String(s).toUpperCase();
+  s = tr(String(s)).toUpperCase();
   const sc = o.scale || 1;
-  const w = textWidth(s, sc);
+  const n = textCells(s).length, w = n ? (n * 4 - 1) * sc : 0;
   if (o.align === 'center') x -= Math.floor(w / 2);
   else if (o.align === 'right') x -= w;
   x = Math.round(x); y = Math.round(y);
@@ -188,7 +229,7 @@ function drawText(s, x, y, color = '#ffffff', o = {}) {
   return w;
 }
 function wrapText(s, maxChars) {
-  const words = String(s).split(' '), lines = [];
+  const words = tr(String(s)).split(' '), lines = [];
   let cur = '';
   for (const w of words) {
     if ((cur + ' ' + w).trim().length > maxChars) { lines.push(cur); cur = w; }

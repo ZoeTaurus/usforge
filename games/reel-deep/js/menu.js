@@ -50,16 +50,17 @@ const MenuScene = {
     Sound.ambience('waves');
   },
   setItems() {
-    this.items = this.mode === 'diff' ? ['cozy', 'normal', 'back'] : this.hasSave ? ['continue', 'new', 'players', 'help'] : ['start', 'players', 'help'];
+    this.items = this.mode === 'diff' ? ['cozy', 'normal', 'back'] : this.hasSave ? ['continue', 'new', 'players', 'lang', 'help'] : ['start', 'players', 'lang', 'help'];
     this.sel = Math.min(this.sel, this.items.length - 1);
   },
   label(it) {
-    return { continue: 'CONTINUE', new: 'NEW GAME', start: 'START', players: 'PLAYERS: ' + Game.players, help: 'HOW TO PLAY', cozy: 'COZY (EASY)', normal: 'NORMAL', back: 'BACK' }[it];
+    return { continue: 'CONTINUE', new: 'NEW GAME', start: 'START', players: 'PLAYERS: ' + Game.players, lang: tr('LANGUAGE') + ': ' + LANGS[LANG].name, help: 'HOW TO PLAY', cozy: 'COZY (EASY)', normal: 'NORMAL', back: 'BACK' }[it];
   },
   choose(i) {
     const it = this.items[i];
     Sound.play('select');
     if (it === 'help') { this.help = 1; return; }
+    if (it === 'lang') { setLang(LANG + 1); return; }
     if (it === 'players') { Game.players = Game.players === 1 ? 2 : 1; savePlayers(Game.players); Toasts.add(Game.players === 2 ? 'TWO PLAYERS! P2 USES ENTER + ARROWS' : 'ONE PLAYER', '#ffe9b0', 2.5, 100); return; }
     if (it === 'start' || it === 'new') {
       this.mode = 'diff'; this.sel = 0; this.setItems();
@@ -76,6 +77,10 @@ const MenuScene = {
     this.wakeT = 0;
     Sound.play('wake');
   },
+  // the wooden signpost grows to fit the longest (translated) label
+  signW() { return Math.max(78, Math.max(...this.items.map(it => textWidth(this.label(it)))) + 20); },
+  signX() { return Math.min(224, W - 6 - this.signW()); },
+  signY() { return Math.min(112, H - 8 - (16 + this.items.length * 11)); },
   drawSleeper(cx, dir, w, pal, t) {
     const cy = 78;
     if (this.state === 'idle' || w < 0) {
@@ -118,7 +123,7 @@ const MenuScene = {
     if (Input.hit('arrowup', 'w')) { this.sel = (this.sel + n - 1) % n; Sound.play('move'); }
     if (Input.hit('arrowdown', 's')) { this.sel = (this.sel + 1) % n; Sound.play('move'); }
     for (let i = 0; i < n; i++) {
-      if (inRect(228, 124 + i * 11, 70, 10)) {
+      if (inRect(this.signX() + 4, this.signY() + 5 + i * 11, this.signW() - 8, 10)) {
         if (Input.mouse.lastMove > performance.now() / 1000 - 0.05 && this.sel !== i) { this.sel = i; Sound.play('move'); }
         if (Input.mouse.pressed) this.choose(i);
       }
@@ -184,15 +189,16 @@ const MenuScene = {
 
     // wooden signpost menu
     if (this.state === 'idle') {
-      R(261, 118, 3, 62, '#6b4428'); R(261, 118, 1, 62, '#8a5a35');
-      panel(224, 112, 78, 16 + this.items.length * 11, '#e8cc98');
+      const sx = this.signX(), sy = this.signY(), sw = this.signW();
+      R(sx + sw / 2 - 1, sy + 6, 3, H - sy, '#6b4428'); R(sx + sw / 2 - 1, sy + 6, 1, H - sy, '#8a5a35');
+      panel(sx, sy, sw, 16 + this.items.length * 11, '#e8cc98');
       this.items.forEach((it, i) => {
-        const y = 119 + i * 11 + 3, s = i === this.sel;
+        const y = sy + 10 + i * 11, s = i === this.sel;
         const label = this.label(it);
-        if (s) { drawText('>', 231 + Math.round(Math.sin(t * 6)), y, '#a0301f'); }
-        drawText(label, 237, y, s ? '#a0301f' : '#5a3a22');
+        if (s) { drawText('>', sx + 7 + Math.round(Math.sin(t * 6)), y, '#a0301f'); }
+        drawText(label, sx + 13, y, s ? '#a0301f' : '#5a3a22');
       });
-      drawText('M: MUTE', 4, 172, 'rgba(255,240,220,0.6)');
+      drawText('M: MUTE   L: LANGUAGE', 4, 172, 'rgba(255,240,220,0.6)');
     }
     if (this.help) {
       panel(18, 34, 284, 136);

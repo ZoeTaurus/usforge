@@ -1,3 +1,9 @@
 {
-  "Taurus": { "hash": "sha256$5caa77e74832f43bf8c03da1749f7dd6a3f9b22c4d56368f85cc646c589d853f", "admin": true }
+  "Taurus": {
+    "hash": "sha256$5caa77e74832f43bf8c03da1749f7dd6a3f9b22c4d56368f85cc646c589d853f",
+    "admin": true
+  },
+  "Henrique": {
+    "hash": "pbkdf2$100000$0f2a013938ab1a97e14c4d865bb82257$6ab46f34413eaf22c8dd7742ca3acb804764e698c7c46f2384354233634b6a32"
+  }
 }

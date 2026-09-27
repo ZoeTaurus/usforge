@@ -1,5 +1,21 @@
 [
   {
+    "slug": "island-explorer",
+    "title": "Island Explorer",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "In progress",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "dev": true,
+    "progress": 50,
+    "next": "",
+    "build": true,
+    "added": 1790530876
+  },
+  {
     "slug": "base-strike-classic",
     "title": "BaseStrike Classic",
     "author": "Igor",

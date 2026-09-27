@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Castaway: Three Isles</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#0a0f1a">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=12">
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="game" width="384" height="224"></canvas>
+
+    <div id="hud" class="hidden">
+      <div id="stats" class="panel">
+        <div class="bar"><span>HP</span><div class="track"><div id="hp" class="fill hp"></div></div></div>
+        <div class="bar"><span>FOOD</span><div class="track"><div id="food" class="fill food"></div></div></div>
+        <div id="inv"></div>
+      </div>
+      <div id="objective" class="panel"><div id="objMain"></div><div id="objSide"></div></div>
+      <div id="rightCol">
+        <div id="miniWrap" class="panel"><canvas id="minimap" width="144" height="96"></canvas></div>
+        <div id="roseWrap" class="panel"><canvas id="rose" width="76" height="76"></canvas></div>
+        <div id="clock" class="panel"></div>
+      </div>
+      <div id="keys">WASD move · Shift sprint · E interact · Space attack · Q roll · C craft · B build · F eat · H heal · M map · Esc pause</div>
+      <div id="savedNote">Game saved</div>
+      <div id="bossBar" class="hidden"><div id="bossName"></div><div class="btrack"><div id="bossFill"></div></div></div>
+    </div>
+
+    <!-- touch controls -->
+    <div id="touch">
+      <div id="stickZone"></div>
+      <div id="stick"><div id="knob"></div></div>
+      <div id="tButtons">
+        <button class="tb big" data-act="interact">E</button>
+        <button class="tb big alt" data-act="attack">⚔</button>
+        <button class="tb" data-act="craft">C</button>
+        <button class="tb" data-act="eat">F</button>
+        <button class="tb" data-act="heal">H</button>
+        <button class="tb" data-act="roll">Q</button>
+        <button class="tb" data-act="build">B</button>
+      </div>
+      <div id="tTop">
+        <button class="tb" data-act="map">M</button>
+        <button class="tb" data-act="pause">II</button>
+      </div>
+    </div>
+
+    <div id="islandName"></div>
+    <div id="toasts"></div>
+
+    <div id="dialog" class="panel hidden" data-act="interact">
+      <div id="dname"></div>
+      <div id="dtext"></div>
+      <div class="hint">[E] ▶</div>
+    </div>
+
+    <div id="craft" class="overlay hidden">
+      <div class="panel menu">
+        <div class="mtitle">CRAFTING</div>
+        <div id="recipes"></div>
+        <div class="small">[W/S] select · [E] craft · [1-9] quick · [C] close</div>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay hidden">
+      <div class="panel menu">
+        <div class="mtitle">PAUSED</div>
+        <button class="mbtn" data-act="pause">Resume</button>
+        <button class="mbtn" id="musicBtn">Music: On</button>
+        <button class="mbtn" id="sfxBtn">Sound: On</button>
+        <button class="mbtn" id="saveBtn">Save Game</button>
+        <button class="mbtn" id="quitBtn">Save &amp; Quit to Title</button>
+        <div class="small help">
+          WASD / Arrows: move · Shift: sprint<br>
+          E: interact / fish · Space: attack / chop / mine<br>
+          Q: dodge-roll (invulnerable while rolling)<br>
+          C: craft · B: build mode · F: eat · H: bandage · M: map
+        </div>
+      </div>
+    </div>
+
+    <div id="bigmap" class="overlay hidden">
+      <div class="maptitle">~ Chart of the Three Isles ~</div>
+      <canvas id="bigmapc" width="580" height="360"></canvas>
+      <div id="mapinfo"></div>
+      <div class="small">[M] close</div>
+    </div>
+
+    <div id="fade"><div id="fadeText"></div></div>
+
+    <div id="title" class="screen">
+      <h1>CASTAWAY</h1>
+      <h2>~ Three Isles ~</h2>
+      <p class="story">
+        A storm tore your ship apart. You wake up alone on a tiny island.<br>
+        Far to the east, past the jungle isle and the churning reef,<br>
+        lies the Great Isle and the town of <b>Port Haven</b>.<br>
+        Build a raft, make it across the three isles, and find civilization.
+      </p>
+      <div class="btnrow">
+        <button id="continueBtn" class="hidden">Continue</button>
+        <button id="startBtn">New Game</button>
+      </div>
+      <div class="small blink" id="pressHint">press Enter</div>
+    </div>
+
+    <div id="win" class="screen hidden">
+      <h1>RESCUED!</h1>
+      <h2>You reached Port Haven</h2>
+      <div id="winStats"></div>
+      <button id="againBtn">Play Again</button>
+    </div>
+  </div>
+
+  <script src="js/rng.js?v=12"></script>
+  <script src="js/tiles.js?v=12"></script>
+  <script src="js/story.js?v=12"></script>
+  <script src="js/sprites.js?v=12"></script>
+  <script src="js/sound.js?v=12"></script>
+  <script src="js/world.js?v=12"></script>
+  <script src="js/fx.js?v=12"></script>
+  <script src="js/entities.js?v=12"></script>
+  <script src="js/bosses.js?v=12"></script>
+  <script src="js/input.js?v=12"></script>
+  <script src="js/ui.js?v=12"></script>
+  <script src="js/save.js?v=12"></script>
+  <script src="js/game.js?v=12"></script>
+</body>
+</html>

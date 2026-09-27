@@ -8,6 +8,9 @@ import json, pathlib, subprocess, sys, time
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GAMES = ROOT / 'games'
 COVERS = ('cover.png', 'cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif')
+# the genres a game can be tagged with (up to 3) — the same list lives in site.js and worker/index.js
+GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Horror', 'Party', 'Platformer', 'Puzzle', 'Racing', 'Roguelike', 'RPG', 'Sci-fi', 'Shooter', 'Simulation', 'Sports', 'Story', 'Strategy', 'Text-based']
+
 
 
 def added_at(folder):
@@ -33,7 +36,8 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         continue
     url = str(info.get('url', '')).strip()
     playable = (folder / 'index.html').exists()
-    if not playable and not url:
+    dev = bool(info.get('dev'))   # still in development: listed in its own section, and may have no build yet
+    if not playable and not url and not dev:
         problems.append(f'{folder.name}: needs an index.html (or a "url" in game.json) — skipped')
         continue
     cover = next((c for c in COVERS if (folder / c).exists()), None)
@@ -45,7 +49,12 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         'blurb': str(info.get('blurb') or '')[:140],
         'cover': f'games/{folder.name}/{cover}' if cover else None,
         'pixel': bool(info.get('pixel')),   # pixel-art covers stay crisp instead of blurry
-        'url': None if playable else url,   # games that only live elsewhere (like a Claude artifact link)
+        'url': None if playable else (url or None),   # games that only live elsewhere (like a Claude artifact link)
+        'genres': [g for g in GENRES if g.lower() in {str(x).lower() for x in info.get('genres') or []}][:3],
+        'dev': dev,
+        'progress': max(0, min(100, int(info['progress']))) if dev and isinstance(info.get('progress'), (int, float)) else None,
+        'next': str(info.get('next') or '')[:100] if dev else '',   # what they're working on next
+        'build': playable or bool(url),   # False = a teaser for a game with nothing to play yet
         'added': added_at(folder),
     })
 

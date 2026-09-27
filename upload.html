@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js" defer></script>
+<script src="site.js"></script>
 </head>
 <body>
 <canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
@@ -50,6 +50,22 @@
           <input id="fSlug" required maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="potato-dash"></label>
         <label>One-line description <input id="fBlurb" maxlength="140" placeholder="Dodge the forks."></label>
         <label class="check"><input id="fPixel" type="checkbox"> Pixel art (keeps the cover crisp)</label>
+
+        <fieldset>
+          <legend>Genres <span class="hint">pick up to 3</span></legend>
+          <div class="genre-pick" id="fGenres"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>In development</legend>
+          <label class="check"><input id="fDev" type="checkbox"> Still in development <span class="hint">(shows in the “In development” section; you can post it before there’s anything to play)</span></label>
+          <div id="devFields" hidden>
+            <label>How far along? <span class="hint" id="fProgressN">50%</span>
+              <input id="fProgress" type="range" min="0" max="100" step="5" value="50"></label>
+            <label>Working on next <span class="hint">(optional)</span>
+              <input id="fNext" maxlength="100" placeholder="More levels and a boss fight"></label>
+          </div>
+        </fieldset>
 
         <div class="cover-field">
           <span class="lbl">Cover picture <span class="hint">(optional — shown on the game’s card)</span></span>
@@ -157,16 +173,26 @@
     const g = games.find(x => x.slug === slug); if (!g) return;
     editing = slug;
     $('fTitle').value = g.title; $('fSlug').value = g.slug; $('fSlug').readOnly = true; $('fBlurb').value = g.blurb || ''; $('fPixel').checked = !!g.pixel; $('fUrl').value = g.url || '';
+    setGenres(g.genres || []); $('fDev').checked = !!g.dev; $('fProgress').value = g.progress ?? 50; $('fNext').value = g.next || ''; devShow();
     $('formTitle').textContent = `Update ${g.title}`; $('send').textContent = 'Save update'; $('cancelEdit').hidden = false;
     chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name, description or cover.');
     $('fCover').value = ''; setCover(null, g.cover);
     $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function endEdit() {
-    editing = null; $('up').reset(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null);
+    editing = null; $('up').reset(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); devShow();
     $('formTitle').textContent = 'Add a game'; $('send').textContent = 'Upload'; $('cancelEdit').hidden = true;
   }
   $('cancelEdit').onclick = endEdit;
+
+  // ---------- genres (up to 3) and in-development details ----------
+  $('fGenres').innerHTML = (window.UsForge?.GENRES || []).map(x => `<label class="gpick"><input type="checkbox" value="${esc(x)}"><span>${esc(x)}</span></label>`).join('');
+  const genreBoxes = () => [...$('fGenres').querySelectorAll('input')];
+  const limitGenres = () => { const n = genreBoxes().filter(b => b.checked).length; for (const b of genreBoxes()) b.disabled = !b.checked && n >= 3; };
+  function setGenres(list) { const want = list.map(x => x.toLowerCase()); for (const b of genreBoxes()) b.checked = want.includes(b.value.toLowerCase()); limitGenres(); }
+  $('fGenres').addEventListener('change', limitGenres);
+  function devShow() { $('devFields').hidden = !$('fDev').checked; $('fProgressN').textContent = $('fProgress').value + '%'; }
+  $('fDev').onchange = devShow; $('fProgress').oninput = devShow;
   function askRemove(slug, btn) {   // a two-step confirm, right in the row
     const row = btn.closest('.mine-row'), g = games.find(x => x.slug === slug);
     row.querySelector('.acts').innerHTML = `<span class="dim">Remove ${esc(g.title)} for good?</span><button class="danger" data-yes>Remove</button><button class="ghost" data-no>Keep</button>`;
@@ -263,12 +289,15 @@
     fd.append('name', me.name); fd.append('password', pass);
     fd.append('slug', $('fSlug').value.trim()); fd.append('title', $('fTitle').value.trim()); fd.append('blurb', $('fBlurb').value.trim());
     fd.append('pixel', String($('fPixel').checked)); fd.append('url', $('fUrl').value.trim());
+    for (const b of genreBoxes()) if (b.checked) fd.append('genre', b.value);
+    fd.append('dev', String($('fDev').checked));
+    if ($('fDev').checked) { fd.append('progress', $('fProgress').value); fd.append('next', $('fNext').value.trim()); }
     for (const c of chosen) fd.append('files', c.file, c.path);
     if (coverPick) fd.append('cover', coverPick, coverPick.name);
     $('send').disabled = true; say('upMsg', 'Uploading…');
     try {
       const r = await api('upload', fd);
-      say('upMsg', ''); $('upMsg').innerHTML = `${r.updated ? 'Updated' : 'Added'}! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">play it</a>.`;
+      say('upMsg', ''); $('upMsg').innerHTML = `${r.updated ? 'Updated' : 'Added'}! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">see it</a>.`;
       endEdit(); listMine();
     } catch (err) { say('upMsg', err.message, true); }
     $('send').disabled = false;

@@ -2,5 +2,10 @@
   "title": "Die Famous",
   "author": "Henrique",
   "owner": "Henrique",
-  "blurb": "Die Famous - self explanatory"
+  "blurb": "Die Famous - self explanatory",
+  "genres": [
+    "Simulation",
+    "Strategy",
+    "Comedy"
+  ]
 }

@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js" defer></script>
+<script src="site.js"></script>
 <script>
   // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
   try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
@@ -44,6 +44,7 @@
       <div class="stat"><b id="statGames">0</b><span>Games</span></div>
       <div class="stat"><b id="statMakers">0</b><span>Makers</span></div>
       <div class="stat"><b id="statNew">0</b><span>New this week</span></div>
+      <div class="stat" id="statDevBox" hidden><b id="statDev">0</b><span>In development</span></div>
       <div class="stat" id="statPlaysBox" hidden><b id="statPlays">0</b><span>Plays</span></div>
     </div>
   </section>
@@ -55,9 +56,19 @@
     <div class="makers" id="makers" role="group" aria-label="Filter by maker"></div>
     <button class="surprise" id="surprise" type="button" hidden>Surprise me</button>
     <span class="count" id="count"></span>
+    <div class="makers genre-bar" id="genres" role="group" aria-label="Filter by genre"></div>
   </div>
 
   <main class="grid" id="grid" aria-live="polite"></main>
+
+  <!-- games still being made: early builds you can try, and teasers for ones with nothing to play yet -->
+  <section class="devsec" id="devSec" aria-labelledby="devTitle">
+    <div class="devsec-head">
+      <h2 id="devTitle"><span class="spark" aria-hidden="true"></span>In development</h2>
+      <p>Still being made at Lazy Studios: try the early builds, and keep an eye on what’s coming.</p>
+    </div>
+    <div class="grid" id="devGrid" aria-live="polite"></div>
+  </section>
 
   <footer class="foot">
     <span>UsForge · by Lazy Studios</span>
@@ -92,7 +103,8 @@
 
   // ---------- games ----------
   const params = new URLSearchParams(location.search);
-  let games = [], by = params.get('by') || '';
+  let games = [], by = params.get('by') || '', genre = params.get('genre') || '';
+  const released = () => games.filter(g => !g.dev), cooking = () => games.filter(g => g.dev);
   const WEEK = 7 * 24 * 3600, now = Date.now() / 1000;
   const isNew = g => g.added && now - g.added < WEEK;
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
@@ -103,6 +115,8 @@
   const href = g => `play.html?g=${encodeURIComponent(g.slug)}`;   // every game opens its page first (picture, description, Play)
   const ext = () => '';
   let plays = null;   // {slug: count} from the play counter, once it loads (not on the GitHub Pages copy)
+  const genresOf = g => g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<button type="button" class="gtag" data-genre="${esc(x)}">${esc(x)}</button>`).join('')}</span>` : '';
+  const progressOf = g => g.progress == null ? '' : `<span class="progress" title="${g.progress}% done"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span>`;
   const playsOf = g => plays ? `<span class="plays">▶ ${(plays[g.slug] || 0).toLocaleString()} play${plays[g.slug] === 1 ? '' : 's'}</span>` : '';
 
   function paintFeature(g) {
@@ -115,6 +129,7 @@
         <h2>${esc(g.title)}</h2>
         <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
         ${playsOf(g)}
+        ${genresOf(g)}
         ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
         <a class="play-btn" href="${esc(href(g))}">View game</a>
       </div>`;
@@ -127,21 +142,35 @@
       .map(([key, n, label]) => `<button type="button" class="maker" data-maker="${esc(key)}" aria-pressed="${by.toLowerCase() === key.toLowerCase()}">${esc(label)} <span>${n}</span></button>`).join('');
     for (const b of $('makers').children) b.onclick = () => setBy(b.dataset.maker);
   }
-  function setBy(name) {
-    by = name;
-    history.replaceState(null, '', by ? '?by=' + encodeURIComponent(by) : './');
-    paint();
+  function paintGenres() {
+    const counts = {};
+    for (const g of games) for (const x of g.genres || []) counts[x] = (counts[x] || 0) + 1;
+    const names = (window.UsForge?.GENRES || Object.keys(counts)).filter(x => counts[x]);
+    $('genres').hidden = !names.length;
+    $('genres').innerHTML = `<span class="genre-lbl">Genre</span>` + [['', 'All']].concat(names.map(n => [n, n]))
+      .map(([key, label]) => `<button type="button" class="maker" data-g="${esc(key)}" aria-pressed="false">${esc(label)}${key ? ` <span>${counts[key]}</span>` : ''}</button>`).join('');
+    for (const b of $('genres').querySelectorAll('button')) b.onclick = () => setGenre(b.dataset.g);
   }
+  function syncUrl() {
+    const q = new URLSearchParams();
+    if (by) q.set('by', by); if (genre) q.set('genre', genre);
+    history.replaceState(null, '', q.toString() ? '?' + q : './');
+  }
+  function setBy(name) { by = name; syncUrl(); paint(); }
+  function setGenre(name) { genre = genre.toLowerCase() === name.toLowerCase() ? '' : name; syncUrl(); paint(); }
   function paint() {
     const q = $('q').value.trim().toLowerCase();
-    const list = games.filter(g => (!by || g.author.toLowerCase() === by.toLowerCase())
-      && (!q || (g.title + ' ' + g.author + ' ' + g.blurb).toLowerCase().includes(q)));
+    const fits = g => (!by || g.author.toLowerCase() === by.toLowerCase())
+      && (!genre || (g.genres || []).some(x => x.toLowerCase() === genre.toLowerCase()))
+      && (!q || [g.title, g.author, g.blurb, ...(g.genres || [])].join(' ').toLowerCase().includes(q));
+    const list = released().filter(fits);
     // the newest game gets the big card when you're just browsing
-    const showFeature = !q && !by && games.length > 1;
-    paintFeature(showFeature ? games[0] : null);
+    const showFeature = !q && !by && !genre && released().length > 1;
+    paintFeature(showFeature ? released()[0] : null);
     const rest = showFeature ? list.slice(1) : list;
     $('count').textContent = `${list.length} ${list.length === 1 ? 'game' : 'games'}`;
     for (const b of $('makers').children) b.setAttribute('aria-pressed', String(by.toLowerCase() === b.dataset.maker.toLowerCase()));
+    for (const b of $('genres').querySelectorAll('button')) b.setAttribute('aria-pressed', String(genre.toLowerCase() === b.dataset.g.toLowerCase()));
     $('grid').innerHTML = rest.length ? rest.map((g, i) => `<article style="--i:${i}">
         <a class="card" href="${esc(href(g))}"${ext(g)}>
           <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.url ? '<span class="tag">opens elsewhere ↗</span>' : isNew(g) ? '<span class="tag new">New</span>' : ''}</div>
@@ -150,10 +179,29 @@
           <b>${esc(g.title)}</b>
           <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
           ${playsOf(g)}
+          ${genresOf(g)}
           ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
         </div>
       </article>`).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
+
+    // in development
+    const dev = cooking().filter(fits);
+    $('devGrid').innerHTML = dev.length ? dev.map((g, i) => `<article class="devcard" style="--i:${i}">
+        <a class="card" href="${esc(href(g))}">
+          <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span></div>
+        </a>
+        <div class="meta">
+          <b>${esc(g.title)}</b>
+          <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
+          ${progressOf(g)}
+          ${genresOf(g)}
+          ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
+          ${g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
+        </div>
+      </article>`).join('')
+      : `<p class="empty">${cooking().length ? 'No games in development match that.' : 'Nothing in the forge right now. When you upload a game, tick “Still in development” to show it here.'}</p>`;
     for (const b of document.querySelectorAll('[data-by]')) b.onclick = () => setBy(b.dataset.by);
+    for (const b of document.querySelectorAll('[data-genre]')) b.onclick = () => setGenre(b.dataset.genre);
   }
 
   // the games counter: numbers tick up to their value
@@ -165,7 +213,8 @@
   }
   function countUp() {
     const makers = new Set(games.map(g => g.author.toLowerCase())).size, fresh = games.filter(isNew).length;
-    for (const [id, n] of [['statGames', games.length], ['statMakers', makers], ['statNew', fresh]]) tickTo(id, n);
+    for (const [id, n] of [['statGames', released().length], ['statMakers', makers], ['statNew', fresh]]) tickTo(id, n);
+    $('statDevBox').hidden = !cooking().length; if (cooking().length) tickTo('statDev', cooking().length);
   }
   function countPlays() {
     if (!plays || !games.length) return;
@@ -174,9 +223,9 @@
     paint();
   }
   $('q').addEventListener('input', paint);
-  $('surprise').onclick = () => { const pool = games.filter(g => !g.url); const g = (pool.length ? pool : games)[Math.floor(Math.random() * (pool.length || games.length))]; if (g) location.href = href(g); };
+  $('surprise').onclick = () => { const pool = games.filter(g => !g.url && g.build !== false); const g = (pool.length ? pool : games)[Math.floor(Math.random() * (pool.length || games.length))]; if (g) location.href = href(g); };
   fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(list => {
-    games = list; $('surprise').hidden = games.length < 2; paintMakers(); paint(); countUp(); countPlays();
+    games = list; $('surprise').hidden = games.length < 2; paintMakers(); paintGenres(); paint(); countUp(); countPlays();
   }).catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
   fetch('/api/plays').then(r => r.ok ? r.json() : null).then(p => { if (p && typeof p === 'object') { plays = p; countPlays(); } }).catch(() => {});
 })();

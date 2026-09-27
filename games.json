@@ -8,6 +8,15 @@
     "cover": "games/die-famous/cover.png",
     "pixel": false,
     "url": null,
+    "genres": [
+      "Comedy",
+      "Simulation",
+      "Strategy"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
     "added": 1790438292
   },
   {
@@ -19,6 +28,15 @@
     "cover": "games/gravity-golf/cover.png",
     "pixel": true,
     "url": null,
+    "genres": [
+      "Party",
+      "Puzzle",
+      "Sports"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
     "added": 1790437918
   },
   {
@@ -30,6 +48,15 @@
     "cover": "games/reel-deep/cover.jpg",
     "pixel": true,
     "url": null,
+    "genres": [
+      "Adventure",
+      "Casual",
+      "Simulation"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
     "added": 1790437527
   },
   {
@@ -41,6 +68,15 @@
     "cover": "games/snack-squad-showdown/cover.jpg",
     "pixel": false,
     "url": null,
+    "genres": [
+      "Action",
+      "Boss rush",
+      "Comedy"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
     "added": 1790435282
   },
   {
@@ -52,6 +88,15 @@
     "cover": "games/the-last-signal/cover.png",
     "pixel": false,
     "url": null,
+    "genres": [
+      "Horror",
+      "Sci-fi",
+      "Text-based"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
     "added": 1790434185
   },
   {
@@ -63,6 +108,15 @@
     "cover": "games/vax-attack/cover.png",
     "pixel": true,
     "url": null,
+    "genres": [
+      "Boss rush",
+      "Roguelike",
+      "Shooter"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
     "added": 1790427753
   }
 ]

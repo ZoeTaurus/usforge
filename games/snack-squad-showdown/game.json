@@ -2,5 +2,10 @@
   "title": "Snack Squad Showdown",
   "author": "Alex",
   "owner": "Alex",
-  "blurb": "Snack Squad Showdown is a food themed game where you fight bosses. Could you kill them all?"
+  "blurb": "Snack Squad Showdown is a food themed game where you fight bosses. Could you kill them all?",
+  "genres": [
+    "Action",
+    "Boss rush",
+    "Comedy"
+  ]
 }

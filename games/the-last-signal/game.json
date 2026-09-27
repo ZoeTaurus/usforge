@@ -2,5 +2,10 @@
   "title": "The Last Signal",
   "author": "Henrique",
   "owner": "Henrique",
-  "blurb": "Terminal-based sci-fi horror game"
+  "blurb": "Terminal-based sci-fi horror game",
+  "genres": [
+    "Horror",
+    "Sci-fi",
+    "Text-based"
+  ]
 }

@@ -3,5 +3,10 @@
   "author": "Taurus",
   "owner": "Taurus",
   "blurb": "You're the vaccine. Fifty-three bosses stand between you and Patient Zero.",
-  "pixel": true
+  "pixel": true,
+  "genres": [
+    "Shooter",
+    "Roguelike",
+    "Boss rush"
+  ]
 }

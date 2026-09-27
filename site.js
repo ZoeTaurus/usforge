@@ -49,6 +49,8 @@
     new ResizeObserver(update).observe(document.body);
     update();
   }
-  window.UsForge = { refreshScroll: () => dispatchEvent(new Event('scroll')) };
+  // the genres a game can be tagged with (up to 3) — the same list lives in worker/index.js and scripts/build_list.py
+  const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Horror', 'Party', 'Platformer', 'Puzzle', 'Racing', 'Roguelike', 'RPG', 'Sci-fi', 'Shooter', 'Simulation', 'Sports', 'Story', 'Strategy', 'Text-based'];
+  window.UsForge = { refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

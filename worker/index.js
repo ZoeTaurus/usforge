@@ -8,6 +8,8 @@ const REPO = 'ZoeTaurus/usforge', BRANCH = 'main';
 const MAX_BYTES = 20 * 1024 * 1024, MAX_FILES = 250, MAX_BINARIES = 35;   // (Workers can only make ~50 requests per upload)
 const TEXT = /\.(html?|js|mjs|css|json|txt|md|svg|csv|xml|glsl|frag|vert|map)$/i;
 const COVERS = ['cover.png', 'cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif'];
+// the genres a game can be tagged with (up to 3) — the same list lives in site.js and scripts/build_list.py
+const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Horror', 'Party', 'Platformer', 'Puzzle', 'Racing', 'Roguelike', 'RPG', 'Sci-fi', 'Shooter', 'Simulation', 'Sports', 'Story', 'Strategy', 'Text-based'];
 
 export default {
   async fetch(req, env) {
@@ -125,6 +127,11 @@ async function upload(req, env) {
   const link = String(form.get('url') || '').trim(), pixel = form.get('pixel') === 'true';
   if (!title) throw fail(400, 'Give your game a name.');
   if (link && !/^https:\/\/[^\s"<>]+$/.test(link)) throw fail(400, 'The link must start with https://');
+  const picked = form.getAll('genre').map(g => String(g).toLowerCase());
+  const genres = GENRES.filter(g => picked.includes(g.toLowerCase())).slice(0, 3);
+  const dev = form.get('dev') === 'true';   // still in development
+  const progress = dev && form.get('progress') !== null && form.get('progress') !== '' ? Math.max(0, Math.min(100, Math.round(+form.get('progress') || 0))) : null;
+  const next = dev ? String(form.get('next') || '').trim().slice(0, 100) : '';
 
   // an optional cover picture sent on its own (drag-and-drop on the upload page); it wins over any cover in the game files
   const coverIn = form.get('cover');
@@ -165,15 +172,21 @@ async function upload(req, env) {
   const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
   const before = await ownerCheck(env, head, slug, who);
   const existing = before ? await existingPaths(env, head, slug) : [];
-  const kept = replacing ? [] : existing.filter(p => !p.endsWith('/game.json') && !(coverPath && rootCover(p)));   // details-only edit keeps the files
+  const kept = replacing
+    // new game files replace the old ones, but the cover picture stays unless a new one came with them
+    ? (coverPath || files.some(f => rootCover(f.path)) ? [] : existing.filter(rootCover))
+    : existing.filter(p => !p.endsWith('/game.json') && !(coverPath && rootCover(p)));   // details-only edit keeps the files
   const playable = files.some(f => f.path === `games/${slug}/index.html`) || kept.includes(`games/${slug}/index.html`);
-  if (!playable && !link) throw fail(400, replacing ? 'Your game needs an index.html at the top of its folder.' : 'Choose your game’s folder (or HTML file), or give a link.');
+  if (replacing && !playable) throw fail(400, 'Your game needs an index.html at the top of its folder.');
+  if (!playable && !link && !dev) throw fail(400, 'Choose your game’s folder (or HTML file), or give a link — or tick “Still in development” to post it as coming soon.');
   const owner = before?.owner || (before?.author && who.admin ? before.author : who.name);
-  const info = { title, author: before?.author && who.admin ? before.author : who.name, owner, blurb, ...(pixel ? { pixel: true } : {}), ...(link && !playable ? { url: link } : {}) };
+  const info = { title, author: before?.author && who.admin ? before.author : who.name, owner, blurb, ...(pixel ? { pixel: true } : {}), ...(link && !playable ? { url: link } : {}),
+    ...(genres.length ? { genres } : {}), ...(dev ? { dev: true, ...(progress !== null ? { progress } : {}), ...(next ? { next } : {}) } : {}) };
   const now = Math.floor(Date.now() / 1000), list = await readJson(env, 'games.json', head);
   const all = new Set([...files.map(f => f.path), ...kept]);
   const cover = COVERS.find(c => all.has(`games/${slug}/${c}`));
-  const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null, added: (list || []).find(g => g.slug === slug)?.added || now };
+  const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null,
+    genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now };
   const stale = existing.filter(p => !all.has(p) && !p.endsWith('/game.json')).map(path => ({ path, remove: true }));   // old files (and an old cover) that were replaced
   await commit(env, head, [...files, ...stale,
     { path: `games/${slug}/game.json`, text: JSON.stringify(info, null, 2) + '\n' },

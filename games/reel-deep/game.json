@@ -3,5 +3,10 @@
   "author": "Alex",
   "owner": "Alex",
   "blurb": "A chill fishing game. Travel between islands to get rarer, cooler fish. But watch out for the big silhouettes…",
-  "pixel": true
+  "pixel": true,
+  "genres": [
+    "Casual",
+    "Adventure",
+    "Simulation"
+  ]
 }

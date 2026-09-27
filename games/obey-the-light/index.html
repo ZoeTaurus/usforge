@@ -1,0 +1,3360 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Obey the Light</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --ground: #0d0c16;
+  }
+  html, body {
+    height: 100%;
+    margin: 0;
+  }
+  body {
+    background-color: var(--ground);
+    background-repeat: repeat;
+    image-rendering: pixelated;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #screen {
+    display: block;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    background: #0b0b12;
+    outline: none;
+  }
+</style>
+<canvas id="screen" width="320" height="180" tabindex="0" aria-label="Obey the Light: a pixel art driving game. Do what the traffic light says or get sniped."></canvas>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// pixel.js - the low-res screen, pixel drawing primitives, sprites, the font.
+// Everything is drawn onto a 320x180 canvas at integer coordinates and then
+// scaled up by CSS with nearest-neighbour sampling, so every single thing on
+// screen (text included) is made of big chunky pixels.
+// ---------------------------------------------------------------------------
+
+const W = 320;
+const H = 180;
+
+const screenCanvas = document.getElementById('screen');
+const ctx = screenCanvas.getContext('2d', { alpha: false });
+ctx.imageSmoothingEnabled = false;
+
+// ---- small math helpers ---------------------------------------------------
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+const rnd = (a, b) => a + Math.random() * (b - a);
+const irnd = (a, b) => Math.floor(rnd(a, b + 1));
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
+const TAU = Math.PI * 2;
+
+// Deterministic RNG so the city looks the same every time you drive past it.
+function mulberry32(seed) {
+  let a = seed | 0;
+  return function () {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashInt(a, b) {
+  let h = Math.imul(a | 0, 0x27d4eb2d) ^ Math.imul((b | 0) + 0x165667b1, 0x85ebca6b);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0xc2b2ae35);
+  return (h ^ (h >>> 13)) | 0;
+}
+
+// ---- colour helpers ---------------------------------------------------------
+function hexToRgb(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function rgbToHex(r, g, b) {
+  const h = (v) => clamp(Math.round(v), 0, 255).toString(16).padStart(2, '0');
+  return '#' + h(r) + h(g) + h(b);
+}
+function mix(hexA, hexB, t) {
+  const a = hexToRgb(hexA);
+  const b = hexToRgb(hexB);
+  return rgbToHex(lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t));
+}
+function shade(hex, t) { return t < 0 ? mix(hex, '#000000', -t) : mix(hex, '#ffffff', t); }
+function hsl(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  s /= 100; l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return rgbToHex(f(0) * 255, f(8) * 255, f(4) * 255);
+}
+
+// ---- offscreen canvases ---------------------------------------------------
+function makeCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, w | 0);
+  c.height = Math.max(1, h | 0);
+  c.getContext('2d').imageSmoothingEnabled = false;
+  return c;
+}
+
+// ---- primitives (always integer aligned, never anti-aliased) --------------
+function rect(g, x, y, w, h, col) {
+  g.fillStyle = col;
+  g.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+function px(g, x, y, col) {
+  g.fillStyle = col;
+  g.fillRect(Math.round(x), Math.round(y), 1, 1);
+}
+function frame(g, x, y, w, h, col) {
+  x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+  g.fillStyle = col;
+  g.fillRect(x, y, w, 1);
+  g.fillRect(x, y + h - 1, w, 1);
+  g.fillRect(x, y, 1, h);
+  g.fillRect(x + w - 1, y, 1, h);
+}
+// filled circle made of horizontal runs
+function disc(g, cx, cy, r, col) {
+  cx = Math.round(cx); cy = Math.round(cy);
+  g.fillStyle = col;
+  const rr = (r + 0.5) * (r + 0.5);
+  for (let dy = -r; dy <= r; dy++) {
+    const half = Math.floor(Math.sqrt(Math.max(0, rr - dy * dy)));
+    g.fillRect(cx - half, cy + dy, half * 2 + 1, 1);
+  }
+}
+// circle outline
+function ring(g, cx, cy, r, col) {
+  cx = Math.round(cx); cy = Math.round(cy);
+  g.fillStyle = col;
+  const rr = (r + 0.5) * (r + 0.5);
+  const rin = (r - 0.5) * (r - 0.5);
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const d = dx * dx + dy * dy;
+      if (d <= rr && d > rin) g.fillRect(cx + dx, cy + dy, 1, 1);
+    }
+  }
+}
+// Bresenham line. dash = [on, off] optional, phase shifts the dash pattern.
+function line(g, x0, y0, x1, y1, col, dash, phase) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  g.fillStyle = col;
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+  let err = dx + dy, i = phase | 0;
+  const period = dash ? dash[0] + dash[1] : 0;
+  for (let guard = 0; guard < 2000; guard++) {
+    if (!dash || (i % period) < dash[0]) g.fillRect(x0, y0, 1, 1);
+    i++;
+    if (x0 === x1 && y0 === y1) break;
+    const e2 = 2 * err;
+    if (e2 >= dy) { err += dy; x0 += sx; }
+    if (e2 <= dx) { err += dx; y0 += sy; }
+  }
+}
+// A chunky UI box with notched corners and a drop shadow.
+function panel(g, x, y, w, h, fill, border, shadowCol) {
+  x = Math.round(x); y = Math.round(y);
+  if (shadowCol) {
+    rect(g, x + 2, y + h, w - 2, 2, shadowCol);
+    rect(g, x + w, y + 2, 2, h, shadowCol);
+  }
+  rect(g, x + 1, y + 1, w - 2, h - 2, fill);
+  g.fillStyle = border;
+  g.fillRect(x + 1, y, w - 2, 1);
+  g.fillRect(x + 1, y + h - 1, w - 2, 1);
+  g.fillRect(x, y + 1, 1, h - 2);
+  g.fillRect(x + w - 1, y + 1, 1, h - 2);
+}
+
+// ---- sprites ----------------------------------------------------------------
+// Build a sprite from ASCII art. '.' (or any char missing from pal) is clear.
+function spriteFromArt(rows, pal) {
+  const h = rows.length;
+  const w = rows.reduce((m, r) => Math.max(m, r.length), 0);
+  const c = makeCanvas(w, h);
+  const g = c.getContext('2d');
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < rows[y].length; x++) {
+      const col = pal[rows[y][x]];
+      if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
+    }
+  }
+  return c;
+}
+function flipSprite(src, horiz, vert) {
+  const c = makeCanvas(src.width, src.height);
+  const g = c.getContext('2d');
+  g.translate(horiz ? src.width : 0, vert ? src.height : 0);
+  g.scale(horiz ? -1 : 1, vert ? -1 : 1);
+  g.drawImage(src, 0, 0);
+  return c;
+}
+// Nearest-neighbour rotation, cached in 64 steps. Browsers anti-alias the
+// edges of rotated drawImage calls, so we rotate pixel by pixel instead.
+const ROT_STEPS = 64;
+const rotCache = new WeakMap();
+function rotatedSprite(src, ang) {
+  let s = Math.round((ang / TAU) * ROT_STEPS) % ROT_STEPS;
+  if (s < 0) s += ROT_STEPS;
+  if (s === 0) return src;
+  let cache = rotCache.get(src);
+  if (!cache) { cache = { data: null, map: new Map() }; rotCache.set(src, cache); }
+  let out = cache.map.get(s);
+  if (out) return out;
+  const sw = src.width, sh = src.height;
+  if (!cache.data) cache.data = src.getContext('2d').getImageData(0, 0, sw, sh).data;
+  const sd = cache.data;
+  const diag = Math.ceil(Math.sqrt(sw * sw + sh * sh)) + 2;
+  const ow = diag + ((diag - sw) & 1);
+  const oh = diag + ((diag - sh) & 1);
+  out = makeCanvas(ow, oh);
+  const og = out.getContext('2d');
+  const img = og.createImageData(ow, oh);
+  const od = img.data;
+  const a = (s / ROT_STEPS) * TAU;
+  const cos = Math.cos(a), sin = Math.sin(a);
+  const scx = sw / 2, scy = sh / 2, dcx = ow / 2, dcy = oh / 2;
+  for (let y = 0; y < oh; y++) {
+    for (let x = 0; x < ow; x++) {
+      const dx = x + 0.5 - dcx, dy = y + 0.5 - dcy;
+      const sx = Math.floor(dx * cos + dy * sin + scx);
+      const sy = Math.floor(-dx * sin + dy * cos + scy);
+      if (sx < 0 || sy < 0 || sx >= sw || sy >= sh) continue;
+      const si = (sy * sw + sx) * 4, di = (y * ow + x) * 4;
+      od[di] = sd[si]; od[di + 1] = sd[si + 1]; od[di + 2] = sd[si + 2]; od[di + 3] = sd[si + 3];
+    }
+  }
+  og.putImageData(img, 0, 0);
+  cache.map.set(s, out);
+  return out;
+}
+// Draw a sprite centred on (x, y), optionally rotated.
+function drawSprite(g, spr, x, y, ang) {
+  const s = ang ? rotatedSprite(spr, ang) : spr;
+  g.drawImage(s, Math.round(x - s.width / 2), Math.round(y - s.height / 2));
+}
+// ---- the pixel font -------------------------------------------------------
+// 5x7 glyphs. Letters are trimmed to their used width (a proportional font);
+// digits keep a fixed width so scores don't wobble.
+const GLYPH = {
+  L: '←', U: '↑', R: '→', D: '↓', HEART: '♥', SKULL: '☠',
+  NOTE: '♪', STAR: '★', CHECK: '✓', PLAY: '▶', BACK: '◀',
+  DOT: '•', CROSS: '✗', TIMES: '×', SPIN: '↻', CUP: '☕', BOLT: '⚡',
+};
+const FONT_SRC = {
+  'A': '.###. #...# #...# ##### #...# #...# #...#',
+  'B': '####. #...# #...# ####. #...# #...# ####.',
+  'C': '.###. #...# #.... #.... #.... #...# .###.',
+  'D': '####. #...# #...# #...# #...# #...# ####.',
+  'E': '##### #.... #.... ####. #.... #.... #####',
+  'F': '##### #.... #.... ####. #.... #.... #....',
+  'G': '.###. #...# #.... #.### #...# #...# .####',
+  'H': '#...# #...# #...# ##### #...# #...# #...#',
+  'I': '###.. .#... .#... .#... .#... .#... ###..',
+  'J': '..### ...#. ...#. ...#. ...#. #..#. .##..',
+  'K': '#...# #..#. #.#.. ##... #.#.. #..#. #...#',
+  'L': '#.... #.... #.... #.... #.... #.... #####',
+  'M': '#...# ##.## #.#.# #.#.# #...# #...# #...#',
+  'N': '#...# #...# ##..# #.#.# #..## #...# #...#',
+  'O': '.###. #...# #...# #...# #...# #...# .###.',
+  'P': '####. #...# #...# ####. #.... #.... #....',
+  'Q': '.###. #...# #...# #...# #.#.# #..#. .##.#',
+  'R': '####. #...# #...# ####. #.#.. #..#. #...#',
+  'S': '.#### #.... #.... .###. ....# ....# ####.',
+  'T': '##### ..#.. ..#.. ..#.. ..#.. ..#.. ..#..',
+  'U': '#...# #...# #...# #...# #...# #...# .###.',
+  'V': '#...# #...# #...# #...# #...# .#.#. ..#..',
+  'W': '#...# #...# #...# #.#.# #.#.# #.#.# .#.#.',
+  'X': '#...# #...# .#.#. ..#.. .#.#. #...# #...#',
+  'Y': '#...# #...# .#.#. ..#.. ..#.. ..#.. ..#..',
+  'Z': '##### ....# ...#. ..#.. .#... #.... #####',
+  '0': '.###. #...# #..## #.#.# ##..# #...# .###.',
+  '1': '..#.. .##.. ..#.. ..#.. ..#.. ..#.. .###.',
+  '2': '.###. #...# ....# ...#. ..#.. .#... #####',
+  '3': '##### ...#. ..#.. ...#. ....# #...# .###.',
+  '4': '...#. ..##. .#.#. #..#. ##### ...#. ...#.',
+  '5': '##### #.... ####. ....# ....# #...# .###.',
+  '6': '..##. .#... #.... ####. #...# #...# .###.',
+  '7': '##### ....# ...#. ..#.. .#... .#... .#...',
+  '8': '.###. #...# #...# .###. #...# #...# .###.',
+  '9': '.###. #...# #...# .#### ....# ...#. .##..',
+  '!': '#.... #.... #.... #.... #.... ..... #....',
+  '?': '.###. #...# ....# ...#. ..#.. ..... ..#..',
+  '.': '..... ..... ..... ..... ..... ..... #....',
+  ',': '..... ..... ..... ..... ..... .#... #....',
+  ':': '..... ..... #.... ..... ..... #.... .....',
+  ';': '..... ..... .#... ..... ..... .#... #....',
+  "'": '#.... #.... ..... ..... ..... ..... .....',
+  '"': '#.#.. #.#.. ..... ..... ..... ..... .....',
+  '-': '..... ..... ..... ###.. ..... ..... .....',
+  '+': '..... ..#.. ..#.. ##### ..#.. ..#.. .....',
+  '=': '..... ..... ####. ..... ####. ..... .....',
+  '/': '....# ....# ...#. ..#.. .#... #.... #....',
+  '(': '..#.. .#... #.... #.... #.... .#... ..#..',
+  ')': '#.... .#... ..#.. ..#.. ..#.. .#... #....',
+  '[': '##... #.... #.... #.... #.... #.... ##...',
+  ']': '##... .#... .#... .#... .#... .#... ##...',
+  '%': '##..# ##..# ...#. ..#.. .#... #..## #..##',
+  '*': '..... #.#.# .###. ##### .###. #.#.# .....',
+  '#': '.#.#. .#.#. ##### .#.#. ##### .#.#. .#.#.',
+  '<': '...#. ..#.. .#... #.... .#... ..#.. ...#.',
+  '>': '#.... .#... ..#.. ...#. ..#.. .#... #....',
+  '_': '..... ..... ..... ..... ..... ..... #####',
+  '&': '.##.. #..#. #.#.. .#... #.#.# #..#. .##.#',
+  '$': '..#.. .#### #.#.. .###. ..#.# ####. ..#..',
+  '@': '.###. #...# #.### #.#.# #.### #.... .###.',
+  '~': '..... ..... .#... #.#.# ...#. ..... .....',
+  '^': '..#.. .#.#. #...# ..... ..... ..... .....',
+  [GLYPH.R]: '..... ..#.. ...#. ##### ...#. ..#.. .....',
+  [GLYPH.L]: '..... ..#.. .#... ##### .#... ..#.. .....',
+  [GLYPH.U]: '..#.. .###. #.#.# ..#.. ..#.. ..#.. .....',
+  [GLYPH.D]: '..#.. ..#.. ..#.. #.#.# .###. ..#.. .....',
+  [GLYPH.HEART]: '..... .#.#. ##### ##### .###. ..#.. .....',
+  [GLYPH.SKULL]: '.###. ##### #.#.# ##### .###. .#.#. .....',
+  [GLYPH.NOTE]: '..##. ..#.# ..#.. ..#.. ###.. ###.. .....',
+  [GLYPH.STAR]: '..#.. ..#.. ##### .###. .#.#. #...# .....',
+  [GLYPH.CHECK]: '..... ....# ...#. #.#.. .#... ..... .....',
+  [GLYPH.PLAY]: '#.... ##... ###.. ####. ###.. ##... #....',
+  [GLYPH.BACK]: '...#. ..##. .###. ####. .###. ..##. ...#.',
+  [GLYPH.DOT]: '..... ..... .##.. .##.. ..... ..... .....',
+  [GLYPH.CROSS]: '..... #...# .#.#. ..#.. .#.#. #...# .....',
+  [GLYPH.TIMES]: '..... ..... #...# .#.#. ..#.. .#.#. #...#',
+  [GLYPH.SPIN]: '.###. #...# #.### #..#. #.... #...# .###.',
+  [GLYPH.CUP]: '.#.#. #.#.. ..... ####. ##### ###.# .###.',
+  [GLYPH.BOLT]: '...#. ..#.. .#... ####. ..#.. .#... #....',
+};
+const FIXED_WIDTH = new Set('0123456789' + GLYPH.R + GLYPH.L + GLYPH.U + GLYPH.D + GLYPH.SKULL +
+  GLYPH.HEART + GLYPH.STAR + GLYPH.NOTE + GLYPH.CROSS + GLYPH.SPIN + GLYPH.CUP + GLYPH.PLAY + GLYPH.BACK);
+const FONT = {};
+(function buildFont() {
+  for (const ch in FONT_SRC) {
+    const rows = FONT_SRC[ch].split(' ');
+    let minX = 5, maxX = -1;
+    for (const r of rows) for (let x = 0; x < 5; x++) if (r[x] === '#') { minX = Math.min(minX, x); maxX = Math.max(maxX, x); }
+    if (FIXED_WIDTH.has(ch)) { minX = 0; maxX = 4; }
+    if (maxX < 0) { minX = 0; maxX = 2; }
+    FONT[ch] = { rows, x0: minX, w: maxX - minX + 1 };
+  }
+})();
+const SPACE_W = 3;
+const glyphCache = new Map();
+function glyphCanvas(ch, col) {
+  const key = ch + col;
+  let c = glyphCache.get(key);
+  if (c) return c;
+  const gl = FONT[ch];
+  c = makeCanvas(gl.w, 7);
+  const g = c.getContext('2d');
+  g.fillStyle = col;
+  for (let y = 0; y < 7; y++) for (let x = 0; x < gl.w; x++) if (gl.rows[y][gl.x0 + x] === '#') g.fillRect(x, y, 1, 1);
+  glyphCache.set(key, c);
+  return c;
+}
+function glyphFor(ch) {
+  if (FONT[ch]) return ch;
+  const up = ch.toUpperCase();
+  if (FONT[up]) return up;
+  return null;
+}
+function textWidth(str, scale) {
+  scale = scale || 1;
+  let w = 0;
+  for (const ch of String(str)) {
+    const k = glyphFor(ch);
+    w += (k ? FONT[k].w : SPACE_W) + 1;
+  }
+  return Math.max(0, w - 1) * scale;
+}
+function drawTextRaw(g, str, x, y, col, scale) {
+  let cx = Math.round(x);
+  const cy = Math.round(y);
+  for (const ch of String(str)) {
+    const k = glyphFor(ch);
+    if (!k) { cx += (SPACE_W + 1) * scale; continue; }
+    const gc = glyphCanvas(k, col);
+    g.drawImage(gc, cx, cy, gc.width * scale, 7 * scale);
+    cx += (FONT[k].w + 1) * scale;
+  }
+}
+// opts: { color, scale, align: 'left'|'center'|'right', shadow, outline }
+function text(g, str, x, y, opts) {
+  opts = opts || {};
+  const scale = opts.scale || 1;
+  const col = opts.color || '#ffffff';
+  const w = textWidth(str, scale);
+  if (opts.align === 'center') x -= Math.floor(w / 2);
+  else if (opts.align === 'right') x -= w;
+  x = Math.round(x); y = Math.round(y);
+  if (opts.outline) {
+    const o = opts.thick ? (opts.thick === true ? scale : opts.thick) : 1;
+    for (let oy = -o; oy <= o; oy += o) for (let ox = -o; ox <= o; ox += o) {
+      if (ox || oy) drawTextRaw(g, str, x + ox, y + oy, opts.outline, scale);
+    }
+  }
+  if (opts.shadow) drawTextRaw(g, str, x + scale, y + scale, opts.shadow, scale);
+  drawTextRaw(g, str, x, y, col, scale);
+  return w;
+}
+// Split text into lines that fit maxW pixels (at the given scale).
+function wrap(str, maxW, scale) {
+  const words = String(str).split(' ');
+  const lines = [];
+  let cur = '';
+  for (const wd of words) {
+    const test = cur ? cur + ' ' + wd : wd;
+    if (textWidth(test, scale) > maxW && cur) { lines.push(cur); cur = wd; } else cur = test;
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+// ---- fitting the screen to the window --------------------------------------
+function fitScreen() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const margin = vw < 500 ? 16 : 24;
+  const aw = Math.max(64, vw - margin * 2);
+  const ah = Math.max(36, vh - margin * 2);
+  const fit = Math.min(aw / W, ah / H);
+  // whole-number scales keep every pixel the same size; tiny screens get a
+  // fractional scale (still blocky thanks to image-rendering: pixelated)
+  const s = fit >= 2 ? Math.floor(fit) : fit;
+  screenCanvas.style.width = Math.floor(W * s) + 'px';
+  screenCanvas.style.height = Math.floor(H * s) + 'px';
+  const b = Math.max(1, Math.round(s));
+  screenCanvas.style.boxShadow = '0 0 0 ' + b + 'px #07060c, 0 0 0 ' + (b * 2) + 'px #2d2b44, 0 0 0 ' + (b * 3) + 'px #07060c';
+  const bs = Math.max(2, Math.round(s));
+  document.body.style.backgroundSize = (8 * bs) + 'px ' + (8 * bs) + 'px';
+}
+
+// Pixel art page background, cursor and favicon: everything is pixelated.
+function decoratePage() {
+  const bg = makeCanvas(8, 8);
+  const bgc = bg.getContext('2d');
+  rect(bgc, 0, 0, 8, 8, '#0d0c16');
+  rect(bgc, 0, 0, 4, 4, '#121122');
+  rect(bgc, 4, 4, 4, 4, '#121122');
+  px(bgc, 1, 1, '#1a1830');
+  px(bgc, 5, 5, '#1a1830');
+  document.body.style.backgroundImage = 'url(' + bg.toDataURL() + ')';
+
+  const cur = spriteFromArt([
+    'k.........',
+    'kk........',
+    'kwk.......',
+    'kwwk......',
+    'kwwwk.....',
+    'kwwwwk....',
+    'kwwwwwk...',
+    'kwwwwwwk..',
+    'kwwwwkkkk.',
+    'kwkwwk....',
+    'kk.kwwk...',
+    'k..kwwk...',
+    '....kwwk..',
+    '....kkk...',
+  ], { k: '#0b0b12', w: '#ffe14a' });
+  const cs = 3;
+  const big = makeCanvas(cur.width * cs, cur.height * cs);
+  big.getContext('2d').drawImage(cur, 0, 0, big.width, big.height);
+  const cursor = 'url(' + big.toDataURL() + ') 0 0, auto';
+  document.body.style.cursor = cursor;
+  screenCanvas.style.cursor = cursor;
+
+  const ico = spriteFromArt([
+    '....kkkkkkkk....',
+    '....kddddddk....',
+    '....kdrrrrdk....',
+    '....kdrrrrdk....',
+    '....kddddddk....',
+    '....kdyyyydk....',
+    '....kdyyyydk....',
+    '....kddddddk....',
+    '....kdggggdk....',
+    '....kdggggdk....',
+    '....kddddddk....',
+    '....kdppppdk....',
+    '....kdppppdk....',
+    '....kddddddk....',
+    '....kkkkkkkk....',
+    '......kkkk......',
+  ], { k: '#0b0b12', d: '#2b2a3a', r: '#ff2b3d', y: '#ffd21f', g: '#27d64a', p: '#b04bff' });
+  const icoBig = makeCanvas(64, 64);
+  icoBig.getContext('2d').drawImage(ico, 0, 0, 64, 64);
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) { link = document.createElement('link'); link.rel = 'icon'; document.head.appendChild(link); }
+  link.href = icoBig.toDataURL();
+}
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// audio.js - every sound is synthesised live with WebAudio (chiptune style):
+// sound effects, the engine drone and a little step-sequenced soundtrack.
+// ---------------------------------------------------------------------------
+
+const Sound = (function () {
+  let ac = null, master = null, sfxBus = null, musicBus = null, noiseBuf = null;
+  const pulse = {};
+  let sfxOn = true, musicOn = true;
+  try {
+    sfxOn = localStorage.getItem('otl.sfx') !== '0';
+    musicOn = localStorage.getItem('otl.music') !== '0';
+  } catch (e) { /* storage blocked: keep defaults */ }
+
+  const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+  function init() {
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try { ac = new AC(); } catch (e) { ac = null; return; }
+    master = ac.createGain();
+    master.gain.value = 0.55;
+    const comp = ac.createDynamicsCompressor();
+    comp.threshold.value = -12;
+    comp.ratio.value = 4;
+    master.connect(comp);
+    comp.connect(ac.destination);
+    sfxBus = ac.createGain();
+    sfxBus.gain.value = sfxOn ? 1 : 0;
+    sfxBus.connect(master);
+    musicBus = ac.createGain();
+    musicBus.gain.value = musicOn ? 0.45 : 0;
+    musicBus.connect(master);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+    const d = noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    pulse[0.25] = makePulse(0.25);
+    pulse[0.125] = makePulse(0.125);
+  }
+
+  // NES-ish narrow pulse waves
+  function makePulse(duty) {
+    const n = 48, re = new Float32Array(n), im = new Float32Array(n);
+    for (let k = 1; k < n; k++) re[k] = (2 / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+    return ac.createPeriodicWave(re, im);
+  }
+
+  function tone(o) {
+    if (!ac) return;
+    const t0 = (o.at != null ? o.at : ac.currentTime) + (o.delay || 0);
+    const dur = o.dur || 0.1;
+    const osc = ac.createOscillator();
+    if (o.wave && pulse[o.wave]) osc.setPeriodicWave(pulse[o.wave]);
+    else osc.type = o.type || 'square';
+    osc.frequency.setValueAtTime(o.f, t0);
+    if (o.f2) osc.frequency.exponentialRampToValueAtTime(Math.max(1, o.f2), t0 + dur);
+    const g = ac.createGain();
+    const v = o.vol == null ? 0.2 : o.vol;
+    const a = o.attack || 0.004;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(v, t0 + a);
+    if (o.sustain) g.gain.setValueAtTime(v, Math.max(t0 + a, t0 + dur - (o.release || 0.03)));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    let node = osc;
+    if (o.lp) {
+      const f = ac.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = o.lp;
+      node.connect(f);
+      node = f;
+    }
+    node.connect(g);
+    g.connect(o.bus || sfxBus);
+    if (o.vib) {
+      const lfo = ac.createOscillator();
+      const lg = ac.createGain();
+      lfo.frequency.value = o.vib[0];
+      lg.gain.value = o.vib[1];
+      lfo.connect(lg);
+      lg.connect(osc.frequency);
+      lfo.start(t0);
+      lfo.stop(t0 + dur + 0.05);
+    }
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+  }
+
+  function noise(o) {
+    if (!ac) return;
+    const t0 = (o.at != null ? o.at : ac.currentTime) + (o.delay || 0);
+    const dur = o.dur || 0.1;
+    const src = ac.createBufferSource();
+    src.buffer = noiseBuf;
+    src.loop = true;
+    const f = ac.createBiquadFilter();
+    f.type = o.filter || 'lowpass';
+    f.frequency.setValueAtTime(o.freq || 2000, t0);
+    if (o.freq2) f.frequency.exponentialRampToValueAtTime(o.freq2, t0 + dur);
+    f.Q.value = o.q || 1;
+    const g = ac.createGain();
+    const v = o.vol == null ? 0.2 : o.vol;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(v, t0 + (o.attack || 0.003));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(f);
+    f.connect(g);
+    g.connect(o.bus || sfxBus);
+    src.start(t0, Math.random() * 0.5);
+    src.stop(t0 + dur + 0.05);
+  }
+
+  // ---- sound effects ------------------------------------------------------
+  const sfx = {
+    ui() { tone({ f: 1400, dur: 0.03, vol: 0.07 }); },
+    select() {
+      tone({ f: 660, dur: 0.06, vol: 0.1, wave: 0.25 });
+      tone({ f: 990, dur: 0.09, vol: 0.1, wave: 0.25, delay: 0.06 });
+    },
+    lightChange() {
+      tone({ f: 1046, dur: 0.05, vol: 0.11, wave: 0.25 });
+      tone({ f: 1568, dur: 0.1, vol: 0.11, wave: 0.25, delay: 0.055 });
+    },
+    horn() {
+      tone({ f: 392, dur: 0.17, vol: 0.12, lp: 1700, sustain: true });
+      tone({ f: 494, dur: 0.17, vol: 0.1, lp: 1700, sustain: true });
+    },
+    danceNote(i) {
+      const sc = [69, 72, 74, 76, 79, 81, 84, 86, 88];
+      tone({ f: midi(sc[i % sc.length]), dur: 0.13, vol: 0.13, wave: 0.25 });
+      tone({ f: midi(sc[i % sc.length] - 12), dur: 0.13, vol: 0.06, type: 'triangle' });
+    },
+    wrong() { tone({ f: 110, f2: 70, dur: 0.24, vol: 0.18, type: 'sawtooth', lp: 900 }); },
+    screech() { noise({ dur: 0.2, vol: 0.13, filter: 'bandpass', freq: 2700, freq2: 1400, q: 7 }); },
+    scream() { tone({ f: 640, f2: 980, dur: 0.75, vol: 0.06, type: 'sawtooth', vib: [16, 45], lp: 2600, sustain: true, release: 0.25 }); },
+    panicKey() { tone({ f: rnd(500, 1400), dur: 0.035, vol: 0.05 }); },
+    slurp() {
+      noise({ dur: 0.35, vol: 0.14, filter: 'bandpass', freq: 600, freq2: 2800, q: 5 });
+      tone({ f: midi(84), dur: 0.08, vol: 0.1, wave: 0.25, delay: 0.3 });
+      tone({ f: midi(91), dur: 0.18, vol: 0.1, wave: 0.25, delay: 0.37 });
+    },
+    success() {
+      [72, 76, 79].forEach((n, i) => tone({ f: midi(n), dur: 0.09, vol: 0.09, wave: 0.25, delay: i * 0.05 }));
+    },
+    clean() {
+      [76, 79, 84, 88].forEach((n, i) => tone({ f: midi(n), dur: 0.09, vol: 0.1, wave: 0.125, delay: i * 0.045 }));
+    },
+    unlock() {
+      [60, 64, 67, 72, 76, 79, 84].forEach((n, i) => tone({ f: midi(n), dur: 0.14, vol: 0.11, wave: 0.25, delay: i * 0.07 }));
+    },
+    beep(h) { tone({ f: 1500 + h * 800, dur: 0.05, vol: 0.04 + h * 0.07, type: 'sine' }); },
+    scope() {
+      noise({ dur: 0.05, vol: 0.2, filter: 'highpass', freq: 3000 });
+      tone({ f: 62, dur: 0.16, vol: 0.4, type: 'sine', delay: 0.12 });
+      tone({ f: 55, dur: 0.2, vol: 0.34, type: 'sine', delay: 0.34 });
+    },
+    gunshot() {
+      noise({ dur: 0.65, vol: 0.9, filter: 'lowpass', freq: 9000, freq2: 220, attack: 0.001 });
+      tone({ f: 170, f2: 36, dur: 0.38, vol: 0.85, type: 'sine', attack: 0.001 });
+      noise({ dur: 1.7, vol: 0.16, filter: 'lowpass', freq: 900, freq2: 110, delay: 0.06 });
+    },
+    ricochet() {
+      tone({ f: 2600, f2: 500, dur: 0.3, vol: 0.12, type: 'sine' });
+      noise({ dur: 0.12, vol: 0.3, filter: 'highpass', freq: 1500 });
+    },
+    splat() { noise({ dur: 0.22, vol: 0.28, filter: 'lowpass', freq: 1300, freq2: 180 }); },
+    crash() {
+      noise({ dur: 0.55, vol: 0.45, filter: 'lowpass', freq: 1600, freq2: 90 });
+      tone({ f: 95, f2: 38, dur: 0.32, vol: 0.4, type: 'sine' });
+    },
+    bonk() {
+      tone({ f: 150, f2: 70, dur: 0.12, vol: 0.2, lp: 800 });
+      noise({ dur: 0.08, vol: 0.14, freq: 1100 });
+    },
+    death() {
+      [64, 62, 60, 59, 57].forEach((n, i) => tone({ f: midi(n), dur: 0.2, vol: 0.11, wave: 0.25, delay: 0.25 + i * 0.18 }));
+      tone({ f: midi(45), dur: 1.1, vol: 0.14, type: 'triangle', delay: 0.25 + 5 * 0.18, sustain: true, release: 0.5 });
+    },
+    countdown(go) { tone({ f: go ? 880 : 440, dur: go ? 0.32 : 0.12, vol: 0.13, wave: 0.25 }); },
+    chaos() {
+      for (let i = 0; i < 10; i++) tone({ f: midi(72 + ((i * 5) % 17)), dur: 0.06, vol: 0.08, wave: 0.125, delay: i * 0.04 });
+    },
+  };
+
+  // ---- engine drone -------------------------------------------------------
+  const engine = {
+    o1: null, o2: null, g: null, f: null,
+    start() {
+      if (!ac || this.o1) return;
+      this.o1 = ac.createOscillator();
+      this.o1.type = 'sawtooth';
+      this.o2 = ac.createOscillator();
+      this.o2.type = 'square';
+      this.f = ac.createBiquadFilter();
+      this.f.type = 'lowpass';
+      this.f.frequency.value = 400;
+      this.g = ac.createGain();
+      this.g.gain.value = 0;
+      this.o1.connect(this.f);
+      this.o2.connect(this.f);
+      this.f.connect(this.g);
+      this.g.connect(sfxBus);
+      this.o1.start();
+      this.o2.start();
+    },
+    set(speed01) {
+      if (!this.o1) return;
+      const t = ac.currentTime;
+      const f = 36 + speed01 * 74;
+      this.o1.frequency.setTargetAtTime(f, t, 0.06);
+      this.o2.frequency.setTargetAtTime(f * 0.5, t, 0.06);
+      this.g.gain.setTargetAtTime(0.03 + speed01 * 0.045, t, 0.08);
+      this.f.frequency.setTargetAtTime(300 + speed01 * 900, t, 0.08);
+    },
+    stop() {
+      if (!this.o1) return;
+      const t = ac.currentTime;
+      this.g.gain.setTargetAtTime(0, t, 0.04);
+      this.o1.stop(t + 0.3);
+      this.o2.stop(t + 0.3);
+      this.o1 = this.o2 = null;
+    },
+  };
+
+  // ---- the soundtrack: a tiny step sequencer in A minor ---------------------
+  const CHORDS = [[69, 72, 76], [65, 69, 72], [67, 72, 76], [67, 71, 74]];
+  const ROOTS = [45, 41, 48, 43];
+  const music = {
+    on: false, step: 0, next: 0, timer: null, tempo: 124, mood: 'drive',
+    start(mood) {
+      if (!ac) return;
+      if (mood) this.mood = mood;
+      if (this.on) return;
+      this.on = true;
+      this.step = 0;
+      this.next = ac.currentTime + 0.06;
+      this.timer = setInterval(() => this.pump(), 25);
+    },
+    stop() {
+      this.on = false;
+      if (this.timer) clearInterval(this.timer);
+      this.timer = null;
+    },
+    pump() {
+      if (!this.on || !ac) return;
+      const tempo = this.mood === 'chaos' ? this.tempo + 18 : this.mood === 'title' ? 104 : this.tempo;
+      const spb = 60 / tempo / 4;
+      if (this.next < ac.currentTime - 0.3) this.next = ac.currentTime + 0.02; // tab was asleep
+      while (this.next < ac.currentTime + 0.12) {
+        this.play(this.step, this.next, spb);
+        this.next += spb;
+        this.step++;
+      }
+    },
+    play(step, t, spb) {
+      const s = step % 16, barIdx = Math.floor(step / 16) % 4;
+      const chord = CHORDS[barIdx], root = ROOTS[barIdx];
+      const B = musicBus, m = this.mood;
+      const kick = () => tone({ f: 150, f2: 42, dur: 0.14, vol: 0.5, type: 'sine', at: t, bus: B });
+      const snare = () => {
+        noise({ dur: 0.12, vol: 0.2, filter: 'bandpass', freq: 1900, q: 0.8, at: t, bus: B });
+        tone({ f: 200, f2: 120, dur: 0.06, vol: 0.08, type: 'triangle', at: t, bus: B });
+      };
+      const hat = (open) => noise({ dur: open ? 0.12 : 0.03, vol: open ? 0.06 : 0.05, filter: 'highpass', freq: 7000, at: t, bus: B });
+      const bass = (n, len) => tone({ f: midi(n), dur: spb * (len || 1.6), vol: 0.16, wave: 0.25, lp: 900, at: t, bus: B, sustain: true });
+      const arp = (n, v) => tone({ f: midi(n), dur: spb * 0.9, vol: v || 0.035, wave: 0.125, at: t, bus: B });
+
+      if (m === 'title') {
+        if (s === 0 || s === 8) bass(root, 5);
+        if (s % 2 === 0) arp(chord[(s / 2) % 3] + (s >= 8 ? 12 : 0), 0.03);
+        if (s % 4 === 2) hat(false);
+        return;
+      }
+      if (m === 'dance') {
+        if (s % 4 === 0) kick();
+        if (s === 4 || s === 12) snare();
+        if (s % 4 === 2) hat(true);
+        bass(root + (s % 2 ? 12 : 0), 0.9);
+        arp(chord[s % 3] + 12, 0.03);
+        return;
+      }
+      if (m === 'chaos') {
+        if (s % 4 === 0) kick();
+        if (s === 4 || s === 12) snare();
+        hat(false);
+        if (s % 2 === 0) bass(root + (s % 4 ? 12 : 0), 1.2);
+        arp(chord[s % 3] + (s % 2 ? 24 : 12), 0.035);
+        return;
+      }
+      // 'drive'
+      if (s === 0 || s === 8 || (barIdx === 3 && s === 10)) kick();
+      if (s === 4 || s === 12) snare();
+      if (s % 2 === 0) hat(false);
+      if ([0, 3, 6, 8, 11, 14].includes(s)) bass(root + (s === 6 || s === 14 ? 12 : 0));
+      arp(chord[s % 3] + (s % 6 >= 3 ? 12 : 0));
+    },
+  };
+
+  function setSfx(on) {
+    sfxOn = on;
+    if (sfxBus) sfxBus.gain.value = on ? 1 : 0;
+    try { localStorage.setItem('otl.sfx', on ? '1' : '0'); } catch (e) { /* ignore */ }
+  }
+  function setMusic(on) {
+    musicOn = on;
+    if (musicBus) musicBus.gain.value = on ? 0.45 : 0;
+    try { localStorage.setItem('otl.music', on ? '1' : '0'); } catch (e) { /* ignore */ }
+  }
+
+  return {
+    init, sfx, engine, music, setSfx, setMusic,
+    get sfxOn() { return sfxOn; },
+    get musicOn() { return musicOn; },
+    get ready() { return !!ac; },
+  };
+})();
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// sprites.js - pixel art for cars, the driver, snipers and icons. Cars are
+// built procedurally from rectangles so every model/colour is consistent.
+// All cars face RIGHT (the direction of travel).
+// ---------------------------------------------------------------------------
+
+const PAL = {
+  ink: '#0b0b12',
+  tire: '#121019',
+  glass: '#8fd3ff',
+  glassHi: '#e6f7ff',
+  glassDark: '#35607e',
+  light: '#fff4a8',
+  tail: '#ff3346',
+  cap: '#ffd23f',
+  brim: '#d98e00',
+  skin: '#f2b48c',
+  seat: '#7a2530',
+  interior: '#2a1a24',
+  blood: '#d8123a',
+  blood2: '#8e0a24',
+};
+
+// Paint the shared body shape: tyres, rounded body, shading and lamps.
+function paintCarBase(g, L, Wd, body) {
+  const hi = shade(body, 0.3), lo = shade(body, -0.28), out = shade(body, -0.7);
+  const tw = Math.max(4, Math.round(L * 0.17));
+  const rearX = Math.round(L * 0.13), frontX = L - rearX - tw;
+  rect(g, rearX, 0, tw, Wd + 2, PAL.tire);
+  rect(g, frontX, 0, tw, Wd + 2, PAL.tire);
+  rect(g, 1, 1, L - 2, Wd, out);
+  rect(g, 0, 2, L, Wd - 2, out);
+  rect(g, 1, 2, L - 2, Wd - 2, body);
+  rect(g, 2, 2, L - 4, 1, hi);
+  rect(g, 2, Wd - 1, L - 4, 1, lo);
+  rect(g, L - 1, 3, 1, 2, PAL.light);
+  rect(g, L - 1, Wd - 3, 1, 2, PAL.light);
+  rect(g, 0, 3, 1, 2, PAL.tail);
+  rect(g, 0, Wd - 3, 1, 2, PAL.tail);
+  return { hi, lo, out };
+}
+
+// The player's red convertible. variant: 'normal' | 'arms' | 'slump' | 'headless' | 'splat'
+function buildPlayerCar(variant) {
+  const L = 24, Wd = 12;
+  const c = makeCanvas(L, Wd + 2);
+  const g = c.getContext('2d');
+  const body = '#e8263a';
+  paintCarBase(g, L, Wd, body);
+  // racing stripes on hood and trunk
+  rect(g, L - 8, 6, 6, 1, '#fff1f1');
+  rect(g, L - 8, 8, 6, 1, '#fff1f1');
+  rect(g, 1, 6, 4, 1, '#fff1f1');
+  rect(g, 1, 8, 4, 1, '#fff1f1');
+  // windshield
+  rect(g, 14, 2, 2, Wd - 2, PAL.glass);
+  rect(g, 15, 3, 1, 2, PAL.glassHi);
+  // open cockpit
+  rect(g, 6, 3, 8, Wd - 4, PAL.interior);
+  rect(g, 6, 3, 3, Wd - 4, shade(PAL.seat, -0.25)); // rear bench
+  rect(g, 10, 3, 4, 4, PAL.seat);                   // driver seat
+  rect(g, 10, 7, 4, 4, PAL.seat);                   // passenger seat
+  rect(g, 14, 4, 1, 2, '#333');                     // steering wheel
+  // the driver: a head in a yellow cap (brim faces forward)
+  const hx = 9, hy = 2;
+  if (variant !== 'headless' && variant !== 'splat') {
+    const ox = variant === 'slump' ? 2 : 0;
+    const head = [
+      '.ccc..',
+      'cccccb',
+      'cccccb',
+      'cccccb',
+      '.ccc..',
+    ];
+    for (let y = 0; y < 5; y++) for (let x = 0; x < 6; x++) {
+      const ch = head[y][x];
+      if (ch === 'c') px(g, hx + x + ox, hy + y, PAL.cap);
+      if (ch === 'b') px(g, hx + x + ox, hy + y, PAL.brim);
+    }
+    px(g, hx + 1 + ox, hy + 1, shade(PAL.cap, 0.5)); // shine
+    if (variant === 'arms') {
+      px(g, 11, 0, PAL.skin); px(g, 12, 0, PAL.skin);
+      px(g, 11, 1, PAL.skin);
+      px(g, 11, Wd + 1, PAL.skin); px(g, 12, Wd + 1, PAL.skin);
+    }
+  } else {
+    // what's left after the sniper is done
+    rect(g, 10, 3, 4, 4, PAL.blood2);
+    px(g, 11, 4, PAL.blood); px(g, 12, 5, PAL.blood); px(g, 10, 6, PAL.blood);
+    if (variant === 'splat') {
+      px(g, 14, 3, PAL.blood); px(g, 15, 5, PAL.blood); px(g, 14, 6, PAL.blood2);
+      px(g, 16, 4, PAL.blood); px(g, 9, 2, PAL.blood); px(g, 8, 5, PAL.blood2);
+      px(g, 13, 2, PAL.blood); px(g, 17, 6, PAL.blood2); px(g, 7, 7, PAL.blood);
+    }
+  }
+  return c;
+}
+// Where the driver's head sits relative to the car sprite's centre.
+const HEAD_OFF = { x: -0.5, y: -2.5 };
+
+// NPC vehicles. kind: sedan | taxi | police | van | truck | bus
+function buildNpcCar(kind, body, flash) {
+  const dims = { sedan: [24, 12], taxi: [24, 12], police: [24, 12], van: [27, 12], truck: [36, 13], bus: [46, 13] };
+  const [L, Wd] = dims[kind];
+  const c = makeCanvas(L, Wd + 2);
+  const g = c.getContext('2d');
+  if (kind === 'truck') {
+    const s = paintCarBase(g, L, Wd, body);
+    // cargo box
+    rect(g, 1, 1, L - 12, Wd, '#b9b6c6');
+    rect(g, 2, 2, L - 14, Wd - 2, '#dedbe8');
+    for (let x = 5; x < L - 12; x += 5) rect(g, x, 2, 1, Wd - 2, '#c7c4d3');
+    rect(g, L - 11, 1, 1, Wd, s.out);
+    rect(g, L - 5, 2, 2, Wd - 2, PAL.glass);
+    rect(g, L - 4, 3, 1, 2, PAL.glassHi);
+    return c;
+  }
+  if (kind === 'bus') {
+    const s = paintCarBase(g, L, Wd, body);
+    rect(g, 2, 2, L - 5, 1, PAL.glassDark);
+    rect(g, 2, Wd - 1, L - 5, 1, PAL.glassDark);
+    for (let x = 6; x < L - 6; x += 6) rect(g, x, 2, 1, 1, s.lo);
+    rect(g, L - 3, 2, 2, Wd - 2, PAL.glass);
+    rect(g, 8, 4, 5, Wd - 6, '#9a98aa');
+    rect(g, 22, 4, 5, Wd - 6, '#9a98aa');
+    rect(g, 9, 5, 3, Wd - 8, '#6c6a7e');
+    rect(g, 23, 5, 3, Wd - 8, '#6c6a7e');
+    return c;
+  }
+  const s = paintCarBase(g, L, Wd, body);
+  const roofX0 = kind === 'van' ? 4 : 7;
+  const roofX1 = L - 10;
+  // windshield, rear window, roof and side windows
+  rect(g, roofX1, 2, 2, Wd - 2, PAL.glass);
+  rect(g, roofX1 + 1, 3, 1, 2, PAL.glassHi);
+  if (kind !== 'van') rect(g, roofX0 - 2, 2, 2, Wd - 2, PAL.glassDark);
+  rect(g, roofX0, 2, roofX1 - roofX0, Wd - 2, s.hi);
+  rect(g, roofX0, 2, roofX1 - roofX0, 1, PAL.glassDark);
+  rect(g, roofX0, Wd - 1, roofX1 - roofX0, 1, PAL.glassDark);
+  if (kind === 'police') {
+    rect(g, 1, 2, 5, Wd - 2, '#1c1c28');
+    rect(g, L - 7, 2, 6, Wd - 2, '#1c1c28');
+    const mid = Math.floor((roofX0 + roofX1) / 2);
+    rect(g, mid, 3, 2, Math.floor((Wd - 4) / 2), flash ? '#ff5a6a' : '#8a1020');
+    rect(g, mid, 3 + Math.floor((Wd - 4) / 2), 2, Math.ceil((Wd - 4) / 2), flash ? '#1a2a7a' : '#5aa0ff');
+  }
+  if (kind === 'taxi') {
+    const mid = Math.floor((roofX0 + roofX1) / 2);
+    rect(g, mid - 1, 4, 3, Wd - 6, '#1b1b22');
+    rect(g, mid, 5, 1, Wd - 8, '#fff2a0');
+  }
+  return c;
+}
+
+// A sniper lying prone on a rooftop, rifle pointing down at the road.
+const SNIPER_ART = [
+  '.b...b.',
+  '.o...o.',
+  '.o...o.',
+  '.oo.oo.',
+  '..ooo..',
+  '.ooooo.',
+  '.oOooo.',
+  '.ooOoO.',
+  'ooooooo',
+  'o.ooo.o',
+  'o.hHh.o',
+  '.shhhs.',
+  '..rsr..',
+  '...r...',
+  '...r...',
+  '...r...',
+  '...r...',
+  '...r...',
+];
+const SNIPER_PAL = { b: '#15141b', o: '#51602e', O: '#34401b', h: '#2e3a1d', H: '#46552b', s: '#d9a07a', r: '#101014' };
+const SNIPER_MUZZLE = { x: 3, y: 17 };
+
+// Big icons used inside the traffic light lamps (7x7).
+const ICONS = {
+  go: ['#......', '###....', '#####..', '#######', '#####..', '###....', '#......'],
+  stop: ['.#####.', '#######', '#######', '#######', '#######', '#######', '.#####.'],
+  slow: ['.......', '..###..', '.#####.', '.######', '.#####.', '.#...#.', '.......'],
+  dance: ['...###.', '...#..#', '...#...', '...#...', '.###...', '####...', '.##....'],
+  slide: ['...#...', '..###..', '.#.#.#.', '...#...', '.#.#.#.', '..###..', '...#...'],
+  reverse: ['......#', '....###', '..#####', '#######', '..#####', '....###', '......#'],
+  honk: ['.....#.', '....##.', '#####.#', '#####.#', '#####.#', '....##.', '.....#.'],
+  spin: ['..###..', '.#...#.', '#.....#', '#...###', '#....#.', '.#.....', '..###..'],
+  dead: ['.#####.', '#######', '#..#..#', '#######', '.##.##.', '..###..', '..#.#..'],
+  coffee: ['.#.#...', '#.#....', '.......', '#####..', '######.', '#####.#', '.###...'],
+  panic: ['..###..', '..###..', '..###..', '..###..', '...#...', '.......', '..###..'],
+  chaos: ['...#...', '..###..', '#######', '.#####.', '..###..', '.##.##.', '##...##'],
+};
+const iconCache = new Map();
+function iconSprite(name, col) {
+  const key = name + col;
+  let c = iconCache.get(key);
+  if (c) return c;
+  const pal = { '#': col };
+  c = spriteFromArt(ICONS[name], pal);
+  iconCache.set(key, c);
+  return c;
+}
+
+// Built once at startup.
+const SPR = {};
+function buildSprites() {
+  SPR.player = {
+    normal: buildPlayerCar('normal'),
+    arms: buildPlayerCar('arms'),
+    slump: buildPlayerCar('slump'),
+    headless: buildPlayerCar('headless'),
+    splat: buildPlayerCar('splat'),
+  };
+  SPR.sniperDown = spriteFromArt(SNIPER_ART, SNIPER_PAL);
+  SPR.sniperUp = flipSprite(SPR.sniperDown, false, true);
+  const sedanColors = ['#dcdbe6', '#2d2c3a', '#7d7b92', '#2f5d8c', '#7c2d3a', '#5b6b35', '#2f7f7a', '#c9b48e', '#9aa3b5'];
+  SPR.npc = [];
+  for (const col of sedanColors) SPR.npc.push({ kind: 'sedan', spr: [buildNpcCar('sedan', col)] });
+  SPR.npc.push({ kind: 'taxi', spr: [buildNpcCar('taxi', '#f4c21c')] });
+  SPR.npc.push({ kind: 'police', spr: [buildNpcCar('police', '#f1f1f6', false), buildNpcCar('police', '#f1f1f6', true)] });
+  SPR.npc.push({ kind: 'van', spr: [buildNpcCar('van', '#e7e3d6')] });
+  SPR.npc.push({ kind: 'van', spr: [buildNpcCar('van', '#3f6f9e')] });
+  SPR.npc.push({ kind: 'truck', spr: [buildNpcCar('truck', '#d9412f')] });
+  SPR.npc.push({ kind: 'truck', spr: [buildNpcCar('truck', '#2f7fd9')] });
+  SPR.npc.push({ kind: 'bus', spr: [buildNpcCar('bus', '#2aa39a')] });
+}
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// world.js - the city (generated block by block, forever, in both
+// directions), the other cars, pedestrians, snipers, particles and pickups.
+// The road runs left -> right; screen y == world y (no vertical scrolling).
+// ---------------------------------------------------------------------------
+
+const HUD_H = 26;
+const TOP_ROOF_Y = 26;           // rooftops 26..55
+const TOP_WALK_Y = 56;           // sidewalk 56..65
+const ROAD_Y0 = 66;              // road 66..145
+const LANE_H = 20;
+const LANES = 4;
+const ROAD_Y1 = ROAD_Y0 + LANE_H * LANES;
+const BOT_WALK_Y = ROAD_Y1;      // sidewalk 146..155
+const BOT_ROOF_Y = BOT_WALK_Y + 10; // rooftops 156..179
+const laneY = (i) => ROAD_Y0 + LANE_H * i + LANE_H / 2;
+
+const BLOCK_W = 512;
+const CROSS_X = 24;              // cross street inside each block
+const CROSS_W = 44;
+const BUILD_X0 = CROSS_X + CROSS_W + 2;
+
+const COL = {
+  asphalt: '#2b2a36', asphaltLo: '#24232e', asphaltHi: '#35343f',
+  lane: '#d6d4e4', laneDim: '#a9a7ba', yellow: '#e8c33a',
+  walk: '#a6a4b6', walkLine: '#9290a3', curb: '#d2d0de', walkShadow: '#85839a',
+  alley: '#3a3946', grass: '#3f7a3a', grassHi: '#58a04c', grassLo: '#2f5f2c',
+  leaf: '#2f8a3e', leafHi: '#52b35a', leafLo: '#1f5f2c',
+};
+const ROOF_COLS = ['#5d5a6e', '#6e6474', '#7a6a5a', '#4f5d66', '#6b5a5a', '#58626b', '#80776b', '#4d4f63', '#6a6f5b'];
+
+// ---- city blocks ------------------------------------------------------------
+const blockCache = new Map();
+function getBlock(i) {
+  let b = blockCache.get(i);
+  if (b) return b;
+  b = genBlock(i);
+  blockCache.set(i, b);
+  if (blockCache.size > 10) {
+    let far = null, farD = -1;
+    for (const k of blockCache.keys()) { const d = Math.abs(k - i); if (d > farD) { farD = d; far = k; } }
+    blockCache.delete(far);
+  }
+  return b;
+}
+
+function genBlock(i) {
+  const rng = mulberry32(hashInt(i, 7919));
+  const r = (a, b) => a + rng() * (b - a);
+  const ri = (a, b) => Math.floor(r(a, b + 1));
+  const c = makeCanvas(BLOCK_W, H - TOP_ROOF_Y);
+  const g = c.getContext('2d');
+  g.translate(0, -TOP_ROOF_Y); // draw in world y coordinates
+  const x0 = i * BLOCK_W;
+  const data = { canvas: c, x0, snipers: [], lamps: [], windows: [] };
+
+  // road surface with speckles
+  rect(g, 0, ROAD_Y0, BLOCK_W, ROAD_Y1 - ROAD_Y0, COL.asphalt);
+  for (let n = 0; n < 1400; n++) {
+    px(g, ri(0, BLOCK_W - 1), ri(ROAD_Y0, ROAD_Y1 - 1), rng() < 0.5 ? COL.asphaltLo : COL.asphaltHi);
+  }
+  // cross street through the building rows
+  rect(g, CROSS_X, TOP_ROOF_Y, CROSS_W, ROAD_Y0 - TOP_ROOF_Y, COL.asphalt);
+  rect(g, CROSS_X, ROAD_Y1, CROSS_W, H - ROAD_Y1, COL.asphalt);
+  for (let n = 0; n < 220; n++) {
+    const yy = rng() < 0.5 ? ri(TOP_ROOF_Y, ROAD_Y0 - 1) : ri(ROAD_Y1, H - 1);
+    px(g, CROSS_X + ri(0, CROSS_W - 1), yy, rng() < 0.5 ? COL.asphaltLo : COL.asphaltHi);
+  }
+  for (let y = TOP_ROOF_Y; y < ROAD_Y0 - 12; y += 8) rect(g, CROSS_X + CROSS_W / 2 - 1, y, 2, 4, COL.yellow);
+  for (let y = ROAD_Y1 + 12; y < H; y += 8) rect(g, CROSS_X + CROSS_W / 2 - 1, y, 2, 4, COL.yellow);
+  // zebra crossings over the side street and the main road
+  for (let x = CROSS_X + 2; x < CROSS_X + CROSS_W - 2; x += 4) {
+    rect(g, x, ROAD_Y0 - 9, 2, 7, COL.lane);
+    rect(g, x, ROAD_Y1 + 2, 2, 7, COL.lane);
+  }
+  for (let y = ROAD_Y0 + 2; y < ROAD_Y1 - 2; y += 4) {
+    rect(g, CROSS_X - 11, y, 8, 2, COL.lane);
+    rect(g, CROSS_X + CROSS_W + 3, y, 8, 2, COL.lane);
+  }
+  rect(g, CROSS_X - 15, ROAD_Y0 + 1, 2, ROAD_Y1 - ROAD_Y0 - 2, COL.lane); // stop line
+
+  // lane markings (skipped inside the intersection)
+  for (let k = 1; k < LANES; k++) {
+    const y = ROAD_Y0 + LANE_H * k;
+    for (let x = 0; x < BLOCK_W; x += 16) {
+      if (x + 8 > CROSS_X - 16 && x < CROSS_X + CROSS_W + 12) continue;
+      rect(g, x, y, 8, 1, COL.lane);
+    }
+  }
+  for (let x = 0; x < BLOCK_W; x++) {
+    if (x >= CROSS_X - 16 && x < CROSS_X + CROSS_W + 12) continue;
+    px(g, x, ROAD_Y0 + 1, COL.laneDim);
+    px(g, x, ROAD_Y1 - 2, COL.laneDim);
+  }
+  // road clutter: manholes, oil stains, painted arrows
+  for (let n = 0; n < 3; n++) {
+    const mx = ri(BUILD_X0 + 10, BLOCK_W - 20), my = laneY(ri(0, 3)) + ri(-4, 4);
+    const kind = rng();
+    if (kind < 0.4) { disc(g, mx, my, 3, '#3a3946'); ring(g, mx, my, 3, '#22212b'); px(g, mx, my, '#22212b'); }
+    else if (kind < 0.7) { disc(g, mx, my, 2, '#1d1c25'); px(g, mx + 2, my + 1, '#1d1c25'); px(g, mx - 3, my, '#1d1c25'); }
+    else {
+      const ay = laneY(ri(0, 3));
+      rect(g, mx - 6, ay - 1, 9, 2, COL.laneDim);
+      rect(g, mx + 1, ay - 3, 2, 6, COL.laneDim);
+      rect(g, mx + 3, ay - 2, 1, 4, COL.laneDim);
+      rect(g, mx + 4, ay - 1, 1, 2, COL.laneDim);
+    }
+  }
+
+  // sidewalks
+  const walk = (y0, curbY, shadowY) => {
+    rect(g, 0, y0, BLOCK_W, 10, COL.walk);
+    for (let x = 0; x < BLOCK_W; x += 8) rect(g, x, y0, 1, 10, COL.walkLine);
+    rect(g, 0, curbY, BLOCK_W, 1, COL.curb);
+    rect(g, 0, shadowY, BLOCK_W, 1, COL.walkShadow);
+    rect(g, CROSS_X, y0, CROSS_W, 10, COL.asphalt);
+    rect(g, CROSS_X - 1, y0, 1, 10, COL.curb);
+    rect(g, CROSS_X + CROSS_W, y0, 1, 10, COL.curb);
+  };
+  walk(TOP_WALK_Y, ROAD_Y0 - 1, TOP_WALK_Y);
+  walk(BOT_WALK_Y, BOT_WALK_Y, BOT_WALK_Y + 9);
+  for (let x = CROSS_X + 2; x < CROSS_X + CROSS_W - 2; x += 4) {
+    rect(g, x, TOP_WALK_Y + 1, 2, 7, COL.lane);
+    rect(g, x, BOT_WALK_Y + 2, 2, 7, COL.lane);
+  }
+
+  // pocket parks at the start of the block
+  const park = (y0, h) => {
+    rect(g, 0, y0, CROSS_X - 1, h, COL.grass);
+    for (let n = 0; n < 40; n++) px(g, ri(0, CROSS_X - 2), ri(y0, y0 + h - 1), rng() < 0.5 ? COL.grassHi : COL.grassLo);
+    tree(g, 11, y0 + Math.floor(h / 2), 5);
+  };
+  park(TOP_ROOF_Y, TOP_WALK_Y - TOP_ROOF_Y);
+  park(BOT_ROOF_Y, H - BOT_ROOF_Y);
+
+  // buildings
+  const row = (y0, y1, top) => {
+    let x = BUILD_X0;
+    const snipersWanted = top ? 2 : 1;
+    const slots = [];
+    while (x < BLOCK_W - 12) {
+      const w = Math.min(BLOCK_W - 2 - x, ri(40, 104));
+      if (w < 12) break;
+      building(g, rng, x, y0, w, y1 - y0, top, data);
+      slots.push([x, w]);
+      x += w + ri(2, 4);
+    }
+    // snipers hide on the rooftops
+    for (let s = 0; s < snipersWanted; s++) {
+      const half = (BLOCK_W - BUILD_X0) / snipersWanted;
+      const lo = BUILD_X0 + half * s + 8, hi = lo + half - 24;
+      const sx = ri(lo, hi);
+      const sy = top ? ri(y0 + 2, y1 - 22) : y0 + 3;
+      data.snipers.push({ x: x0 + sx, y: sy, up: !top, glint: rng() * 5 });
+    }
+  };
+  row(TOP_ROOF_Y, TOP_WALK_Y, true);
+  row(BOT_ROOF_Y, H, false);
+
+  // street furniture: trees, lamps, hydrants, benches
+  for (const [wy, dir] of [[TOP_WALK_Y + 4, 1], [BOT_WALK_Y + 5, -1]]) {
+    let x = BUILD_X0 + ri(4, 30);
+    while (x < BLOCK_W - 8) {
+      const k = rng();
+      if (k < 0.45) tree(g, x, wy, 4);
+      else if (k < 0.7) {
+        rect(g, x, wy - 1, 2, 2, '#3c3b4c');
+        px(g, x, wy - 1 + dir * 2, '#ffe9a0');
+        data.lamps.push({ x: x0 + x, y: wy });
+      } else if (k < 0.82) { rect(g, x, wy, 2, 2, '#d8342c'); px(g, x, wy, '#ff7a6a'); }
+      else if (k < 0.92) { rect(g, x, wy - 1, 7, 2, '#7a5230'); rect(g, x, wy + dir, 7, 1, '#5a3a20'); }
+      else { rect(g, x, wy - 1, 3, 3, '#2f5f3a'); px(g, x + 1, wy, '#1f3f27'); }
+      x += ri(26, 62);
+    }
+  }
+  return data;
+}
+
+function tree(g, x, y, r) {
+  disc(g, x + 2, y + 2, r, 'rgba(0,0,0,0.28)');
+  disc(g, x, y, r, COL.leafLo);
+  disc(g, x - 1, y - 1, r - 1, COL.leaf);
+  disc(g, x - 2, y - 2, Math.max(1, r - 3), COL.leafHi);
+}
+
+function building(g, rng, x, y, w, h, top, data) {
+  const ri = (a, b) => Math.floor(a + rng() * (b - a + 1));
+  const roof = ROOF_COLS[ri(0, ROOF_COLS.length - 1)];
+  const lo = shade(roof, -0.3), hi = shade(roof, 0.18);
+  const facade = top ? 4 : 0;
+  const rh = h - facade;
+  rect(g, x, y, w, rh, lo);
+  rect(g, x + 1, y + 1, w - 2, rh - 2, roof);
+  rect(g, x + 1, y + 1, w - 2, 1, hi);
+  if (top) {
+    // the front wall, seen at a slight angle, with windows
+    rect(g, x, y + rh, w, facade, shade(roof, -0.45));
+    for (let wx = x + 2; wx < x + w - 2; wx += 4) {
+      const lit = rng() < 0.35;
+      rect(g, wx, y + rh + 1, 2, 2, lit ? '#ffd966' : '#2a3342');
+      if (lit) data.windows.push({ x: data.x0 + wx, y: y + rh + 1 });
+    }
+  }
+  // rooftop details
+  const n = ri(2, 5);
+  for (let k = 0; k < n; k++) {
+    const t = rng();
+    const dx = x + ri(3, Math.max(3, w - 10)), dy = y + ri(3, Math.max(3, rh - 9));
+    if (t < 0.3) { rect(g, dx, dy, 5, 4, '#9a98aa'); rect(g, dx + 1, dy + 1, 3, 2, '#6c6a7e'); px(g, dx + 2, dy + 1, '#b8b6c6'); }
+    else if (t < 0.48) { rect(g, dx, dy, 2, 2, '#2a2935'); }
+    else if (t < 0.62) { rect(g, dx, dy, 6, 4, '#c8ccd8'); rect(g, dx + 1, dy + 1, 4, 2, '#7fc4ea'); }
+    else if (t < 0.72 && w > 24 && rh > 14) { disc(g, dx + 4, dy + 4, 4, '#7a5230'); ring(g, dx + 4, dy + 4, 4, '#5a3a20'); ring(g, dx + 4, dy + 4, 2, '#5a3a20'); }
+    else if (t < 0.84 && w > 20) {
+      for (let sx = 0; sx < 3; sx++) for (let sy = 0; sy < 2; sy++) rect(g, dx + sx * 4, dy + sy * 3, 3, 2, '#2d4a86');
+    } else if (t < 0.93) {
+      for (let q = 0; q < 6; q++) px(g, dx + ri(0, 7), dy + ri(0, 5), rng() < 0.5 ? COL.leafHi : COL.leaf);
+    } else { rect(g, dx, dy, 1, 5, '#2a2935'); px(g, dx, dy, '#ff4a4a'); }
+  }
+  if (w > 50 && rh > 20 && rng() < 0.12) {
+    const cx = x + Math.floor(w / 2), cy = y + Math.floor(rh / 2);
+    disc(g, cx, cy, 8, '#3d3c4a');
+    ring(g, cx, cy, 8, '#e8c33a');
+    text(g, 'H', cx - 2, cy - 3, { color: '#e8c33a' });
+  }
+}
+
+function drawCity(g, camX) {
+  const first = Math.floor(camX / BLOCK_W);
+  const last = Math.floor((camX + W) / BLOCK_W);
+  for (let i = first; i <= last; i++) {
+    const b = getBlock(i);
+    g.drawImage(b.canvas, i * BLOCK_W - camX, TOP_ROOF_Y);
+  }
+}
+function visibleBlocks(camX) {
+  const out = [];
+  const first = Math.floor((camX - 40) / BLOCK_W);
+  const last = Math.floor((camX + W + 40) / BLOCK_W);
+  for (let i = first; i <= last; i++) out.push(getBlock(i));
+  return out;
+}
+
+// ---- traffic lights hanging over the road (all synced to THE LIGHT) --------
+function drawSignals(g, camX, col, t) {
+  for (const b of visibleBlocks(camX)) {
+    const x = b.x0 + CROSS_X - 6 - camX;
+    if (x < -30 || x > W + 30) continue;
+    // poles on both corners, arms reaching over the lanes
+    rect(g, x - 1, TOP_WALK_Y + 3, 3, 3, '#3a3948');
+    rect(g, x, TOP_WALK_Y + 4, 1, ROAD_Y0 + 40 - TOP_WALK_Y - 4, '#1f1e28');
+    rect(g, x - 1, BOT_WALK_Y + 4, 3, 3, '#3a3948');
+    rect(g, x, ROAD_Y0 + 42, 1, BOT_WALK_Y + 4 - ROAD_Y0 - 42, '#1f1e28');
+    for (let k = 0; k < LANES; k++) {
+      const y = laneY(k) - 4;
+      rect(g, x - 2, y, 5, 9, '#15141c');
+      rect(g, x - 1, y + 1, 3, 7, '#26252f');
+      const c = typeof col === 'function' ? col(t + k * 0.1) : col;
+      rect(g, x - 1, y + 3, 3, 3, c);
+      px(g, x, y + 3, shade(c, 0.5));
+    }
+  }
+}
+
+// ---- snipers ----------------------------------------------------------------
+function visibleSnipers(camX) {
+  const out = [];
+  for (const b of visibleBlocks(camX)) for (const s of b.snipers) {
+    const sx = s.x - camX;
+    if (sx > -10 && sx < W + 2) out.push(s);
+  }
+  return out;
+}
+function sniperMuzzle(s) {
+  return s.up ? { x: s.x + SNIPER_MUZZLE.x, y: s.y } : { x: s.x + SNIPER_MUZZLE.x, y: s.y + SNIPER_MUZZLE.y };
+}
+// The sniper who gets the shot: the closest one that isn't hidden by the HUD.
+function chooseSniper(camX, tx, ty) {
+  let best = null, bd = 1e9;
+  for (const s of visibleSnipers(camX)) {
+    const sx = s.x - camX;
+    if (sx < 36 || sx > W - 10) continue;
+    const m = sniperMuzzle(s);
+    const d = Math.hypot(m.x - tx, m.y - ty);
+    if (d < bd) { bd = d; best = s; }
+  }
+  return best;
+}
+function drawSnipers(g, camX, t, active, aiming) {
+  for (const s of visibleSnipers(camX)) {
+    const sx = Math.round(s.x - camX);
+    g.drawImage(s.up ? SPR.sniperUp : SPR.sniperDown, sx, s.y);
+    // scope glint every few seconds (constantly when aiming at you)
+    const gl = (s === active && aiming) ? (Math.floor(t * 12) % 2 === 0) : ((t + s.glint) % 4.5 < 0.18);
+    if (gl) {
+      const gy = s.up ? s.y + 5 : s.y + 12;
+      px(g, sx + 3, gy, '#ffffff');
+      px(g, sx + 2, gy, '#bfe6ff'); px(g, sx + 4, gy, '#bfe6ff');
+      px(g, sx + 3, gy - 1, '#bfe6ff'); px(g, sx + 3, gy + 1, '#bfe6ff');
+    }
+  }
+}
+
+// ---- traffic (NPC cars) -------------------------------------------------------
+const npcs = [];
+function npcBox(n) { return { x0: n.x - n.L / 2, x1: n.x + n.L / 2, y0: n.y - n.Wd / 2, y1: n.y + n.Wd / 2 }; }
+
+function spawnNpc(px0, where) {
+  const r = Math.random();
+  const t = r < 0.6 ? SPR.npc[irnd(0, 8)] : pick(SPR.npc);
+  const L = t.spr[0].width, Wd = t.spr[0].height - 2;
+  for (let tries = 0; tries < 6; tries++) {
+    const lane = irnd(0, LANES - 1);
+    const x = where === 'ahead' ? px0 + rnd(W - 60, W + 260)
+      : where === 'behind' ? px0 - rnd(180, 420)
+      : px0 + rnd(-140, W + 200);
+    const y = laneY(lane);
+    const clash = npcs.some((o) => Math.abs(o.y - y) < 12 && Math.abs(o.x - x) < (o.L + L) / 2 + 26);
+    if (clash) continue;
+    if (Math.abs(x - px0) < 40 && Math.abs(y - player.y) < 16) continue;
+    const big = t.kind === 'truck' || t.kind === 'bus';
+    npcs.push({
+      t, L, Wd, x, y, lane, vx: 0, ang: 0, spin: 0, bounce: 0, jx: 0, jy: 0, wob: Math.random() * 10,
+      cruise: big ? rnd(60, 85) : rnd(72, 125), noteT: rnd(0, 1),
+    });
+    return;
+  }
+}
+
+function resetTraffic(px0) {
+  npcs.length = 0;
+  for (let k = 0; k < 6; k++) spawnNpc(px0, 'any');
+}
+
+function npcTargetSpeed(n, beh) {
+  switch (beh) {
+    case 'go': case 'coffee': case 'honk': return n.cruise;
+    case 'slow': return 30;
+    case 'rev': return -34;
+    default: return 0;
+  }
+}
+
+function updateTraffic(dt, beh, t, frozen) {
+  for (const n of npcs) {
+    let target = frozen ? 0 : npcTargetSpeed(n, beh);
+    // keep a safe gap to whatever is ahead (or behind, when reversing) in the lane
+    let gapAhead = 1e9, vAhead = 0, gapBehind = 1e9, vBehind = 0;
+    const others = npcs.concat([{ x: player.x, y: player.y, L: 24, vx: player.vx, isPlayer: true }]);
+    for (const o of others) {
+      if (o === n || Math.abs(o.y - n.y) > 13) continue;
+      const d = o.x - n.x;
+      const gap = Math.abs(d) - (o.L + n.L) / 2;
+      if (d > 0 && gap < gapAhead) { gapAhead = gap; vAhead = o.vx; }
+      if (d < 0 && gap < gapBehind) { gapBehind = gap; vBehind = o.vx; }
+    }
+    if (target > 0 && gapAhead < 60) target = Math.min(target, Math.max(0, vAhead + (gapAhead - 16) * 2.5));
+    if (target < 0 && gapBehind < 60) target = Math.max(target, Math.min(0, vBehind - (gapBehind - 16) * 2.5));
+    const rate = Math.abs(target) > Math.abs(n.vx) && sign(target) === sign(n.vx || target) ? 130 : 280;
+    if (n.vx < target) n.vx = Math.min(target, n.vx + rate * dt);
+    else n.vx = Math.max(target, n.vx - rate * dt);
+    n.x += n.vx * dt;
+
+    // everybody obeys THE LIGHT, in their own way
+    n.bounce = 0; n.jx = 0; n.jy = 0;
+    if (beh === 'dance' && !frozen) { n.bounce = Math.abs(Math.sin(t * 9 + n.wob)) * 3; n.ang = Math.sin(t * 4.5 + n.wob) * 0.18; }
+    else if (beh === 'spin' && !frozen) { n.spin += dt * (4 + (n.wob % 2)); n.ang = n.spin; }
+    else if (beh === 'slide' && !frozen) { n.jy = Math.round(Math.sin(t * 5 + n.wob) * 3); n.ang = 0; }
+    else if (beh === 'panic' && !frozen) { n.jx = irnd(-1, 1); n.jy = irnd(-1, 1); n.ang = rnd(-0.1, 0.1); }
+    else {
+      // settle back to straight
+      const a = ((n.ang % TAU) + TAU) % TAU;
+      const back = a > Math.PI ? a - TAU : a;
+      n.ang = Math.abs(back) < 0.05 ? 0 : back * Math.max(0, 1 - dt * 8);
+      n.spin = n.ang;
+    }
+    if (beh === 'honk' && !frozen) {
+      n.noteT -= dt;
+      if (n.noteT <= 0 && Math.abs(n.x - player.x) < W) { n.noteT = rnd(0.5, 1.4); addFloater(n.x, n.y - 10, GLYPH.NOTE, '#ff8fd0', 0.8); }
+    }
+  }
+  // recycle cars that fell far off screen
+  for (let k = npcs.length - 1; k >= 0; k--) {
+    const d = npcs[k].x - player.x;
+    if (d > 640 || d < -520) {
+      npcs.splice(k, 1);
+      spawnNpc(player.x, player.vx < -5 ? 'behind' : 'ahead');
+    }
+  }
+  while (npcs.length < 6) spawnNpc(player.x, player.vx < -5 ? 'behind' : 'ahead');
+}
+
+function drawTraffic(g, camX, t) {
+  for (const n of npcs) {
+    const sx = n.x - camX;
+    if (sx < -40 || sx > W + 40) continue;
+    const spr = n.t.spr.length > 1 ? n.t.spr[Math.floor(t * 6) % 2] : n.t.spr[0];
+    if (n.bounce > 0.5) rect(g, sx - n.L / 2 + 2, n.y - n.Wd / 2 + 3, n.L - 2, n.Wd, 'rgba(0,0,0,0.35)');
+    drawSprite(g, spr, sx + n.jx, n.y + n.jy - Math.round(n.bounce), n.ang);
+  }
+}
+
+// ---- pedestrians --------------------------------------------------------------
+const peds = [];
+const SHIRTS = ['#e85d75', '#4fb0e8', '#f2c14e', '#7bd88f', '#b58df0', '#f08a4b', '#e8e8f0', '#3b3b4f'];
+const HAIRS = ['#2a1d14', '#6b3e1f', '#e8c56b', '#1a1a1a', '#b0b0b8', '#c0452c'];
+function spawnPed(camX, anywhere) {
+  const top = Math.random() < 0.5;
+  peds.push({
+    x: anywhere ? camX + rnd(-20, W + 20) : (Math.random() < 0.5 ? camX - 10 : camX + W + 10),
+    y: top ? TOP_WALK_Y + irnd(2, 5) : BOT_WALK_Y + irnd(3, 6),
+    vx: rnd(8, 18) * (Math.random() < 0.5 ? -1 : 1),
+    shirt: pick(SHIRTS), hair: pick(HAIRS), ph: rnd(0, 10), flee: false,
+  });
+}
+function resetPeds(camX) {
+  peds.length = 0;
+  for (let k = 0; k < 12; k++) spawnPed(camX, true);
+}
+function updatePeds(dt, camX, beh, fleeFrom) {
+  for (const p of peds) {
+    if (fleeFrom != null && !p.flee) { p.flee = true; p.vx = (p.x < fleeFrom ? -1 : 1) * rnd(45, 70); }
+    if (beh !== 'dance' && beh !== 'stop' && beh !== 'dead' || p.flee) p.x += p.vx * dt;
+    p.ph += dt * (p.flee ? 18 : 8);
+  }
+  for (let k = peds.length - 1; k >= 0; k--) {
+    const sx = peds[k].x - camX;
+    if (sx < -60 || sx > W + 60) { peds.splice(k, 1); if (fleeFrom == null) spawnPed(camX, false); }
+  }
+}
+function drawPeds(g, camX, t, beh) {
+  for (const p of peds) {
+    const sx = Math.round(p.x - camX);
+    if (sx < -4 || sx > W + 4) continue;
+    const hop = beh === 'dance' && !p.flee ? (Math.sin(t * 10 + p.ph) > 0 ? 1 : 0) : 0;
+    const step = Math.floor(p.ph) % 2;
+    const y = p.y - hop;
+    rect(g, sx - 1, y + 1, 4, 2, p.shirt);
+    rect(g, sx, y, 2, 2, p.hair);
+    px(g, sx + (step ? -1 : 2), y + 3, '#2a2935');
+    if (hop || p.flee) { px(g, sx - 2, y - 1, PAL.skin); px(g, sx + 3, y - 1, PAL.skin); }
+  }
+}
+
+// ---- particles, floating text, skid marks -------------------------------------
+const fx = [];
+const floaters = [];
+const marks = [];
+function burst(x, y, n, cols, spd, o) {
+  o = o || {};
+  for (let k = 0; k < n; k++) {
+    const a = o.dir != null ? o.dir + rnd(-(o.spread || 0.6), o.spread || 0.6) : rnd(0, TAU);
+    const s = rnd(spd * 0.3, spd);
+    fx.push({
+      x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: rnd(o.life || 0.6, (o.life || 0.6) * 1.8),
+      col: pick(cols), size: o.size || 1, drag: o.drag == null ? 2.5 : o.drag, stick: !!o.stick, t: 0,
+    });
+  }
+}
+function addFloater(x, y, str, col, life, scale) {
+  floaters.push({ x, y, str, col, life: life || 1, t: 0, scale: scale || 1 });
+}
+function addMark(x, y) {
+  marks.push({ x: Math.round(x), y: Math.round(y), t: 0 });
+  if (marks.length > 400) marks.shift();
+}
+function updateFx(dt) {
+  for (let k = fx.length - 1; k >= 0; k--) {
+    const p = fx[k];
+    p.t += dt;
+    if (!p.stuck) {
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      const d = Math.max(0, 1 - p.drag * dt);
+      p.vx *= d; p.vy *= d;
+      if (p.stick && p.t > p.life * 0.5) p.stuck = true;
+    }
+    if (!p.stick && p.t > p.life) fx.splice(k, 1);
+  }
+  for (let k = floaters.length - 1; k >= 0; k--) {
+    const f = floaters[k];
+    f.t += dt;
+    f.y -= dt * 14;
+    if (f.t > f.life) floaters.splice(k, 1);
+  }
+  for (let k = marks.length - 1; k >= 0; k--) { marks[k].t += dt; if (marks[k].t > 7) marks.splice(k, 1); }
+}
+function drawMarks(g, camX) {
+  for (const m of marks) {
+    const sx = m.x - camX;
+    if (sx < -2 || sx > W + 2) continue;
+    rect(g, sx, m.y, 2, 1, m.t < 4 ? '#17161e' : '#201f29');
+  }
+}
+function drawFx(g, camX) {
+  for (const p of fx) {
+    const sx = p.x - camX;
+    if (sx < -4 || sx > W + 4) continue;
+    rect(g, sx, p.y, p.size, p.size, p.col);
+  }
+}
+function drawFloaters(g, camX) {
+  for (const f of floaters) {
+    if (f.t < f.life * 0.75 || Math.floor(f.t * 20) % 2 === 0) {
+      text(g, f.str, f.x - camX, f.y, { color: f.col, align: 'center', outline: PAL.ink, scale: f.scale });
+    }
+  }
+}
+
+// ---- coffee pickup (BROWN light) ------------------------------------------------
+let coffee = null;
+function spawnCoffee(behindOk) {
+  const behind = behindOk && Math.random() < 0.3;
+  const dist = behind ? -rnd(70, 120) : rnd(80, 170);
+  let best = 0, bestScore = -1;
+  for (let lane = 0; lane < LANES; lane++) {
+    const y = laneY(lane);
+    const blockers = npcs.filter((n) => Math.abs(n.y - y) < 12 && Math.abs(n.x - (player.x + dist)) < 40).length;
+    const score = (blockers ? 0 : 10) + Math.random() * 5;
+    if (score > bestScore) { bestScore = score; best = lane; }
+  }
+  coffee = { x: player.x + dist, y: laneY(best), t: 0 };
+}
+function drawCoffee(g, camX, t) {
+  if (!coffee) return;
+  const sx = Math.round(coffee.x - camX), y = Math.round(coffee.y + Math.sin(t * 5) * 1.5);
+  ring(g, sx, coffee.y, 8 + (Math.floor(t * 8) % 3), 'rgba(255,220,140,0.55)');
+  rect(g, sx - 3, y - 2, 7, 2, '#f5eee0');       // lid
+  rect(g, sx - 4, y - 1, 9, 1, '#d8cfbd');
+  rect(g, sx - 3, y, 7, 2, '#efe8da');           // cup
+  rect(g, sx - 3, y + 2, 7, 2, '#8a4b21');       // sleeve
+  rect(g, sx - 2, y + 4, 5, 2, '#efe8da');
+  rect(g, sx - 2, y + 6, 5, 1, '#c9c0ae');
+  const s = Math.floor(t * 6) % 2;
+  px(g, sx - 1 + s, y - 4, '#ffffff'); px(g, sx + s, y - 5, '#dddddd');
+  px(g, sx + 2 - s, y - 4, '#dddddd'); px(g, sx + 1 - s, y - 6, '#ffffff');
+}
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// rules.js - what every colour of THE LIGHT means.
+//
+// kind 'hold' : keep doing something for the whole light (after a short
+//               grace period to react). Break the rule for too long -> BANG.
+// kind 'task' : get something done before the light runs out -> or BANG.
+//               Some tasks also have a 'check' you must not break meanwhile.
+// ---------------------------------------------------------------------------
+
+// Car handling numbers the rules are built around (pixels per second).
+const MAX_FWD = 150;
+const MAX_REV = 72;
+const LAT_SPEED = 62;
+const GO_MIN = 45;       // GREEN: at least this fast
+const SLOW_MIN = 4;      // YELLOW: moving forward...
+const SLOW_MAX = 60;     // ...but no faster than this
+const STILL = 4;         // RED: basically not moving
+const REV_MIN = 20;      // ORANGE: at least this fast backwards
+const SLIDE_VMAX = 8;    // BLUE: forward/back speed must stay under this
+
+const ARROWS = ['left', 'right', 'up', 'down'];
+const QUARTER = { right: 0, down: 1, left: 2, up: 3 };
+const ARROW_GLYPH = { left: GLYPH.L, right: GLYPH.R, up: GLYPH.U, down: GLYPH.D };
+const { L: A_L, R: A_R, U: A_U, D: A_D } = GLYPH;
+
+const RULES = {};
+const RULE_ORDER = ['green', 'red', 'purple', 'blue', 'yellow', 'orange', 'pink', 'cyan', 'black', 'brown', 'white', 'rainbow'];
+// Light number after which each colour shows up for the first time (normal mode).
+const UNLOCK_AT = { purple: 3, blue: 6, yellow: 9, orange: 12, pink: 15, cyan: 18, black: 21, brown: 24, white: 27, rainbow: 31 };
+
+function defRule(r) {
+  r.dark = r.dark || shade(r.color, -0.6);
+  r.glow = r.glow || shade(r.color, 0.45);
+  RULES[r.id] = r;
+}
+// Rainbow cycles through every hue; everything else is a fixed colour.
+function ruleColor(r, t) {
+  if (r.id === 'rainbow') return hsl((t || 0) * 300, 95, 60);
+  return r.color;
+}
+function ruleText(r, key, p) {
+  const v = r[key];
+  return typeof v === 'function' ? v(p || {}) : v;
+}
+
+defRule({
+  id: 'green', name: 'GREEN', cmd: 'GO!', color: '#27d64a', icon: 'go', slot: 2, kind: 'hold', beh: 'go',
+  hint: `KEEP DRIVING FORWARD ${A_R}`,
+  learn: ['GREEN MEANS GO.', `HOLD ${A_R} AND KEEP DRIVING FORWARD`, 'UNTIL THE LIGHT CHANGES.'],
+  short: 'DRIVE FORWARD',
+  fail: "GREEN MEANS GO. YOU DIDN'T GO.",
+  gauge: [GO_MIN, MAX_FWD],
+  check: (p, pl) => (pl.vx < GO_MIN ? 'TOO SLOW! GREEN MEANS GO!' : null),
+});
+
+defRule({
+  id: 'red', name: 'RED', cmd: 'STOP!', color: '#ff2b3d', icon: 'stop', slot: 0, kind: 'hold', beh: 'stop',
+  hint: "FULL STOP. DON'T MOVE AT ALL.",
+  learn: ['RED MEANS STOP.', `LET GO OF ${A_R} AND TAP ${A_L} TO BRAKE.`, "DON'T MOVE AT ALL. NOT EVEN SIDEWAYS."],
+  short: "DON'T MOVE AT ALL",
+  fail: 'RED MEANS STOP. YOU KEPT MOVING.',
+  gauge: [-STILL, STILL],
+  check: (p, pl) => (Math.abs(pl.vx) > STILL || Math.abs(pl.vy) > STILL ? 'RED MEANS STOP! YOU MOVED!' : null),
+});
+
+defRule({
+  id: 'purple', name: 'PURPLE', cmd: 'DANCE!', color: '#b04bff', icon: 'dance', slot: 'all', kind: 'task', beh: 'dance',
+  captures: true,
+  hint: 'TYPE THE ARROWS ABOVE YOUR CAR!',
+  learn: ['PURPLE MEANS DANCE!', 'ARROWS POP UP ABOVE YOUR CAR.', 'PRESS THEM IN ORDER. MESS UP = START OVER.'],
+  short: 'TYPE THE DANCE ARROWS',
+  fail: "PURPLE MEANS DANCE. YOU DIDN'T DANCE.",
+  setup(p, d) {
+    const n = clamp(3 + Math.floor(d * 4) + (Math.random() < 0.3 ? 1 : 0) - (p.chaos ? 1 : 0), 3, 8);
+    p.seq = [];
+    for (let i = 0; i < n; i++) {
+      let a;
+      do { a = pick(ARROWS); } while (i >= 2 && a === p.seq[i - 1] && a === p.seq[i - 2]);
+      p.seq.push(a);
+    }
+    p.idx = 0;
+    p.dur = 1.3 + n * lerp(0.8, 0.45, d);
+  },
+  onKey(p, k, G) {
+    if (!ARROWS.includes(k) || p.done) return;
+    if (k === p.seq[p.idx]) {
+      p.idx++;
+      G.danceMove(k, p.idx);
+      if (p.idx >= p.seq.length) p.done = true;
+    } else {
+      p.idx = 0;
+      G.danceFail();
+    }
+  },
+});
+
+defRule({
+  id: 'blue', name: 'BLUE', cmd: 'SLIDE!', color: '#2f6bff', icon: 'slide', slot: 'all', kind: 'task', beh: 'slide',
+  hint: `${A_U}${A_D} SIDEWAYS ONLY! NO FORWARD/BACK!`,
+  learn: ['BLUE MEANS SLIDE SIDEWAYS.', `STOP, THEN SLIDE ${A_U}/${A_D} UNTIL THE BAR FILLS UP.`, 'NO FORWARD. NO BACKWARD. ONLY SIDEWAYS!'],
+  short: `SLIDE SIDEWAYS ${A_U}${A_D}, NO FWD/BACK`,
+  fail: 'BLUE MEANS SIDEWAYS. NOT FORWARD. NOT BACKWARD.',
+  gauge: [-SLIDE_VMAX, SLIDE_VMAX],
+  setup(p, d) {
+    p.need = Math.round(lerp(34, 60, d));
+    p.prog = 0;
+    p.dur = p.grace + (p.need / LAT_SPEED) * 1.5 + lerp(1.5, 0.9, d);
+  },
+  check: (p, pl) => (Math.abs(pl.vx) > SLIDE_VMAX ? 'NO FORWARD! NO BACKWARD! SIDEWAYS!' : null),
+  update(p, pl, dt) {
+    if (Math.abs(pl.vx) <= SLIDE_VMAX) p.prog += Math.abs(pl.vy) * dt;
+    if (p.prog >= p.need) p.done = true;
+  },
+});
+
+defRule({
+  id: 'yellow', name: 'YELLOW', cmd: 'SLOW...', color: '#ffd21f', icon: 'slow', slot: 1, kind: 'hold', beh: 'slow',
+  hint: 'CREEP FORWARD. NOT FAST. NOT STOPPED.',
+  learn: ['YELLOW MEANS GO SLOW.', `TAP ${A_R} TO CREEP FORWARD SLOWLY.`, 'TOO FAST = BANG. STOPPED = ALSO BANG.'],
+  short: 'CREEP FORWARD SLOWLY',
+  fail: 'YELLOW MEANS SLOW. NOT FAST. NOT STOPPED.',
+  gauge: [SLOW_MIN, SLOW_MAX],
+  check: (p, pl) => (pl.vx > SLOW_MAX ? 'TOO FAST! YELLOW MEANS SLOW!' : pl.vx < SLOW_MIN ? "DON'T STOP! KEEP CREEPING!" : null),
+});
+
+defRule({
+  id: 'orange', name: 'ORANGE', cmd: 'REVERSE!', color: '#ff8a1c', icon: 'reverse', slot: 'all', kind: 'hold', beh: 'rev',
+  hint: `HOLD ${A_L} TO DRIVE BACKWARD`,
+  learn: ['ORANGE MEANS REVERSE.', `HOLD ${A_L} TO DRIVE BACKWARD`, 'UNTIL THE LIGHT CHANGES.'],
+  short: 'DRIVE BACKWARD',
+  fail: "ORANGE MEANS REVERSE. YOU DIDN'T BACK UP.",
+  gauge: [-MAX_REV, -REV_MIN],
+  check: (p, pl) => (pl.vx > -REV_MIN ? 'BACKWARD! ORANGE MEANS REVERSE!' : null),
+});
+
+defRule({
+  id: 'pink', name: 'PINK', cmd: (p) => `HONK ${GLYPH.TIMES}${p.need || 3}!`, color: '#ff6ec7', icon: 'honk', slot: 'all', kind: 'task', beh: 'honk',
+  hint: (p) => `${Input.touchMode ? 'TAP HONK' : 'PRESS SPACE'} EXACTLY ${p.need || 3} TIMES!`,
+  learn: ['PINK MEANS HONK.', 'HONK (SPACE BAR / PINK BUTTON) EXACTLY', 'THE NUMBER OF TIMES SHOWN. NOT ONE MORE!'],
+  short: 'HONK EXACTLY N TIMES',
+  fail: 'PINK MEANS HONK. THE EXACT NUMBER OF TIMES.',
+  setup(p, d) {
+    p.need = irnd(2, 3 + Math.floor(d * 3));
+    if (p.chaos) p.need = Math.min(p.need, 3);
+    p.count = 0;
+    p.last = -9;
+    p.dur = 1.4 + p.need * lerp(0.42, 0.3, d) + 0.8;
+  },
+  onKey(p, k) {
+    if (k !== 'honk') return;
+    p.count++;
+    p.last = p.t;
+    if (p.count > p.need) p.failNow = `TOO MANY HONKS! IT SAID ${p.need}.`;
+  },
+  update(p) { if (p.count === p.need && p.t - p.last > 0.7) p.done = true; },
+  doneAtTimeout: (p) => p.count === p.need,
+  failAtTimeout: (p) => `NOT ENOUGH HONKS! ${p.count} OUT OF ${p.need}.`,
+});
+
+defRule({
+  id: 'cyan', name: 'CYAN', cmd: (p) => (p.turns > 1 ? `SPIN ${GLYPH.TIMES}2!` : 'SPIN!'), color: '#1ee8e8', icon: 'spin', slot: 'all', kind: 'task', beh: 'spin',
+  captures: true,
+  hint: `ROLL THE ARROWS AROUND: ${A_R}${A_D}${A_L}${A_U}`,
+  learn: ['CYAN MEANS SPIN!', `ROLL THE ARROWS IN A CIRCLE: ${A_R} ${A_D} ${A_L} ${A_U}`, 'EACH PRESS TURNS YOUR CAR A QUARTER.'],
+  short: `DO A 360: ${A_R}${A_D}${A_L}${A_U}`,
+  fail: "CYAN MEANS SPIN. YOU DIDN'T SPIN.",
+  setup(p, d) {
+    p.turns = d < 0.35 || p.chaos ? 1 : 2;
+    p.rot = 0;
+    p.head = 0;
+    p.dur = 1.4 + 4 * p.turns * lerp(0.55, 0.32, d);
+  },
+  onKey(p, k, G) {
+    const q = QUARTER[k];
+    if (q == null || p.done) return;
+    const diff = (q - p.head + 4) % 4;
+    if (diff === 1) p.rot++;
+    else if (diff === 3) p.rot--;
+    else return;
+    p.head = q;
+    G.spinStep(p.rot);
+    if (Math.abs(p.rot) >= 4 * p.turns) p.done = true;
+  },
+});
+
+defRule({
+  id: 'black', name: 'BLACK', cmd: 'PLAY DEAD', color: '#1b1a24', dark: '#000000', glow: '#8c8aa0', icon: 'dead', slot: 'all', kind: 'hold', beh: 'dead',
+  hint: "DON'T TOUCH ANYTHING. NOTHING!",
+  learn: ['BLACK MEANS PLAY DEAD.', "LET GO OF EVERYTHING. DON'T PRESS", 'A SINGLE KEY UNTIL THE LIGHT CHANGES.'],
+  short: "DON'T TOUCH ANY KEY",
+  fail: 'BLACK MEANS PLAY DEAD. YOU TOUCHED SOMETHING.',
+  setup(p, d) { p.dur = p.grace + lerp(2.4, 1.8, d) + rnd(0, 1); },
+  check: (p, pl, inp) => (inp.anyHeld() ? "DEAD PEOPLE DON'T PRESS BUTTONS!" : null),
+  onRaw(p) {
+    if (p.t > p.grace) { p.vheat += 0.55; p.why = "DEAD PEOPLE DON'T PRESS BUTTONS!"; }
+  },
+});
+
+defRule({
+  id: 'brown', name: 'BROWN', cmd: 'GRAB COFFEE!', color: '#9a5a2a', icon: 'coffee', slot: 'all', kind: 'task', beh: 'coffee',
+  hint: 'DRIVE INTO THE COFFEE CUP!',
+  learn: ['BROWN MEANS COFFEE BREAK.', 'A COFFEE CUP APPEARS ON THE ROAD.', 'DRIVE INTO IT BEFORE TIME RUNS OUT.'],
+  short: 'DRIVE INTO THE COFFEE',
+  fail: 'BROWN MEANS GRAB THE COFFEE. NO COFFEE, NO LIFE.',
+  setup(p, d) {
+    spawnCoffee(d > 0.35 && !p.chaos);
+    p.dur = lerp(4.6, 3.6, d) + Math.abs(coffee.x - player.x) / 170;
+  },
+  update(p, pl, dt, G) {
+    if (!coffee || p.done) return;
+    coffee.t += dt;
+    if (Math.abs(coffee.x - pl.x) < 15 && Math.abs(coffee.y - pl.y) < 11) { p.done = true; G.gotCoffee(); }
+  },
+  end() { coffee = null; },
+});
+
+defRule({
+  id: 'white', name: 'WHITE', cmd: 'PANIC!', color: '#f4f4ff', icon: 'panic', slot: 'all', kind: 'task', beh: 'panic',
+  hint: (p) => `${Input.touchMode ? 'TAP LIKE CRAZY!' : 'MASH ANY KEYS!'} ${p.need || 12} TIMES!`,
+  learn: ['WHITE MEANS PANIC!', 'MASH ANY KEYS (OR TAP LIKE CRAZY)', 'UNTIL THE COUNTER FILLS UP!'],
+  short: 'MASH ANY KEYS',
+  fail: 'WHITE MEANS PANIC. YOU WERE WAY TOO CALM.',
+  setup(p, d) {
+    p.need = 10 + Math.floor(d * 10) - (p.chaos ? 3 : 0);
+    p.count = 0;
+    p.dur = lerp(3.3, 2.7, d);
+  },
+  onRaw(p, G) {
+    if (p.done) return;
+    p.count++;
+    G.panicPress();
+    if (p.count >= p.need) p.done = true;
+  },
+});
+
+defRule({
+  id: 'rainbow', name: 'RAINBOW', cmd: 'CHAOS!', color: '#ff4df0', icon: 'chaos', slot: 'all', kind: 'hold', beh: 'dance',
+  hint: 'GET READY... OBEY EVERY LIGHT!',
+  learn: ['RAINBOW MEANS CHAOS!', 'A SUPER FAST STRING OF RANDOM LIGHTS.', 'OBEY EVERY SINGLE ONE. BIG BONUS!'],
+  short: 'A FAST STRING OF LIGHTS',
+  fail: 'RAINBOW MEANS CHAOS. THE CHAOS WON.',
+  setup(p, d, G) {
+    p.dur = 1.6;
+    G.queueChaos(d);
+  },
+});
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// input.js - keyboard, touch (on-screen pixel buttons) and gamepads, all
+// turned into the same small set of actions.
+// ---------------------------------------------------------------------------
+
+const KEYMAP = {
+  ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right',
+  ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
+  Space: 'honk', KeyH: 'honk', Enter: 'enter', NumpadEnter: 'enter',
+  KeyP: 'pause', Escape: 'esc', KeyM: 'mute', KeyQ: 'quit',
+};
+
+// On-screen buttons (game pixel coordinates), shown once a touch is seen.
+const TOUCH_BTNS = [
+  { key: 'up', x: 22, y: 126, w: 16, h: 16 },
+  { key: 'down', x: 22, y: 158, w: 16, h: 16 },
+  { key: 'left', x: 6, y: 142, w: 16, h: 16 },
+  { key: 'right', x: 38, y: 142, w: 16, h: 16 },
+  { key: 'honk', x: 278, y: 134, w: 34, h: 34, round: true },
+  { key: 'pause', x: 303, y: 29, w: 14, h: 12 },
+];
+
+const Input = {
+  rawHeld: new Set(),   // physical keys currently down
+  held: new Set(),      // logical actions currently down
+  queue: [],            // presses since last frame: { key, raw, x, y }
+  touches: new Map(),   // pointerId -> action (or null for a plain tap)
+  padHeld: new Set(),
+  padPrev: new Set(),
+  touchMode: false,
+  lastDevice: 'keyboard',
+
+  anyHeld() { return this.rawHeld.size > 0 || this.touches.size > 0 || this.padHeld.size > 0; },
+  isDown(k) { return this.held.has(k); },
+  refresh() {
+    this.held.clear();
+    for (const c of this.rawHeld) { const k = KEYMAP[c]; if (k) this.held.add(k); }
+    for (const k of this.touches.values()) if (k) this.held.add(k);
+    for (const k of this.padHeld) this.held.add(k);
+  },
+  take() { const q = this.queue; this.queue = []; return q; },
+  clear() { this.rawHeld.clear(); this.touches.clear(); this.padHeld.clear(); this.refresh(); },
+};
+
+function toGameXY(e) {
+  const r = screenCanvas.getBoundingClientRect();
+  return { x: ((e.clientX - r.left) / r.width) * W, y: ((e.clientY - r.top) / r.height) * H };
+}
+function touchButtonAt(p) {
+  for (const b of TOUCH_BTNS) {
+    if (b.round) {
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      if (Math.hypot(p.x - cx, p.y - cy) <= b.w / 2 + 3) return b.key;
+    } else if (p.x >= b.x - 2 && p.x < b.x + b.w + 2 && p.y >= b.y - 2 && p.y < b.y + b.h + 2) return b.key;
+  }
+  return null;
+}
+
+function initInput(onAnyInput) {
+  window.addEventListener('keydown', (e) => {
+    const k = KEYMAP[e.code];
+    if (k && (k === 'up' || k === 'down' || k === 'left' || k === 'right' || k === 'honk')) e.preventDefault();
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    onAnyInput();
+    if (e.repeat) return;
+    Input.lastDevice = 'keyboard';
+    Input.rawHeld.add(e.code);
+    Input.refresh();
+    Input.queue.push({ key: k || null, raw: true, code: e.code });
+  });
+  window.addEventListener('keyup', (e) => {
+    Input.rawHeld.delete(e.code);
+    Input.refresh();
+  });
+  window.addEventListener('blur', () => Input.clear());
+  document.addEventListener('visibilitychange', () => { if (document.hidden) Input.clear(); });
+
+  screenCanvas.addEventListener('pointerdown', (e) => {
+    onAnyInput();
+    e.preventDefault();
+    const p = toGameXY(e);
+    try { screenCanvas.focus({ preventScroll: true }); } catch (err) { /* old browser */ }
+    if (e.pointerType !== 'mouse') Input.touchMode = true;
+    Input.lastDevice = e.pointerType === 'mouse' ? 'mouse' : 'touch';
+    const btn = Input.touchMode && gameWantsTouchButtons() ? touchButtonAt(p) : null;
+    Input.touches.set(e.pointerId, btn);
+    try { screenCanvas.setPointerCapture(e.pointerId); } catch (err) { /* not supported */ }
+    Input.refresh();
+    Input.queue.push({ key: btn || 'tap', raw: true, x: p.x, y: p.y });
+  });
+  screenCanvas.addEventListener('pointermove', (e) => {
+    if (!Input.touches.has(e.pointerId)) return;
+    const old = Input.touches.get(e.pointerId);
+    if (!old || old === 'honk' || old === 'pause') return; // only the d-pad slides
+    const now = touchButtonAt(toGameXY(e));
+    if (now && now !== old && ARROWS.includes(now)) {
+      Input.touches.set(e.pointerId, now);
+      Input.refresh();
+      Input.queue.push({ key: now, raw: true });
+    }
+  });
+  const up = (e) => { Input.touches.delete(e.pointerId); Input.refresh(); };
+  screenCanvas.addEventListener('pointerup', up);
+  screenCanvas.addEventListener('pointercancel', up);
+  screenCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+// Gamepads: d-pad / left stick = arrows, A/B = honk, START = pause/enter.
+function pollGamepads() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const now = new Set();
+  for (const gp of pads) {
+    if (!gp) continue;
+    const b = (i) => gp.buttons[i] && gp.buttons[i].pressed;
+    const ax = gp.axes[0] || 0, ay = gp.axes[1] || 0;
+    if (b(14) || ax < -0.5) now.add('left');
+    if (b(15) || ax > 0.5) now.add('right');
+    if (b(12) || ay < -0.5) now.add('up');
+    if (b(13) || ay > 0.5) now.add('down');
+    if (b(0) || b(1) || b(2) || b(3)) now.add('honk');
+    if (b(9)) now.add('pause');
+    if (b(8)) now.add('esc');
+  }
+  for (const k of now) {
+    if (!Input.padPrev.has(k)) {
+      Input.lastDevice = 'gamepad';
+      Input.queue.push({ key: k, raw: true });
+    }
+  }
+  Input.padPrev = now;
+  Input.padHeld = now;
+  Input.refresh();
+}
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// game.js - game states, the player's car, THE LIGHT sequencer, scoring,
+// and what happens when you break the rules.
+// ---------------------------------------------------------------------------
+
+const ACCEL = 190;
+const BRAKE = 430;
+const REV_ACCEL = 170;
+const FRICTION = 55;
+const LAT_ACC = 520;
+const NOCTL = { left: false, right: false, up: false, down: false };
+
+const QUOTES = [
+  '"NOTHING PERSONAL, KID."', '"RULES ARE RULES."', '"THE LIGHT SEES ALL."',
+  '"SHOULD HAVE READ THE RULEBOOK."', '"BEEP BEEP. BANG."', '"I DON\'T MAKE THE RULES."',
+  '"TRAFFIC SAFETY FIRST."', '"YOU HAD ONE JOB."', '"THE LIGHT HAS SPOKEN."',
+];
+
+const player = {
+  x: 0, y: laneY(2), vx: 0, vy: 0, spin: 0, spinTarget: 0, tilt: 0, dtilt: 0,
+  bounce: 0, bounceV: 0, hold: 0, armsT: 0, jitT: 0, honkT: 0, dead: false, deadSpin: 0, variant: 'normal', crashed: false,
+};
+
+const MENU = [
+  { id: 'normal', label: () => 'DRIVE', sub: 'NEW COLORS SHOW UP AS YOU SURVIVE' },
+  { id: 'insane', label: () => 'INSANE MODE', sub: 'ALL 12 COLORS AT ONCE. NO HINTS. FAST.' },
+  { id: 'practice', label: () => 'PRACTICE', sub: 'THE SNIPER ALWAYS MISSES. PROBABLY.' },
+  { id: 'rules', label: () => 'RULEBOOK', sub: 'WHAT EVERY COLOR MEANS' },
+  { id: 'sound', label: () => 'SOUND: ' + (Sound.sfxOn ? 'ON' : 'OFF'), sub: 'SOUND EFFECTS' },
+  { id: 'music', label: () => 'MUSIC: ' + (Sound.musicOn ? 'ON' : 'OFF'), sub: 'CHIPTUNE SOUNDTRACK' },
+];
+
+const G = {
+  state: 'title', mode: 'normal', t: 0, stateT: 0,
+  score: 0, combo: 1, survived: 0, distance: 0, best: {}, newBest: false,
+  phase: null, unlocked: [], lastId: null, recent: {}, chaosQueue: [], chaosActive: false, sinceChaos: 0,
+  camX: 0, camOff: 96, shake: 0, flash: 0, lightFlash: 0, dark: 0, mosaic: 0, seen: new Set(),
+  menuIdx: 0, introId: null, rulesFrom: 'title', death: null, tracer: null, aimSniper: null,
+  beepT: 0, bonkT: 0, banner: null, titleLight: 0, titleLightT: 0, lastCount: -1,
+
+  // ---- hooks the rules call ----
+  danceMove(k, idx) {
+    player.bounceV = k === 'down' ? 35 : 75;
+    player.dtilt = k === 'left' ? -0.4 : k === 'right' ? 0.4 : 0;
+    player.armsT = 0.25;
+    Sound.sfx.danceNote(idx);
+    addFloater(player.x + rnd(-10, 10), player.y - 14, GLYPH.NOTE, '#e0a8ff', 0.6);
+    burst(player.x, player.y, 5, ['#b04bff', '#e0a8ff', '#ffffff'], 50, { life: 0.35 });
+  },
+  danceFail() {
+    Sound.sfx.wrong();
+    G.shake = Math.max(G.shake, 2);
+    addFloater(player.x, player.y - 18, 'WRONG MOVE! START OVER', '#ff6a7a', 0.9);
+  },
+  spinStep(rot) {
+    player.spinTarget = (rot * Math.PI) / 2;
+    Sound.sfx.screech();
+    for (let k = 0; k < 6; k++) addMark(player.x + rnd(-9, 9), player.y + rnd(-6, 6));
+    burst(player.x, player.y, 6, ['#9a98aa', '#c8c6d6', '#6f6d85'], 35, { life: 0.5 });
+  },
+  panicPress() {
+    player.jitT = 0.12;
+    player.armsT = 0.2;
+    Sound.sfx.panicKey();
+    if (Math.random() < 0.35) addFloater(player.x + rnd(-12, 12), player.y - 14, pick(['AAA!', 'AAAH!', 'EEK!', '!!!', 'HELP!']), '#ffffff', 0.5);
+  },
+  gotCoffee() {
+    Sound.sfx.slurp();
+    if (coffee) burst(coffee.x, coffee.y, 14, ['#8a4b21', '#f5eee0', '#ffffff'], 45, { life: 0.5 });
+    addFloater(player.x, player.y - 18, 'CAFFEINE!', '#e8c090', 1);
+    coffee = null;
+  },
+  queueChaos(d) {
+    const pool = G.unlocked.filter((id) => id !== 'rainbow' && id !== 'brown');
+    const n = 3 + Math.floor(d * 2);
+    let last = 'rainbow';
+    G.chaosQueue = [];
+    for (let i = 0; i < n; i++) {
+      let id;
+      do { id = pick(pool); } while (id === last && pool.length > 1);
+      G.chaosQueue.push(id);
+      last = id;
+    }
+    G.chaosActive = true;
+  },
+};
+
+// ---- persistence (best scores, which tutorial cards you've seen) ---------------
+function loadSeen() {
+  G.seen = new Set();
+  try { (localStorage.getItem('otl.seen') || '').split(',').filter(Boolean).forEach((id) => G.seen.add(id)); } catch (e) { /* ignore */ }
+}
+function markSeen(id) {
+  G.seen.add(id);
+  try { localStorage.setItem('otl.seen', Array.from(G.seen).join(',')); } catch (e) { /* ignore */ }
+}
+function loadBest() {
+  loadSeen();
+  for (const m of ['normal', 'insane']) {
+    try { G.best[m] = parseInt(localStorage.getItem('otl.best.' + m) || '0', 10) || 0; } catch (e) { G.best[m] = 0; }
+  }
+}
+function saveBest(m) {
+  try { localStorage.setItem('otl.best.' + m, String(G.best[m])); } catch (e) { /* storage blocked */ }
+}
+
+// ---- helpers -------------------------------------------------------------------
+function wrapAngle(a) {
+  a = ((a + Math.PI) % TAU + TAU) % TAU - Math.PI;
+  return a;
+}
+function difficulty() {
+  if (G.mode === 'insane') return clamp(0.55 + G.survived / 70, 0, 1);
+  if (G.mode === 'practice') return clamp(G.survived / 120, 0, 0.5);
+  return clamp((G.survived - 5) / 55, 0, 1);
+}
+function carAngle() { return player.spin + player.tilt + player.dtilt; }
+function headPos() {
+  const a = carAngle(), c = Math.cos(a), s = Math.sin(a);
+  return {
+    x: player.x + HEAD_OFF.x * c - HEAD_OFF.y * s,
+    y: player.y - Math.round(player.bounce) + HEAD_OFF.x * s + HEAD_OFF.y * c,
+  };
+}
+function gameWantsTouchButtons() { return G.state === 'play'; }
+function setState(s) {
+  const from = G.state;
+  G.state = s;
+  G.stateT = 0;
+  if (s === 'title' || s === 'rules' || from === 'title' || from === 'rules' || from === 'over') G.mosaic = 1;
+}
+
+// ---- starting a run -------------------------------------------------------------
+function resetPlayer() {
+  Object.assign(player, {
+    x: 0, y: laneY(2), vx: 0, vy: 0, spin: 0, spinTarget: 0, tilt: 0, dtilt: 0, bounce: 0, bounceV: 0,
+    hold: 0, armsT: 0, jitT: 0, honkT: 0, dead: false, deadSpin: 0, variant: 'normal', crashed: false,
+  });
+}
+function startGame(mode) {
+  G.mode = mode;
+  G.score = 0; G.combo = 1; G.survived = 0; G.distance = 0; G.newBest = false;
+  G.lastId = null; G.recent = {}; G.chaosQueue = []; G.chaosActive = false; G.sinceChaos = 0;
+  G.death = null; G.tracer = null; G.aimSniper = null; G.flash = 0; G.shake = 0; G.banner = null; G.dark = 0;
+  G.unlocked = mode === 'insane' ? RULE_ORDER.slice() : ['green', 'red'];
+  resetPlayer();
+  G.camOff = 96;
+  G.camX = player.x - G.camOff;
+  fx.length = 0; floaters.length = 0; marks.length = 0; coffee = null;
+  resetTraffic(player.x);
+  resetPeds(G.camX);
+  Input.clear();
+  Sound.music.stop();
+  Sound.music.tempo = 124;
+  Sound.music.start('drive');
+  Sound.engine.start();
+  G.phase = null;
+  if (mode === 'insane' || G.seen.has('basics')) { setState('play'); startPhase('red', { countdown: true }); }
+  else showIntro('basics');
+}
+
+function showIntro(id) {
+  markSeen(id);
+  G.introId = id;
+  setState('intro');
+  Sound.sfx.unlock();
+  Sound.engine.set(0);
+}
+function closeIntro() {
+  if (G.stateT < 0.6) return;
+  const id = G.introId;
+  G.introId = null;
+  setState('play');
+  Input.clear();
+  if (id === 'basics') startPhase('red', { countdown: true });
+  else startPhase(id, { isNew: true });
+}
+
+// ---- THE LIGHT -----------------------------------------------------------------------
+function startPhase(id, o) {
+  o = o || {};
+  const r = RULES[id], d = difficulty();
+  const p = {
+    rule: r, id, t: 0, grace: lerp(1.3, 0.7, d), heat: 0, vheat: 0, maxHeat: 0, done: false, doneT: 0,
+    failNow: null, why: null, chaos: !!o.chaos, isNew: !!o.isNew, countdown: !!o.countdown, first: !!o.first, d,
+  };
+  if (p.chaos) p.grace *= 0.75;
+  if (p.isNew) p.grace = Math.max(p.grace, 1.6);
+  p.dur = p.grace + lerp(2.3, 1.4, d) + rnd(0, 1.1);
+  if (r.setup) r.setup(p, d, G);
+  if (p.chaos) p.dur *= r.kind === 'task' ? 0.85 : 0.7;
+  if (p.isNew) p.dur *= 1.35;
+  if (p.countdown) { p.dur = 2.7; p.grace = 1.2; }
+  G.phase = p;
+  G.lastId = id;
+  G.lastCount = -1;
+  player.spin = wrapAngle(player.spin);
+  player.spinTarget = 0;
+  G.lightFlash = 0.3;
+  if (p.first) Sound.sfx.countdown(true);
+  else if (!p.countdown) Sound.sfx.lightChange();
+  Sound.music.tempo = 124 + Math.round(d * 26);
+  Sound.music.mood = p.chaos || id === 'rainbow' ? 'chaos' : id === 'purple' ? 'dance' : 'drive';
+  if (id === 'white') Sound.sfx.scream();
+  if (id === 'rainbow') Sound.sfx.chaos();
+}
+
+function endPhase(p) {
+  if (!p || p.ended) return;
+  p.ended = true;
+  if (p.rule.end) p.rule.end(p);
+}
+
+function pickNext() {
+  if (G.unlocked.includes('rainbow') && G.sinceChaos >= 6 && Math.random() < 0.22 + (G.sinceChaos - 6) * 0.06) {
+    G.sinceChaos = 0;
+    return 'rainbow';
+  }
+  G.sinceChaos++;
+  const pool = G.unlocked.filter((id) => id !== G.lastId && id !== 'rainbow');
+  let total = 0;
+  const ws = pool.map((id) => {
+    let w = 1;
+    const u = G.recent[id];
+    if (u != null && G.survived - u < 8) w = 2.2;
+    if (id === 'green' || id === 'red') w *= 1.25;
+    total += w;
+    return w;
+  });
+  let roll = Math.random() * total;
+  for (let i = 0; i < pool.length; i++) { roll -= ws[i]; if (roll <= 0) return pool[i]; }
+  return pool[pool.length - 1];
+}
+
+function nextPhase() {
+  const prev = G.phase;
+  endPhase(prev);
+  if (prev && prev.countdown) { startPhase('green', { first: true }); return; }
+  if (G.chaosQueue.length) { startPhase(G.chaosQueue.shift(), { chaos: true }); return; }
+  if (G.chaosActive) {
+    G.chaosActive = false;
+    const bonus = 1000;
+    G.score += bonus;
+    addFloater(player.x, player.y - 30, 'CHAOS SURVIVED! +' + bonus, '#ffe14a', 1.8);
+    Sound.sfx.unlock();
+  }
+  if (G.mode !== 'insane') {
+    const fresh = RULE_ORDER.find((id) => !G.unlocked.includes(id));
+    if (fresh && G.survived >= UNLOCK_AT[fresh]) {
+      G.unlocked.push(fresh);
+      G.recent[fresh] = G.survived;
+      if (!G.seen.has(fresh)) { showIntro(fresh); return; }
+      // already learned it once: just a quick heads-up, no pause
+      const r = RULES[fresh];
+      G.banner = { title: 'NEW LIGHT: ' + r.name, text: r.name + ' = ' + ruleText(r, 'cmd', { need: 3, turns: 1 }) + ' ' + r.short, col: r.id === 'black' ? '#c9c7da' : r.color, t: 0 };
+      Sound.sfx.unlock();
+      startPhase(fresh, { isNew: true });
+      return;
+    }
+  }
+  startPhase(pickNext());
+}
+
+function heatTime(d) { return lerp(0.75, 0.42, d); }
+
+function updatePhase(dt) {
+  const p = G.phase;
+  if (!p) return;
+  const r = p.rule;
+  p.t += dt;
+  if (r.update) r.update(p, player, dt, G);
+  let bad = null;
+  if (r.check && p.t > p.grace && !p.done) bad = r.check(p, player, Input);
+  if (bad) { p.vheat += dt / heatTime(p.d); p.why = bad; }
+  else p.vheat = Math.max(0, p.vheat - dt * 0.8);
+  let theat = 0;
+  if (r.kind === 'task' && !p.done) {
+    const warn = Math.min(1.5, p.dur * 0.45);
+    const remain = p.dur - p.t;
+    if (remain < warn) theat = 1 - remain / warn;
+  }
+  p.heat = clamp(Math.max(p.vheat, theat), 0, 1);
+  if (!p.countdown) p.maxHeat = Math.max(p.maxHeat, p.heat);
+
+  if (p.failNow) return fail(p.failNow);
+  if (p.vheat >= 1) return fail(p.why || r.fail);
+  if (r.kind === 'task') {
+    if (p.done) {
+      p.doneT += dt;
+      if (p.doneT > 0.35) succeed();
+    } else if (p.t >= p.dur) {
+      if (r.doneAtTimeout && r.doneAtTimeout(p)) succeed();
+      else fail((r.failAtTimeout && r.failAtTimeout(p)) || r.fail);
+    }
+  } else if (p.t >= p.dur) succeed();
+}
+
+function succeed() {
+  const p = G.phase;
+  if (p.countdown) { nextPhase(); return; }
+  const clean = p.maxHeat < 0.2;
+  G.combo = clean ? Math.min(G.combo + 1, 8) : 1;
+  let pts = (p.chaos ? 150 : 100) * G.combo;
+  if (p.rule.kind === 'task') pts += Math.max(0, Math.round((p.dur - p.t) * 30));
+  G.score += pts;
+  G.survived++;
+  addFloater(player.x, player.y - 16, '+' + pts, clean ? '#ffe14a' : '#ffffff', 1.1);
+  if (clean && G.combo > 2) addFloater(player.x, player.y - 26, 'CLEAN ' + GLYPH.TIMES + G.combo, shade(ruleColor(p.rule, G.t), 0.3), 1.2);
+  if (!clean) addFloater(player.x, player.y - 26, 'CLOSE ONE...', '#ff8a8a', 1.1);
+  if (p.rule.kind === 'task') (clean ? Sound.sfx.clean() : Sound.sfx.success());
+  nextPhase();
+}
+
+function fail(reason) {
+  if (G.mode === 'practice') practiceMiss(reason);
+  else startDeath(reason);
+}
+
+function practiceMiss(reason) {
+  const h = headPos();
+  const s = G.aimSniper || chooseSniper(G.camX, h.x, h.y);
+  const miss = { x: h.x + rnd(-16, 16), y: clamp(h.y + pick([-12, 12]), ROAD_Y0 + 2, ROAD_Y1 - 2) };
+  if (s) { const m = sniperMuzzle(s); G.tracer = { x0: m.x, y0: m.y, x1: miss.x, y1: miss.y, t: 0 }; }
+  Sound.sfx.gunshot();
+  Sound.sfx.ricochet();
+  burst(miss.x, miss.y, 14, ['#ffe14a', '#ffffff', '#ff9a3a'], 70, { life: 0.3 });
+  addMark(miss.x, miss.y);
+  G.banner = { title: 'MISSED! (PRACTICE)', text: reason, col: '#ff5a6a', t: 0 };
+  G.combo = 1;
+  G.shake = 4;
+  G.flash = 0.25;
+  nextPhase();
+}
+
+function startDeath(reason) {
+  const p = G.phase;
+  const h = headPos();
+  const s = G.aimSniper || chooseSniper(G.camX, h.x, h.y);
+  G.death = { t: 0, reason, rule: p.rule, phase: p, sniper: s, shot: false, shotAt: 1.0, quote: pick(QUOTES) };
+  setState('dying');
+  Sound.music.stop();
+  Sound.engine.stop();
+  Sound.sfx.scope();
+  if (G.mode !== 'practice' && G.score > (G.best[G.mode] || 0)) {
+    G.best[G.mode] = G.score;
+    G.newBest = true;
+    saveBest(G.mode);
+  }
+}
+
+// ---- the player's car --------------------------------------------------------------
+function honk() {
+  Sound.sfx.horn();
+  player.honkT = 0.18;
+  addFloater(player.x + 14, player.y - 12, 'HONK', '#ffb3e6', 0.45);
+}
+
+function updatePlayer(dt, ctl, autoBrake) {
+  const P = player;
+  if (P.dead) {
+    P.vx *= Math.max(0, 1 - dt * 1.4);
+    P.vy *= Math.max(0, 1 - dt * 1.6);
+    P.spin += P.deadSpin * dt;
+    P.deadSpin *= Math.max(0, 1 - dt * 1.3);
+  } else {
+    if (ctl.right && !ctl.left) {
+      if (P.vx < 0) { P.vx = Math.min(0, P.vx + BRAKE * dt); if (P.vx === 0) P.hold = 0.3; }
+      else if (P.hold > 0) P.hold -= dt;
+      else P.vx = Math.min(MAX_FWD, P.vx + ACCEL * dt * (1 - P.vx / (MAX_FWD * 1.5)));
+    } else if (ctl.left && !ctl.right) {
+      if (P.vx > 0) { P.vx = Math.max(0, P.vx - BRAKE * dt); if (P.vx === 0) P.hold = 0.3; }
+      else if (P.hold > 0) P.hold -= dt;
+      else P.vx = Math.max(-MAX_REV, P.vx - REV_ACCEL * dt);
+    } else {
+      P.hold = 0;
+      const f = autoBrake ? BRAKE * 0.6 : FRICTION;
+      P.vx = P.vx > 0 ? Math.max(0, P.vx - f * dt) : Math.min(0, P.vx + f * dt);
+    }
+    const want = (ctl.down ? 1 : 0) - (ctl.up ? 1 : 0);
+    P.vy += clamp(want * LAT_SPEED - P.vy, -LAT_ACC * dt, LAT_ACC * dt);
+    const tiltT = (P.vy / LAT_SPEED) * 0.3 * Math.min(1, Math.abs(P.vx) / 50) * (P.vx < 0 ? -1 : 1);
+    P.tilt += (tiltT - P.tilt) * Math.min(1, dt * 10);
+    P.dtilt *= Math.max(0, 1 - dt * 6);
+    P.spin += clamp(P.spinTarget - P.spin, -16 * dt, 16 * dt);
+  }
+  P.x += P.vx * dt;
+  P.y += P.vy * dt;
+  const y0 = ROAD_Y0 + 7, y1 = ROAD_Y1 - 7;
+  if (P.y < y0 || P.y > y1) {
+    P.y = clamp(P.y, y0, y1);
+    if (P.dead && !P.crashed && (Math.abs(P.vy) > 8 || Math.abs(P.vx) > 20)) {
+      P.crashed = true;
+      Sound.sfx.crash();
+      G.shake = Math.max(G.shake, 3);
+      burst(P.x, P.y, 12, ['#9a98aa', '#6f6d85', '#ffe14a'], 50, { life: 0.5 });
+      P.vx *= 0.3;
+      P.deadSpin *= 0.4;
+    }
+    P.vy = 0;
+  }
+  P.bounceV -= 420 * dt;
+  P.bounce += P.bounceV * dt;
+  if (P.bounce <= 0) { P.bounce = 0; P.bounceV = 0; }
+  P.armsT = Math.max(0, P.armsT - dt);
+  P.jitT = Math.max(0, P.jitT - dt);
+  P.honkT = Math.max(0, P.honkT - dt);
+  if (!P.dead && Math.abs(P.vy) > 20 && Math.abs(P.vx) < SLIDE_VMAX && Math.random() < 0.5) {
+    burst(P.x + rnd(-8, 8), P.y + (P.vy > 0 ? -6 : 6), 1, ['#9a98aa', '#c8c6d6'], 12, { life: 0.4 });
+  }
+}
+
+function collidePlayer() {
+  const P = player;
+  for (const n of npcs) {
+    const b = npcBox(n);
+    const x0 = P.x - 11, x1 = P.x + 11, y0 = P.y - 5.5, y1 = P.y + 5.5;
+    if (x1 <= b.x0 || x0 >= b.x1 || y1 <= b.y0 || y0 >= b.y1) continue;
+    const ox = Math.min(x1 - b.x0, b.x1 - x0), oy = Math.min(y1 - b.y0, b.y1 - y0);
+    if (ox < oy) {
+      if (P.x < n.x) { P.x -= ox; P.vx = Math.min(P.vx, n.vx - 12); }
+      else { P.x += ox; P.vx = Math.max(P.vx, n.vx + 12); }
+    } else {
+      P.y += P.y < n.y ? -oy : oy;
+      P.vy = 0;
+    }
+    if (G.bonkT <= 0) {
+      G.bonkT = 0.35;
+      Sound.sfx.bonk();
+      G.shake = Math.max(G.shake, 2);
+      burst((P.x + n.x) / 2, (P.y + n.y) / 2, 6, ['#ffe14a', '#ffffff'], 40, { life: 0.25 });
+    }
+  }
+}
+
+function updateCamera(dt) {
+  const target = player.vx < -5 ? 196 : 96;
+  G.camOff += (target - G.camOff) * Math.min(1, dt * 2.2);
+  G.camX = player.x - G.camOff;
+}
+
+function darknessTarget() {
+  const s = G.survived % 40;
+  if (s < 14) return 0;
+  if (s < 20) return ((s - 14) / 6) * 0.55;
+  if (s < 34) return 0.55;
+  return ((40 - s) / 6) * 0.55;
+}
+
+// ---- per-state updates ----------------------------------------------------------------
+function handlePlayInput(ev) {
+  const p = G.phase;
+  if (ev.key === 'pause' || ev.key === 'esc') { pauseGame(); return; }
+  if (ev.key === 'mute' || !p) return;
+  if (ev.raw && p.rule.onRaw) p.rule.onRaw(p, G);
+  if (ev.key === 'honk') honk();
+  if (p.rule.onKey && ev.key) p.rule.onKey(p, ev.key, G);
+}
+
+function updatePlay(dt, evs) {
+  for (const ev of evs) {
+    handlePlayInput(ev);
+    if (G.state !== 'play') return;
+  }
+  const p = G.phase;
+  const captured = !!(p && p.rule.captures && !p.done);
+  const ctl = captured ? NOCTL : {
+    left: Input.isDown('left'), right: Input.isDown('right'), up: Input.isDown('up'), down: Input.isDown('down'),
+  };
+  updatePlayer(dt, ctl, captured);
+  collidePlayer();
+  updateTraffic(dt, p ? p.rule.beh : 'go', G.t, false);
+  updatePeds(dt, G.camX, p ? p.rule.beh : 'go', null);
+  updateFx(dt);
+  updateCamera(dt);
+  G.distance += Math.max(0, player.vx * dt);
+  G.bonkT -= dt;
+  G.dark += (darknessTarget() - G.dark) * Math.min(1, dt * 0.5);
+  if (G.banner) { G.banner.t += dt; if (G.banner.t > 2.8) G.banner = null; }
+  if (G.tracer) { G.tracer.t += dt; if (G.tracer.t > 0.15) G.tracer = null; }
+
+  updatePhase(dt);
+  if (G.state !== 'play') return;
+
+  // the countdown: 3.. 2.. 1..
+  const ph = G.phase;
+  if (ph && ph.countdown) {
+    const c = 3 - Math.floor((ph.t / ph.dur) * 3);
+    if (c !== G.lastCount && c > 0) { G.lastCount = c; Sound.sfx.countdown(false); }
+  }
+
+  // a sniper's laser creeps toward your head while you break the rules
+  if (ph && ph.heat > 0.03) {
+    const h = headPos();
+    if (!G.aimSniper || G.aimSniper.x - G.camX < 30 || G.aimSniper.x - G.camX > W - 6) G.aimSniper = chooseSniper(G.camX, h.x, h.y);
+    G.beepT -= dt;
+    if (G.beepT <= 0) { Sound.sfx.beep(ph.heat); G.beepT = lerp(0.45, 0.07, ph.heat); }
+  } else {
+    G.aimSniper = null;
+    G.beepT = 0;
+  }
+  Sound.engine.set(Math.min(1, Math.abs(player.vx) / MAX_FWD));
+}
+
+function updateDying(dt) {
+  const D = G.death;
+  D.t += dt;
+  if (!D.shot && D.t >= D.shotAt) {
+    D.shot = true;
+    const h = headPos();
+    Sound.sfx.gunshot();
+    Sound.sfx.splat();
+    Sound.sfx.death();
+    G.flash = 1;
+    G.shake = 7;
+    burst(h.x, h.y, 46, [PAL.blood, PAL.blood2, '#ff4060'], 95, { life: 0.5, stick: true, drag: 5 });
+    burst(h.x, h.y, 10, [PAL.cap, PAL.brim], 75, { life: 0.9, drag: 1.5, size: 2 });
+    if (D.sniper) { const m = sniperMuzzle(D.sniper); G.tracer = { x0: m.x, y0: m.y, x1: h.x, y1: h.y, t: 0 }; }
+    player.variant = 'splat';
+    player.dead = true;
+    player.vy = rnd(-45, 45);
+    player.deadSpin = rnd(-2.8, 2.8);
+    updatePeds(0, G.camX, 'go', h.x);
+  }
+  if (D.shot) {
+    const sdt = dt * (D.t < D.shotAt + 0.6 ? 0.3 : 1);
+    worldIdle(sdt, true);
+    if (G.tracer) { G.tracer.t += dt; if (G.tracer.t > 0.2) G.tracer = null; }
+  }
+  if (D.t > D.shotAt + 2.1) setState('over');
+}
+
+// The world keeps living behind menus and the game over screen.
+function worldIdle(dt, frozen) {
+  updatePlayer(dt, NOCTL, false);
+  updateTraffic(dt, 'stop', G.t, frozen);
+  updatePeds(dt, G.camX, 'go', null);
+  updateFx(dt);
+  updateCamera(dt);
+}
+
+function pauseGame() {
+  if (G.state !== 'play') return;
+  setState('pause');
+  Sound.engine.stop();
+  Sound.music.stop();
+}
+function resumeGame() {
+  setState('play');
+  Sound.engine.start();
+  Sound.music.start();
+  // a moment to get your fingers back in place
+  if (G.phase) G.phase.grace = Math.max(G.phase.grace, G.phase.t + 0.6);
+}
+function quitToTitle() {
+  if (G.phase) endPhase(G.phase);
+  G.phase = null;
+  Sound.engine.stop();
+  Sound.music.stop();
+  Sound.music.start('title');
+  enterTitle();
+}
+
+function enterTitle() {
+  setState('title');
+  resetPlayer();
+  player.y = -200; // off the road: the title screen is just the city
+  G.camX = 0;
+  G.death = null;
+  G.dark = 0;
+  fx.length = 0; floaters.length = 0; marks.length = 0; coffee = null;
+  resetTraffic(G.camX + 96);
+  resetPeds(G.camX);
+}
+
+function selectMenu(i) {
+  const item = MENU[i];
+  Sound.sfx.select();
+  if (item.id === 'normal' || item.id === 'insane' || item.id === 'practice') startGame(item.id);
+  else if (item.id === 'rules') { G.rulesFrom = 'title'; setState('rules'); }
+  else if (item.id === 'sound') Sound.setSfx(!Sound.sfxOn);
+  else if (item.id === 'music') {
+    Sound.setMusic(!Sound.musicOn);
+    if (Sound.musicOn) Sound.music.start('title');
+  }
+}
+
+function updateTitle(dt, evs) {
+  G.camX += dt * 22;
+  player.x = G.camX + 96;
+  G.titleLightT += dt;
+  if (G.titleLightT > 1.4) { G.titleLightT = 0; G.titleLight = (G.titleLight + 1) % RULE_ORDER.length; }
+  const beh = RULES[RULE_ORDER[G.titleLight]].beh;
+  updateTraffic(dt, beh, G.t, false);
+  updatePeds(dt, G.camX, beh, null);
+  updateFx(dt);
+  for (const ev of evs) {
+    if (ev.key === 'up') { G.menuIdx = (G.menuIdx + MENU.length - 1) % MENU.length; Sound.sfx.ui(); }
+    else if (ev.key === 'down') { G.menuIdx = (G.menuIdx + 1) % MENU.length; Sound.sfx.ui(); }
+    else if (ev.key === 'enter' || ev.key === 'honk' || ev.key === 'pause') { selectMenu(G.menuIdx); return; }
+    else if (ev.key === 'tap') {
+      const i = menuItemAt(ev.x, ev.y);
+      if (i >= 0) { G.menuIdx = i; selectMenu(i); return; }
+    }
+  }
+}
+
+function update(dt) {
+  G.t += dt;
+  G.stateT += dt;
+  const evs = Input.take();
+  for (const ev of evs) {
+    if (ev.key === 'mute') {
+      const on = !(Sound.sfxOn || Sound.musicOn);
+      Sound.setSfx(on);
+      Sound.setMusic(on);
+      if (on && G.state === 'title') Sound.music.start('title');
+    }
+  }
+  switch (G.state) {
+    case 'title':
+      updateTitle(dt, evs);
+      break;
+    case 'rules':
+      for (const ev of evs) {
+        if (['enter', 'esc', 'honk', 'tap', 'pause', 'quit'].includes(ev.key)) {
+          Sound.sfx.ui();
+          setState(G.rulesFrom === 'pause' ? 'pause' : 'title');
+          break;
+        }
+      }
+      break;
+    case 'intro':
+      for (const ev of evs) if (['enter', 'honk', 'tap', 'pause'].includes(ev.key)) closeIntro();
+      break;
+    case 'play':
+      updatePlay(dt, evs);
+      break;
+    case 'pause':
+      for (const ev of evs) {
+        if (['pause', 'esc', 'enter', 'honk'].includes(ev.key)) { resumeGame(); break; }
+        if (ev.key === 'tap') {
+          if (ev.y > H - 30 && ev.x > W / 2) { quitToTitle(); break; }
+          resumeGame();
+          break;
+        }
+        if (ev.key === 'quit') { quitToTitle(); break; }
+      }
+      break;
+    case 'dying':
+      updateDying(dt);
+      break;
+    case 'over':
+      worldIdle(dt, true);
+      for (const ev of evs) {
+        if (G.stateT < 0.8) break;
+        const menuCorner = ev.key === 'tap' && ev.y > H - 30 && ev.x > W / 2;
+        if (ev.key === 'esc' || ev.key === 'quit' || menuCorner) { quitToTitle(); break; }
+        if (['enter', 'honk', 'pause', 'tap'].includes(ev.key)) { startGame(G.mode); break; }
+      }
+      break;
+  }
+  G.flash = Math.max(0, G.flash - dt * 2.5);
+  G.shake = Math.max(0, G.shake - dt * 14);
+  G.lightFlash = Math.max(0, G.lightFlash - dt);
+  G.mosaic = Math.max(0, G.mosaic - dt * 3);
+}
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// draw.js - rendering: the street, THE LIGHT and the HUD, the sniper-scope
+// death cam, and every menu screen. Everything goes onto the 320x180 canvas.
+// ---------------------------------------------------------------------------
+
+const INK = '#07060c';
+const SCOPE_R = 60;
+const scopeCanvas = makeCanvas(126, 126);
+const scopeCtx = scopeCanvas.getContext('2d');
+const mosaicCanvas = makeCanvas(W, H);
+const scopeMask = makeCanvas(126, 126);
+disc(scopeMask.getContext('2d'), 63, 63, SCOPE_R, '#ffffff');
+
+function rgba(hex, a) {
+  const c = hexToRgb(hex);
+  return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+}
+function fmt(n) { return Math.floor(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+function blink(rate) { return Math.floor(G.t * rate) % 2 === 0; }
+function readable(r, t) { return r.id === 'black' ? '#c9c7da' : ruleColor(r, t); }
+function shownRule() {
+  if (G.state === 'intro' && G.introId && G.introId !== 'basics') return RULES[G.introId];
+  return G.phase ? G.phase.rule : RULES.red;
+}
+function signalColour(r) {
+  if (r.id === 'rainbow') return (tt) => hsl(tt * 300, 95, 60);
+  if (r.id === 'black') return '#2a2833';
+  return r.color;
+}
+
+// ---- top level ---------------------------------------------------------------
+function render() {
+  ctx.imageSmoothingEnabled = false;
+  rect(ctx, 0, 0, W, H, '#0b0b12');
+  switch (G.state) {
+    case 'title': drawTitle(); break;
+    case 'rules': drawRulebook(); break;
+    case 'intro': drawGameScreen(); drawIntroCard(); break;
+    case 'play': drawGameScreen(); break;
+    case 'pause': drawGameScreen(); drawPause(); break;
+    case 'dying': drawDying(); break;
+    case 'over': drawGameScreen(); drawOver(); break;
+  }
+  if (G.mosaic > 0) applyMosaic([1, 2, 4, 8, 16][Math.ceil(G.mosaic * 4)]);
+  if (G.flash > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, G.flash).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// Chunkier and chunkier pixels: sample one pixel per k x k block.
+function applyMosaic(k) {
+  if (k <= 1) return;
+  const w = Math.ceil(W / k), h = Math.ceil(H / k);
+  const mc = mosaicCanvas.getContext('2d');
+  mc.imageSmoothingEnabled = false;
+  mc.drawImage(screenCanvas, 0, 0, W, H, 0, 0, w, h);
+  ctx.drawImage(mosaicCanvas, 0, 0, w, h, 0, 0, w * k, h * k);
+}
+
+function drawGameScreen() {
+  const p = G.phase;
+  const beh = G.state === 'play' && p ? p.rule.beh : 'stop';
+  drawWorld(beh);
+  drawHUD();
+  if (Input.touchMode && G.state === 'play') drawTouchControls();
+}
+
+function drawWorld(beh) {
+  const s = G.shake;
+  const shx = s > 0.5 ? Math.round(rnd(-s, s)) : 0;
+  const shy = s > 0.5 ? Math.round(rnd(-s, s)) : 0;
+  const camX = Math.round(G.camX) - shx;
+  ctx.save();
+  ctx.translate(0, shy);
+  drawCity(ctx, camX);
+  drawMarks(ctx, camX);
+  drawCoffee(ctx, camX, G.t);
+  drawTraffic(ctx, camX, G.t);
+  drawPlayerCar(ctx, camX);
+  drawPeds(ctx, camX, G.t, beh);
+  drawSnipers(ctx, camX, G.t, G.aimSniper, !!G.aimSniper);
+  drawFx(ctx, camX);
+  if (G.dark > 0.02) drawNight(ctx, camX);
+  drawSignals(ctx, camX, signalColour(shownRule()), G.t);
+  drawLaser(ctx, camX);
+  drawTracer(ctx, camX);
+  drawFloaters(ctx, camX);
+  if (G.state === 'play') drawTaskOverlay(ctx, camX);
+  ctx.restore();
+}
+
+function drawPlayerCar(g, camX) {
+  const P = player;
+  if (P.y < 0) return;
+  const p = G.phase;
+  let v = 'normal';
+  if (P.variant === 'splat') v = 'splat';
+  else if (p && p.id === 'black' && p.t > p.grace * 0.5) v = 'slump';
+  else if (P.armsT > 0) v = 'arms';
+  const jx = P.jitT > 0 ? irnd(-1, 1) : 0, jy = P.jitT > 0 ? irnd(-1, 1) : 0;
+  const x = P.x - camX + jx, y = P.y - Math.round(P.bounce) + jy;
+  if (P.bounce > 0.5) rect(g, P.x - camX - 10, P.y - 4, 22, 11, 'rgba(0,0,0,0.35)');
+  drawSprite(g, SPR.player[v], x, y, carAngle());
+  if (P.honkT > 0) ring(g, x + 13, y, 3 + Math.floor((0.18 - P.honkT) * 40), 'rgba(255,179,230,0.8)');
+}
+
+function drawNight(g, camX) {
+  const a = G.dark, k = a / 0.55;
+  g.fillStyle = 'rgba(10,8,34,' + a.toFixed(3) + ')';
+  g.fillRect(0, HUD_H, W, H - HUD_H);
+  g.save();
+  g.globalCompositeOperation = 'lighter';
+  for (const b of visibleBlocks(camX)) {
+    for (const w of b.windows) {
+      const sx = w.x - camX;
+      if (sx > -2 && sx < W) rect(g, sx, w.y, 2, 2, 'rgba(255,210,100,' + (0.5 * k).toFixed(3) + ')');
+    }
+    for (const l of b.lamps) {
+      const sx = l.x - camX;
+      if (sx < -12 || sx > W + 12) continue;
+      disc(g, sx, l.y, 7, 'rgba(255,200,110,' + (0.09 * k).toFixed(3) + ')');
+      disc(g, sx, l.y, 4, 'rgba(255,210,130,' + (0.13 * k).toFixed(3) + ')');
+    }
+  }
+  const cone = (x, y, len, alpha) => {
+    for (let i = 0; i < len; i++) {
+      const h = 3 + Math.floor(i * 0.45);
+      rect(g, x + i, y - Math.floor(h / 2), 1, h, 'rgba(255,240,170,' + (alpha * (1 - i / len)).toFixed(3) + ')');
+    }
+  };
+  for (const n of npcs) {
+    const sx = Math.round(n.x - camX);
+    if (sx < -80 || sx > W + 40 || Math.abs(n.ang) > 0.3) continue;
+    cone(sx + Math.floor(n.L / 2), Math.round(n.y), 34, 0.2 * k);
+  }
+  if (player.y > 0 && !player.dead && Math.abs(carAngle()) < 0.5) cone(Math.round(player.x - camX) + 12, Math.round(player.y), 46, 0.28 * k);
+  g.restore();
+}
+
+function drawLaser(g, camX) {
+  const p = G.phase;
+  if (G.state !== 'play' || !p || p.heat < 0.03 || !G.aimSniper) return;
+  const h = headPos(), m = sniperMuzzle(G.aimSniper);
+  const wob = (1 - p.heat) * 18, a = G.t * 6;
+  const tx = h.x + Math.cos(a) * wob, ty = h.y + Math.sin(a * 1.37) * wob * 0.6;
+  line(g, m.x - camX, m.y, tx - camX, ty, p.heat > 0.7 ? '#ff2040' : 'rgba(255,32,64,0.65)', [2, 2], Math.floor(G.t * 40));
+  const dx = Math.round(tx - camX), dy = Math.round(ty);
+  rect(g, dx - 1, dy - 1, 3, 3, 'rgba(255,40,70,0.5)');
+  px(g, dx, dy, '#ffffff');
+  if (p.heat > 0.6 && blink(10)) ring(g, dx, dy, 3, '#ff2040');
+}
+
+function drawTracer(g, camX) {
+  const T = G.tracer;
+  if (!T) return;
+  line(g, T.x0 - camX, T.y0, T.x1 - camX, T.y1, '#fff6c0');
+  disc(g, T.x0 - camX, T.y0, 2, '#ffe14a');
+  px(g, T.x0 - camX, T.y0, '#ffffff');
+}
+
+// ---- helpers that float over the street, telling you what to press -------------
+function arrowBox(g, x, y, dir, state) {
+  const bg = state === 'done' ? '#2d2144' : state === 'now' ? '#ffffff' : '#5a2a90';
+  const fg = state === 'done' ? '#7a62a0' : state === 'now' ? '#5a10a8' : '#f0d8ff';
+  rect(g, x, y, 9, 9, bg);
+  frame(g, x, y, 9, 9, state === 'now' ? '#b04bff' : INK);
+  text(g, ARROW_GLYPH[dir], x + 2, y + 1, { color: fg });
+}
+function bar(g, x, y, w, frac, col) {
+  rect(g, x - 1, y - 1, w + 2, 5, INK);
+  rect(g, x, y, w, 3, '#2a2838');
+  rect(g, x, y, Math.round(w * clamp(frac, 0, 1)), 3, col);
+}
+function drawTaskOverlay(g, camX) {
+  const p = G.phase;
+  if (!p) return;
+  const cx = Math.round(player.x - camX), cy = Math.round(player.y - player.bounce);
+  const col = ruleColor(p.rule, G.t);
+  const label = (s, y, c) => text(g, s, cx, y, { color: c || '#ffffff', align: 'center', outline: INK });
+  if (p.countdown) return;
+  switch (p.id) {
+    case 'purple': {
+      const n = p.seq.length, total = n * 10 - 1;
+      const x0 = cx - Math.floor(total / 2), y = cy - 24;
+      rect(g, x0 - 2, y - 2, total + 4, 13, 'rgba(10,8,20,0.8)');
+      for (let i = 0; i < n; i++) {
+        const st = i < p.idx ? 'done' : i === p.idx && !p.done ? 'now' : 'todo';
+        arrowBox(g, x0 + i * 10, y + (st === 'now' && blink(8) ? -1 : 0), p.seq[i], st);
+      }
+      break;
+    }
+    case 'cyan': {
+      const names = ['right', 'down', 'left', 'up'];
+      const pos = [[17, 0], [0, 13], [-17, 0], [0, -13]];
+      const dir = p.rot < 0 ? -1 : 1;
+      const next = (p.head + dir + 4) % 4;
+      for (let q = 0; q < 4; q++) {
+        const st = q === next && !p.done ? 'now' : 'todo';
+        arrowBox(g, cx + pos[q][0] - 4, cy + pos[q][1] - 4 + (st === 'now' && blink(8) ? -1 : 0), names[q], st);
+      }
+      label('SPIN ' + Math.min(Math.abs(p.rot), 4 * p.turns) + '/' + 4 * p.turns, cy - 28, col);
+      break;
+    }
+    case 'pink': {
+      label('HONK ' + p.count + '/' + p.need, cy - 24, col);
+      const w = p.need * 6 - 1;
+      for (let i = 0; i < p.need; i++) {
+        const x = cx - Math.floor(w / 2) + i * 6;
+        rect(g, x, cy - 15, 5, 4, INK);
+        rect(g, x + 1, cy - 14, 3, 2, i < p.count ? col : '#3a3848');
+      }
+      break;
+    }
+    case 'white':
+      label('MASH! ' + p.count + '/' + p.need, cy - 26, '#ffffff');
+      bar(g, cx - 18, cy - 16, 36, p.count / p.need, '#ffffff');
+      break;
+    case 'blue':
+      label('SLIDE', cy - 26, col);
+      bar(g, cx - 16, cy - 16, 32, p.prog / p.need, col);
+      if (!p.done && blink(4)) {
+        text(g, GLYPH.U, cx - 2, cy - 12 - 0, { color: col, outline: INK });
+        text(g, GLYPH.D, cx - 2, cy + 7, { color: col, outline: INK });
+      }
+      break;
+    case 'brown':
+      if (coffee) {
+        const sx = Math.round(coffee.x - camX);
+        if (sx > W - 6) text(g, 'COFFEE ' + GLYPH.R, W - 4, coffee.y - 3, { color: '#e8c090', align: 'right', outline: INK });
+        else if (sx < 6) text(g, GLYPH.L + ' COFFEE', 4, coffee.y - 3, { color: '#e8c090', outline: INK });
+        else text(g, GLYPH.D, sx - 2, coffee.y - 19 - (blink(4) ? 1 : 0), { color: '#ffe14a', outline: INK });
+      }
+      break;
+    case 'black':
+      if (p.t > p.grace) label('X_X', cy - 20, '#8c8aa0');
+      break;
+    default:
+      break;
+  }
+  // tick / cross over the car for "keep doing it" lights
+  if (p.rule.kind === 'hold' && p.rule.check && p.id !== 'black' && p.t > p.grace && G.mode !== 'insane') {
+    const bad = p.rule.check(p, player, Input);
+    text(g, bad ? GLYPH.CROSS : GLYPH.CHECK, cx - 2, cy - 20, { color: bad ? '#ff4050' : '#6dff8a', outline: INK });
+  }
+}
+
+// ---- THE LIGHT (the big traffic light hanging in the corner) ----------------------
+function drawTrafficLight(g, x, y, r, t, hideIcon) {
+  const w = 24, h = 54;
+  rect(g, x + 10, y - 6, 4, 6, '#2c2b36');
+  rect(g, x - 1, y - 1, w + 2, h + 2, '#c9a227');       // reflective back plate
+  rect(g, x, y, w, h, INK);
+  rect(g, x + 1, y + 1, w - 2, h - 2, '#23222e');
+  rect(g, x + 1, y + 1, w - 2, 1, '#34333f');
+  const cx = x + 12, cys = [y + 10, y + 27, y + 44], rad = 7;
+  for (let i = 0; i < 3; i++) {
+    const cy = cys[i];
+    rect(g, cx - 8, cy - 9, 17, 2, '#0e0d15'); // visor
+    const lit = r.slot === 'all' || r.slot === i;
+    if (!lit) {
+      disc(g, cx, cy, rad, '#2c2a36');
+      disc(g, cx - 1, cy - 1, rad - 3, '#34323f');
+      continue;
+    }
+    let c = ruleColor(r, t + i * 0.25);
+    if (r.slot === 'all' && r.id !== 'rainbow' && r.id !== 'black' && Math.floor(t * 5) % 3 === i) c = shade(c, 0.35);
+    if (r.id === 'black') {
+      disc(g, cx, cy, rad, '#050508');
+      ring(g, cx, cy, rad, '#5a5870');
+    } else {
+      ring(g, cx, cy, rad + 1, rgba(c, 0.55));
+      if (G.lightFlash > 0) ring(g, cx, cy, rad + 3, rgba(c, 0.5 * G.lightFlash / 0.3));
+      disc(g, cx, cy, rad, c);
+      disc(g, cx - 2, cy - 2, 2, shade(c, 0.6));
+    }
+    const iconHere = r.slot === 'all' ? i === 1 : true;
+    if (iconHere && !hideIcon) {
+      const ic = iconSprite(r.icon, r.id === 'black' ? '#b8b6c8' : shade(c, -0.62));
+      g.drawImage(ic, cx - 3, cy - 3);
+    }
+  }
+}
+
+function drawHUD() {
+  const p = G.phase, r = shownRule();
+  const insane = G.mode === 'insane';
+  // red danger pulse around the edges
+  if (p && p.heat > 0.25 && G.state === 'play') {
+    const a = ((p.heat - 0.25) / 0.75) * (0.35 + 0.35 * Math.sin(G.t * 18));
+    const c = 'rgba(255,20,50,' + clamp(a, 0, 0.7).toFixed(3) + ')';
+    rect(ctx, 0, HUD_H, W, 3, c); rect(ctx, 0, H - 3, W, 3, c);
+    rect(ctx, 0, HUD_H, 3, H - HUD_H, c); rect(ctx, W - 3, HUD_H, 3, H - HUD_H, c);
+  }
+  rect(ctx, 0, 0, W, HUD_H, '#14131f');
+  rect(ctx, 0, HUD_H, W, 1, 'rgba(0,0,0,0.5)');
+  // timer bar
+  rect(ctx, 32, HUD_H - 2, W - 32, 2, '#2a2838');
+  if (p && G.state !== 'intro') {
+    const frac = clamp(1 - p.t / p.dur, 0, 1);
+    rect(ctx, 32, HUD_H - 2, Math.round((W - 32) * frac), 2, p.t < p.grace ? shade(readable(r, G.t), -0.4) : readable(r, G.t));
+  }
+  drawTrafficLight(ctx, 5, 0, r, G.t, insane && G.state !== 'intro');
+  // what the light says
+  if (!insane || G.state === 'intro') {
+    const w = text(ctx, ruleText(r, 'cmd', p), 34, 2, { color: readable(r, G.t), scale: 2, outline: INK });
+    if (p && p.isNew && G.state === 'play' && blink(3)) text(ctx, 'NEW!', 34 + w + 6, 4, { color: '#ffe14a', outline: INK });
+    if (p && p.chaos) text(ctx, 'CHAOS', 34 + w + 6, 4, { color: hsl(G.t * 300, 95, 65), outline: INK });
+    text(ctx, ruleText(r, 'hint', p), 34, 17, { color: '#b9b7cc' });
+  } else {
+    text(ctx, 'OBEY THE LIGHT.', 34, 9, { color: '#5a5870' });
+  }
+  // score block
+  text(ctx, fmt(G.score), W - 4, 2, { color: '#ffffff', align: 'right' });
+  text(ctx, 'SCORE', W - 6 - textWidth(fmt(G.score)), 2, { color: '#6f6d85', align: 'right' });
+  const lightsStr = G.survived + ' LIGHTS';
+  text(ctx, lightsStr, W - 4, 10, { color: '#8e8ca4', align: 'right' });
+  if (G.combo > 1) text(ctx, GLYPH.TIMES + G.combo, W - 8 - textWidth(lightsStr), 10, { color: '#ffe14a', align: 'right' });
+  if (G.mode === 'practice') text(ctx, 'PRACTICE', W - 4, 17, { color: '#4fb0e8', align: 'right' });
+
+  if (G.state === 'play' || G.state === 'pause') drawGauge(r, p);
+  if (p && p.countdown && G.state === 'play') {
+    const n = 3 - Math.floor((p.t / p.dur) * 3);
+    text(ctx, String(clamp(n, 1, 3)), 210, 74, { color: '#ff2b3d', scale: 5, outline: INK, align: 'center', thick: 2 });
+    text(ctx, 'GET READY!', 210, 114, { color: '#ffffff', outline: INK, align: 'center' });
+  }
+  if (p && p.first && p.t < 0.8 && G.state === 'play') {
+    text(ctx, 'GO!', 210, 74, { color: '#27d64a', scale: 5, outline: INK, align: 'center', thick: 2 });
+  }
+  if (G.banner) {
+    const b = G.banner;
+    const lines = wrap(b.text, 220, 1);
+    const hgt = 14 + lines.length * 9;
+    panel(ctx, 50, HUD_H + 4, 220, hgt, 'rgba(12,10,20,0.9)', b.col || '#ff2b3d');
+    text(ctx, b.title, W / 2, HUD_H + 7, { color: b.col || '#ff5a6a', align: 'center' });
+    lines.forEach((ln, i) => text(ctx, ln, W / 2, HUD_H + 17 + i * 9, { color: '#ffffff', align: 'center' }));
+  }
+}
+
+// Speedometer with the target zone for "keep doing it" lights.
+function drawGauge(r, p) {
+  const x = 92, y = 166, w = 136, h = 12;
+  panel(ctx, x, y, w, h, 'rgba(12,11,20,0.88)', '#3a3850');
+  const kmh = Math.round(Math.abs(player.vx) * 0.72);
+  text(ctx, String(kmh), x + 22, y + 3, { color: '#ffffff', align: 'right' });
+  text(ctx, 'KM/H', x + 25, y + 3, { color: '#6f6d85' });
+  const bx = x + 54, bw = w - 58;
+  const toX = (v) => bx + Math.round(((v + MAX_REV) / (MAX_FWD + MAX_REV)) * (bw - 1));
+  rect(ctx, bx, y + 4, bw, 4, '#23222f');
+  if (p && r.gauge && !p.countdown && G.mode !== 'insane') {
+    const z0 = toX(r.gauge[0]), z1 = toX(r.gauge[1]);
+    const inside = player.vx >= r.gauge[0] && player.vx <= r.gauge[1];
+    rect(ctx, z0, y + 4, Math.max(2, z1 - z0 + 1), 4, inside ? readable(r, G.t) : shade(readable(r, G.t), -0.45));
+  }
+  rect(ctx, toX(0), y + 2, 1, 8, '#6f6d85');
+  const nx = toX(clamp(player.vx, -MAX_REV, MAX_FWD));
+  rect(ctx, nx, y + 2, 1, 8, '#ffffff');
+  px(ctx, nx - 1, y + 2, '#ffffff'); px(ctx, nx + 1, y + 2, '#ffffff');
+}
+
+// ---- on-screen buttons for touch screens ------------------------------------------
+function drawTouchControls() {
+  for (const b of TOUCH_BTNS) {
+    const down = Input.held.has(b.key);
+    if (b.round) {
+      const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+      disc(ctx, cx, cy, 16, down ? 'rgba(255,110,199,0.8)' : 'rgba(20,18,30,0.6)');
+      ring(ctx, cx, cy, 16, '#ff6ec7');
+      text(ctx, 'HONK', cx, cy - 3, { color: down ? INK : '#ffb3e6', align: 'center' });
+    } else if (b.key === 'pause') {
+      panel(ctx, b.x, b.y, b.w, b.h, 'rgba(20,18,30,0.7)', '#8e8ca4');
+      rect(ctx, b.x + 4, b.y + 3, 2, 6, '#ffffff');
+      rect(ctx, b.x + 8, b.y + 3, 2, 6, '#ffffff');
+    } else {
+      panel(ctx, b.x, b.y, b.w, b.h, down ? 'rgba(255,225,74,0.8)' : 'rgba(20,18,30,0.6)', '#c9c7da');
+      text(ctx, ARROW_GLYPH[b.key], b.x + 6, b.y + 4, { color: down ? INK : '#ffffff' });
+    }
+  }
+}
+
+// ---- the sniper scope death cam ----------------------------------------------------
+function drawDying() {
+  const D = G.death;
+  drawWorld('stop');
+  if (D.t < D.shotAt) { drawScope(D); return; }
+  drawHUD();
+  const since = D.t - D.shotAt;
+  if (since < 0.5) text(ctx, 'BANG!', W / 2, 60, { color: '#fff6c0', scale: 6, outline: '#ff2030', thick: 2, align: 'center' });
+  if (since > 0.8) {
+    const sc = since < 0.9 ? 6 : since < 1.0 ? 5 : 4;
+    text(ctx, 'SNIPED!', W / 2, 70 - sc * 2, { color: '#ff2b3d', scale: sc, outline: INK, thick: 2, align: 'center' });
+  }
+}
+
+function drawScope(D) {
+  const h = headPos();
+  const k = clamp(D.t / 0.85, 0, 1);
+  const sway = (1 - k) * 12;
+  const zoom = 3, src = 42;
+  const cx = h.x - Math.round(G.camX) + Math.sin(D.t * 8) * sway;
+  const cy = h.y + Math.cos(D.t * 6.3) * sway;
+  scopeCtx.imageSmoothingEnabled = false;
+  scopeCtx.globalCompositeOperation = 'source-over';
+  scopeCtx.fillStyle = '#000000';
+  scopeCtx.fillRect(0, 0, 126, 126);
+  scopeCtx.drawImage(screenCanvas, Math.round(cx - src / 2), Math.round(cy - src / 2), src, src, 0, 0, src * zoom, src * zoom);
+  scopeCtx.fillStyle = 'rgba(40,255,120,0.08)';
+  scopeCtx.fillRect(0, 0, 126, 126);
+  scopeCtx.globalCompositeOperation = 'destination-in';
+  scopeCtx.drawImage(scopeMask, 0, 0);
+  scopeCtx.globalCompositeOperation = 'source-over';
+
+  rect(ctx, 0, 0, W, H, '#050507');
+  const ox = W / 2 - 63, oy = H / 2 - 63;
+  ctx.drawImage(scopeCanvas, ox, oy);
+  const X = W / 2, Y = H / 2, R = SCOPE_R;
+  // crosshair: thick outer posts, thin centre lines
+  rect(ctx, X - R, Y - 1, 26, 3, '#000000'); rect(ctx, X + R - 25, Y - 1, 26, 3, '#000000');
+  rect(ctx, X - 1, Y - R, 3, 26, '#000000'); rect(ctx, X - 1, Y + R - 25, 3, 26, '#000000');
+  rect(ctx, X - R + 26, Y, R - 30, 1, '#000000'); rect(ctx, X + 5, Y, R - 30, 1, '#000000');
+  rect(ctx, X, Y - R + 26, 1, R - 30, '#000000'); rect(ctx, X, Y + 5, 1, R - 30, '#000000');
+  for (let i = 1; i <= 3; i++) {
+    rect(ctx, X + 5 + i * 7, Y - 1, 1, 3, '#000000'); rect(ctx, X - 5 - i * 7, Y - 1, 1, 3, '#000000');
+    rect(ctx, X - 1, Y + 5 + i * 7, 3, 1, '#000000'); rect(ctx, X - 1, Y - 5 - i * 7, 3, 1, '#000000');
+  }
+  px(ctx, X, Y, '#ff2030');
+  ring(ctx, X, Y, R, '#000000');
+  ring(ctx, X, Y, R + 1, '#15141c');
+  ring(ctx, X, Y, R + 2, '#2a2833');
+  if (blink(3)) { disc(ctx, 9, 9, 2, '#ff2030'); }
+  text(ctx, 'SNIPER CAM', 15, 6, { color: '#ff3b4f' });
+  text(ctx, 'TARGET: THE DRIVER', W - 6, 6, { color: '#ff3b4f', align: 'right' });
+  const lines = wrap(D.reason, 300, 1);
+  lines.forEach((ln, i) => text(ctx, ln, W / 2, H - 12 - (lines.length - 1 - i) * 9, { color: '#ffffff', align: 'center' }));
+  if (k >= 1 && blink(12)) text(ctx, 'LOCKED', X + 8, Y + 8, { color: '#ff3b4f' });
+}
+
+// ---- menus and cards ------------------------------------------------------------------
+function titleMenuLayout() {
+  return MENU.map((m, i) => ({ x: W / 2 - 60, y: 78 + i * 12, w: 120, h: 10 }));
+}
+function menuItemAt(x, y) {
+  const L = titleMenuLayout();
+  for (let i = 0; i < L.length; i++) {
+    const b = L[i];
+    if (x >= b.x && x < b.x + b.w && y >= b.y - 1 && y < b.y + b.h + 1) return i;
+  }
+  return -1;
+}
+
+function drawTitle() {
+  const camX = Math.round(G.camX);
+  const r = RULES[RULE_ORDER[G.titleLight]];
+  drawCity(ctx, camX);
+  drawTraffic(ctx, camX, G.t);
+  drawPeds(ctx, camX, G.t, r.beh);
+  drawSnipers(ctx, camX, G.t, null, false);
+  drawSignals(ctx, camX, signalColour(r), G.t);
+  drawFloaters(ctx, camX);
+  ctx.fillStyle = 'rgba(8,6,18,0.66)';
+  ctx.fillRect(0, 0, W, H);
+
+  // a sniper's scope drifting around, watching
+  const sx = W / 2 + Math.sin(G.t * 0.7) * 120, sy = 110 + Math.sin(G.t * 1.1) * 50;
+  ring(ctx, sx, sy, 9, 'rgba(255,40,60,0.45)');
+  rect(ctx, sx - 13, sy, 8, 1, 'rgba(255,40,60,0.45)'); rect(ctx, sx + 6, sy, 8, 1, 'rgba(255,40,60,0.45)');
+  rect(ctx, sx, sy - 13, 1, 8, 'rgba(255,40,60,0.45)'); rect(ctx, sx, sy + 6, 1, 8, 'rgba(255,40,60,0.45)');
+
+  // the title, each letter lit by a different colour of the light
+  const title = 'OBEY THE LIGHT';
+  const sc = 3;
+  let x = W / 2 - Math.floor(textWidth(title, sc) / 2);
+  let li = 0;
+  for (const ch of title) {
+    if (ch === ' ') { x += (SPACE_W + 1) * sc; continue; }
+    const rr = RULES[RULE_ORDER[(li + Math.floor(G.t * 3)) % RULE_ORDER.length]];
+    const c = rr.id === 'black' ? '#8c8aa0' : ruleColor(rr, G.t + li * 0.1);
+    const bob = Math.round(Math.sin(G.t * 4 + li * 0.6) * 1.2);
+    text(ctx, ch, x, 18 + bob, { color: c, scale: sc, outline: INK, shadow: '#000000' });
+    x += (FONT[ch].w + 1) * sc;
+    li++;
+  }
+  text(ctx, '...OR GET SNIPED IN THE HEAD.', W / 2, 44, { color: '#ff3b4f', align: 'center', outline: INK });
+  const best = Math.max(G.best.normal || 0, G.best.insane || 0);
+  if (best > 0) text(ctx, 'BEST ' + fmt(G.best.normal || 0) + '   INSANE BEST ' + fmt(G.best.insane || 0), W / 2, 56, { color: '#8e8ca4', align: 'center' });
+
+  drawTrafficLight(ctx, 12, 24, r, G.t, false);
+  drawTrafficLight(ctx, W - 36, 24, RULES[RULE_ORDER[(G.titleLight + 6) % RULE_ORDER.length]], G.t, false);
+  text(ctx, r.name, 24, 84, { color: readable(r, G.t), align: 'center', outline: INK });
+  text(ctx, ruleText(r, 'cmd', { need: 3, turns: 1 }), 24, 93, { color: '#ffffff', align: 'center', outline: INK });
+
+  const L = titleMenuLayout();
+  MENU.forEach((m, i) => {
+    const sel = i === G.menuIdx;
+    const lbl = m.label();
+    if (sel) {
+      rect(ctx, L[i].x, L[i].y - 1, L[i].w, L[i].h, 'rgba(255,225,74,0.14)');
+      text(ctx, GLYPH.PLAY, W / 2 - textWidth(lbl) / 2 - 10, L[i].y + 1, { color: '#ffe14a' });
+    }
+    text(ctx, lbl, W / 2, L[i].y + 1, { color: sel ? '#ffe14a' : '#c9c7da', align: 'center', outline: INK });
+  });
+  text(ctx, MENU[G.menuIdx].sub, W / 2, 152, { color: '#8e8ca4', align: 'center', outline: INK });
+  let help = Input.touchMode ? 'TAP A BUTTON TO START' : 'ARROWS/WASD: DRIVE   SPACE: HONK   ENTER: GO';
+  if (!Input.touchMode && !document.hasFocus()) help = blink(1.5) ? 'CLICK THE GAME, THEN PRESS ENTER' : '';
+  text(ctx, help, W / 2, 168, { color: '#5f5d78', align: 'center' });
+  if (Input.touchMode && window.innerHeight > window.innerWidth && blink(1)) {
+    panel(ctx, 40, 132, 240, 13, '#15141f', '#ffe14a');
+    text(ctx, 'TURN YOUR PHONE SIDEWAYS!', W / 2, 135, { color: '#ffe14a', align: 'center' });
+  }
+}
+
+function drawRuleRow(r, x, y, unlocked) {
+  const c = readable(r, G.t);
+  if (!unlocked) {
+    disc(ctx, x + 4, y + 3, 4, '#2c2a36');
+    text(ctx, '???', x + 14, y, { color: '#4a4860' });
+    text(ctx, 'SURVIVE LONGER TO FIND OUT', x + 134, y, { color: '#4a4860' });
+    return;
+  }
+  if (r.id === 'black') { disc(ctx, x + 4, y + 3, 4, '#050508'); ring(ctx, x + 4, y + 3, 4, '#6c6a80'); }
+  else { disc(ctx, x + 4, y + 3, 4, ruleColor(r, G.t)); px(ctx, x + 3, y + 1, shade(ruleColor(r, G.t), 0.6)); }
+  text(ctx, r.name, x + 14, y, { color: c });
+  text(ctx, ruleText(r, 'cmd', { need: 'N', turns: 1 }), x + 60, y, { color: '#ffffff' });
+  text(ctx, r.short, x + 134, y, { color: '#a9a7bc' });
+}
+
+function drawRulebook() {
+  rect(ctx, 0, 0, W, H, '#100f1a');
+  for (let y = 0; y < H; y += 4) rect(ctx, 0, y, W, 1, '#13121e');
+  text(ctx, 'THE RULEBOOK', W / 2, 4, { color: '#ffe14a', scale: 2, align: 'center', outline: INK });
+  text(ctx, 'DO WHAT THE LIGHT SAYS, OR GET SNIPED.', W / 2, 20, { color: '#ff5a6a', align: 'center' });
+  RULE_ORDER.forEach((id, i) => drawRuleRow(RULES[id], 8, 31 + i * 11, true));
+  text(ctx, Input.touchMode ? 'TAP TO GO BACK' : 'PRESS ENTER TO GO BACK', W / 2, 169, { color: blink(2) ? '#ffffff' : '#8e8ca4', align: 'center' });
+}
+
+function drawPause() {
+  ctx.fillStyle = 'rgba(8,6,18,0.82)';
+  ctx.fillRect(0, 0, W, H);
+  text(ctx, 'PAUSED', W / 2, 6, { color: '#ffe14a', scale: 2, align: 'center', outline: INK });
+  text(ctx, 'THE RULES SO FAR:', W / 2, 23, { color: '#8e8ca4', align: 'center' });
+  const known = RULE_ORDER.filter((id) => G.unlocked.includes(id));
+  known.forEach((id, i) => drawRuleRow(RULES[id], 8, 34 + i * 11, true));
+  const hidden = RULE_ORDER.length - known.length;
+  if (hidden > 0) {
+    text(ctx, '+ ' + hidden + ' MORE COLOR' + (hidden > 1 ? 'S' : '') + ' STILL TO SHOW UP...', W / 2, 38 + known.length * 11, { color: '#5f5d78', align: 'center' });
+  }
+  const help = Input.touchMode ? 'TAP TO RESUME' : 'P: RESUME    Q: QUIT TO MENU';
+  text(ctx, help, Input.touchMode ? W / 4 : W / 2, 169, { color: '#ffffff', align: 'center' });
+  if (Input.touchMode) text(ctx, 'QUIT TO MENU', (W * 3) / 4, 169, { color: '#ff5a6a', align: 'center' });
+}
+
+function drawIntroCard() {
+  ctx.fillStyle = 'rgba(6,5,14,0.72)';
+  ctx.fillRect(0, 0, W, H);
+  const id = G.introId;
+  const go = G.stateT > 0.6 && blink(2.5);
+  const prompt = Input.touchMode ? 'TAP TO DRIVE' : 'PRESS ENTER TO DRIVE';
+  if (id === 'basics') {
+    panel(ctx, 22, 24, 276, 142, '#15141f', '#ffe14a', 'rgba(0,0,0,0.5)');
+    text(ctx, 'HOW NOT TO GET SNIPED', W / 2, 30, { color: '#ffe14a', scale: 2, align: 'center', outline: INK });
+    text(ctx, 'THE LIGHT UP IN THE CORNER CHANGES COLOR.', W / 2, 48, { color: '#ffffff', align: 'center' });
+    text(ctx, 'DO WHAT IT SAYS. EVERY. SINGLE. TIME.', W / 2, 57, { color: '#ffffff', align: 'center' });
+    disc(ctx, 60, 76, 6, RULES.green.color);
+    ctx.drawImage(iconSprite('go', shade(RULES.green.color, -0.62)), 57, 73);
+    text(ctx, 'GREEN = GO!', 72, 70, { color: RULES.green.color, scale: 1 });
+    text(ctx, 'HOLD ' + GLYPH.R + ' AND KEEP DRIVING', 72, 79, { color: '#c9c7da' });
+    disc(ctx, 60, 96, 6, RULES.red.color);
+    ctx.drawImage(iconSprite('stop', shade(RULES.red.color, -0.62)), 57, 93);
+    text(ctx, 'RED = STOP!', 72, 90, { color: RULES.red.color });
+    text(ctx, 'TAP ' + GLYPH.L + ' TO BRAKE. DON\'T MOVE AT ALL.', 72, 99, { color: '#c9c7da' });
+    text(ctx, 'MORE COLORS SHOW UP THE LONGER YOU SURVIVE...', W / 2, 113, { color: '#b04bff', align: 'center' });
+    text(ctx, 'BREAK A RULE AND THE SNIPER TAKES THE SHOT.', W / 2, 123, { color: '#ff5a6a', align: 'center' });
+    const ctl = Input.touchMode ? 'D-PAD DRIVES. THE PINK BUTTON HONKS.' : 'ARROWS/WASD DRIVE. SPACE HONKS. P PAUSES.';
+    text(ctx, ctl, W / 2, 137, { color: '#8e8ca4', align: 'center' });
+    if (go) text(ctx, prompt, W / 2, 152, { color: '#ffe14a', align: 'center' });
+    return;
+  }
+  const r = RULES[id];
+  const col = ruleColor(r, G.t), rc = readable(r, G.t);
+  panel(ctx, 26, 26, 268, 138, '#15141f', r.id === 'black' ? '#6c6a80' : col, 'rgba(0,0,0,0.5)');
+  text(ctx, 'NEW LIGHT!', W / 2, 32, { color: blink(4) ? '#ffe14a' : '#ffffff', scale: 2, align: 'center', outline: INK });
+  const lx = 72, ly = 82;
+  if (r.id === 'black') { disc(ctx, lx, ly, 19, '#050508'); ring(ctx, lx, ly, 19, '#6c6a80'); }
+  else {
+    ring(ctx, lx, ly, 21, rgba(col, 0.35));
+    ring(ctx, lx, ly, 20, rgba(col, 0.6));
+    disc(ctx, lx, ly, 19, col);
+    disc(ctx, lx - 6, ly - 6, 4, shade(col, 0.6));
+  }
+  const ic = iconSprite(r.icon, r.id === 'black' ? '#b8b6c8' : shade(col, -0.62));
+  ctx.drawImage(ic, lx - 10, ly - 10, 21, 21);
+  text(ctx, r.name + ' MEANS', 104, 58, { color: rc, scale: 1 });
+  text(ctx, ruleText(r, 'cmd', { need: 3, turns: 1 }), 104, 70, { color: '#ffffff', scale: 2, outline: INK });
+  drawIntroDemo(r, 150, 100);
+  r.learn.slice(1).forEach((ln, i) => text(ctx, ln, W / 2, 122 + i * 10, { color: '#d8d6e6', align: 'center' }));
+  if (go) text(ctx, prompt, W / 2, 152, { color: '#ffe14a', align: 'center' });
+}
+
+// A tiny looping demo of the move, drawn right on the card.
+function drawIntroDemo(r, x, y) {
+  const t = G.stateT;
+  let dx = 0, dy = 0, ang = 0, variant = 'normal';
+  switch (r.id) {
+    case 'purple': dy = -Math.abs(Math.sin(t * 8)) * 3; ang = Math.sin(t * 4) * 0.3; variant = Math.sin(t * 8) > 0 ? 'arms' : 'normal'; break;
+    case 'blue': dy = Math.sin(t * 3) * 6; break;
+    case 'yellow': dx = ((t * 12) % 40) - 20; break;
+    case 'orange': dx = 20 - ((t * 25) % 40); break;
+    case 'cyan': ang = Math.floor(t * 4) * (Math.PI / 2); break;
+    case 'black': variant = 'slump'; break;
+    case 'white': dx = irnd(-1, 1); dy = irnd(-1, 1); variant = 'arms'; break;
+    case 'rainbow': ang = t * 5; dy = -Math.abs(Math.sin(t * 8)) * 3; break;
+    default: break;
+  }
+  rect(ctx, x - 40, y - 12, 120, 24, '#2b2a36');
+  for (let k = 0; k < 120; k += 16) rect(ctx, x - 40 + k, y - 12, 8, 1, '#d6d4e4');
+  for (let k = 0; k < 120; k += 16) rect(ctx, x - 40 + k, y + 11, 8, 1, '#d6d4e4');
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x - 40, y - 12, 120, 24);
+  ctx.clip();
+  drawSprite(ctx, SPR.player[variant], x + 20 + dx, y + dy, ang);
+  if (r.id === 'pink' && (t % 1) < 0.4) text(ctx, 'HONK', x + 40, y - 9, { color: '#ffb3e6', outline: INK });
+  if (r.id === 'brown') {
+    const cx2 = x + 60 - ((t * 20) % 40);
+    rect(ctx, cx2, y - 3, 6, 7, '#efe8da');
+    rect(ctx, cx2, y, 6, 2, '#8a4b21');
+  }
+  ctx.restore();
+}
+
+function drawOver() {
+  const D = G.death;
+  ctx.fillStyle = 'rgba(8,4,10,0.6)';
+  ctx.fillRect(0, 0, W, H);
+  panel(ctx, 34, 20, 252, 146, '#15141f', '#ff2b3d', 'rgba(0,0,0,0.5)');
+  text(ctx, 'SNIPED!', W / 2, 26, { color: '#ff2b3d', scale: 3, align: 'center', outline: INK });
+  const r = D.rule;
+  text(ctx, 'THE LIGHT WAS ' + r.name + '.', W / 2, 52, { color: readable(r, G.t), align: 'center' });
+  const lines = wrap(D.reason, 236, 1);
+  lines.forEach((ln, i) => text(ctx, ln, W / 2, 62 + i * 9, { color: '#ffffff', align: 'center' }));
+  const qy = 64 + lines.length * 9;
+  text(ctx, D.quote + ' - THE SNIPER', W / 2, qy, { color: '#7a7890', align: 'center' });
+  const sy = qy + 16;
+  text(ctx, 'LIGHTS SURVIVED', 58, sy, { color: '#8e8ca4' });
+  text(ctx, String(G.survived), W - 58, sy, { color: '#ffffff', align: 'right' });
+  text(ctx, 'SCORE', 58, sy + 10, { color: '#8e8ca4' });
+  text(ctx, fmt(G.score), W - 58, sy + 10, { color: '#ffffff', align: 'right' });
+  text(ctx, 'BEST', 58, sy + 20, { color: '#8e8ca4' });
+  text(ctx, fmt(G.best[G.mode] || 0), W - 58, sy + 20, { color: '#ffe14a', align: 'right' });
+  if (G.newBest && blink(3)) text(ctx, GLYPH.STAR + ' NEW BEST! ' + GLYPH.STAR, W / 2, sy + 20, { color: '#ffe14a', align: 'center' });
+  if (G.stateT > 0.8) {
+    if (Input.touchMode) {
+      text(ctx, 'TAP: DRIVE AGAIN', W / 4 + 10, 169, { color: '#ffffff', align: 'center' });
+      text(ctx, 'MENU', (W * 3) / 4, 169, { color: '#ff5a6a', align: 'center' });
+    } else {
+      text(ctx, 'ENTER: DRIVE AGAIN     ESC: MENU', W / 2, 154, { color: blink(2) ? '#ffffff' : '#c9c7da', align: 'center' });
+    }
+  }
+}
+</script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// main.js - boot: build the sprites, hook up input, run a fixed 60 Hz loop.
+// ---------------------------------------------------------------------------
+
+(function boot() {
+  buildSprites();
+  loadBest();
+  decoratePage();
+  fitScreen();
+  window.addEventListener('resize', fitScreen);
+  initInput(() => {
+    // browsers only allow sound after the first key press / tap
+    const first = !Sound.ready;
+    Sound.init();
+    if (first && G.state === 'title') Sound.music.start('title');
+  });
+  enterTitle();
+
+  const STEP = 1 / 60;
+  let last = performance.now();
+  let acc = 0;
+  function tick(now) {
+    const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
+    last = now;
+    acc += dt;
+    pollGamepads();
+    let steps = 0;
+    while (acc >= STEP && steps < 6) {
+      update(STEP);
+      acc -= STEP;
+      steps++;
+    }
+    if (steps >= 6) acc = 0;
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  // ?test freezes the clock so automated tests can step frames by hand
+  const testMode = /[?&]test\b/.test(location.search);
+  window.OTL = {
+    G, player, RULES, npcs, startGame, startPhase, update, render, Input,
+    step(n, beforeEach) {
+      for (let i = 0; i < (n || 1); i++) {
+        if (beforeEach) beforeEach(i);
+        update(STEP);
+      }
+      render();
+    },
+  };
+  if (!testMode) requestAnimationFrame(tick);
+  else render();
+})();
+</script>
+
+</body></html>

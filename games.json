@@ -5,8 +5,8 @@
     "author": "Taurus",
     "owner": "Taurus",
     "blurb": "Castaway: Three Isles is a pixel-art survival adventure: you're shipwrecked, then craft, build, and fight bosses across nine islands on your",
-    "cover": null,
-    "pixel": false,
+    "cover": "games/island-explorer/cover.jpeg",
+    "pixel": true,
     "url": null,
     "genres": [
       "Adventure",

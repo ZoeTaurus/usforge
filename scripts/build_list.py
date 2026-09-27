@@ -13,6 +13,14 @@ GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Hor
 
 
 
+def clip(text, n):
+    """Shorten to n characters at a whole word, ending with an ellipsis (never mid-word)."""
+    text = ' '.join(text.split())
+    if len(text) <= n:
+        return text
+    return text[:n - 1].rsplit(' ', 1)[0].rstrip(' ,;:-–—') + '…'
+
+
 def added_at(folder):
     """When the folder first appeared in the project (newest games go first). 0 if git doesn't know."""
     try:
@@ -46,7 +54,7 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         'title': str(info.get('title') or folder.name.replace('-', ' ').title())[:60],
         'author': str(info.get('author') or 'someone')[:30],
         'owner': str(info.get('owner') or info.get('author') or ''),   # the account allowed to update it
-        'blurb': str(info.get('blurb') or '')[:140],
+        'blurb': clip(str(info.get('blurb') or ''), 300),
         'cover': f'games/{folder.name}/{cover}' if cover else None,
         'pixel': bool(info.get('pixel')),   # pixel-art covers stay crisp instead of blurry
         'url': None if playable else (url or None),   # games that only live elsewhere (like a Claude artifact link)

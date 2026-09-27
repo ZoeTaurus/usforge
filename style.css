@@ -437,3 +437,5 @@ body { background: var(--bg); }
 .spark { box-shadow: none; }
 .library { border-top: 0; padding-top: 8px; }
 .shelf-head h2 { font-size: 19px; }
+/* long descriptions end in "…" where space is tight (the game page shows them in full) */
+.spot-text p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }

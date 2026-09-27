@@ -1,5 +1,25 @@
 [
   {
+    "slug": "base-strike",
+    "title": "Base Strike",
+    "author": "Igor",
+    "owner": "Igor",
+    "blurb": "In development",
+    "cover": "games/base-strike/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Action",
+      "Shooter",
+      "Simulation"
+    ],
+    "dev": true,
+    "progress": 65,
+    "next": "",
+    "build": true,
+    "added": 1790495029
+  },
+  {
     "slug": "die-famous",
     "title": "Die Famous",
     "author": "Henrique",

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support · UsForge</title>
+<meta name="description" content="Tip Lazy Studios to keep UsForge free.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="site.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden aria-current="page">Support ♥</a><span data-theme-switch></span></nav>
+  </header>
+
+  <main class="support intro">
+    <span class="eyebrow">Support</span>
+    <h1>Keep the forge burning.</h1>
+    <p class="lead">UsForge is free, with no ads and no sign-ups for players. It’s made by four friends at <b>Lazy Studios</b>. If you’ve enjoyed a game here, a tip helps us keep making more.</p>
+    <ul>
+      <li><span>Every game on UsForge stays free to play.</span></li>
+      <li><span>Tips go to Lazy Studios: Taurus, Henrique, Alex and Igor.</span></li>
+      <li><span>Any amount you like. You choose it on the next page.</span></li>
+    </ul>
+    <div class="acts">
+      <a class="big-play" data-support-go href="support.html" target="_blank" rel="noopener" data-support hidden>Leave a tip ↗</a>
+      <span class="soon" id="notYet">Tips aren’t switched on yet. Check back soon!</span>
+      <a class="btn-l" href="./">Back to the games</a>
+    </div>
+    <p class="fine">Payments are handled by Stripe, so we never see your card details. If you’re under 18, please ask a parent first. Tips are a thank-you, not a charity donation, and they aren’t refundable.</p>
+  </main>
+
+  <footer class="foot">
+    <span>UsForge · by Lazy Studios</span>
+    <a href="./">Back to the games →</a>
+  </footer>
+</div>
+<script src="embers.js"></script>
+<script src="eggs.js"></script>
+<script>addEventListener('DOMContentLoaded', () => { document.getElementById('notYet').hidden = !!UsForge.supportUrl; });</script>
+</body>
+</html>

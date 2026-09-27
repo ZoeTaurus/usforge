@@ -476,3 +476,18 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .spark { box-shadow: 0 0 12px 2px var(--glow); }
 @media (prefers-reduced-motion: reduce) { .spotlight .eyebrow { animation: none; } }
 .hero { margin-bottom: 28px; }
+
+/* ---------- support (tips via Stripe) ---------- */
+.nav-support { color: var(--accent) !important; font-weight: 600; }
+.foot-links { display: inline-flex; gap: 18px; flex-wrap: wrap; }
+.tipline { margin: 18px 0 0; font-size: 14px; color: var(--dim); }
+.tipline a { color: var(--accent); }
+.support { max-width: 640px; padding-bottom: 60px; }
+.support h1 { margin: 0; font-size: clamp(32px, 5vw, 48px); font-weight: 800; letter-spacing: -.04em; line-height: 1.05; text-wrap: balance; }
+.support .lead { font-size: 18px; line-height: 1.55; margin: 14px 0 0; }
+.support ul { margin: 22px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.support li { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: baseline; }
+.support li::before { content: ""; width: 8px; height: 8px; margin-top: 7px; border-radius: 2px; background: var(--accent); transform: rotate(45deg); box-shadow: 0 0 10px var(--glow); }
+.support .acts { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 28px; }
+.support .fine { font-size: 13px; color: var(--dim); margin-top: 18px; max-width: 56ch; }
+.support .soon { display: inline-block; }

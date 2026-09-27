@@ -18,7 +18,7 @@
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
-    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><span data-theme-switch></span></nav>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span></nav>
   </header>
   <main id="page"></main>
   <footer class="foot">
@@ -77,6 +77,7 @@
             ${g.build === false ? '' : `<button class="stoke" id="stokeBtn" type="button" title="Stoke the fire: tell ${esc(g.author)} you love this game">${UsForge.FLAME}<span id="stokeLbl">Stoke</span><b id="stokeN"></b></button>`}
             ${g.url || g.build === false ? '' : `<a class="btn-l" href="games/${encodeURIComponent(g.slug)}/" target="_blank" rel="noopener">Open in a new tab ↗</a>`}
           </div>
+          <p class="tipline" data-support hidden>Enjoying ${esc(g.title)}? <a href="support.html">Support Lazy Studios ♥</a></p>
         </div>
       </section>
       ${more.length ? `<section class="more"><h3>${byThem.length ? `More from ${esc(g.author)} and friends` : 'More games'}</h3>
@@ -84,6 +85,7 @@
           <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
     document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play
+    for (const el of document.querySelectorAll('.tipline')) el.hidden = !UsForge.supportUrl;
     UsForge.stats().then(st => { if (st) { showPlays(st.plays); showStokes(st.stokes); } });
     $('stokeBtn')?.addEventListener('click', doStoke);
     if (location.hash === '#play' && !g.url && g.build !== false) { history.replaceState(null, '', location.pathname + location.search); history.pushState({ playing: true }, '', location.href); play(); }

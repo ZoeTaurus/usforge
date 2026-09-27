@@ -49,6 +49,15 @@
     new ResizeObserver(update).observe(document.body);
     update();
   }
+  // Tips: the Stripe Payment Link people are sent to (make it in the Stripe dashboard → Payment Links → "customers choose what to pay").
+  // While it's empty, every Support button stays hidden. Only a buy.stripe.com / donate.stripe.com link is used.
+  const SUPPORT_URL = '';
+  const supportUrl = /^https:\/\/(buy|donate)\.stripe\.com\/[A-Za-z0-9_]+$/.test(SUPPORT_URL) ? SUPPORT_URL : '';
+  addEventListener('DOMContentLoaded', () => {
+    for (const el of document.querySelectorAll('[data-support]')) el.hidden = !supportUrl;
+    for (const el of document.querySelectorAll('[data-support-go]')) el.href = supportUrl || 'support.html';
+  });
+
   // the genres a game can be tagged with (up to 3) — the same list lives in worker/index.js and scripts/build_list.py
   const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Horror', 'Party', 'Platformer', 'Puzzle', 'Racing', 'Roguelike', 'RPG', 'Sci-fi', 'Shooter', 'Simulation', 'Sports', 'Story', 'Strategy', 'Text-based'];
 
@@ -120,6 +129,6 @@
     document.body.prepend(c); Embers(c, { count: 16, alpha: .38, speed: .5 });
   });
 
-  window.UsForge = { refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
+  window.UsForge = { supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

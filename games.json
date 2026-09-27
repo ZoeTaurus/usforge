@@ -4,13 +4,17 @@
     "title": "Base Strike Classic",
     "author": "Igor",
     "owner": "Igor",
-    "blurb": "",
+    "blurb": "A rouge pilot versus the enemy command chain",
     "cover": null,
     "pixel": false,
     "url": null,
-    "genres": [],
+    "genres": [
+      "Action",
+      "Arcade",
+      "Shooter"
+    ],
     "dev": true,
-    "progress": 50,
+    "progress": 80,
     "next": "",
     "build": true,
     "added": 1790495749

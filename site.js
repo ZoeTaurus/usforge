@@ -113,6 +113,13 @@
     t.innerHTML = html; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms);
   }
 
+  // faint sparks drifting up behind every page (embers.js), fewer than on the title screen
+  addEventListener('DOMContentLoaded', () => {
+    if (!window.Embers || document.getElementById('bgEmbers')) return;
+    const c = document.createElement('canvas'); c.className = 'bg-embers'; c.id = 'bgEmbers'; c.setAttribute('aria-hidden', 'true');
+    document.body.prepend(c); Embers(c, { count: 16, alpha: .38, speed: .5 });
+  });
+
   window.UsForge = { refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

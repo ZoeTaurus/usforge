@@ -132,8 +132,8 @@
 
   // one game card, used in every shelf and grid
   const card = (g, i = 0, { blurb = true } = {}) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
-      <a class="card" href="${esc(href(g))}" data-cover>
-        <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${tagOf(g)}</div>
+      <a class="card tilt" href="${esc(href(g))}" data-cover>
+        <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${tagOf(g)}<span class="glint" aria-hidden="true"></span></div>
       </a>
       <div class="meta">
         <b>${esc(g.title)}</b>
@@ -151,7 +151,7 @@
     const day = new Date(), key = `${day.getFullYear()}-${day.getMonth() + 1}-${day.getDate()}`;
     const g = pool[[...key].reduce((h, c) => (h * 131 + c.charCodeAt(0)) >>> 0, 17) % pool.length];
     $('spotlight').innerHTML = `
-      <a class="spot-cover cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}" data-cover tabindex="-1" aria-hidden="true">${cover(g, true)}</a>
+      <a class="spot-cover tilt cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}" data-cover tabindex="-1" aria-hidden="true">${cover(g, true)}<span class="glint"></span></a>
       <div class="spot-text">
         <span class="eyebrow">Game of the day · ${day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
         <h2>${esc(g.title)}</h2>

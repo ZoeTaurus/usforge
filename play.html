@@ -80,7 +80,7 @@
         </div>
       </section>
       ${more.length ? `<section class="more"><h3>${byThem.length ? `More from ${esc(g.author)} and friends` : 'More games'}</h3>
-        <div class="grid">${more.map(o => `<article><a class="card" data-cover href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}</div></a>
+        <div class="grid">${more.map(o => `<article><a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}<span class="glint" aria-hidden="true"></span></div></a>
           <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
     document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play

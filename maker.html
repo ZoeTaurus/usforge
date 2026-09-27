@@ -57,7 +57,7 @@
   const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
   const P = g => stats?.plays[g.slug] || 0, S = g => stats?.stokes[g.slug] || 0;
   const card = (g, i) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
-      <a class="card" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}</div></a>
+      <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}<span class="glint" aria-hidden="true"></span></div></a>
       <div class="meta"><b>${esc(g.title)}</b>
         ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
 </div>
@@ -95,7 +95,7 @@
     $('dev').innerHTML = dev.map(card).join('');
     $('crew').innerHTML = U.TEAM.filter(p => p !== known).map(p => {
       const theirs = games.filter(g => g.author.toLowerCase() === p.name.toLowerCase()), c = theirs.filter(g => !g.dev).length, d = theirs.length - c;
-      return `<a class="crew-card" href="maker.html?n=${encodeURIComponent(p.name)}"><span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span><span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span></a>`;
+      return `<a class="crew-card tilt" href="maker.html?n=${encodeURIComponent(p.name)}"><span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span><span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span></a>`;
     }).join('');
   }
   const gamesP = fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => []);

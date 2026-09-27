@@ -6,12 +6,14 @@
   --radius: 10px;
   --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+  --tint-30: rgba(255, 106, 51, .30); --tint-20: rgba(255, 106, 51, .20); --tint-10: rgba(255, 106, 51, .10); --accent-edge: rgba(255, 106, 51, .55); --accent-ring: rgba(255, 106, 51, .7);
   color-scheme: dark;
 }
 /* light mode: the forge by day — warm paper, the same ember orange (chosen with the theme button, or Auto by the clock) */
 :root[data-theme="light"] {
   --bg: #f8f2ea; --card: #fffbf6; --ink: #1f160f; --dim: #76675a; --line: #e8dccd; --hover: #f1e5d7;
   --accent: #e0501a; --accent-ink: #ffffff; --glow: rgba(224, 80, 26, .28); --glow-bg: #ffd6b8; --bar: #fffbf6;
+  --tint-30: rgba(224, 80, 26, .22); --tint-20: rgba(224, 80, 26, .14); --tint-10: rgba(224, 80, 26, .07); --accent-edge: rgba(224, 80, 26, .45); --accent-ring: rgba(224, 80, 26, .7);
   color-scheme: light;
 }
 * { box-sizing: border-box; }
@@ -439,3 +441,38 @@ body { background: var(--bg); }
 .shelf-head h2 { font-size: 19px; }
 /* long descriptions end in "…" where space is tight (the game page shows them in full) */
 .spot-text p { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+
+/* ======================================================================
+   Bolder (after "too boring"): sparks, tilt and colour back — layout stays simple
+   ====================================================================== */
+body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, transparent 62%) fixed, var(--bg); }
+.bg-embers { display: block; }
+
+/* a warm band behind the title */
+.hero { position: relative; margin-top: 6px; padding: 34px 28px 28px; border-radius: calc(var(--radius) + 8px); overflow: hidden;
+  background: linear-gradient(115deg, var(--tint-30) 0%, var(--tint-10) 45%, transparent 80%); }
+.hero::after { content: ""; position: absolute; right: -60px; top: -80px; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(closest-side, var(--glow), transparent); opacity: .55; pointer-events: none; }
+.hero h1 { position: relative; }
+.hero h1::after { content: ""; display: block; width: 64px; height: 4px; margin-top: 14px; border-radius: 4px; background: var(--accent); box-shadow: 0 0 16px var(--glow); }
+.stat b { color: var(--accent); }
+.stat + .stat::before { color: var(--accent); opacity: .5; }
+
+/* game of the day glows */
+.spotlight { padding: 22px; border: 1px solid var(--accent-edge); border-radius: calc(var(--radius) + 8px);
+  background: radial-gradient(90% 130% at 0% 0%, var(--tint-20), transparent 60%), var(--card);
+  box-shadow: 0 24px 60px -30px var(--glow); }
+.spot-cover { box-shadow: 0 22px 50px -24px var(--glow); }
+.spotlight .eyebrow { animation: pulse-ink 3s ease-in-out infinite; }
+@media (max-width: 760px) { .spotlight { padding: 14px; } .hero { padding: 26px 18px 22px; } }
+
+/* section headings get an ember marker */
+.shelf-head h2 { display: inline-flex; align-items: center; gap: 10px; }
+.shelf-head h2::before { content: ""; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); transform: rotate(45deg); box-shadow: 0 0 10px var(--glow); }
+
+/* hover: the tilt, plus an orange glow */
+.card:hover .cover, .card:focus-visible .cover { transform: none; border-color: transparent; box-shadow: 0 0 0 1px var(--accent-ring), 0 18px 40px -16px var(--glow); }
+.play-btn, .big-play, .go { box-shadow: 0 10px 28px -10px var(--glow); }
+.person::before { display: block; }
+.spark { box-shadow: 0 0 12px 2px var(--glow); }
+@media (prefers-reduced-motion: reduce) { .spotlight .eyebrow { animation: none; } }
+.hero { margin-bottom: 28px; }

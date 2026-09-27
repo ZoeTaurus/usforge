@@ -514,3 +514,6 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .toggle-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .preview { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 14px; border-radius: 12px; background: var(--tint-10); border: 1px solid var(--accent-edge); }
 .preview .chip-demo { font: 12px var(--mono); color: var(--accent); border: 1px solid var(--accent); border-radius: 99px; padding: 3px 10px; }
+
+.panel textarea { font: 15px/1.45 var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; outline: none; resize: vertical; min-height: 64px; }
+.panel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--tint-20); }

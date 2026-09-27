@@ -65,6 +65,8 @@ async function plays(req, env, url) {
   return fresh(await box.all());
 }
 
+// shorten to n characters at a whole word, ending in "…" (never mid-word)
+const clip = (text, n) => { text = text.replace(/\s+/g, ' ').trim(); return text.length <= n ? text : text.slice(0, n - 1).replace(/\s+\S*$/, '').replace(/[\s,;:–—-]+$/, '') + '…'; };
 const fail = (status, msg) => Object.assign(new Error(msg), { status, msg });
 const ok = data => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
 
@@ -137,7 +139,7 @@ async function upload(req, env) {
   const who = await check(form.get('name'), form.get('password'));
   const slug = String(form.get('slug') || '').trim().toLowerCase();
   if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) || slug.length > 40) throw fail(400, 'Folder name: lowercase letters, numbers and dashes only (like potato-dash).');
-  const title = String(form.get('title') || '').trim().slice(0, 60), blurb = String(form.get('blurb') || '').trim().slice(0, 140);
+  const title = String(form.get('title') || '').trim().slice(0, 60), blurb = clip(String(form.get('blurb') || ''), 300);
   const link = String(form.get('url') || '').trim(), pixel = form.get('pixel') === 'true';
   if (!title) throw fail(400, 'Give your game a name.');
   if (link && !/^https:\/\/[^\s"<>]+$/.test(link)) throw fail(400, 'The link must start with https://');

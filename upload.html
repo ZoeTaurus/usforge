@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="style.css?v=22">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=21"></script>
 </head>
@@ -47,7 +47,8 @@
         <label>Game name <input id="fTitle" required maxlength="60" placeholder="Potato Dash"></label>
         <label>Folder name <span class="hint">lowercase and dashes — it’s part of the game’s address</span>
           <input id="fSlug" required maxlength="40" pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="potato-dash"></label>
-        <label>One-line description <input id="fBlurb" maxlength="140" placeholder="Dodge the forks."></label>
+        <label>Description <span class="hint" id="blurbCount">0 / 300</span>
+          <textarea id="fBlurb" maxlength="300" rows="3" placeholder="Dodge the forks."></textarea></label>
         <label class="check"><input id="fPixel" type="checkbox"> Pixel art (keeps the cover crisp)</label>
 
         <fieldset>
@@ -171,7 +172,7 @@
   function startEdit(slug) {
     const g = games.find(x => x.slug === slug); if (!g) return;
     editing = slug;
-    $('fTitle').value = g.title; $('fSlug').value = g.slug; $('fSlug').readOnly = true; $('fBlurb').value = g.blurb || ''; $('fPixel').checked = !!g.pixel; $('fUrl').value = g.url || '';
+    $('fTitle').value = g.title; $('fSlug').value = g.slug; $('fSlug').readOnly = true; $('fBlurb').value = g.blurb || ''; countBlurb(); $('fPixel').checked = !!g.pixel; $('fUrl').value = g.url || '';
     setGenres(g.genres || []); $('fDev').checked = !!g.dev; $('fProgress').value = g.progress ?? 50; $('fNext').value = g.next || ''; devShow();
     $('formTitle').textContent = `Update ${g.title}`; $('send').textContent = 'Save update'; $('cancelEdit').hidden = false;
     chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name, description or cover.');
@@ -179,10 +180,12 @@
     $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function endEdit() {
-    editing = null; $('up').reset(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); devShow();
+    editing = null; $('up').reset(); countBlurb(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); devShow();
     $('formTitle').textContent = 'Add a game'; $('send').textContent = 'Upload'; $('cancelEdit').hidden = true;
   }
   $('cancelEdit').onclick = endEdit;
+  const countBlurb = () => { const n = $('fBlurb').value.length; $('blurbCount').textContent = `${n} / 300`; $('blurbCount').style.color = n >= 280 ? 'var(--accent)' : ''; };
+  $('fBlurb').addEventListener('input', countBlurb);
 
   // ---------- genres (up to 3) and in-development details ----------
   $('fGenres').innerHTML = (window.UsForge?.GENRES || []).map(x => `<label class="gpick"><input type="checkbox" value="${esc(x)}"><span>${esc(x)}</span></label>`).join('');

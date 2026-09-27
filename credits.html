@@ -14,7 +14,6 @@
 <script src="site.js"></script>
 </head>
 <body>
-<canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
@@ -38,7 +37,6 @@
 <script src="eggs.js"></script>
 <script>
 (() => {
-  Embers(document.getElementById('bgEmbers'), { count: 26, alpha: .4, speed: .55 });
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const TEAM = UsForge.TEAM;   // (the team list lives in site.js, shared with the maker pages)
   const paint = (games = []) => {

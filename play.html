@@ -13,7 +13,6 @@
 <script src="site.js"></script>
 </head>
 <body>
-<canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
 
 <!-- the game page: picture, description, Play -->
 <div class="wrap">
@@ -47,7 +46,6 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const slug = new URLSearchParams(location.search).get('g') || '';
-  Embers($('bgEmbers'), { count: 26, alpha: .4, speed: .55 });
 
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const coverOf = (g, named) => g.cover ? `<img src="${esc(g.cover)}" alt="">` : `<div class="blank${named ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(named ? g.title : g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
@@ -82,7 +80,7 @@
         </div>
       </section>
       ${more.length ? `<section class="more"><h3>${byThem.length ? `More from ${esc(g.author)} and friends` : 'More games'}</h3>
-        <div class="grid">${more.map(o => `<article><a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}<span class="glint" aria-hidden="true"></span></div></a>
+        <div class="grid">${more.map(o => `<article><a class="card" data-cover href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}</div></a>
           <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
     document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play

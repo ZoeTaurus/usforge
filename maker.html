@@ -14,7 +14,6 @@
 <script src="site.js"></script>
 </head>
 <body>
-<canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
@@ -52,16 +51,15 @@
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const n = (v, one, many) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
-  Embers($('bgEmbers'), { count: 26, alpha: .4, speed: .55 });
 
   const want = (new URLSearchParams(location.search).get('n') || '').toLowerCase();
   let games = [], stats = null;
   const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
   const P = g => stats?.plays[g.slug] || 0, S = g => stats?.stokes[g.slug] || 0;
   const card = (g, i) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
-      <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}<span class="glint" aria-hidden="true"></span></div></a>
+      <a class="card" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}</div></a>
       <div class="meta"><b>${esc(g.title)}</b>
-        ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
+        ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
 </div>
     </article>`;
 
@@ -97,7 +95,7 @@
     $('dev').innerHTML = dev.map(card).join('');
     $('crew').innerHTML = U.TEAM.filter(p => p !== known).map(p => {
       const theirs = games.filter(g => g.author.toLowerCase() === p.name.toLowerCase()), c = theirs.filter(g => !g.dev).length, d = theirs.length - c;
-      return `<a class="crew-card tilt" href="maker.html?n=${encodeURIComponent(p.name)}"><span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span><span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span><span class="glint" aria-hidden="true"></span></a>`;
+      return `<a class="crew-card" href="maker.html?n=${encodeURIComponent(p.name)}"><span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span><span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span></a>`;
     }).join('');
   }
   const gamesP = fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => []);

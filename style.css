@@ -288,7 +288,7 @@ body.playing .wrap { display: none; }
 /* ---------- counts (plays + stokes) ---------- */
 .counts { display: inline-flex; gap: 12px; font: 12px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
 .counts > span { display: inline-flex; align-items: center; gap: 4px; }
-.counts .mine { color: var(--accent); }
+.counts .is-mine { color: var(--accent); }
 .flame { width: 13px; height: 13px; flex: none; }
 
 /* ---------- game of the day ---------- */
@@ -418,3 +418,22 @@ a.shelf-note:hover { color: var(--accent); }
 .hero h1 { text-shadow: none; }
 .shelf { margin-bottom: 34px; }
 .crew-card .initial { box-shadow: none; }
+
+/* ======================================================================
+   Clean, round two: no background sparks, no tilt, no glow — just the games
+   ====================================================================== */
+body { background: var(--bg); }
+.bg-embers { display: none; }
+.intro h1, .hero h1 { text-shadow: none; }
+.spotlight { border: 0; background: none; padding: 0; border-radius: 0; margin-bottom: 40px; gap: 32px; }
+.spot-cover, .detail .cover { box-shadow: none; }
+.card .cover { transition: transform .2s ease, border-color .2s ease; }
+.card:hover .cover, .card:focus-visible .cover { transform: translateY(-3px); box-shadow: none; border-color: var(--accent); }
+.card:hover .cover img, .card:focus-visible .cover img { transform: none; }
+.play-btn, .big-play, .go, .continue { box-shadow: none; }
+.play-btn:hover, .big-play:hover, .big-play:focus-visible { box-shadow: none; }
+.person::before { display: none; }
+.person .initial, .crew-card .initial { box-shadow: none; }
+.spark { box-shadow: none; }
+.library { border-top: 0; padding-top: 8px; }
+.shelf-head h2 { font-size: 19px; }

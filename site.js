@@ -1,6 +1,31 @@
 // Shared by every UsForge page: the Light / Dark / Auto theme switch, and the scroll-to-top / scroll-to-bottom buttons.
 // (The theme itself is applied by a one-line script in each page's <head>, before anything paints — see THEME_BOOT.)
 (() => {
+  // ---------- theme colour: the visitor's pick (default #4d8cf7), and every colour made from it ----------
+  const DEFAULT_ACCENT = '#4d8cf7';
+  const pref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+  const setPref = (k, v) => { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+  const okHex = h => /^#[0-9a-f]{6}$/i.test(h);
+  const rgbOf = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, k) => '#' + a.map((v, i) => Math.round(v + (b[i] - v) * k).toString(16).padStart(2, '0')).join('');
+  const hueOf = ([r, g, b]) => { r /= 255; g /= 255; b /= 255; const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 0; const h = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return (h * 60 + 360) % 360; };
+  const lum = rgb => { const [r, g, b] = rgb.map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * r + .7152 * g + .0722 * b; };
+  let accent = DEFAULT_ACCENT;
+  function applyAccent(hex) {
+    accent = okHex(hex) ? hex.toLowerCase() : DEFAULT_ACCENT;
+    const c = rgbOf(accent), rgba = a => `rgba(${c.join(', ')}, ${a})`;
+    // text on a filled accent button: whichever of dark navy or white reads better
+    const ink = (lum(c) + .05) / (lum([6, 18, 42]) + .05) >= (1.05) / (lum(c) + .05) ? '#06122a' : '#ffffff';
+    let el = document.getElementById('accentStyle');
+    if (!el) { el = document.createElement('style'); el.id = 'accentStyle'; document.head.append(el); }
+    el.textContent = `:root, :root[data-theme] { --accent: ${accent}; --accent-ink: ${ink}; --glow: ${rgba(.45)}; --glow-bg: ${mix(c, [7, 9, 14], .82)};
+  --tint-30: ${rgba(.3)}; --tint-20: ${rgba(.2)}; --tint-10: ${rgba(.1)}; --accent-edge: ${rgba(.55)}; --accent-ring: ${rgba(.7)}; }
+:root[data-theme="light"] { --glow: ${rgba(.3)}; --glow-bg: ${mix(c, [255, 255, 255], .75)}; --tint-30: ${rgba(.24)}; --tint-20: ${rgba(.15)}; --tint-10: ${rgba(.08)}; --accent-edge: ${rgba(.5)}; --accent-ring: ${rgba(.75)}; }`;
+    if (window.UsForge) window.UsForge.accentHue = hueOf(c);
+  }
+  applyAccent(pref('usforge-accent', DEFAULT_ACCENT));
+  const sparksOn = () => pref('usforge-sparks', 'on') !== 'off', tiltOn = () => pref('usforge-tilt', 'on') !== 'off';
+
   const KEY = 'usforge-theme';
   const get = () => { try { return localStorage.getItem(KEY) || 'auto'; } catch (e) { return 'auto'; } };
   const set = v => { try { localStorage.setItem(KEY, v); } catch (e) {} };
@@ -26,6 +51,10 @@
       b.type = 'button'; b.className = 'theme-btn';
       b.onclick = () => { set(NEXT[get()]); apply(); };
       spot.append(b);
+      const gear = document.createElement('a');
+      gear.href = 'settings.html'; gear.className = 'gear-btn'; gear.title = 'Settings'; gear.setAttribute('aria-label', 'Settings'); gear.textContent = '⚙';
+      if (/settings(\.html)?$/.test(location.pathname)) gear.setAttribute('aria-current', 'page');
+      spot.append(gear);
     }
     apply();
     setInterval(() => { if (get() === 'auto') apply(); }, 5 * 60 * 1000);   // day turns to night while the page is open
@@ -92,7 +121,7 @@
   if (!calmMotion && finePointer) {
     addEventListener('pointermove', e => {
       const c = e.target.closest?.('.tilt');
-      if (!c) return;
+      if (!c || !tiltOn()) return;
       const b = c.getBoundingClientRect(), x = (e.clientX - b.left) / b.width, y = (e.clientY - b.top) / b.height;
       c.style.setProperty('--rx', ((.5 - y) * 9).toFixed(2) + 'deg'); c.style.setProperty('--ry', ((x - .5) * 11).toFixed(2) + 'deg');
       c.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); c.style.setProperty('--my', (y * 100).toFixed(1) + '%');
@@ -124,11 +153,11 @@
 
   // faint sparks drifting up behind every page (embers.js), fewer than on the title screen
   addEventListener('DOMContentLoaded', () => {
-    if (!window.Embers || document.getElementById('bgEmbers')) return;
+    if (!window.Embers || document.getElementById('bgEmbers') || !sparksOn()) return;
     const c = document.createElement('canvas'); c.className = 'bg-embers'; c.id = 'bgEmbers'; c.setAttribute('aria-hidden', 'true');
     document.body.prepend(c); Embers(c, { count: 16, alpha: .38, speed: .5 });
   });
 
-  window.UsForge = { supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

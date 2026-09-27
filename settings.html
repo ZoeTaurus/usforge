@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings · UsForge</title>
+<meta name="description" content="Pick your colour and theme for UsForge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%234d8cf7' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css?v=20">
+<script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="site.js?v=21"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span></nav>
+  </header>
+
+  <section class="intro">
+    <h1>Settings</h1>
+    <p>Make UsForge yours. These are saved in this browser only.</p>
+  </section>
+
+  <main class="settings">
+    <section class="set-card" aria-labelledby="colTitle">
+      <h2 id="colTitle">Theme colour</h2>
+      <p>Buttons, links, glows and sparks all follow it.</p>
+      <div class="swatches" id="swatches" role="group" aria-label="Theme colour"></div>
+      <div class="toggle-row">
+        <label class="swatch-custom"><input type="color" id="custom" aria-label="Pick any colour"> Any colour…</label>
+        <button class="btn-l" type="button" id="resetColor">Back to default</button>
+      </div>
+      <div class="preview" aria-hidden="true">
+        <span class="big-play" style="padding:10px 22px;font-size:15px">▶ Play</span>
+        <span class="chip-demo">Puzzle</span>
+        <span class="eyebrow">Game of the day</span>
+        <a href="#" onclick="return false" style="color:var(--accent)">a link</a>
+      </div>
+    </section>
+
+    <section class="set-card" aria-labelledby="modeTitle">
+      <h2 id="modeTitle">Light or dark</h2>
+      <p>Auto is light from 7am to 7pm, and dark the rest of the day.</p>
+      <div class="seg" id="modes" role="group" aria-label="Light or dark"></div>
+    </section>
+
+    <section class="set-card" aria-labelledby="fxTitle">
+      <h2 id="fxTitle">Effects</h2>
+      <div class="toggle-row"><span>Sparks drifting in the background</span><div class="seg" id="sparks" role="group" aria-label="Background sparks"></div></div>
+      <div class="toggle-row"><span>Game covers tilt toward your mouse</span><div class="seg" id="tilt" role="group" aria-label="Card tilt"></div></div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>UsForge · by Lazy Studios</span>
+    <a href="./">Back to the games →</a>
+  </footer>
+</div>
+<script src="embers.js?v=20"></script>
+<script src="eggs.js?v=20"></script>
+<script>
+(() => {
+  const U = window.UsForge, $ = id => document.getElementById(id);
+  const PRESETS = [['Blue', U.DEFAULT_ACCENT], ['Ember', '#ff6a33'], ['Green', '#34c77b'], ['Teal', '#1fbfbf'], ['Purple', '#9b6cff'], ['Pink', '#ff5fa2'], ['Gold', '#f2b53a'], ['Red', '#ef4b4b']];
+  function paintColors() {
+    $('swatches').innerHTML = PRESETS.map(([name, hex]) => `<button type="button" class="swatch" style="background:${hex}" data-hex="${hex}" title="${name}${hex === U.DEFAULT_ACCENT ? ' (default)' : ''}" aria-label="${name}${hex === U.DEFAULT_ACCENT ? ' (default)' : ''}" aria-pressed="${U.accent === hex}"></button>`).join('');
+    for (const b of $('swatches').children) b.onclick = () => { U.setAccent(b.dataset.hex); paintColors(); };
+    $('custom').value = U.accent;
+    $('resetColor').disabled = U.accent === U.DEFAULT_ACCENT;
+  }
+  $('custom').addEventListener('input', e => { U.setAccent(e.target.value); paintColors(); });
+  $('resetColor').onclick = () => { U.setAccent(null); paintColors(); };
+
+  const seg = (id, options, current, onPick) => {
+    $(id).innerHTML = options.map(([v, label]) => `<button type="button" data-v="${v}" aria-pressed="${v === current()}">${label}</button>`).join('');
+    for (const b of $(id).children) b.onclick = () => { onPick(b.dataset.v); seg(id, options, current, onPick); };
+  };
+  seg('modes', [['auto', '◐ Auto'], ['light', '☀ Light'], ['dark', '☾ Dark']], () => U.theme, v => U.setTheme(v));
+  seg('sparks', [['on', 'On'], ['off', 'Off']], () => U.pref('usforge-sparks', 'on'), v => { U.setPref('usforge-sparks', v === 'on' ? null : 'off'); const c = document.getElementById('bgEmbers'); if (c) c.hidden = v === 'off'; else if (v === 'on') location.reload(); });
+  seg('tilt', [['on', 'On'], ['off', 'Off']], () => U.pref('usforge-tilt', 'on'), v => U.setPref('usforge-tilt', v === 'on' ? null : 'off'));
+  paintColors();
+  // the menu's theme button and this page stay in step
+  document.addEventListener('click', e => { if (e.target.closest('.theme-btn')) setTimeout(() => seg('modes', [['auto', '◐ Auto'], ['light', '☀ Light'], ['dark', '☾ Dark']], () => U.theme, v => U.setTheme(v)), 0); });
+})();
+</script>
+</body>
+</html>

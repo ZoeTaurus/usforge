@@ -140,3 +140,52 @@ GG.DEEP = [
     w: [[40, 150, 250, 100]],
     tee: { b: 0, a: 40 }, hole: { b: 4, a: -150 } },
 ];
+
+// Course 3 — Black Hole: nine expert holes. Black holes (tiny, deadly, pulling hard) and planets that orbit —
+// sometimes carrying the cup, sometimes carrying you. orbit: { of: planet index, d: distance, w: speed (rad/s), ph: start angle }
+// (Pars from the built-in solver: what a steady player needs, plus one.)
+GG.ABYSS = [
+  { name: 'Accretion', par: 3,
+    b: [{ k: 'home', x: 40, y: 120, r: 16 }, { k: 'blackhole', x: 160, y: 96, r: 5 }, { k: 'rock', x: 280, y: 110, r: 16 }],
+    tee: { b: 0, a: -70 }, hole: { b: 2, a: -110 } },
+
+  { name: 'Merry-Go-Round', par: 3,
+    b: [{ k: 'home', x: 40, y: 130, r: 15 }, { k: 'rock', x: 214, y: 90, r: 18 }, { k: 'sand', x: 214, y: 90, r: 8, orbit: { of: 1, d: 48, w: 1.3, ph: 0 } },
+        { k: 'blackhole', x: 124, y: 70, r: 4 }],
+    tee: { b: 0, a: -60 }, hole: { b: 2, a: -90 } },
+
+  { name: 'Twin Horizons', par: 3,
+    b: [{ k: 'home', x: 36, y: 90, r: 15 }, { k: 'blackhole', x: 160, y: 46, r: 5 }, { k: 'blackhole', x: 160, y: 134, r: 5 }, { k: 'rock', x: 284, y: 90, r: 16 }],
+    tee: { b: 0, a: -30 }, hole: { b: 3, a: 180 } },
+
+  { name: 'Carousel', par: 4,
+    b: [{ k: 'rock', x: 70, y: 90, r: 16 }, { k: 'home', x: 70, y: 90, r: 10, orbit: { of: 0, d: 40, w: -.6, ph: -1.2 } },
+        { k: 'sun', x: 170, y: 64, r: 12 }, { k: 'blackhole', x: 216, y: 126, r: 5 }, { k: 'rock', x: 284, y: 88, r: 14 }],
+    tee: { b: 1, a: -90 }, hole: { b: 4, a: 150 } },
+
+  { name: 'Lip of the Abyss', par: 3,
+    b: [{ k: 'home', x: 40, y: 60, r: 15 }, { k: 'rock', x: 150, y: 120, r: 22 }, { k: 'blackhole', x: 236, y: 86, r: 6 }, { k: 'rock', x: 290, y: 140, r: 14 }],
+    tee: { b: 0, a: -20 }, hole: { b: 3, a: -150 } },
+
+  { name: 'Fire and Void', par: 4,
+    b: [{ k: 'home', x: 34, y: 140, r: 14 }, { k: 'sun', x: 120, y: 60, r: 13 }, { k: 'blackhole', x: 176, y: 124, r: 5 },
+        { k: 'bouncy', x: 228, y: 48, r: 12 }, { k: 'rock', x: 288, y: 116, r: 14 }],
+    tee: { b: 0, a: -50 }, hole: { b: 4, a: -110 } },
+
+  { name: 'Orbital Transfer', par: 4,
+    b: [{ k: 'rock', x: 80, y: 90, r: 14 }, { k: 'home', x: 80, y: 90, r: 9, orbit: { of: 0, d: 36, w: .8, ph: 3.6 } },
+        { k: 'rock', x: 240, y: 90, r: 14 }, { k: 'ice', x: 240, y: 90, r: 9, orbit: { of: 2, d: 40, w: -.9, ph: 0 } }],
+    tee: { b: 1, a: -90 }, hole: { b: 3, a: -90 } },
+
+  { name: 'The Drain', par: 4,
+    b: [{ k: 'home', x: 34, y: 40, r: 14 }, { k: 'blackhole', x: 160, y: 96, r: 6 },
+        ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => ({ k: 'asteroid', x: Math.round(160 + Math.cos(i / 10 * Math.PI * 2) * 34), y: Math.round(96 + Math.sin(i / 10 * Math.PI * 2) * 30), r: 3 + (i % 2) })),
+        { k: 'rock', x: 286, y: 150, r: 14 }],
+    tee: { b: 0, a: 30 }, hole: { b: 12, a: -120 } },
+
+  { name: 'Heart of Darkness', par: 4,
+    b: [{ k: 'home', x: 30, y: 150, r: 13 }, { k: 'blackhole', x: 150, y: 80, r: 6 }, { k: 'repel', x: 90, y: 50, r: 11 },
+        { k: 'rock', x: 250, y: 96, r: 16 }, { k: 'sand', x: 250, y: 96, r: 7, orbit: { of: 3, d: 38, w: 1.5, ph: 1 } }],
+    w: [[70, 110, 206, 30]],
+    tee: { b: 0, a: -45 }, hole: { b: 4, a: -90 } },
+];

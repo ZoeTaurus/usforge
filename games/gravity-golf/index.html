@@ -93,6 +93,14 @@
   .ballpv { width: 14px; height: 14px; image-rendering: pixelated; }
   .trail { display: flex; gap: 3px; } .trail i { width: 6px; height: 3px; }
   .sw { display: inline-block; width: 9px; height: 9px; margin-right: 4px; vertical-align: -1px; }
+  /* new: endless + daily buttons, locked course, stars, building spinner */
+  .btn.endless { background: #103a36; border-color: #3ab0a0; }
+  .btn.daily { background: #3a2a0a; border-color: #d0a020; }
+  .course.locked { opacity: .55; }
+  #holeGrid .stars { font-style: normal; color: #ffd23a; letter-spacing: 1px; font-size: 12px; }
+  .spinner { width: 28px; height: 28px; margin: 6px auto 14px; border: 3px solid #2a2448; border-top-color: #ffd23a; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
 </style>
 </head>
 <body>
@@ -119,6 +127,7 @@
         <p class="sub">by Taurus · Lazy Studios</p>
         <button class="btn go" id="tPlay" type="button">Play</button>
         <button class="btn party" id="tParty" type="button">Party mode · 2–4 players</button>
+        <div class="row"><button class="btn endless" id="tEndless" type="button">Endless</button><button class="btn daily" id="tDaily" type="button">Daily hole</button></div>
         <div class="row"><button class="btn" id="tHoles" type="button">Pick a hole</button><button class="btn" id="tEdit" type="button">Hole editor</button></div>
         <div class="row"><button class="btn" id="tCode" type="button">Friend's hole</button><button class="btn" id="tSkins" type="button">Balls</button><button class="btn" id="tSettings" type="button">Settings</button></div>
         <p class="small" id="tBest"></p>
@@ -177,6 +186,7 @@
         <button class="btn" id="sSound" type="button"></button>
         <button class="btn" id="sShake" type="button"></button>
         <button class="btn" id="sGuide" type="button"></button>
+        <button class="btn" id="sHard" type="button"></button>
         <p class="small">Long aim guide shows about a second of flight; short shows half.</p>
         <button class="btn go" id="settingsBack" type="button">Done</button>
       </div>
@@ -191,8 +201,12 @@
         <div class="row"><button class="btn go" id="codeGo" type="button">Play it</button><button class="btn" type="button" data-back>Back</button></div>
       </div>
     </div>
+    <div class="screen" id="building" hidden>
+      <div class="box"><h2>Building a hole…</h2><p id="bText"></p><div class="spinner" aria-hidden="true"></div>
+        <div class="row"><button class="btn" id="buildCancel" type="button">Back</button></div></div>
+    </div>
     <div class="screen" id="customDone" hidden>
-      <div class="box"><h2>Hole complete!</h2><p id="cdText"></p>
+      <div class="box"><h2 id="cdTitle">Hole complete!</h2><p id="cdText"></p>
         <div class="row"><button class="btn go" id="cdAgain" type="button">Play again</button><button class="btn" type="button" data-back>Menu</button></div>
       </div>
     </div>
@@ -220,6 +234,7 @@
     <button type="button" data-tool="repel"><i class="sw" style="background:#8f6ef2"></i>Repel</button>
     <button type="button" data-tool="sun"><i class="sw" style="background:#ffb000"></i>Sun</button>
     <button type="button" data-tool="asteroid"><i class="sw" style="background:#786a60"></i>Asteroid</button>
+    <button type="button" data-tool="blackhole"><i class="sw" style="background:#000;box-shadow:0 0 0 2px #ff8a3a"></i>Black hole</button>
     <button type="button" data-tool="warp"><i class="sw" style="background:#9f7bff"></i>Wormhole</button>
     <button type="button" data-tool="tee">Tee</button>
     <button type="button" data-tool="hole">Cup</button>
@@ -236,7 +251,7 @@
   <p id="edTip"></p>
 </div>
 
-<script src="js/levels.js"></script>
-<script src="js/game.js"></script>
+<script src="js/levels.js?v=5"></script>
+<script src="js/game.js?v=7"></script>
 </body>
 </html>

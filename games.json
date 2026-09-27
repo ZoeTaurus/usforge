@@ -13,8 +13,8 @@
       "Arcade",
       "Shooter"
     ],
-    "dev": true,
-    "progress": 80,
+    "dev": false,
+    "progress": null,
     "next": "",
     "build": true,
     "added": 1790495751

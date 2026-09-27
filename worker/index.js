@@ -5,7 +5,8 @@ import { DurableObject } from 'cloudflare:workers';
 import ACCOUNTS from '../accounts.json';
 
 const REPO = 'ZoeTaurus/usforge', BRANCH = 'main';
-const MAX_BYTES = 20 * 1024 * 1024, MAX_FILES = 250, MAX_BINARIES = 35;   // (Workers can only make ~50 requests per upload)
+const MAX_BYTES = 60 * 1024 * 1024, MAX_FILES = 1000, MAX_BINARIES = 35;   // (Workers can only make ~50 requests per upload…)
+const BLOB_BATCH = 30, BLOB_BATCH_BYTES = 12 * 1024 * 1024, MAX_ONE_FILE = 25 * 1024 * 1024;   // (…so pictures and sounds come first, in batches, via /api/blobs)
 const TEXT = /\.(html?|js|mjs|css|json|txt|md|svg|csv|xml|glsl|frag|vert|map)$/i;
 const COVERS = ['cover.png', 'cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif'];
 // the genres a game can be tagged with (up to 3) — the same list lives in site.js and scripts/build_list.py
@@ -22,6 +23,7 @@ export default {
       if (url.pathname === '/api/upload') return ok(await upload(req, env));
       if (url.pathname === '/api/delete') return ok(await remove(req, env));
       if (url.pathname === '/api/member') return ok(await addMember(req, env));
+      if (url.pathname === '/api/blobs') return ok(await blobs(req, env));
       throw fail(404, 'No such thing.');
     } catch (e) {
       return new Response(JSON.stringify({ error: e.msg || 'Something went wrong on our side. Try again in a minute.' }), { status: e.status || 500, headers: { 'content-type': 'application/json' } });
@@ -104,6 +106,7 @@ async function commit(env, head, files, message) {
   for (const f of files) {
     if (f.remove) tree.push({ path: f.path, mode: '100644', type: 'blob', sha: null });
     else if (f.text !== undefined) tree.push({ path: f.path, mode: '100644', type: 'blob', content: f.text });
+    else if (f.sha) tree.push({ path: f.path, mode: '100644', type: 'blob', sha: f.sha });   // (sent earlier through /api/blobs)
     else { const blob = await gh(env, '/git/blobs', { method: 'POST', body: JSON.stringify({ content: b64bytes(f.bytes), encoding: 'base64' }) }); tree.push({ path: f.path, mode: '100644', type: 'blob', sha: blob.sha }); }
   }
   const t = await gh(env, '/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: base.tree.sha, tree }) });
@@ -157,10 +160,18 @@ async function upload(req, env) {
 
   // gather files; strip the top folder the browser adds ("MyGame/index.html" → "index.html")
   const raw = form.getAll('files').filter(f => typeof f === 'object' && f.size >= 0);
+  const sent = form.getAll('blob').map(v => { try { return JSON.parse(v); } catch (e) { return null; } })   // pictures/sounds already sent via /api/blobs
+    .filter(b => b && typeof b.path === 'string' && /^[0-9a-f]{40}$/.test(b.sha) && Number.isFinite(b.size));
   const names = raw.map(f => String(f.name).replace(/\\/g, '/'));
-  const top = names.length && names.every(n => n.includes('/') && n.split('/')[0] === names[0].split('/')[0]) ? names[0].split('/')[0].length + 1 : 0;
+  const every = names.concat(sent.map(b => b.path.replace(/\\/g, '/')));
+  const top = every.length && every.every(n => n.includes('/') && n.split('/')[0] === every[0].split('/')[0]) ? every[0].split('/')[0].length + 1 : 0;
   const files = [];
   let total = 0, binaries = 0;
+  for (const b of sent) {
+    const rel = b.path.replace(/\\/g, '/').slice(top);
+    if (!rel || rel.split('/').some(p => !p || p === '.' || p === '..' || p.startsWith('.'))) continue;
+    total += b.size; files.push({ path: `games/${slug}/${rel}`, sha: b.sha });
+  }
   for (let i = 0; i < raw.length; i++) {
     let rel = names[i].slice(top);
     if (raw.length === 1 && /\.html?$/i.test(rel)) rel = 'index.html';   // a single HTML file is the game
@@ -174,12 +185,12 @@ async function upload(req, env) {
   }
   const replacing = files.length > 0;   // new game files replace the old ones; no files = keep them
   if (coverPath) {
-    for (let i = files.length - 1; i >= 0; i--) if (rootCover(files[i].path)) { if (files[i].text === undefined) binaries--; files.splice(i, 1); }
+    for (let i = files.length - 1; i >= 0; i--) if (rootCover(files[i].path)) { if (files[i].text === undefined && !files[i].sha) binaries--; files.splice(i, 1); }
     files.push({ path: coverPath, bytes: new Uint8Array(await coverIn.arrayBuffer()) }); binaries++; total += coverIn.size;
   }
   if (files.length > MAX_FILES) throw fail(400, `That’s ${files.length} files — the limit is ${MAX_FILES}.`);
   if (binaries > MAX_BINARIES) throw fail(400, `Too many images/sounds (${binaries}) — the limit is ${MAX_BINARIES}. Combine some, or ask Taurus to add it.`);
-  if (total > MAX_BYTES) throw fail(400, 'That game is over 20 MB — too big.');
+  if (total > MAX_BYTES) throw fail(400, `That game is over ${MAX_BYTES / 1024 / 1024} MB — too big.`);
   const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
   const before = await ownerCheck(env, head, slug, who);
   const existing = before ? await existingPaths(env, head, slug) : [];
@@ -204,6 +215,24 @@ async function upload(req, env) {
     { path: 'games.json', text: relist(list, entry, slug) }],
     `${before ? 'Update' : 'Add'} ${title} (by ${info.author}, via the upload page)`);
   return { ok: true, slug, updated: !!before };
+}
+
+// ---------- pictures and sounds, sent ahead in batches (each becomes a GitHub blob; the upload then points at them) ----------
+async function blobs(req, env) {
+  const form = await req.formData();
+  await check(form.get('name'), form.get('password'));
+  const list = form.getAll('files').filter(f => typeof f === 'object');
+  if (!list.length) throw fail(400, 'No files.');
+  if (list.length > BLOB_BATCH) throw fail(400, `At most ${BLOB_BATCH} files at a time.`);
+  let size = 0;
+  for (const f of list) { if (f.size > MAX_ONE_FILE) throw fail(400, `“${f.name}” is over 25 MB — too big.`); size += f.size; }
+  if (size > BLOB_BATCH_BYTES * 1.5) throw fail(400, 'That batch is too big — try again.');
+  const shas = [];
+  for (const f of list) {
+    const b = await gh(env, '/git/blobs', { method: 'POST', body: JSON.stringify({ content: b64bytes(new Uint8Array(await f.arrayBuffer())), encoding: 'base64' }) });
+    shas.push(b.sha);
+  }
+  return { shas };
 }
 
 // ---------- remove ----------

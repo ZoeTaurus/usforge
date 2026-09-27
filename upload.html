@@ -83,7 +83,7 @@
             <label class="btn-l">…or a folder <input id="fFolder" type="file" webkitdirectory multiple hidden></label>
             <label class="btn-l">…or one HTML file <input id="fFile" type="file" accept=".html,.htm" hidden></label>
           </div>
-          <p class="hint" id="picked">Nothing chosen. Zip up your game’s folder (right-click → Compress) and pick the zip. It needs an <code>index.html</code>; a <code>cover.png</code> screenshot makes a nicer card.</p>
+          <p class="hint" id="picked">Nothing chosen. Zip up your game’s folder (right-click → Compress) and pick the zip. It needs an <code>index.html</code>; a <code>cover.png</code> screenshot makes a nicer card. Up to 1,000 files and 60 MB.</p>
           <label>…or just a link <span class="hint">(e.g. a Claude artifact link — it opens in its own tab)</span>
             <input id="fUrl" type="url" placeholder="https://claude.ai/…"></label>
         </fieldset>
@@ -291,10 +291,25 @@
     for (const b of genreBoxes()) if (b.checked) fd.append('genre', b.value);
     fd.append('dev', String($('fDev').checked));
     if ($('fDev').checked) { fd.append('progress', $('fProgress').value); fd.append('next', $('fNext').value.trim()); }
-    for (const c of chosen) fd.append('files', c.file, c.path);
     if (coverPick) fd.append('cover', coverPick, coverPick.name);
     $('send').disabled = true; say('upMsg', 'Uploading…');
     try {
+      // code and text go with the upload; pictures and sounds go ahead in small batches (so big games fit)
+      const TEXT = /\.(html?|js|mjs|css|json|txt|md|svg|csv|xml|glsl|frag|vert|map)$/i;
+      const bins = chosen.filter(c => !TEXT.test(c.path) && !(chosen.length === 1)), texts = chosen.filter(c => !bins.includes(c));
+      for (const c of texts) fd.append('files', c.file, c.path);
+      for (let i = 0; i < bins.length;) {
+        const batch = [];
+        let bytes = 0;
+        while (i < bins.length && batch.length < 30 && (bytes + bins[i].file.size <= 12e6 || !batch.length)) { bytes += bins[i].file.size; batch.push(bins[i++]); }
+        say('upMsg', `Uploading pictures and sounds… ${i} of ${bins.length}`);
+        const bd = new FormData();
+        bd.append('name', me.name); bd.append('password', pass);
+        for (const c of batch) bd.append('files', c.file, c.path.split('/').pop());
+        const { shas } = await api('blobs', bd);
+        batch.forEach((c, k) => fd.append('blob', JSON.stringify({ path: c.path, sha: shas[k], size: c.file.size })));
+      }
+      say('upMsg', 'Saving your game…');
       const r = await api('upload', fd);
       say('upMsg', ''); $('upMsg').innerHTML = `${r.updated ? 'Updated' : 'Added'}! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">see it</a>.`;
       endEdit(); listMine();

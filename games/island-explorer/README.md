@@ -1,4 +1,4 @@
-# Castaway: Three Isles
+# Castaway: Nine Isles
 
 A top-down pixel-art survival and exploration game across nine islands. You're shipwrecked and need to
 reach civilization, the town of **Port Haven** on the largest island.

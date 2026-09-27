@@ -1,7 +1,7 @@
 [
   {
     "slug": "base-strike-classic",
-    "title": "Base Strike Classic",
+    "title": "BaseStrike Classic",
     "author": "Igor",
     "owner": "Igor",
     "blurb": "A rouge pilot versus the enemy command chain",
@@ -13,9 +13,9 @@
       "Arcade",
       "Shooter"
     ],
-    "dev": false,
-    "progress": null,
-    "next": "",
+    "dev": true,
+    "progress": 100,
+    "next": "Better graphics",
     "build": true,
     "added": 1790495751
   },

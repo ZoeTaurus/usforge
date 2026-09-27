@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Base Strike</title>
+<title>BaseStrike</title>
 <style>
 :root{
   --bg:#05070a; --panel:#0d1420; --line:#1e2c3d; --accent:#3ee0ff; --accent2:#ff4d4d;
@@ -60,6 +60,7 @@ button:hover{background:#12202f;}
     <div>
       <div class="label">PILOT</div>
       <div class="bar barP"><i id="pFill"></i></div>
+      <div class="label" id="hpText" style="margin-top:2px;"></div>
     </div>
     <div class="label" id="cashHud" style="color:var(--gold);align-self:flex-start">$0</div>
     <div style="text-align:right">
@@ -71,7 +72,7 @@ button:hover{background:#12202f;}
   <div class="controls">MOVE: WASD / ARROWS &nbsp;•&nbsp; AIM: MOUSE &nbsp;•&nbsp; AUTO-FIRE</div>
 
   <div class="overlay" id="start">
-    <h1>BASE STRIKE</h1>
+    <h1>BASESTRIKE</h1>
     <p>A rogue pilot versus the enemy command chain. Clear each commander, bank an upgrade, and push toward the machine core. Some upgrades are <span style="color:var(--gold)">CORE</span> — earn them once, keep them forever.</p>
     <p id="coreStatus" style="color:var(--gold)"></p>
     <p id="cashStatus" style="color:var(--gold)"></p>
@@ -113,6 +114,15 @@ button:hover{background:#12202f;}
 const cv=document.getElementById('c'), ctx=cv.getContext('2d');
 const W=cv.width,H=cv.height;
 
+let aimX=W/2, aimY=0;
+function updateAim(e){
+  const r=cv.getBoundingClientRect();
+  aimX = (e.clientX-r.left)*(W/r.width);
+  aimY = (e.clientY-r.top)*(H/r.height);
+}
+cv.addEventListener('pointermove',updateAim);
+cv.addEventListener('pointerdown',updateAim);
+
 /* ---------- meta / saved (CORE) upgrades ---------- */
 let coreUnlocks=[];
 try{ const s=localStorage.getItem('basestrike_core'); coreUnlocks = s?JSON.parse(s):[]; }catch(e){ coreUnlocks=[]; }
@@ -140,7 +150,8 @@ function spawnDrone(p,kind){
   const s=specs[kind];
   const offsets=[{dx:-34,dy:6},{dx:34,dy:6},{dx:0,dy:-38}];
   const off=offsets[p.drones.length%offsets.length];
-  p.drones.push({kind,hp:s.hp,maxHp:s.hp,color:s.color,r:s.r,dx:off.dx,dy:off.dy,x:p.x+off.dx,y:p.y+off.dy,fireTimer:0,healTimer:0});
+  const d={kind,hp:s.hp,maxHp:s.hp,color:s.color,r:s.r,dx:off.dx,dy:off.dy,x:p.x+off.dx,y:p.y+off.dy,fireTimer:0,healTimer:0};
+  p.drones.push(d);
 }
 
 const ALL_UPGRADES=[
@@ -211,7 +222,6 @@ function getDiff(){ return DIFFICULTIES.find(d=>d.id===difficulty)||DIFFICULTIES
 
 let selectedCraftId=null;
 let player, bosses=[], bossIndex, bullets, ebullets, particles, keys={}, raf, running=false, runUpgrades=[], frameCount=0;
-let aimX=W/2, aimY=0;
 
 function freshPlayer(craftId){
   const craft = CRAFTS.find(c=>c.id===craftId)||CRAFTS[0];
@@ -230,9 +240,10 @@ function freshBossFromTpl(key, idx, total){
   const spacing=180;
   const startX = W/2 - ((total-1)*spacing)/2;
   const hp=Math.round(t.hp*diff.hpMult);
-  return {x:startX+idx*spacing,y:110,r:t.r,hp,maxHp:hp,color:t.color,pattern:t.pattern,
+  const b={x:startX+idx*spacing,y:110,r:t.r,hp,maxHp:hp,color:t.color,pattern:t.pattern,
     speed:t.speed,shotSpeed:t.shotSpeed*diff.shotMult,fireEvery:Math.max(12,Math.round(t.fireEvery*diff.fireMult)),
     fireTimer:Math.floor(Math.random()*t.fireEvery),t:0,dir:(idx%2===0?1:-1),name:t.name};
+  return b;
 }
 function nearestBoss(x,y){
   let best=bosses[0], bd=Infinity;
@@ -293,13 +304,6 @@ document.getElementById('btnDiffBack').onclick=()=>{
 /* input */
 addEventListener('keydown',e=>keys[e.key.toLowerCase()]=true);
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
-function updateAim(e){
-  const r=cv.getBoundingClientRect();
-  aimX = (e.clientX-r.left)*(W/r.width);
-  aimY = (e.clientY-r.top)*(H/r.height);
-}
-cv.addEventListener('pointermove',updateAim);
-cv.addEventListener('pointerdown',updateAim);
 
 function rects(a,b,ar,br){ const dx=a.x-b.x,dy=a.y-b.y; return Math.hypot(dx,dy) < (ar+br); }
 
@@ -718,10 +722,12 @@ function draw(){
   ctx.fillStyle='#0d1626';
   for(let i=0;i<40;i++){ const x=(i*97)%W, y=(i*53+frameCount*0.3)%H; ctx.fillRect(x,y,2,2); }
 
-  // bosses
+  // bosses — rotated to face the player
   bosses.forEach(b=>{
+    const bAngle=Math.atan2(player.y-b.y,player.x-b.x);
     ctx.save();
     ctx.translate(b.x,b.y);
+    ctx.rotate(bAngle+Math.PI/2);
     ctx.fillStyle=b.color;
     ctx.shadowColor=b.color; ctx.shadowBlur=18;
     ctx.beginPath(); ctx.moveTo(0,-b.r); ctx.lineTo(b.r,b.r*0.6);
@@ -759,6 +765,7 @@ function draw(){
 
   // hud fills
   document.getElementById('pFill').style.width = Math.max(0,player.hp/player.maxHp*100)+'%';
+  document.getElementById('hpText').textContent = `${Math.max(0,Math.round(player.hp))} / ${player.maxHp} HP`;
   const totalHp=bosses.reduce((s,b)=>s+Math.max(0,b.hp),0);
   const totalMax=bosses.reduce((s,b)=>s+b.maxHp,0);
   document.getElementById('bFill').style.width = (totalMax? Math.max(0,totalHp/totalMax*100):0)+'%';

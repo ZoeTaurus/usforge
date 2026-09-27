@@ -8,7 +8,7 @@ window.Embers = (cv, { count = 40, alpha = 1, speed = 1 } = {}) => {
   const spawn = (anywhere) => ({
     x: Math.random() * cv.width, y: anywhere ? Math.random() * cv.height : cv.height + 10,
     vy: -(0.5 + Math.random() * 1.6) * dpr() * speed, vx: (Math.random() - .5) * .5,
-    r: (0.8 + Math.random() * 2) * dpr(), life: .4 + Math.random() * .6, fade: .0015 + Math.random() * .0035, hue: 10 + Math.random() * 30,
+    r: (0.8 + Math.random() * 2) * dpr(), life: .4 + Math.random() * .6, fade: .0015 + Math.random() * .0035, hue: 205 + Math.random() * 30,
   });
   fit(); addEventListener('resize', fit);
   for (let i = 0; i < count; i++) sparks.push(spawn(true));

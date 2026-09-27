@@ -55,7 +55,7 @@
     layer();
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2, v = power * (.3 + Math.random() * .7);
-      bits.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - power * .35, grav: 520, rot: 0, spin: 0, s: 2 + Math.random() * 3.5, hue: 12 + Math.random() * 32, t: 0, life: .8 + Math.random() * .9 });
+      bits.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - power * .35, grav: 520, rot: 0, spin: 0, s: 2 + Math.random() * 3.5, hue: 200 + Math.random() * 35, t: 0, life: .8 + Math.random() * .9 });
     }
     run();
   }

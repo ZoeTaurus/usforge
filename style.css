@@ -261,3 +261,7 @@ body.playing .wrap { display: none; }
 .gpick input:focus-visible + span { box-shadow: 0 0 0 3px rgba(255, 106, 51, .3); }
 .gpick input:disabled + span { opacity: .4; cursor: not-allowed; }
 @media (max-width: 600px) { .genre-bar { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; } .genre-bar > * { flex: none; } }
+/* the menu: the same four links on every page; the page you're on is lit */
+.top nav { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
+.top nav a[aria-current="page"] { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 6px; }
+@media (max-width: 600px) { .top { align-items: flex-start; } .top nav { gap: 8px 14px; font-size: 13px; } }

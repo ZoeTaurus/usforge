@@ -1,5 +1,21 @@
 [
   {
+    "slug": "base-strike-classic",
+    "title": "Base Strike Classic",
+    "author": "Igor",
+    "owner": "Igor",
+    "blurb": "",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "dev": true,
+    "progress": 50,
+    "next": "",
+    "build": true,
+    "added": 1790495749
+  },
+  {
     "slug": "base-strike",
     "title": "Base Strike",
     "author": "Igor",

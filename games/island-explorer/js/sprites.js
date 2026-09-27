@@ -959,5 +959,19 @@ const Sprites = (() => {
   };
 
   S.make = make; S.outline = outline; S.mirror = mirror;
+  // solid white silhouette of a sprite, for hit flashes
+  const whiteCache = new Map();
+  S.white = function (img) {
+    let w = whiteCache.get(img);
+    if (!w) {
+      w = make(img.width, img.height, P => {
+        P.g.drawImage(img, 0, 0);
+        P.g.globalCompositeOperation = 'source-in';
+        P.g.fillStyle = '#ffffff'; P.g.fillRect(0, 0, img.width, img.height);
+      });
+      whiteCache.set(img, w);
+    }
+    return w;
+  };
   return S;
 })();

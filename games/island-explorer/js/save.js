@@ -12,7 +12,7 @@ const Save = {
 
   write() {
     const G = Game, p = G.player;
-    if (G.state === 'win' || G.state === 'title') return;
+    if (G.state === 'title') return;
     const changes = [];
     for (const [i, t] of World.changes) changes.push(i, t === T.BUSH ? T.BERRY : t);
     // explored map: run-length encoded
@@ -23,7 +23,7 @@ const Save = {
     const data = {
       v: 3, first: ex[0],
       p: { x: G.checkpoint.x, y: G.checkpoint.y, hp: p.hp, maxHp: p.maxHp, food: p.food },
-      inv: G.inv, flags: G.flags, stats: G.stats, playTime: G.playTime, cpIndex: G.cpIndex,
+      diff: G.diffKey, inv: G.inv, flags: G.flags, stats: G.stats, playTime: G.playTime, cpIndex: G.cpIndex,
       tod: FX.tod, day: FX.day,
       cat: G.cat ? { state: G.cat.state, x: G.cat.x, y: G.cat.y } : null,
       bottles: G.bottles.filter(b => b.taken).map(b => b.id),
@@ -59,6 +59,7 @@ const Save = {
     }
     Object.assign(p, { x: data.p.x, y: data.p.y, hp: data.p.hp, maxHp: data.p.maxHp, food: data.p.food, mode: 'walk' });
     G.checkpoint = { x: data.p.x, y: data.p.y };
+    G.diffKey = data.diff || 'normal';
     Object.assign(G.inv, data.inv);
     Object.assign(G.flags, data.flags);
     Object.assign(G.stats, data.stats);

@@ -1,8 +1,10 @@
 {
-  "title": "Island Explorer",
+  "title": "Castaway: Three Isles",
   "author": "Taurus",
   "owner": "Taurus",
-  "blurb": "In progress",
-  "dev": true,
-  "progress": 50
+  "blurb": "Castaway: Three Isles is a pixel-art survival adventure: you're shipwrecked, then craft, build, and fight bosses across nine islands on your",
+  "genres": [
+    "Adventure",
+    "Story"
+  ]
 }

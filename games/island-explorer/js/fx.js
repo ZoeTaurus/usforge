@@ -8,7 +8,7 @@ const FX = {
   rain: 0, rainTarget: 0, weatherT: 140,
   wind: 0.5,
   shakeAmt: 0, shakeT: 0,
-  particles: [], floaters: [], drops: [],
+  particles: [], floaters: [], drops: [], items: [], prints: [], shakeOn: true, miniCache: {},
   gulls: [], butterflies: [], fireflies: [], fishSpots: [],
   clouds: [],
 
@@ -28,7 +28,7 @@ const FX = {
     return `${String(h).padStart(2, '0')}:${String(m - m % 10).padStart(2, '0')}`;
   },
 
-  shake(amt, dur) { this.shakeAmt = Math.max(this.shakeAmt, amt); this.shakeT = Math.max(this.shakeT, dur); },
+  shake(amt, dur) { if (!this.shakeOn) return; this.shakeAmt = Math.max(this.shakeAmt, amt); this.shakeT = Math.max(this.shakeT, dur); },
   shakeOffset() {
     if (this.shakeT <= 0) return [0, 0];
     return [Math.round((Math.random() * 2 - 1) * this.shakeAmt), Math.round((Math.random() * 2 - 1) * this.shakeAmt)];
@@ -44,6 +44,58 @@ const FX = {
     this.particles.push({ x: x + (Math.random() * 6 - 3), y, vx: (Math.random() - 0.5) * 12, vy: -8, g: 0, life: 0.35, col, size: 2 });
   },
   floater(x, y, text, col) { this.floaters.push({ x, y, text, col, life: 1.2 }); },
+
+  // Loot pops out, bounces, then gets pulled into the player.
+  drop(x, y, item, n) {
+    const pieces = Math.min(n, 4);
+    let left = n;
+    for (let i = 0; i < pieces; i++) {
+      const v = i === pieces - 1 ? left : Math.floor(n / pieces);
+      left -= v;
+      const a = Math.random() * Math.PI * 2, s = 18 + Math.random() * 26;
+      this.items.push({ x, y, z: 4, vz: 70 + Math.random() * 50, vx: Math.cos(a) * s, vy: Math.sin(a) * s * 0.7, item, n: v, t: -i * 0.05 });
+    }
+  },
+  updateItems(dt, p) {
+    for (const d of this.items) {
+      d.t += dt;
+      if (d.t < 0.5) {
+        d.x += d.vx * dt; d.y += d.vy * dt;
+        d.vz -= 280 * dt; d.z += d.vz * dt;
+        if (d.z < 0) { d.z = 0; d.vz *= -0.45; d.vx *= 0.6; d.vy *= 0.6; }
+      } else {
+        const dx = p.x - d.x, dy = p.y + 2 - d.y, dist = Math.hypot(dx, dy) || 1;
+        const sp = Math.min(dist, (90 + (d.t - 0.5) * 600) * dt);
+        d.x += dx / dist * sp; d.y += dy / dist * sp; d.z *= 0.85;
+        if (dist < 8 || p.mode !== 'walk' || dist > 260) { d.done = true; Game.collect(d.item, d.n); }
+      }
+    }
+    this.items = this.items.filter(d => !d.done);
+  },
+  mini(item) {
+    if (this.miniCache[item]) return this.miniCache[item];
+    const src = Sprites.items[item];
+    const c = document.createElement('canvas'); c.width = 10; c.height = 10;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    if (src) g.drawImage(src, 0, 0, 16, 16, 0, 0, 10, 10);
+    return (this.miniCache[item] = c);
+  },
+  drawItems(c, camX, camY, time) {
+    for (const d of this.items) {
+      const x = Math.round(d.x - camX), y = Math.round(d.y - camY);
+      c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x - 3, y + 3, 6, 2);
+      c.drawImage(this.mini(d.item), x - 5, Math.round(y - 5 - d.z - (d.t > 0.5 ? 0 : Math.sin(time * 8) * 0)));
+    }
+  },
+
+  // footprints in soft ground
+  print(x, y, side) { this.prints.push({ x: x + side * 2, y, life: 7 }); if (this.prints.length > 80) this.prints.shift(); },
+  drawPrints(c, camX, camY) {
+    for (const f of this.prints) {
+      c.fillStyle = `rgba(40,30,20,${0.22 * Math.min(1, f.life / 3)})`;
+      c.fillRect(Math.round(f.x - camX), Math.round(f.y - camY), 2, 1);
+    }
+  },
 
   // ---------------- update ----------------
   update(dt, cam, vw, vh, player) {
@@ -69,6 +121,9 @@ const FX = {
     for (const p of this.particles) { p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += p.g * dt; }
     this.particles = this.particles.filter(p => p.life > 0);
     for (const f of this.floaters) { f.life -= dt; f.y -= 16 * dt; }
+    for (const f of this.prints) f.life -= dt;
+    this.prints = this.prints.filter(f => f.life > 0);
+    if (Game.player) this.updateItems(dt, Game.player);
     this.floaters = this.floaters.filter(f => f.life > 0);
 
     for (const c of this.clouds) { c.x += (4 + this.wind * 4) * dt; c.y += 1.5 * dt; }

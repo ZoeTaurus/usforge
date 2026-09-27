@@ -26,15 +26,16 @@ const UI = {
     this.icons = {};
     for (const k in Sprites.items) this.icons[k] = Sprites.items[k].toDataURL();
 
-    $('startBtn').onclick = () => Game.newGame();
-    $('continueBtn').onclick = () => Game.continueGame();
-    $('againBtn').onclick = () => { Save.clear(); location.reload(); };
-    $('musicBtn').onclick = () => { Sound.setMusic(!Sound.musicOn); this.syncPause(); };
-    $('sfxBtn').onclick = () => { Sound.setSfx(!Sound.sfxOn); this.syncPause(); };
+    $('againBtn').onclick = () => { Save.write(); location.reload(); };
+    $('keepBtn').onclick = () => Game.keepExploring();
+    $('settingsBtn').onclick = () => {
+      this.closePause(); Game.state = 'settings';
+      Menu.openSettings(() => { Game.state = 'pause'; this.openPause(); });
+    };
     $('saveBtn').onclick = () => { Save.write(); };
     $('quitBtn').onclick = () => { Save.write(); location.reload(); };
-    if (Save.exists()) { $('continueBtn').classList.remove('hidden'); $('pressHint').textContent = 'press Enter to continue'; }
-    if (Input.isTouch) $('pressHint').textContent = 'tap to begin';
+    this.hpGhost = $('hpGhost');
+    this.portrait = $('portrait'); this.portraitCtx = this.portrait.getContext('2d');
 
     this.cache = {}; this.lastCounts = {};
     this.lines = []; this.full = ''; this.shown = 0; this.miniT = 0;
@@ -47,8 +48,29 @@ const UI = {
   },
 
   // ---------- dialog ----------
+  // who's talking: a sprite to show beside the dialog
+  portraitFor(name) {
+    const g = Game;
+    if (name === 'You') return g.player.sprites[0][0];
+    const npc = g.npcs.find(n => n.name === name);
+    if (npc) return npc.sprites[0][0];
+    const I = Sprites.items, O = Sprites.over;
+    return {
+      'Biscuit': Sprites.mobs.cat.r[0], 'Sign': O[T.SIGN][0][0], 'Chest': O[T.CHEST][0][0], 'Shipwreck': O[T.WRECK][0][0],
+      'Remains': O[T.SKELETON][0][0], 'Golden Idol': I.relic, 'Treasure!': I.gold, 'A message in a bottle!': I.bottle,
+      'Door': I.wgate, 'Fountain': O[T.FOUNTAIN][0][0], 'Victory!': I.blade,
+    }[name] || null;
+  },
   say(name, lines, cb) {
     this.dname.textContent = name;
+    const img = this.portraitFor(name);
+    this.dlg.classList.toggle('noportrait', !img);
+    this.portrait.classList.toggle('none', !img);
+    if (img) {
+      const g = this.portraitCtx;
+      g.clearRect(0, 0, 16, 16); g.imageSmoothingEnabled = false;
+      g.drawImage(img, 0, 0, img.width, img.height, 0, 0, 16, 16);
+    }
     this.lines = lines.slice();
     this.cb = cb || null;
     this.dlg.classList.remove('hidden');
@@ -113,7 +135,7 @@ const UI = {
   hudUpdate() {
     const g = Game, p = g.player, c = this.cache;
     const hp = Math.max(0, Math.round(p.hp / p.maxHp * 100)), food = Math.max(0, Math.round(p.food));
-    if (c.hp !== hp) { c.hp = hp; this.hp.style.width = hp + '%'; this.hp.classList.toggle('low', hp < 30); }
+    if (c.hp !== hp) { c.hp = hp; this.hp.style.width = hp + '%'; this.hpGhost.style.width = hp + '%'; this.hp.classList.toggle('low', hp < 30); }
     if (c.food !== food) { c.food = food; this.food.style.width = food + '%'; this.food.classList.toggle('low', food < 20); }
 
     const I = g.inv, F = g.flags;
@@ -233,12 +255,8 @@ const UI = {
   },
   closeCraft() { this.craftEl.classList.add('hidden'); },
 
-  openPause() { this.syncPause(); this.pauseEl.classList.remove('hidden'); },
+  openPause() { this.pauseEl.classList.remove('hidden'); },
   closePause() { this.pauseEl.classList.add('hidden'); },
-  syncPause() {
-    document.getElementById('musicBtn').textContent = 'Music: ' + (Sound.musicOn ? 'On' : 'Off');
-    document.getElementById('sfxBtn').textContent = 'Sound: ' + (Sound.sfxOn ? 'On' : 'Off');
-  },
 
   openMap() {
     this.bigmap.classList.remove('hidden');
@@ -261,8 +279,10 @@ const UI = {
   },
   closeMap() { this.bigmap.classList.add('hidden'); },
 
-  showWin() {
+  showWin(newBest) {
     const g = Game, st = g.stats;
+    document.getElementById('newBest').classList.toggle('hidden', !newBest);
+    this.animateShip();
     const pct = Math.round(World.landExplored / World.landTotal * 100);
     this.winStats.innerHTML = `
       Time: <b>${g.fmtTime()}</b> over <b>${FX.day}</b> day${FX.day > 1 ? 's' : ''}<br>
@@ -271,8 +291,43 @@ const UI = {
       Bottles: <b>${st.bottles}/${World.bottles.length}</b> · Shells: <b>${st.shells}/${World.totalShells}</b> · Crates: <b>${st.crates}</b> · Gold found: <b>${st.gold}</b><br>
       Biscuit the cat: <b>${g.flags.catHome ? 'home safe ♥' : 'still lost...'}</b><br>
       Trees chopped: <b>${st.chopped}</b> · Fish caught: <b>${st.fish}</b> · Creatures defeated: <b>${st.kills}</b><br>
-      Bosses defeated: <b>${st.bosses || 0}/3</b> · Times collapsed: <b>${st.deaths}</b>`;
+      Bosses defeated: <b>${st.bosses || 0}/3</b> · Times collapsed: <b>${st.deaths}</b><br>
+      Difficulty: <b>${g.diff.name}</b>`;
+    // count the numbers up
+    const bs = [...this.winStats.querySelectorAll('b')];
+    bs.forEach((b, i) => {
+      const txt = b.textContent, m = txt.match(/^(\d+)(.*)$/);
+      if (!m) return;
+      const target = +m[1], rest = m[2];
+      b.textContent = '0' + rest;
+      const t0 = performance.now() + i * 90;
+      const tick = now => {
+        const k = Math.min(1, Math.max(0, (now - t0) / 700));
+        b.textContent = Math.round(target * k) + rest;
+        if (k < 1) requestAnimationFrame(tick); else if (target) Sound.blip();
+      };
+      requestAnimationFrame(tick);
+    });
     this.hud.classList.add('hidden');
     this.win.classList.remove('hidden');
+  },
+  // a little ship sailing home across the win screen
+  animateShip() {
+    const cv = document.getElementById('winShip'), g = cv.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const t0 = performance.now();
+    const frame = now => {
+      if (this.win.classList.contains('hidden')) return;
+      const t = (now - t0) / 1000;
+      g.clearRect(0, 0, 160, 60);
+      g.fillStyle = '#1f4f8c'; g.fillRect(0, 40, 160, 20);
+      g.fillStyle = '#3a8bc9';
+      for (let x = 0; x < 160; x += 8) g.fillRect((x + t * 12) % 168 - 8, 40 + Math.round(Math.sin(x * 0.4 + t * 2)), 5, 1);
+      g.fillStyle = '#ffd84a'; g.beginPath(); g.arc(130, 22, 9, 0, Math.PI * 2); g.fill();
+      const sx = ((t * 14) % 200) - 30, sy = 20 + Math.round(Math.sin(t * 2.2) * 1.5);
+      g.drawImage(Sprites.boats.sailboat, Math.round(sx), sy);
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
   },
 };

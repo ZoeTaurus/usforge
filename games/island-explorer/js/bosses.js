@@ -355,9 +355,9 @@ class Boss {
     // shadow
     c.fillStyle = 'rgba(0,0,0,0.3)';
     c.beginPath(); c.ellipse(x0, y0 + 4, this.def.r + 2, 4, 0, 0, Math.PI * 2); c.fill();
-    if (this.hurt > 0 && Math.floor(time * 24) % 2) return;
     const set = Sprites.boss[this.kind];
-    const img = (this.face > 0 ? set.r : set.l)[Math.floor(this.anim) % 2];
+    let img = (this.face > 0 ? set.r : set.l)[Math.floor(this.anim) % 2];
+    if (this.hurt > 0.08) img = Sprites.white(img);
     const shake = ['windup', 'crouch', 'howl', 'intro'].includes(this.state) ? Math.round(Math.sin(time * 60)) : 0;
     c.drawImage(img, x0 - (img.width >> 1) + shake, y0 - img.height + 6 - Math.round(this.z));
     if (this.state === 'recover' || this.state === 'stunned' || this.state === 'exposed') {

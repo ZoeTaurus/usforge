@@ -44,6 +44,8 @@ const Game = {
     FX.init();
     Input.init(a => this.onAction(a));
     UI.init();
+    Settings.load(); Settings.apply();
+    Menu.init();
 
     const s = World.points.start;
     this.player = {
@@ -64,7 +66,9 @@ const Game = {
     requestAnimationFrame(t => this.loop(t));
   },
 
-  newGame() { if (this.state !== 'title') return; Save.clear(); this.start(false); },
+  diffKey: 'normal', combo: 0, comboT: 0, heartT: 0, titleT: 0,
+  get diff() { return DIFFICULTY[this.diffKey] || DIFFICULTY.normal; },
+  newGame(diffKey = 'normal') { if (this.state !== 'title') return; Save.clear(); this.diffKey = diffKey; this.start(false); },
   continueGame() {
     if (this.state !== 'title') return;
     if (!Save.load()) return this.newGame();
@@ -118,8 +122,9 @@ const Game = {
   onAction(a) {
     switch (this.state) {
       case 'title':
-        if (a === 'interact' || a === 'attack') Save.exists() ? this.continueGame() : this.newGame();
+        if (Menu.settingsOpen) Menu.settingsAction(a); else Menu.onAction(a);
         return;
+      case 'settings': Menu.settingsAction(a); return;
       case 'dialog': if (a === 'interact' || a === 'attack') UI.advance(); return;
       case 'map': if (a === 'map' || a === 'pause' || a === 'interact') { UI.closeMap(); this.state = 'play'; } return;
       case 'craft':
@@ -130,17 +135,17 @@ const Game = {
           UI.renderRecipes(); Sound.blip();
         }
         else if (a === 'interact' || a === 'attack') this.craft(this.craftSel);
-        else if (a[0] === 'r') this.craft(+a[1] - 1);
+        else if (/^r\d$/.test(a)) this.craft(+a[1] - 1);
         return;
       case 'pause': if (a === 'pause') { UI.closePause(); this.state = 'play'; } return;
       case 'play':
         if (this.building) {
           if (a === 'interact' || a === 'attack') return this.placeBuild();
           if (a === 'build' || a === 'pause') return this.toggleBuild(false);
-          if (a[0] === 'r') { const i = +a[1] - 1; if (BUILDABLES[i] && this.inv[BUILDABLES[i].key]) { this.building.sel = i; Sound.blip(); } return; }
+          if (/^r\d$/.test(a)) { const i = +a[1] - 1; if (BUILDABLES[i] && this.inv[BUILDABLES[i].key]) { this.building.sel = i; Sound.blip(); } return; }
         }
         break;
-      case 'win': if (a === 'interact') { Save.clear(); location.reload(); } return;
+      case 'win': return;
       default: return;
     }
     switch (a) {
@@ -254,9 +259,10 @@ const Game = {
   update(dt) {
     this.time += dt;
     UI.update(dt);
-    const inGame = this.state !== 'title' && this.state !== 'win';
-    if (inGame && this.state !== 'pause') FX.update(dt, this.cam, this.vw, this.vh, this.player);
-    this.updateCamera(dt);
+    if (this.state !== 'pause' && this.state !== 'settings') FX.update(dt, this.cam, this.vw, this.vh, this.player);
+    if (this.state === 'title') this.titleCamera(dt); else this.updateCamera(dt);
+    this.comboT -= dt;
+    if (this.comboT <= 0) this.combo = 0;
     this.updateEnv(dt);
     for (const [k, v] of this.shake) { if (v - dt <= 0) this.shake.delete(k); else this.shake.set(k, v - dt); }
 
@@ -287,7 +293,9 @@ const Game = {
       drain *= F.armor === 2 ? 1 : F.armor ? 1.3 : 2;
       if (!this.coldWarned) { this.coldWarned = true; UI.toast(STORY.frostCold); }
     }
-    p.food = Math.max(0, p.food - dt * drain);
+    p.food = Math.max(0, p.food - dt * drain * this.diff.hunger);
+    // heartbeat when badly hurt
+    if (p.hp / p.maxHp < 0.25) { this.heartT -= dt; if (this.heartT <= 0) { this.heartT = 0.9; Sound.heart(); } } else this.heartT = 0;
     if (p.food <= 0) {
       p.hp -= dt * 3;
       if (!F.hungerWarned) { F.hungerWarned = true; UI.toast('You are starving! Eat something (F) or pick berries.'); }
@@ -461,6 +469,7 @@ const Game = {
         this.stepDist = 0;
         const g = World.groundAt(Math.floor(p.x / TS), Math.floor((p.y + 7) / TS));
         Sound.step(g === T.SAND);
+        if (g === T.SAND || g === T.SNOW || g === T.MUD) FX.print(p.x, p.y + 7, (this.stepSide = -(this.stepSide || 1)));
         if (sprint || g === T.SAND) FX.dust(p.x, p.y + 7, g === T.SAND ? '#e8d8a8' : '#b8a878');
       }
       if (!walking && Math.random() < dt * 20) FX.particles.push({ x: p.x - Math.sign(p.vx) * 10 + (Math.random() * 4 - 2), y: p.y + 8, vx: -p.vx * 0.1, vy: -p.vy * 0.1, g: 0, life: 0.6, col: 'rgba(235,248,255,0.7)', size: 1 });
@@ -472,6 +481,29 @@ const Game = {
       this.trail.push({ x: p.x, y: p.y });
       if (this.trail.length > 30) this.trail.shift();
     }
+  },
+
+  // loot that has flown into the player; pickup sounds climb in pitch during a streak
+  collect(item, n) {
+    const p = this.player;
+    this.inv[item] = (this.inv[item] || 0) + n;
+    if (item === 'gold') this.stats.gold += n;
+    this.combo++; this.comboT = 1.2;
+    Sound.collect(this.combo);
+    this.floater(p.x, p.y - 14, `+${n} ${item}`, { wood: '#e0b070', stone: '#d0d0d0', iron: '#c8d8e8', gold: '#ffd84a', hide: '#e0b080', meat: '#ffb0b8', vine: '#8ee06a' }[item] || '#ffffff');
+  },
+
+  // On the title screen the camera drifts slowly between the islands.
+  TITLE_PATH: [[36, 130], [60, 100], [100, 48], [150, 60], [212, 92], [233, 91], [290, 60], [346, 48], [342, 150], [342, 208], [270, 225], [202, 228], [130, 215], [78, 212], [40, 170]],
+  titleCamera(dt) {
+    this.titleT += dt * 0.022;
+    const P = this.TITLE_PATH, n = P.length;
+    const i = Math.floor(this.titleT) % n, f = this.titleT % 1;
+    const a = P[i], b = P[(i + 1) % n];
+    const e = f * f * (3 - 2 * f);
+    this.cam.x = clamp((a[0] + (b[0] - a[0]) * e) * TS - this.vw / 2, 0, World.W * TS - this.vw);
+    this.cam.y = clamp((a[1] + (b[1] - a[1]) * e) * TS - this.vh / 2, 0, World.H * TS - this.vh);
+    if (Sound.ctx) { Music.setTrack('title'); Sound.setAmbient(0.6, FX.rain, this.time); }
   },
 
   updateCamera(dt) {
@@ -629,9 +661,7 @@ const Game = {
       case T.VINE:
         World.set(x, y, World.groundAt(x, y));
         this.regrow.push({ x, y, t: 90 + Math.random() * 60, vine: true });
-        I.vine++;
-        Sound.pick();
-        this.floater(x * TS + 8, y * TS, '+1 vine', '#8ee06a');
+        FX.drop(x * TS + 8, y * TS + 8, 'vine', 1);
         FX.burst(x * TS + 8, y * TS + 8, '#6fcf5a', 6);
         break;
       case T.RELIC:
@@ -712,19 +742,18 @@ const Game = {
       this.hits.delete(idx);
       if (info.build) {
         World.set(x, y, World.groundAt(x, y));
-        for (const [k, n] of Object.entries(info.build)) { this.inv[k] += n; this.floater(x * TS + 8, y * TS, `+${n} ${k}`, '#e0b070'); }
+        for (const [k, n] of Object.entries(info.build)) FX.drop(x * TS + 8, y * TS + 8, k, n);
         FX.burst(x * TS + 8, y * TS + 8, '#8a6236', 10);
       } else if (info.mine) {
         World.set(x, y, World.groundAt(x, y));
-        if (t === T.ORE) { this.inv.iron++; this.floater(x * TS + 8, y * TS, '+1 iron', '#c8d8e8'); }
-        else { const n = Math.random() < 0.35 ? 2 : 1; this.inv.stone += n; this.floater(x * TS + 8, y * TS, `+${n} stone`, '#d0d0d0'); }
+        if (t === T.ORE) FX.drop(x * TS + 8, y * TS + 8, 'iron', 1);
+        else FX.drop(x * TS + 8, y * TS + 8, 'stone', Math.random() < 0.35 ? 2 : 1);
         FX.burst(x * TS + 8, y * TS + 9, '#8a8a8a', 12);
       } else {
         World.set(x, y, t === T.PALM || t === T.DEADTREE ? World.groundAt(x, y) : t === T.JTREE ? T.JSTUMP : T.STUMP);
         const n = F.axe === 2 && Math.random() < 0.4 ? 2 : 1;
-        this.inv.wood += n;
+        FX.drop(x * TS + 8, y * TS + 6, 'wood', n);
         this.stats.chopped++;
-        this.floater(x * TS + 8, y * TS, `+${n} wood`, '#e0b070');
         FX.burst(x * TS + 8, y * TS + 10, '#8a6236', 8);
         FX.shake(1, 0.1);
       }
@@ -741,7 +770,7 @@ const Game = {
     for (let k = 0; k < 2; k++) {
       const [item, a, b] = loot[Math.random() * loot.length | 0];
       const n = a + (Math.random() * (b - a + 1) | 0);
-      I[item] += n; if (item === 'gold') this.stats.gold += n;
+      FX.drop(x * TS + 8, y * TS + 8, item, n);
       got.push(`${n} ${item}`);
     }
     this.stats.crates++;
@@ -786,7 +815,7 @@ const Game = {
         if (Math.hypot(s.x - p.x, s.y - (p.y + 4)) > 26) continue;
         s.hp -= dmg; s.hurt = 0.3; s.flee = 5;
         Sound.hit(); FX.burst(s.x, s.y, '#cfe8ff', 10); FX.shake(2, 0.12);
-        if (s.hp <= 0) { s.dead = true; this.stats.kills++; this.inv.meat += 2; this.floater(s.x, s.y - 8, '+2 meat', '#ffb0b8'); }
+        if (s.hp <= 0) { s.dead = true; this.stats.kills++; this.collect('meat', 2); }
       }
       return true;
     }
@@ -817,7 +846,7 @@ const Game = {
         this.stats.kills++;
         FX.burst(m.x, m.y, '#dddddd', 14);
         const drops = Object.entries(MOB_DEF[m.kind].drops || {});
-        drops.forEach(([k, n], i) => { this.inv[k] += n; this.floater(m.x, m.y - 8 - i * 7, `+${n} ${k}`, k === 'hide' ? '#e0b080' : '#ffb0b8'); });
+        drops.forEach(([k, n]) => FX.drop(m.x, m.y, k, n));
       }
     }
     return true;
@@ -1153,6 +1182,7 @@ const Game = {
       if (!(p.dodgeFx > this.time)) { p.dodgeFx = this.time + 0.5; this.floater(p.x, p.y - 14, 'dodge!', '#9fd3ff'); }
       return false;
     }
+    dmg = Math.max(1, Math.round(dmg * this.diff.dmg));
     if (this.flags.armor) dmg = Math.round(dmg * (this.flags.armor === 2 ? 0.45 : 0.65));
     if (!this.flags.combatTip) { this.flags.combatTip = true; UI.toast(STORY.combatTip); }
     p.hp -= dmg; p.inv = 0.8;
@@ -1183,7 +1213,7 @@ const Game = {
     // you drop half your materials when you collapse
     const lost = [];
     for (const k of ['wood', 'vine', 'rope', 'stone', 'iron', 'hide', 'gold', 'fish', 'meat', 'cooked']) {
-      const n = Math.floor(this.inv[k] / 2);
+      const n = Math.floor(this.inv[k] * this.diff.loss);
       if (n) { this.inv[k] -= n; lost.push(`${n} ${k}`); }
     }
     this.sharks = [];
@@ -1198,8 +1228,17 @@ const Game = {
   win() {
     this.state = 'win';
     Sound.win();
-    Save.clear();
-    UI.showWin();
+    const st = this.stats;
+    const newBest = Records.record({ diff: this.diffKey, time: this.playTime, idols: st.relics, bosses: st.bosses || 0,
+      islands: Object.keys(this.flags.visited).length, shells: st.shells });
+    Save.write();
+    UI.showWin(newBest);
+  },
+  keepExploring() {
+    UI.win.classList.add('hidden');
+    UI.hud.classList.remove('hidden');
+    this.state = 'play';
+    UI.toast('The islands are yours to explore. The mayor will be here when you return.');
   },
 
   fmtTime() {
@@ -1232,6 +1271,7 @@ const Game = {
       }
     }
 
+    FX.drawPrints(c, camX, camY);
     FX.drawCritters(c, camX, camY, this.time);
     for (const b of this.bottles) {
       if (b.taken) continue;
@@ -1253,7 +1293,7 @@ const Game = {
     objs.sort((a, b) => a.key - b.key);
     for (const o of objs) {
       if (o.tree) this.drawTree(c, o, camX, camY);
-      else if (o.e === p) this.drawPlayer(c, camX, camY);
+      else if (o.e === p) { if (this.state !== 'title') this.drawPlayer(c, camX, camY); }
       else {
         if (o.e !== this.cat && !o.noShadow) this.shadow(c, o.e.x - camX, o.e.y + 7 - camY);
         o.e.draw(c, camX, camY, this.time);
@@ -1261,6 +1301,7 @@ const Game = {
     }
 
     FX.drawParticles(c, camX, camY);
+    FX.drawItems(c, camX, camY, this.time);
     Bosses.draw(c, camX, camY, this.time);
     if (this.building && this.state === 'play') this.drawBuildGhost(c, camX, camY);
     FX.drawSky(c, camX, camY, VW, VH, this.time);
@@ -1285,6 +1326,12 @@ const Game = {
 
     c.drawImage(this.vignette, 0, 0);
     if (this.flash > 0) { c.fillStyle = `rgba(255,40,40,${this.flash * 2})`; c.fillRect(0, 0, VW, VH); }
+    if (p.hp / p.maxHp < 0.25 && this.state === 'play') {
+      const beat = Math.max(0, Math.sin(this.time * 7)) ** 4;
+      const g = c.createRadialGradient(VW / 2, VH / 2, VH * 0.3, VW / 2, VH / 2, VW * 0.65);
+      g.addColorStop(0, 'rgba(160,0,0,0)'); g.addColorStop(1, `rgba(160,0,0,${0.25 + beat * 0.3})`);
+      c.fillStyle = g; c.fillRect(0, 0, VW, VH);
+    }
     if (p.food <= 0 && this.state === 'play') {
       c.fillStyle = `rgba(80,0,0,${0.12 + Math.sin(this.time * 4) * 0.08})`;
       c.fillRect(0, 0, VW, VH);
@@ -1487,18 +1534,29 @@ const Game = {
       c.drawImage(p.sprites[p.dir][Math.floor(p.anim) % 2 ? 1 : 2], px - 8, py - 6);
       return;
     }
-    if (p.inv > 0 && Math.floor(this.time * 20) % 2) return;
+    if (p.inv > 0 && p.inv < 0.65 && Math.floor(this.time * 20) % 2) return;
     const frame = p.anim ? [1, 0, 2, 0][Math.floor(p.anim) % 4] : 0;
-    c.drawImage(p.sprites[p.dir][frame], px - 8, py - 8);
+    const bob = frame ? -1 : 0;
+    const dv0 = DIRV[p.dir], lunge = p.attackT > 0.13 ? 2 : p.attackT > 0.04 ? 1 : 0;
+    const hurtFlash = p.inv > 0.65;
+    const spr = p.sprites[p.dir][frame];
+    c.drawImage(hurtFlash ? Sprites.white(spr) : spr, px - 8 + dv0[0] * lunge, py - 8 + bob + dv0[1] * lunge);
     if (p.attackT > 0.04) {
       const dv = DIRV[p.dir];
       const prog = 1 - p.attackT / 0.26;
       const base = Math.atan2(dv[1], dv[0]);
       const reach = [11, 14, 13, 15][this.flags.weapon];
-      c.fillStyle = 'rgba(255,255,255,0.9)';
-      for (let k = 0; k < 6; k++) {
-        const a = base - 1 + (k / 5) * 2 * Math.min(1, prog * 1.6);
+      // crescent swing trail that sweeps across and fades
+      const sweep = Math.min(1, prog * 1.8);
+      for (let k = 0; k < 12; k++) {
+        const f = k / 11;
+        if (f > sweep) break;
+        const a = base - 1.1 + f * 2.2;
+        const fade = 0.25 + 0.75 * (f / Math.max(sweep, 0.01));
+        c.fillStyle = `rgba(255,255,255,${(fade * (1 - prog * 0.6)).toFixed(2)})`;
         c.fillRect(Math.round(px + Math.cos(a) * reach), Math.round(py + 3 + Math.sin(a) * reach), 2, 2);
+        c.fillStyle = `rgba(200,230,255,${(fade * 0.5 * (1 - prog)).toFixed(2)})`;
+        c.fillRect(Math.round(px + Math.cos(a) * (reach - 3)), Math.round(py + 3 + Math.sin(a) * (reach - 3)), 1, 1);
       }
       if (this.flags.weapon) {
         c.fillStyle = ['#8a6236', '#8a6236', '#8aa0b8', '#ff8a2a'][this.flags.weapon];

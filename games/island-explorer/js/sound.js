@@ -2,7 +2,7 @@
 // Retro sound effects, ambient ocean/rain and a generative chiptune soundtrack, all synthesized with WebAudio.
 const Sound = {
   ctx: null, master: null, sfx: null, musicBus: null, nbuf: null,
-  sfxOn: true, musicOn: true,
+  sfxOn: true, musicOn: true, vol: { music: 0.6, sfx: 0.8 },
 
   init() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
@@ -15,6 +15,7 @@ const Sound = {
     this.musicBus = c.createGain(); this.musicBus.gain.value = 0.55; this.musicBus.connect(this.master);
     this.buildNoise();
     this.startAmbient();
+    this.setVolumes(this.vol.music, this.vol.sfx);
     Music.start();
   },
 
@@ -25,6 +26,13 @@ const Sound = {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
   },
 
+  setVolumes(music, sfx) {
+    this.vol = { music, sfx };
+    if (!this.ctx) return;
+    this.musicBus.gain.value = music * 0.9;
+    this.sfx.gain.value = sfx * 1.2;
+    if (this.amb) this.amb.bus.gain.value = sfx * 1.2;
+  },
   setSfx(on) { this.sfxOn = on; if (this.sfx) this.sfx.gain.value = on ? 1 : 0; if (this.amb) this.amb.bus.gain.value = on ? 1 : 0; },
   setMusic(on) { this.musicOn = on; if (this.musicBus) this.musicBus.gain.value = on ? 0.55 : 0; },
 
@@ -90,6 +98,11 @@ const Sound = {
   click()  { this.tone(1200, 0.03, 'square', 0.03); },
   deny()   { this.tone(180, 0.1, 'square', 0.05); this.tone(140, 0.12, 'square', 0.05, 0, 0.09); },
   meow()   { this.tone(700, 0.25, 'triangle', 0.07, 350); this.tone(1050, 0.2, 'triangle', 0.04, -300, 0.12); },
+  heart()  { this.tone(62, 0.12, 'sine', 0.35, -10); this.tone(55, 0.14, 'sine', 0.28, -10, 0.16); },
+  collect(n) { const f = 620 + Math.min(n, 12) * 55; this.tone(f, 0.05, 'square', 0.035); this.tone(f * 1.5, 0.06, 'square', 0.03, 0, 0.035); },
+  hover()  { this.tone(1400, 0.02, 'square', 0.015); },
+  select() { this.tone(660, 0.05, 'square', 0.04); this.tone(990, 0.08, 'square', 0.04, 0, 0.05); },
+  back()   { this.tone(500, 0.05, 'square', 0.035); this.tone(330, 0.07, 'square', 0.035, 0, 0.05); },
   bang()   { this.tone(520, 0.08, 'square', 0.05); this.tone(780, 0.1, 'square', 0.05, 0, 0.07); },
   craft()  { [523, 659, 784, 1046].forEach((f, i) => this.tone(f, 0.14, 'square', 0.05, 0, i * 0.08)); },
   treasure() { [659, 784, 988, 1318, 1568].forEach((f, i) => this.tone(f, 0.18, 'square', 0.05, 0, i * 0.07)); },
@@ -115,6 +128,7 @@ const Music = {
     frost:  { root: 62, scale: [0, 2, 3, 7, 9], prog: [0, 3, 4, 2], bpm: 70, density: 0.35, lead: 'sine', drums: false },
     ember:  { root: 45, scale: [0, 1, 4, 5, 7, 8, 10], prog: [0, 1, 0, 5], bpm: 110, density: 0.5, lead: 'square', drums: true },
     boss:   { root: 50, scale: [0, 2, 3, 5, 7, 8, 11], prog: [0, 5, 4, 0], bpm: 144, density: 0.75, lead: 'square', drums: true },
+    title:  { root: 57, scale: [0, 2, 4, 7, 9], prog: [0, 5, 3, 4], bpm: 84, density: 0.5, lead: 'triangle', drums: false },
     night:  { root: 45, scale: [0, 3, 5, 7, 10], prog: [0, 5, 3, 4], bpm: 64, density: 0.3, lead: 'triangle', drums: false },
   },
   start() {

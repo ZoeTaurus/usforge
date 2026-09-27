@@ -13,6 +13,10 @@ python3 -m http.server 8123
 
 then visit http://localhost:8123. It also works on phones and tablets with touch controls.
 
+The title menu has **Continue**, **New Game** (pick *Relaxed*, *Normal* or *Survivor*), **Settings**
+(music and sound volume, screen shake), **How to Play** and **Records** (best time per difficulty).
+After you're rescued you can **Keep Exploring** the islands.
+
 | Key | Action |
 | --- | --- |
 | WASD / Arrows | Move, or sail when you're in a boat |
@@ -107,4 +111,5 @@ Campfires are checkpoints and autosave points. **Continue** on the title screen 
 | `js/input.js` | Keyboard and touch input |
 | `js/ui.js` | HUD, minimap, compass rose, boss bar, dialog, crafting, pause, map, win screen |
 | `js/save.js` | Save / continue via localStorage |
+| `js/menu.js` | Title menu, difficulty, settings, records |
 | `js/game.js` | Game loop, movement and sailing, interactions, rendering |

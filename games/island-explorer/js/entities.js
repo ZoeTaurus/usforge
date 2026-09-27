@@ -136,10 +136,10 @@ class Mob {
 
   draw(c, camX, camY, time) {
     if (this.dead) return;
-    if (this.hurt > 0 && Math.floor(time * 20) % 2) return;
     const set = Sprites.mobs[this.kind];
     const shake = this.state === 'alert' ? Math.round(Math.sin(time * 60)) : 0;
-    const img = (this.face > 0 ? set.r : set.l)[Math.floor(this.anim) % 2];
+    let img = (this.face > 0 ? set.r : set.l)[Math.floor(this.anim) % 2];
+    if (this.hurt > 0.2) img = Sprites.white(img);
     const x = Math.round(this.x - 8 - camX) + shake, y = Math.round(this.y - 8 - camY);
     c.drawImage(img, x, y);
     if (this.state === 'alert') c.drawImage(Sprites.fx.bang, x + 6, y - 9);
@@ -177,8 +177,7 @@ class Shark {
     if (p.mode === 'sail' && d < 15 && this.biteCD <= 0 && this.flee <= 0) { this.biteCD = 2.2; Game.sharkBite(this); }
   }
   draw(c, camX, camY, time) {
-    if (this.hurt > 0 && Math.floor(time * 20) % 2) return;
-    c.drawImage(Sprites.fx.shark[Math.floor(time * 3) % 2], Math.round(this.x - 10 - camX), Math.round(this.y - 8 - camY));
+    c.drawImage(this.hurt > 0.15 ? Sprites.white(Sprites.fx.shark[Math.floor(time * 3) % 2]) : Sprites.fx.shark[Math.floor(time * 3) % 2], Math.round(this.x - 10 - camX), Math.round(this.y - 8 - camY));
   }
 }
 

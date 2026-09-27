@@ -63,11 +63,6 @@
     <ol class="row ranked" id="rowHot"></ol>
   </section>
 
-  <section class="shelf" id="shelfFresh" hidden>
-    <div class="shelf-head"><h2>Fresh from the forge</h2><span class="shelf-note">newest first</span></div>
-    <div class="row" id="rowFresh"></div>
-  </section>
-
   <section class="library" id="library" aria-labelledby="libTitle">
     <div class="shelf-head"><h2 id="libTitle">The library</h2><span class="count" id="count"></span></div>
     <div class="tools">
@@ -75,9 +70,9 @@
       <label class="sort">Sort <select id="sort">
         <option value="new">Newest</option><option value="plays">Most played</option><option value="stokes">Most stoked</option><option value="az">A–Z</option>
       </select></label>
+      <label class="sort">Maker <select id="makers"></select></label>
+      <label class="sort" id="genreBox">Genre <select id="genres"></select></label>
       <button class="surprise" id="surprise" type="button" hidden>Surprise me</button>
-      <div class="makers" id="makers" role="group" aria-label="Filter by maker"></div>
-      <div class="makers genre-bar" id="genres" role="group" aria-label="Filter by genre"></div>
     </div>
     <main class="grid" id="grid" aria-live="polite"></main>
   </section>
@@ -147,7 +142,7 @@
   const genresOf = g => g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<button type="button" class="gtag" data-genre="${esc(x)}">${esc(x)}</button>`).join('')}</span>` : '';
   const progressOf = g => g.progress == null ? '' : `<span class="progress" title="${g.progress}% done"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span>`;
   const countsOf = g => stats ? `<span class="counts"><span title="${n(playsN(g), 'play', 'plays')}">▶ ${playsN(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'mine' : ''}" title="${n(stokesN(g), 'stoke', 'stokes')}">${U.FLAME} ${stokesN(g).toLocaleString()}</span></span>` : '';
-  const tagOf = g => g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : isNew(g) ? '<span class="tag new">New</span>' : '';
+  const tagOf = g => g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : '';
 
   // one game card, used in every shelf and grid
   const card = (g, i = 0, { blurb = true } = {}) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
@@ -156,10 +151,8 @@
       </a>
       <div class="meta">
         <b>${esc(g.title)}</b>
-        <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
-        ${g.dev ? progressOf(g) : countsOf(g)}
-        ${genresOf(g)}
-        ${blurb && g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
+        <span class="sub"><button class="by" type="button" data-by="${esc(g.author)}">${esc(g.author)}</button>${g.dev ? '' : countsOf(g)}</span>
+        ${g.dev ? progressOf(g) : ''}
         ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
       </div>
     </article>`;
@@ -178,7 +171,6 @@
         <h2>${esc(g.title)}</h2>
         <a class="by" href="maker.html?n=${encodeURIComponent(g.author)}">by ${esc(g.author)}</a>
         ${countsOf(g)}
-        ${genresOf(g)}
         ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
         <div class="spot-acts">
           ${g.url ? `<a class="play-btn" href="${esc(href(g))}">View game</a>` : `<a class="play-btn" href="${esc(href(g))}#play">▶ Play now</a><a class="btn-l" href="${esc(href(g))}" data-cover>Details</a>`}
@@ -197,9 +189,6 @@
     $('shelfHot').hidden = hot.length < 2;
     $('rowHot').innerHTML = hot.map((g, i) => `<li class="rank"><span class="rank-n" aria-label="Number ${i + 1}">${i + 1}</span>${card(g, i, { blurb: false })}</li>`).join('');
 
-    const fresh = released().slice(0, 6);
-    $('shelfFresh').hidden = fresh.length < 3;
-    $('rowFresh').innerHTML = fresh.map((g, i) => card(g, i, { blurb: false })).join('');
   }
 
   // ---------- the library ----------
@@ -207,18 +196,16 @@
     const counts = {};
     for (const g of games) counts[g.author] = (counts[g.author] || 0) + 1;
     const names = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
-    $('makers').innerHTML = `<span class="genre-lbl">Maker</span>` + (names.length > 1 ? [['', games.length, 'Everyone']] : []).concat(names.map(x => [x, counts[x], x]))
-      .map(([key, c, label]) => `<button type="button" class="maker" data-maker="${esc(key)}" aria-pressed="false">${esc(label)} <span>${c}</span></button>`).join('');
-    for (const b of $('makers').querySelectorAll('button')) b.onclick = () => setBy(b.dataset.maker);
+    $('makers').innerHTML = [['', 'Everyone']].concat(names.map(x => [x, `${x} (${counts[x]})`]))
+      .map(([key, label]) => `<option value="${esc(key)}">${esc(label)}</option>`).join('');
   }
   function paintGenres() {
     const counts = {};
     for (const g of games) for (const x of g.genres || []) counts[x] = (counts[x] || 0) + 1;
     const names = (U.GENRES || Object.keys(counts)).filter(x => counts[x]);
-    $('genres').hidden = !names.length;
-    $('genres').innerHTML = `<span class="genre-lbl">Genre</span>` + [['', 'All']].concat(names.map(x => [x, x]))
-      .map(([key, label]) => `<button type="button" class="maker" data-g="${esc(key)}" aria-pressed="false">${esc(label)}${key ? ` <span>${counts[key]}</span>` : ''}</button>`).join('');
-    for (const b of $('genres').querySelectorAll('button')) b.onclick = () => setGenre(b.dataset.g);
+    $('genreBox').hidden = !names.length;
+    $('genres').innerHTML = [['', 'All']].concat(names.map(x => [x, `${x} (${counts[x]})`]))
+      .map(([key, label]) => `<option value="${esc(key)}">${esc(label)}</option>`).join('');
   }
   function syncUrl() {
     const q = new URLSearchParams();
@@ -241,8 +228,8 @@
       && (!q || [g.title, g.author, g.blurb, ...(g.genres || [])].join(' ').toLowerCase().includes(q));
     const list = released().filter(fits).sort(SORTS[$('sort').value] || SORTS.new);
     $('count').textContent = n(list.length, 'game', 'games');
-    for (const b of $('makers').querySelectorAll('button')) b.setAttribute('aria-pressed', String(by.toLowerCase() === b.dataset.maker.toLowerCase()));
-    for (const b of $('genres').querySelectorAll('button')) b.setAttribute('aria-pressed', String(genre.toLowerCase() === b.dataset.g.toLowerCase()));
+    $('makers').value = [...$('makers').options].find(o => o.value.toLowerCase() === by.toLowerCase())?.value ?? '';
+    $('genres').value = [...$('genres').options].find(o => o.value.toLowerCase() === genre.toLowerCase())?.value ?? '';
     $('grid').innerHTML = list.length ? list.map((g, i) => card(g, i)).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
 
     const dev = cooking().filter(fits);
@@ -291,6 +278,8 @@
 
   $('q').addEventListener('input', paint);
   $('sort').addEventListener('change', paint);
+  $('makers').addEventListener('change', () => { by = $('makers').value; syncUrl(); paint(); });
+  $('genres').addEventListener('change', () => { genre = $('genres').value; syncUrl(); paint(); });
   $('surprise').onclick = () => {
     const pool = released().filter(g => !g.url && g.build !== false);
     const g = pool[Math.floor(Math.random() * pool.length)];

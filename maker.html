@@ -62,8 +62,7 @@
       <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}<span class="glint" aria-hidden="true"></span></div></a>
       <div class="meta"><b>${esc(g.title)}</b>
         ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
-        ${g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<a class="gtag" href="./?genre=${encodeURIComponent(x)}">${esc(x)}</a>`).join('')}</span>` : ''}
-        ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}</div>
+</div>
     </article>`;
 
   function paint() {

@@ -8,5 +8,8 @@
   },
   "Alex": {
     "hash": "pbkdf2$100000$8daa5d6347821340811f4910d56533c1$359b1aa3e64057fc94c198fe993e1edfa576ee3da1124021990afa8b6afa2b2b"
+  },
+  "Igor": {
+    "hash": "pbkdf2$100000$a126ec7494fdda1d2b4713f8ddf85802$19f3fb1b8003c3b5d8872364d6685ae82aec28726dfeb70be91e64a202728721"
   }
 }

@@ -51,6 +51,68 @@
   }
   // the genres a game can be tagged with (up to 3) — the same list lives in worker/index.js and scripts/build_list.py
   const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Horror', 'Party', 'Platformer', 'Puzzle', 'Racing', 'Roguelike', 'RPG', 'Sci-fi', 'Shooter', 'Simulation', 'Sports', 'Story', 'Strategy', 'Text-based'];
-  window.UsForge = { refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES };
+
+  // the team (credits and maker pages); roles in `lead` are highlighted
+  const TEAM = [
+    { name: 'Taurus', roles: ['Director', 'Leader', 'Developer', 'Quality Control', 'Ideas'], lead: 2 },
+    { name: 'Henrique', roles: ['Designer', 'Developer', 'Ideas'] },
+    { name: 'Alex', roles: ['Developer', 'Ideas', 'Potato'] },
+    { name: 'Igor', roles: ['Developer'] },
+  ];
+
+  // plays + stokes from the Worker, fetched once per page ({plays, stokes}, or null on the GitHub Pages copy)
+  let statsP = null;
+  const stats = (again) => (!statsP || again) ? (statsP = fetch('/api/stats', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).then(d => d && d.plays ? d : null).catch(() => null)) : statsP;
+
+  // this browser's own memory: games played recently, and games it has stoked
+  const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+  const recent = () => store.get('usforge-recent', []);
+  const played = slug => store.set('usforge-recent', [slug, ...recent().filter(s => s !== slug)].slice(0, 8));
+  const stoked = slug => store.get('usforge-stoked', []).includes(slug);
+  async function stoke(slug) {
+    if (stoked(slug)) return null;
+    store.set('usforge-stoked', [...store.get('usforge-stoked', []), slug]);
+    const r = await fetch('/api/stoke?g=' + encodeURIComponent(slug), { method: 'POST' }).then(r => r.ok ? r.json() : null).catch(() => null);
+    if (r) statsP = Promise.resolve(r);
+    return r;
+  }
+  const FLAME = '<svg class="flame" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1c.6 2.6 3.6 4.2 3.6 7.6A3.6 3.6 0 0 1 8 12.2a3.6 3.6 0 0 1-3.6-3.6c0-1.5.7-2.4 1.4-3.2.1 1.3.8 2 1.6 2.2C6.8 5.4 7.4 3 8 1Z" fill="currentColor"/><path d="M8 15c-2.4 0-4-1.5-4-3.3 0 1.5 1.8 2.3 4 2.3s4-.8 4-2.3C12 13.5 10.4 15 8 15Z" fill="currentColor" opacity=".55"/></svg>';
+
+  // cards lean toward the pointer, with a glint where it is
+  const calmMotion = matchMedia('(prefers-reduced-motion: reduce)').matches, finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
+  if (!calmMotion && finePointer) {
+    addEventListener('pointermove', e => {
+      const c = e.target.closest?.('.tilt');
+      if (!c) return;
+      const b = c.getBoundingClientRect(), x = (e.clientX - b.left) / b.width, y = (e.clientY - b.top) / b.height;
+      c.style.setProperty('--rx', ((.5 - y) * 9).toFixed(2) + 'deg'); c.style.setProperty('--ry', ((x - .5) * 11).toFixed(2) + 'deg');
+      c.style.setProperty('--mx', (x * 100).toFixed(1) + '%'); c.style.setProperty('--my', (y * 100).toFixed(1) + '%');
+    }, { passive: true });
+    addEventListener('pointerout', e => { const c = e.target.closest?.('.tilt'); if (c && !c.contains(e.relatedTarget)) { c.style.removeProperty('--rx'); c.style.removeProperty('--ry'); } });
+  }
+
+  // clicking a game card: its cover flies into place on the game page (browsers with page transitions)
+  addEventListener('click', e => {
+    const a = e.target.closest?.('a[data-cover]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    document.querySelectorAll('[style*="view-transition-name"]').forEach(x => x.style.viewTransitionName = '');
+    const c = a.querySelector('.cover') || a; c.style.viewTransitionName = 'game-cover';
+  });
+  addEventListener('pageshow', () => document.querySelectorAll('.cover').forEach(c => { if (c.style.viewTransitionName) c.style.viewTransitionName = ''; }));
+
+  // "/" jumps to search, wherever there is one
+  addEventListener('keydown', e => {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey || /input|textarea|select/i.test(document.activeElement?.tagName || '') || document.activeElement?.isContentEditable) return;
+    const q = document.getElementById('q'); if (q && q.offsetParent) { e.preventDefault(); q.focus(); q.select(); }
+  });
+
+  // a small message that pops up from the bottom (easter eggs, stokes)
+  function toast(html, ms = 2600) {
+    let t = document.querySelector('.uf-toast');
+    if (!t) { t = document.createElement('div'); t.className = 'uf-toast'; t.setAttribute('role', 'status'); document.body.append(t); }
+    t.innerHTML = html; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), ms);
+  }
+
+  window.UsForge = { refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

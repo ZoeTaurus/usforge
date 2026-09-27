@@ -265,3 +265,121 @@ body.playing .wrap { display: none; }
 .top nav { flex-wrap: wrap; justify-content: flex-end; row-gap: 8px; }
 .top nav a[aria-current="page"] { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 6px; }
 @media (max-width: 600px) { .top { align-items: flex-start; } .top nav { gap: 8px 14px; font-size: 13px; } }
+
+/* ======================================================================
+   The big update: spotlight, shelves, stokes, makers, tilt, page transitions, secrets
+   ====================================================================== */
+
+/* pages glide into each other (browsers that support it), and a clicked cover flies into place */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: .28s; }
+::view-transition-group(game-cover) { animation-duration: .42s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); }
+.detail > .cover { view-transition-name: game-cover; }
+
+.hero { padding-block: 40px 30px; }
+.hero .eyebrow { display: block; margin-bottom: 12px; }
+
+/* ---------- card tilt + glint ---------- */
+.tilt { transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transition: transform .35s cubic-bezier(.2, .8, .2, 1); transform-style: preserve-3d; will-change: transform; }
+.tilt:hover { transition-duration: .08s; }
+.glint { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity .3s; background: radial-gradient(40% 55% at var(--mx, 50%) var(--my, 50%), rgba(255, 190, 140, .28), transparent 70%); mix-blend-mode: screen; }
+.tilt:hover .glint { opacity: 1; }
+
+/* ---------- counts (plays + stokes) ---------- */
+.counts { display: inline-flex; gap: 12px; font: 12px var(--mono); color: var(--dim); font-variant-numeric: tabular-nums; }
+.counts > span { display: inline-flex; align-items: center; gap: 4px; }
+.counts .mine { color: var(--accent); }
+.flame { width: 13px; height: 13px; flex: none; }
+
+/* ---------- game of the day ---------- */
+.spotlight { position: relative; display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 34px; align-items: center; padding: 26px; margin-bottom: 44px; border: 1px solid var(--line); border-radius: calc(var(--radius) + 8px); background: radial-gradient(80% 120% at 0% 0%, rgba(255, 106, 51, .13), transparent 60%), var(--card); overflow: hidden; }
+.spotlight::after { content: ""; position: absolute; inset: auto -10% -60% 30%; height: 90%; background: radial-gradient(closest-side, var(--glow), transparent); opacity: .35; pointer-events: none; filter: blur(10px); }
+.spot-cover { display: block; text-decoration: none; color: inherit; box-shadow: 0 30px 70px -30px var(--glow); position: relative; z-index: 1; }
+.spot-text { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; position: relative; z-index: 1; }
+.spot-text h2 { margin: 0; font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; letter-spacing: -.04em; line-height: 1.02; text-wrap: balance; }
+.spot-text p { margin: 4px 0 0; color: var(--dim); max-width: 40ch; }
+.spot-text .by { text-decoration: none; }
+.spot-acts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.spot-acts .play-btn { margin: 0; }
+.spotlight .eyebrow { animation: pulse-ink 3s ease-in-out infinite; }
+@keyframes pulse-ink { 50% { text-shadow: 0 0 14px var(--glow); } }
+@media (max-width: 760px) { .spotlight { grid-template-columns: 1fr; gap: 18px; padding: 14px; } }
+
+/* ---------- shelves: rows that scroll sideways ---------- */
+.shelf { margin-bottom: 38px; }
+.shelf-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.shelf-head h2 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.025em; }
+.shelf-note { font: 12px var(--mono); color: var(--dim); letter-spacing: .04em; text-decoration: none; }
+a.shelf-note:hover { color: var(--accent); }
+.shelf-head .count { margin-left: auto; }
+.row { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(210px, 240px); gap: 18px; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; padding: 6px 4px 14px; margin: -6px -4px 0; list-style: none; scrollbar-width: thin; }
+.row > * { scroll-snap-align: start; }
+.row .gcard, .ranked .rank { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+/* the chart: big outlined numbers, like a top-10 */
+.ranked { grid-auto-columns: minmax(260px, 290px); counter-reset: none; }
+.rank { display: grid; grid-template-columns: 58px 1fr; align-items: start; }
+.rank-n { font: 900 86px/0.8 var(--sans); letter-spacing: -.08em; color: transparent; -webkit-text-stroke: 2px var(--accent); padding-top: 4px; text-shadow: 0 0 30px var(--glow); }
+.rank:first-child .rank-n { color: var(--accent); }
+
+/* ---------- the library ---------- */
+.library { border-top: 1px solid var(--line); padding-top: 28px; scroll-margin-top: 16px; }
+.library .tools { border-bottom: 0; }
+.sort { display: inline-flex; align-items: center; gap: 8px; font: 12px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--dim); }
+.sort select { font: 500 13px var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 5px 10px; cursor: pointer; }
+.sort select:focus-visible { outline: none; border-color: var(--accent); }
+.tools .makers { flex-basis: 100%; align-items: center; }
+.grid .gcard { animation: rise .5s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 40ms); }
+.devsec { margin-top: 10px; }
+
+/* ---------- the makers ---------- */
+.crew { border-top: 1px solid var(--line); padding-block: 28px 44px; }
+.crew-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.crew-card { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 2px; padding: 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); text-decoration: none; color: inherit; }
+.crew-card:hover, .crew-card:focus-visible { border-color: var(--accent); outline: none; box-shadow: 0 16px 40px -20px var(--glow); }
+.crew-card .initial, .maker-hero .initial { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font: 800 21px var(--sans); color: var(--accent-ink); background: linear-gradient(135deg, var(--accent), hsl(calc(var(--h, 20) * 1deg) 85% 55%)); box-shadow: 0 8px 24px -10px var(--glow); margin-bottom: 10px; }
+.crew-name { font-size: 20px; font-weight: 750; letter-spacing: -.03em; }
+.crew-role { font: 12px var(--mono); color: var(--accent); letter-spacing: .04em; }
+.crew-n { font: 12px var(--mono); color: var(--dim); margin-top: 6px; }
+
+/* ---------- maker page ---------- */
+.maker-hero { display: grid; grid-template-columns: auto 1fr; gap: 22px; align-items: center; padding-block: 34px 30px; }
+.maker-hero .initial { width: 96px; height: 96px; border-radius: 26px; font-size: 48px; margin: 0; }
+.maker-hero h1 { margin: 0; font-size: clamp(36px, 6vw, 60px); font-weight: 800; letter-spacing: -.045em; line-height: 1; }
+.maker-hero .roles { margin-top: 12px; }
+.maker-hero .stats { margin-top: 18px; }
+.maker-quote { margin: 12px 0 0; color: var(--dim); max-width: 52ch; font-style: italic; }
+@media (max-width: 560px) { .maker-hero { grid-template-columns: 1fr; } .maker-hero .initial { width: 72px; height: 72px; font-size: 36px; } }
+
+/* ---------- stoke button (game page) ---------- */
+.stoke { position: relative; display: inline-flex; align-items: center; gap: 8px; font: 600 15px var(--sans); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 99px; padding: 12px 20px; cursor: pointer; transition: border-color .15s, color .15s, transform .15s; }
+.stoke .flame { width: 18px; height: 18px; color: var(--accent); transition: transform .2s; }
+.stoke:hover:not(:disabled), .stoke:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.stoke:hover:not(:disabled) .flame { transform: scale(1.2) rotate(-6deg); }
+.stoke.done { border-color: var(--accent); color: var(--accent); cursor: default; }
+.stoke.pop .flame { animation: flare .6s cubic-bezier(.2, .8, .2, 1); }
+.stoke b { font: 600 13px var(--mono); color: var(--dim); }
+.stoke.done b { color: var(--accent); }
+@keyframes flare { 30% { transform: scale(1.9) translateY(-3px); filter: drop-shadow(0 0 10px var(--glow)); } }
+
+/* ---------- toast + secrets ---------- */
+.uf-toast { position: fixed; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); transform: translate(-50%, 140%); z-index: 90; background: var(--card); color: var(--ink); border: 1px solid var(--accent); border-radius: 99px; padding: 10px 18px; font-size: 14px; box-shadow: 0 16px 40px -14px var(--glow); transition: transform .35s cubic-bezier(.2, .8, .2, 1); max-width: calc(100vw - 32px); text-align: center; }
+.uf-toast.on { transform: translate(-50%, 0); }
+.uf-toast b { color: var(--accent); }
+.egg-layer { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 80; }
+.mark .spark { cursor: pointer; }
+.mark .spark.heat { animation: heat .35s ease; }
+@keyframes heat { 50% { transform: rotate(135deg) scale(1.6); box-shadow: 0 0 22px 6px var(--glow); background: #ffd08a; } }
+.overdrive body { animation: quake .12s linear 14; }
+.overdrive .intro h1, .overdrive .spot-text h2 { color: var(--accent); text-shadow: 0 0 30px var(--glow); transition: color .2s; }
+@keyframes quake { 25% { transform: translate(2px, -1px); } 50% { transform: translate(-2px, 1px); } 75% { transform: translate(1px, 2px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt { transform: none !important; }
+  .row .gcard, .ranked .rank, .grid .gcard, .spotlight .eyebrow, .overdrive body { animation: none !important; }
+  @view-transition { navigation: none; }
+}
+@media (max-width: 600px) { .row { grid-auto-columns: 72%; } .ranked { grid-auto-columns: 84%; } .rank-n { font-size: 64px; } .rank { grid-template-columns: 44px 1fr; } }
+.person-link { text-decoration: none; }
+.person-link:hover { color: var(--accent); }
+.person-link::after { content: ""; position: absolute; inset: 0; }   /* the whole card opens the maker page */
+.person .roles, .person > a:not(.person-link) { position: relative; z-index: 1; }

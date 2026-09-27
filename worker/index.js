@@ -16,7 +16,7 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
-      if (url.pathname === '/api/plays') return await plays(req, env, url);
+      if (['/api/plays', '/api/stats', '/api/stoke'].includes(url.pathname)) return await plays(req, env, url);
       if (req.method !== 'POST') throw fail(405, 'Use POST.');
       if (url.pathname === '/api/login') return ok(await login(req));
       if (url.pathname === '/api/upload') return ok(await upload(req, env));
@@ -30,26 +30,37 @@ export default {
 };
 
 // ---------- play counts ----------
-// One tiny Durable Object keeps every game's count. GET /api/plays → {slug: n}; POST /api/plays?g=slug adds one.
+// One tiny Durable Object keeps every game's counts: plays, and stokes (the 🔥 "I love this" button).
+//   GET  /api/plays → {slug: n}            POST /api/plays?g=slug adds a play
+//   GET  /api/stats → {plays, stokes}      POST /api/stoke?g=slug adds a stoke
 export class Plays extends DurableObject {
-  async all() { return (await this.ctx.storage.get('counts')) || {}; }
-  async hit(slug) {
-    const c = await this.all();
+  async all(kind = 'counts') { return (await this.ctx.storage.get(kind)) || {}; }
+  async hit(slug, kind = 'counts') {
+    const c = await this.all(kind);
     c[slug] = (c[slug] || 0) + 1;
-    await this.ctx.storage.put('counts', c);
+    await this.ctx.storage.put(kind, c);
     return c;
   }
+  async stats() { return { plays: await this.all('counts'), stokes: await this.all('stokes') }; }
 }
+async function knownSlug(env, url) {
+  const slug = url.searchParams.get('g') || '';
+  if (!/^[a-z0-9-]{1,60}$/.test(slug)) throw fail(400, 'Unknown game.');
+  const known = await env.ASSETS.fetch(new URL('/games.json', url)).then(r => r.json()).catch(() => []);
+  if (!known.some(g => g.slug === slug)) throw fail(404, 'Unknown game.');
+  return slug;
+}
+const fresh = data => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=15' } });
 async function plays(req, env, url) {
   const box = env.PLAYS.get(env.PLAYS.idFromName('all'));
-  if (req.method === 'POST') {
-    const slug = url.searchParams.get('g') || '';
-    if (!/^[a-z0-9-]{1,60}$/.test(slug)) throw fail(400, 'Unknown game.');
-    const known = await env.ASSETS.fetch(new URL('/games.json', url)).then(r => r.json()).catch(() => []);
-    if (!known.some(g => g.slug === slug)) throw fail(404, 'Unknown game.');
-    return ok(await box.hit(slug));
+  if (url.pathname === '/api/stats') return fresh(await box.stats());
+  if (url.pathname === '/api/stoke') {
+    if (req.method !== 'POST') throw fail(405, 'Use POST.');
+    await box.hit(await knownSlug(env, url), 'stokes');
+    return ok(await box.stats());
   }
-  return new Response(JSON.stringify(await box.all()), { headers: { 'content-type': 'application/json', 'cache-control': 'max-age=15' } });
+  if (req.method === 'POST') return ok(await box.hit(await knownSlug(env, url)));
+  return fresh(await box.all());
 }
 
 const fail = (status, msg) => Object.assign(new Error(msg), { status, msg });

@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js"></script>
@@ -41,6 +41,7 @@
 </div>
 
 <script src="embers.js"></script>
+<script src="eggs.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -67,24 +68,27 @@
         <div>
           ${g.dev ? `<span class="devflag">${g.build ? 'In development · early build' : 'In development · coming soon'}</span>` : ''}
           <h1>${esc(g.title)}</h1>
-          <a class="by" href="./?by=${encodeURIComponent(g.author)}">by ${esc(g.author)}</a>
+          <a class="by" href="maker.html?n=${encodeURIComponent(g.author)}">by ${esc(g.author)}</a>
           ${g.genres?.length ? `<div class="gtags big">${g.genres.map(x => `<a class="gtag" href="./?genre=${encodeURIComponent(x)}">${esc(x)}</a>`).join('')}</div>` : ''}
           ${g.blurb ? `<p class="desc">${esc(g.blurb)}</p>` : ''}
           ${g.dev && g.progress != null ? `<div class="devprog"><span class="progress"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span></div>` : ''}
           ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
-          <div class="facts"><span>${ago(g.added)}</span><span id="plays" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          <div class="facts"><span>${ago(g.added)}</span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
           <div class="acts">
             ${g.build === false ? `<span class="soon">Nothing to play yet. ${esc(g.author)} is still making it.</span>` : g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">${g.dev ? '▶ Play early build' : '▶ Play'}</button>`}
+            ${g.build === false ? '' : `<button class="stoke" id="stokeBtn" type="button" title="Stoke the fire: tell ${esc(g.author)} you love this game">${UsForge.FLAME}<span id="stokeLbl">Stoke</span><b id="stokeN"></b></button>`}
             ${g.url || g.build === false ? '' : `<a class="btn-l" href="games/${encodeURIComponent(g.slug)}/" target="_blank" rel="noopener">Open in a new tab ↗</a>`}
           </div>
         </div>
       </section>
       ${more.length ? `<section class="more"><h3>${byThem.length ? `More from ${esc(g.author)} and friends` : 'More games'}</h3>
-        <div class="grid">${more.map(o => `<article><a class="card" href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}</div></a>
+        <div class="grid">${more.map(o => `<article><a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}<span class="glint" aria-hidden="true"></span></div></a>
           <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
-    document.querySelector('.big-play[href]')?.addEventListener('click', countPlay);   // link-only games count when you head off to play
-    fetch('/api/plays').then(r => r.ok ? r.json() : null).then(showPlays).catch(() => {});
+    document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play
+    UsForge.stats().then(st => { if (st) { showPlays(st.plays); showStokes(st.stokes); } });
+    $('stokeBtn')?.addEventListener('click', doStoke);
+    if (location.hash === '#play' && !g.url && g.build !== false) { history.replaceState(null, '', location.pathname + location.search); history.pushState({ playing: true }, '', location.href); play(); }
     setTimeout(() => $('playBtn')?.focus(), 50);
     if (history.state?.playing) play();   // came back to a page that was playing
   }
@@ -95,6 +99,27 @@
     const n = counts[game.slug] || 0;
     $('plays').textContent = `▶ ${n.toLocaleString()} play${n === 1 ? '' : 's'}`; $('plays').hidden = false;
   }
+  // stoking: one per game per browser — the flame flares, the count goes up
+  function showStokes(counts) {
+    if (!counts || !game || !$('stokeBtn')) return;
+    const n = counts[game.slug] || 0, mine = UsForge.stoked(game.slug);
+    $('stokeN').textContent = n ? n.toLocaleString() : '';
+    $('stokeLbl').textContent = mine ? 'Stoked' : 'Stoke';
+    $('stokeBtn').classList.toggle('done', mine); $('stokeBtn').setAttribute('aria-pressed', String(mine));
+    $('stokes').textContent = `${n.toLocaleString()} stoke${n === 1 ? '' : 's'}`; $('stokes').hidden = false;
+  }
+  async function doStoke() {
+    if (!game || UsForge.stoked(game.slug)) { UsForge.toast(`You already stoked <b>${esc(game.title)}</b>.`); return; }
+    const b = $('stokeBtn'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    const r = b.getBoundingClientRect(); window.UsForgeEggs?.burst(r.left + 26, r.top + r.height / 2, 26, 260);
+    const was = +($('stokeN').textContent.replace(/\D/g, '') || 0);
+    const pending = UsForge.stoke(game.slug);   // (remembers this browser stoked it right away)
+    showStokes({ [game.slug]: was + 1 });   // straight away; the real number follows
+    const res = await pending;
+    if (res) showStokes(res.stokes);
+    UsForge.toast(`You stoked <b>${esc(game.title)}</b>. ${esc(game.author)} will be pleased.`);
+  }
+
   function countPlay() {
     const key = 'usforge-played:' + game.slug;
     try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch (e) {}
@@ -105,7 +130,7 @@
   // ---------- playing ----------
   function play() {
     const g = game; if (!g || g.url || g.build === false) return;
-    countPlay();
+    countPlay(); UsForge.played(g.slug);
     const src = `games/${encodeURIComponent(g.slug)}/`;
     $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
     $('alone').href = src;

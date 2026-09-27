@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js"></script>
@@ -37,29 +37,50 @@
     <nav><a href="./" aria-current="page">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><span data-theme-switch></span></nav>
   </header>
 
-  <section class="intro">
+  <section class="intro hero">
+    <span class="eyebrow">Lazy Studios presents</span>
     <h1>Games by Taurus, Igor, Henrique, and Alex.</h1>
     <p>Site by Taurus · Lazy Studios</p>
     <div class="stats" id="stats" aria-live="polite">
       <div class="stat"><b id="statGames">0</b><span>Games</span></div>
       <div class="stat"><b id="statMakers">0</b><span>Makers</span></div>
-      <div class="stat"><b id="statNew">0</b><span>New this week</span></div>
-      <div class="stat" id="statDevBox" hidden><b id="statDev">0</b><span>In development</span></div>
       <div class="stat" id="statPlaysBox" hidden><b id="statPlays">0</b><span>Plays</span></div>
+      <div class="stat" id="statStokesBox" hidden><b id="statStokes">0</b><span>Stokes</span></div>
+      <div class="stat" id="statDevBox" hidden><b id="statDev">0</b><span>In development</span></div>
     </div>
   </section>
 
-  <section class="feature" id="feature" hidden></section>
+  <!-- game of the day -->
+  <section class="spotlight" id="spotlight" hidden></section>
 
-  <div class="tools">
-    <input class="search" id="q" type="search" placeholder="Search games or makers" aria-label="Search games or makers">
-    <div class="makers" id="makers" role="group" aria-label="Filter by maker"></div>
-    <button class="surprise" id="surprise" type="button" hidden>Surprise me</button>
-    <span class="count" id="count"></span>
-    <div class="makers genre-bar" id="genres" role="group" aria-label="Filter by genre"></div>
-  </div>
+  <section class="shelf" id="shelfRecent" hidden>
+    <div class="shelf-head"><h2>Jump back in</h2><span class="shelf-note">games you played lately</span></div>
+    <div class="row" id="rowRecent"></div>
+  </section>
 
-  <main class="grid" id="grid" aria-live="polite"></main>
+  <section class="shelf" id="shelfHot" hidden>
+    <div class="shelf-head"><h2>Hot right now</h2><span class="shelf-note">most played and stoked</span></div>
+    <ol class="row ranked" id="rowHot"></ol>
+  </section>
+
+  <section class="shelf" id="shelfFresh" hidden>
+    <div class="shelf-head"><h2>Fresh from the forge</h2><span class="shelf-note">newest first</span></div>
+    <div class="row" id="rowFresh"></div>
+  </section>
+
+  <section class="library" id="library" aria-labelledby="libTitle">
+    <div class="shelf-head"><h2 id="libTitle">The library</h2><span class="count" id="count"></span></div>
+    <div class="tools">
+      <input class="search" id="q" type="search" placeholder="Search games, makers, genres  ( / )" aria-label="Search games, makers and genres">
+      <label class="sort">Sort <select id="sort">
+        <option value="new">Newest</option><option value="plays">Most played</option><option value="stokes">Most stoked</option><option value="az">A–Z</option>
+      </select></label>
+      <button class="surprise" id="surprise" type="button" hidden>Surprise me</button>
+      <div class="makers" id="makers" role="group" aria-label="Filter by maker"></div>
+      <div class="makers genre-bar" id="genres" role="group" aria-label="Filter by genre"></div>
+    </div>
+    <main class="grid" id="grid" aria-live="polite"></main>
+  </section>
 
   <!-- games still being made: early builds you can try, and teasers for ones with nothing to play yet -->
   <section class="devsec" id="devSec" aria-labelledby="devTitle">
@@ -70,6 +91,11 @@
     <div class="grid" id="devGrid" aria-live="polite"></div>
   </section>
 
+  <section class="crew" aria-labelledby="crewTitle">
+    <div class="shelf-head"><h2 id="crewTitle">The makers</h2><a class="shelf-note" href="credits.html">Credits →</a></div>
+    <div class="crew-row" id="crew"></div>
+  </section>
+
   <footer class="foot">
     <span>UsForge · by Lazy Studios</span>
     <a href="add.html">Share your game →</a>
@@ -77,6 +103,7 @@
 </div>
 
 <script src="embers.js"></script>
+<script src="eggs.js"></script>
 <script>
 (() => {
   const $ = id => document.getElementById(id);
@@ -102,52 +129,94 @@
   } else welcome.hidden = true;
 
   // ---------- games ----------
+  const U = window.UsForge;
   const params = new URLSearchParams(location.search);
-  let games = [], by = params.get('by') || '', genre = params.get('genre') || '';
+  let games = [], stats = null, by = params.get('by') || '', genre = params.get('genre') || '';
   const released = () => games.filter(g => !g.dev), cooking = () => games.filter(g => g.dev);
-  const WEEK = 7 * 24 * 3600, now = Date.now() / 1000;
-  const isNew = g => g.added && now - g.added < WEEK;
+  const FRESH = 3 * 24 * 3600, now = Date.now() / 1000;   // "New" = added in the last 3 days
+  const isNew = g => g.added && now - g.added < FRESH;
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
   const initials = t => t.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   const cover = (g, wide) => g.cover
     ? `<img src="${esc(g.cover)}" alt="" loading="lazy">`
-    : `<div class="blank${wide ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(wide ? g.title : initials(g.title))}</div>`;   // (the featured card shows the whole name)
+    : `<div class="blank${wide ? ' named' : ''}" style="--h:${hue(g.title)}">${esc(wide ? g.title : initials(g.title))}</div>`;
   const href = g => `play.html?g=${encodeURIComponent(g.slug)}`;   // every game opens its page first (picture, description, Play)
-  const ext = () => '';
-  let plays = null;   // {slug: count} from the play counter, once it loads (not on the GitHub Pages copy)
+  const playsN = g => stats?.plays[g.slug] || 0, stokesN = g => stats?.stokes[g.slug] || 0;
+  const heat = g => playsN(g) + 3 * stokesN(g);
+  const n = (v, one, many) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
   const genresOf = g => g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<button type="button" class="gtag" data-genre="${esc(x)}">${esc(x)}</button>`).join('')}</span>` : '';
   const progressOf = g => g.progress == null ? '' : `<span class="progress" title="${g.progress}% done"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span>`;
-  const playsOf = g => plays ? `<span class="plays">▶ ${(plays[g.slug] || 0).toLocaleString()} play${plays[g.slug] === 1 ? '' : 's'}</span>` : '';
+  const countsOf = g => stats ? `<span class="counts"><span title="${n(playsN(g), 'play', 'plays')}">▶ ${playsN(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'mine' : ''}" title="${n(stokesN(g), 'stoke', 'stokes')}">${U.FLAME} ${stokesN(g).toLocaleString()}</span></span>` : '';
+  const tagOf = g => g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : isNew(g) ? '<span class="tag new">New</span>' : '';
 
-  function paintFeature(g) {
-    const f = $('feature');
-    f.hidden = !g;
-    if (!g) return;
-    f.innerHTML = `<a class="feature-cover cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}"${ext(g)} tabindex="-1" aria-hidden="true">${cover(g, true)}</a>
-      <div class="feature-text">
-        <span class="eyebrow">${isNew(g) ? 'New this week' : 'Newest game'}</span>
-        <h2>${esc(g.title)}</h2>
+  // one game card, used in every shelf and grid
+  const card = (g, i = 0, { blurb = true } = {}) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
+      <a class="card tilt" href="${esc(href(g))}" data-cover>
+        <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${tagOf(g)}<span class="glint" aria-hidden="true"></span></div>
+      </a>
+      <div class="meta">
+        <b>${esc(g.title)}</b>
         <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
-        ${playsOf(g)}
+        ${g.dev ? progressOf(g) : countsOf(g)}
+        ${genresOf(g)}
+        ${blurb && g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
+        ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
+      </div>
+    </article>`;
+
+  // ---------- game of the day: the same pick for everyone, all day ----------
+  function paintSpotlight() {
+    const pool = released().filter(g => g.build !== false);
+    $('spotlight').hidden = !pool.length;
+    if (!pool.length) return;
+    const day = new Date(), key = `${day.getFullYear()}-${day.getMonth() + 1}-${day.getDate()}`;
+    const g = pool[[...key].reduce((h, c) => (h * 131 + c.charCodeAt(0)) >>> 0, 17) % pool.length];
+    $('spotlight').innerHTML = `
+      <a class="spot-cover tilt cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}" data-cover tabindex="-1" aria-hidden="true">${cover(g, true)}<span class="glint"></span></a>
+      <div class="spot-text">
+        <span class="eyebrow">Game of the day · ${day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+        <h2>${esc(g.title)}</h2>
+        <a class="by" href="maker.html?n=${encodeURIComponent(g.author)}">by ${esc(g.author)}</a>
+        ${countsOf(g)}
         ${genresOf(g)}
         ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
-        <a class="play-btn" href="${esc(href(g))}">View game</a>
+        <div class="spot-acts">
+          ${g.url ? `<a class="play-btn" href="${esc(href(g))}">View game</a>` : `<a class="play-btn" href="${esc(href(g))}#play">▶ Play now</a><a class="btn-l" href="${esc(href(g))}" data-cover>Details</a>`}
+        </div>
       </div>`;
   }
+
+  // ---------- shelves ----------
+  function paintShelves() {
+    const bySlug = Object.fromEntries(games.map(g => [g.slug, g]));
+    const recent = U.recent().map(s => bySlug[s]).filter(Boolean).slice(0, 6);
+    $('shelfRecent').hidden = !recent.length;
+    $('rowRecent').innerHTML = recent.map((g, i) => card(g, i, { blurb: false })).join('');
+
+    const hot = stats ? released().filter(g => heat(g) > 0).sort((a, b) => heat(b) - heat(a)).slice(0, 5) : [];
+    $('shelfHot').hidden = hot.length < 2;
+    $('rowHot').innerHTML = hot.map((g, i) => `<li class="rank"><span class="rank-n" aria-label="Number ${i + 1}">${i + 1}</span>${card(g, i, { blurb: false })}</li>`).join('');
+
+    const fresh = released().slice(0, 6);
+    $('shelfFresh').hidden = fresh.length < 3;
+    $('rowFresh').innerHTML = fresh.map((g, i) => card(g, i, { blurb: false })).join('');
+  }
+
+  // ---------- the library ----------
   function paintMakers() {
     const counts = {};
     for (const g of games) counts[g.author] = (counts[g.author] || 0) + 1;
     const names = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
-    $('makers').innerHTML = (names.length > 1 ? [['', games.length, 'Everyone']] : []).concat(names.map(n => [n, counts[n], n]))
-      .map(([key, n, label]) => `<button type="button" class="maker" data-maker="${esc(key)}" aria-pressed="${by.toLowerCase() === key.toLowerCase()}">${esc(label)} <span>${n}</span></button>`).join('');
-    for (const b of $('makers').children) b.onclick = () => setBy(b.dataset.maker);
+    $('makers').innerHTML = `<span class="genre-lbl">Maker</span>` + (names.length > 1 ? [['', games.length, 'Everyone']] : []).concat(names.map(x => [x, counts[x], x]))
+      .map(([key, c, label]) => `<button type="button" class="maker" data-maker="${esc(key)}" aria-pressed="false">${esc(label)} <span>${c}</span></button>`).join('');
+    for (const b of $('makers').querySelectorAll('button')) b.onclick = () => setBy(b.dataset.maker);
   }
   function paintGenres() {
     const counts = {};
     for (const g of games) for (const x of g.genres || []) counts[x] = (counts[x] || 0) + 1;
-    const names = (window.UsForge?.GENRES || Object.keys(counts)).filter(x => counts[x]);
+    const names = (U.GENRES || Object.keys(counts)).filter(x => counts[x]);
     $('genres').hidden = !names.length;
-    $('genres').innerHTML = `<span class="genre-lbl">Genre</span>` + [['', 'All']].concat(names.map(n => [n, n]))
+    $('genres').innerHTML = `<span class="genre-lbl">Genre</span>` + [['', 'All']].concat(names.map(x => [x, x]))
       .map(([key, label]) => `<button type="button" class="maker" data-g="${esc(key)}" aria-pressed="false">${esc(label)}${key ? ` <span>${counts[key]}</span>` : ''}</button>`).join('');
     for (const b of $('genres').querySelectorAll('button')) b.onclick = () => setGenre(b.dataset.g);
   }
@@ -156,78 +225,83 @@
     if (by) q.set('by', by); if (genre) q.set('genre', genre);
     history.replaceState(null, '', q.toString() ? '?' + q : './');
   }
-  function setBy(name) { by = name; syncUrl(); paint(); }
-  function setGenre(name) { genre = genre.toLowerCase() === name.toLowerCase() ? '' : name; syncUrl(); paint(); }
+  const toLibrary = () => { const b = $('library').getBoundingClientRect(); if (b.top < 0 || b.top > innerHeight * .6) $('library').scrollIntoView({ behavior: calm ? 'auto' : 'smooth', block: 'start' }); };
+  function setBy(name) { by = by.toLowerCase() === name.toLowerCase() ? '' : name; syncUrl(); paint(); toLibrary(); }
+  function setGenre(name) { genre = genre.toLowerCase() === name.toLowerCase() ? '' : name; syncUrl(); paint(); toLibrary(); }
+  const SORTS = {
+    new: (a, b) => (b.added || 0) - (a.added || 0),
+    plays: (a, b) => playsN(b) - playsN(a) || SORTS.new(a, b),
+    stokes: (a, b) => stokesN(b) - stokesN(a) || playsN(b) - playsN(a),
+    az: (a, b) => a.title.localeCompare(b.title),
+  };
   function paint() {
     const q = $('q').value.trim().toLowerCase();
     const fits = g => (!by || g.author.toLowerCase() === by.toLowerCase())
       && (!genre || (g.genres || []).some(x => x.toLowerCase() === genre.toLowerCase()))
       && (!q || [g.title, g.author, g.blurb, ...(g.genres || [])].join(' ').toLowerCase().includes(q));
-    const list = released().filter(fits);
-    // the newest game gets the big card when you're just browsing
-    const showFeature = !q && !by && !genre && released().length > 1;
-    paintFeature(showFeature ? released()[0] : null);
-    const rest = showFeature ? list.slice(1) : list;
-    $('count').textContent = `${list.length} ${list.length === 1 ? 'game' : 'games'}`;
-    for (const b of $('makers').children) b.setAttribute('aria-pressed', String(by.toLowerCase() === b.dataset.maker.toLowerCase()));
+    const list = released().filter(fits).sort(SORTS[$('sort').value] || SORTS.new);
+    $('count').textContent = n(list.length, 'game', 'games');
+    for (const b of $('makers').querySelectorAll('button')) b.setAttribute('aria-pressed', String(by.toLowerCase() === b.dataset.maker.toLowerCase()));
     for (const b of $('genres').querySelectorAll('button')) b.setAttribute('aria-pressed', String(genre.toLowerCase() === b.dataset.g.toLowerCase()));
-    $('grid').innerHTML = rest.length ? rest.map((g, i) => `<article style="--i:${i}">
-        <a class="card" href="${esc(href(g))}"${ext(g)}>
-          <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.url ? '<span class="tag">opens elsewhere ↗</span>' : isNew(g) ? '<span class="tag new">New</span>' : ''}</div>
-        </a>
-        <div class="meta">
-          <b>${esc(g.title)}</b>
-          <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
-          ${playsOf(g)}
-          ${genresOf(g)}
-          ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
-        </div>
-      </article>`).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
+    $('grid').innerHTML = list.length ? list.map((g, i) => card(g, i)).join('') : `<p class="empty">${games.length ? 'No games match that.' : 'No games yet — be the first.'}</p>`;
 
-    // in development
     const dev = cooking().filter(fits);
-    $('devGrid').innerHTML = dev.length ? dev.map((g, i) => `<article class="devcard" style="--i:${i}">
-        <a class="card" href="${esc(href(g))}">
-          <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span></div>
-        </a>
-        <div class="meta">
-          <b>${esc(g.title)}</b>
-          <button class="by" type="button" data-by="${esc(g.author)}">by ${esc(g.author)}</button>
-          ${progressOf(g)}
-          ${genresOf(g)}
-          ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
-          ${g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
-        </div>
-      </article>`).join('')
+    $('devGrid').innerHTML = dev.length ? dev.map((g, i) => card(g, i)).join('')
       : `<p class="empty">${cooking().length ? 'No games in development match that.' : 'Nothing in the forge right now. When you upload a game, tick “Still in development” to show it here.'}</p>`;
-    for (const b of document.querySelectorAll('[data-by]')) b.onclick = () => setBy(b.dataset.by);
+    wire();
+  }
+  function wire() {
+    for (const b of document.querySelectorAll('button[data-by]')) b.onclick = () => setBy(b.dataset.by);
     for (const b of document.querySelectorAll('[data-genre]')) b.onclick = () => setGenre(b.dataset.genre);
   }
 
-  // the games counter: numbers tick up to their value
-  function tickTo(id, n) {
-    const el = $(id), show = v => { el.textContent = v.toLocaleString(); };
-    if (calm) return show(n);
-    const t0 = performance.now(); (function tick(now) { const k = Math.min(1, (now - t0) / 900); show(Math.round(n * (1 - (1 - k) ** 3))); if (k < 1) requestAnimationFrame(tick); })(t0);
-    setTimeout(() => show(n), 1100);   // (always lands on the real number, even if animation is throttled)
+  // ---------- the makers ----------
+  function paintCrew() {
+    $('crew').innerHTML = U.TEAM.map(p => {
+      const mine = games.filter(g => g.author.toLowerCase() === p.name.toLowerCase());
+      const pl = mine.reduce((t, g) => t + playsN(g), 0);
+      return `<a class="crew-card tilt" href="maker.html?n=${encodeURIComponent(p.name)}">
+        <span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span>
+        <span class="crew-name">${esc(p.name)}</span>
+        <span class="crew-role">${esc(p.roles[0])}</span>
+        <span class="crew-n">${n(mine.filter(g => !g.dev).length, 'game', 'games')}${stats ? ` · ${n(pl, 'play', 'plays')}` : ''}${mine.some(g => g.dev) ? ` · ${mine.filter(g => g.dev).length} in dev` : ''}</span>
+        <span class="glint" aria-hidden="true"></span>
+      </a>`;
+    }).join('');
+  }
+
+  // ---------- counters: numbers tick up to their value ----------
+  function tickTo(id, v) {
+    const el = $(id), show = x => { el.textContent = x.toLocaleString(); };
+    if (calm) return show(v);
+    const t0 = performance.now(); (function tick(t) { const k = Math.min(1, (t - t0) / 900); show(Math.round(v * (1 - (1 - k) ** 3))); if (k < 1) requestAnimationFrame(tick); })(t0);
+    setTimeout(() => show(v), 1100);   // (always lands on the real number, even if animation is throttled)
   }
   function countUp() {
-    const makers = new Set(games.map(g => g.author.toLowerCase())).size, fresh = games.filter(isNew).length;
-    for (const [id, n] of [['statGames', released().length], ['statMakers', makers], ['statNew', fresh]]) tickTo(id, n);
+    tickTo('statGames', released().length);
+    tickTo('statMakers', new Set(games.map(g => g.author.toLowerCase())).size);
     $('statDevBox').hidden = !cooking().length; if (cooking().length) tickTo('statDev', cooking().length);
+    if (stats) {
+      const sum = m => games.reduce((t, g) => t + (m[g.slug] || 0), 0);
+      $('statPlaysBox').hidden = $('statStokesBox').hidden = false;
+      tickTo('statPlays', sum(stats.plays)); tickTo('statStokes', sum(stats.stokes));
+    }
   }
-  function countPlays() {
-    if (!plays || !games.length) return;
-    const total = games.reduce((t, g) => t + (plays[g.slug] || 0), 0);
-    $('statPlaysBox').hidden = false; tickTo('statPlays', total);
-    paint();
-  }
+  function all() { paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); paintCrew(); countUp(); }
+
   $('q').addEventListener('input', paint);
-  $('surprise').onclick = () => { const pool = games.filter(g => !g.url && g.build !== false); const g = (pool.length ? pool : games)[Math.floor(Math.random() * (pool.length || games.length))]; if (g) location.href = href(g); };
-  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(list => {
-    games = list; $('surprise').hidden = games.length < 2; paintMakers(); paintGenres(); paint(); countUp(); countPlays();
+  $('sort').addEventListener('change', paint);
+  $('surprise').onclick = () => {
+    const pool = released().filter(g => !g.url && g.build !== false);
+    const g = pool[Math.floor(Math.random() * pool.length)];
+    if (g) location.href = href(g);
+  };
+  const gamesP = fetch('games.json', { cache: 'no-cache' }).then(r => r.json());
+  gamesP.then(list => {
+    games = list; $('surprise').hidden = released().length < 2; all();
+    if (by || genre) setTimeout(() => $('library').scrollIntoView({ block: 'start' }), 60);
   }).catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
-  fetch('/api/plays').then(r => r.ok ? r.json() : null).then(p => { if (p && typeof p === 'object') { plays = p; countPlays(); } }).catch(() => {});
+  Promise.all([gamesP, U.stats()]).then(([, s]) => { if (s) { stats = s; all(); } }).catch(() => {});
 })();
 </script>
 </body>

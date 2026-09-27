@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js"></script>
@@ -35,25 +35,20 @@
 </div>
 
 <script src="embers.js"></script>
+<script src="eggs.js"></script>
 <script>
 (() => {
   Embers(document.getElementById('bgEmbers'), { count: 26, alpha: .4, speed: .55 });
   const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  // the team — the first role of the director is highlighted
-  const TEAM = [
-    { name: 'Taurus', roles: ['Director', 'Leader', 'Developer', 'Quality Control', 'Ideas'], lead: true },
-    { name: 'Henrique', roles: ['Designer', 'Developer', 'Ideas'] },
-    { name: 'Alex', roles: ['Developer', 'Ideas', 'Potato'] },
-    { name: 'Igor', roles: ['Developer'] },
-  ];
+  const TEAM = UsForge.TEAM;   // (the team list lives in site.js, shared with the maker pages)
   const paint = (games = []) => {
     document.getElementById('people').innerHTML = TEAM.map(p => {
       const mine = games.filter(g => g.author.toLowerCase() === p.name.toLowerCase());
       return `<article class="person">
         <span class="initial" aria-hidden="true">${esc(p.name[0])}</span>
-        <h2>${esc(p.name)}</h2>
-        <div class="roles">${p.roles.map((r, i) => `<span class="role${p.lead && i < 2 ? ' lead' : ''}">${esc(r)}</span>`).join('')}</div>
-        ${mine.length ? `<a href="./?by=${encodeURIComponent(p.name)}">${mine.length} game${mine.length === 1 ? '' : 's'} on UsForge →</a>` : '<span class="role" style="border-style:dashed;width:fit-content">first game coming soon</span>'}
+        <h2><a class="person-link" href="maker.html?n=${encodeURIComponent(p.name)}">${esc(p.name)}</a></h2>
+        <div class="roles">${p.roles.map((r, i) => `<span class="role${i < (p.lead || 0) ? ' lead' : ''}"${r === 'Potato' ? ' data-potato title="Click me" style="cursor:pointer"' : ''}>${esc(r)}</span>`).join('')}</div>
+        ${mine.length ? `<a href="maker.html?n=${encodeURIComponent(p.name)}">${mine.length} game${mine.length === 1 ? '' : 's'} on UsForge →</a>` : '<span class="role" style="border-style:dashed;width:fit-content">first game coming soon</span>'}
       </article>`;
     }).join('');
   };

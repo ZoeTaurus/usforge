@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maker · UsForge</title>
+<meta name="description" content="A Lazy Studios maker and their games on UsForge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%23ff5a1f' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="site.js"></script>
+</head>
+<body>
+<canvas class="bg-embers" id="bgEmbers" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><span data-theme-switch></span></nav>
+  </header>
+
+  <section class="maker-hero" id="hero"></section>
+
+  <section class="shelf" id="topShelf" hidden>
+    <div class="shelf-head"><h2 id="gamesTitle">Games</h2><span class="shelf-note" id="gamesNote"></span></div>
+    <div class="grid" id="games"></div>
+  </section>
+
+  <section class="devsec" id="devShelf" hidden>
+    <div class="devsec-head"><h2><span class="spark" aria-hidden="true"></span>In development</h2></div>
+    <div class="grid" id="dev"></div>
+  </section>
+
+  <section class="crew">
+    <div class="shelf-head"><h2>The rest of the crew</h2><a class="shelf-note" href="credits.html">Credits →</a></div>
+    <div class="crew-row" id="crew"></div>
+  </section>
+
+  <footer class="foot">
+    <span>UsForge · by Lazy Studios</span>
+    <a href="./">Back to the games →</a>
+  </footer>
+</div>
+
+<script src="embers.js"></script>
+<script src="eggs.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id), U = window.UsForge;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const n = (v, one, many) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
+  Embers($('bgEmbers'), { count: 26, alpha: .4, speed: .55 });
+
+  const want = (new URLSearchParams(location.search).get('n') || '').toLowerCase();
+  let games = [], stats = null;
+  const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
+  const P = g => stats?.plays[g.slug] || 0, S = g => stats?.stokes[g.slug] || 0;
+  const card = (g, i) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
+      <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}<span class="glint" aria-hidden="true"></span></div></a>
+      <div class="meta"><b>${esc(g.title)}</b>
+        ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
+        ${g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<a class="gtag" href="./?genre=${encodeURIComponent(x)}">${esc(x)}</a>`).join('')}</span>` : ''}
+        ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}</div>
+    </article>`;
+
+  function paint() {
+    const known = U.TEAM.find(p => p.name.toLowerCase() === want);
+    const mine = games.filter(g => g.author.toLowerCase() === want);
+    const person = known || (mine.length ? { name: mine[0].author, roles: ['Maker'] } : null);
+    if (!person) { $('hero').innerHTML = `<div><h1>Who’s that?</h1><p class="maker-quote">There’s no maker by that name. <a href="credits.html">See the crew</a>.</p></div>`; return; }
+    document.title = `${person.name} · UsForge`;
+    const done = mine.filter(g => !g.dev), dev = mine.filter(g => g.dev);
+    const plays = done.reduce((t, g) => t + P(g), 0), stokes = done.reduce((t, g) => t + S(g), 0);
+    const best = stats && done.length > 1 ? [...done].sort((a, b) => P(b) - P(a))[0] : null;
+    const first = done.length ? Math.min(...done.map(g => g.added || Infinity)) : 0;
+    $('hero').innerHTML = `
+      <span class="initial" style="--h:${hue(person.name)}" aria-hidden="true">${esc(person.name[0])}</span>
+      <div>
+        <span class="eyebrow">Lazy Studios</span>
+        <h1>${esc(person.name)}</h1>
+        <div class="roles">${person.roles.map((r, i) => `<span class="role${i < (person.lead || 0) ? ' lead' : ''}"${r === 'Potato' ? ' data-potato title="Click me" style="cursor:pointer"' : ''}>${esc(r)}</span>`).join('')}</div>
+        <div class="stats">
+          <div class="stat"><b>${done.length}</b><span>${done.length === 1 ? 'Game' : 'Games'}</span></div>
+          ${stats ? `<div class="stat"><b>${plays.toLocaleString()}</b><span>Plays</span></div><div class="stat"><b>${stokes.toLocaleString()}</b><span>Stokes</span></div>` : ''}
+          ${dev.length ? `<div class="stat"><b>${dev.length}</b><span>In development</span></div>` : ''}
+        </div>
+        ${best && P(best) ? `<p class="maker-quote">Most played: <a href="play.html?g=${encodeURIComponent(best.slug)}">${esc(best.title)}</a> (${n(P(best), 'play', 'plays')}).</p>` : ''}
+        ${!done.length && !dev.length ? `<p class="maker-quote">No games on UsForge yet. The first one is coming soon.</p>` : ''}
+      </div>`;
+    $('topShelf').hidden = !done.length;
+    $('gamesTitle').textContent = `${person.name}’s games`;
+    $('gamesNote').textContent = first && isFinite(first) ? `first one added ${new Date(first * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '';
+    $('games').innerHTML = done.map(card).join('');
+    $('devShelf').hidden = !dev.length;
+    $('dev').innerHTML = dev.map(card).join('');
+    $('crew').innerHTML = U.TEAM.filter(p => p !== known).map(p => {
+      const theirs = games.filter(g => g.author.toLowerCase() === p.name.toLowerCase()), c = theirs.filter(g => !g.dev).length, d = theirs.length - c;
+      return `<a class="crew-card tilt" href="maker.html?n=${encodeURIComponent(p.name)}"><span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span><span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span><span class="glint" aria-hidden="true"></span></a>`;
+    }).join('');
+  }
+  const gamesP = fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => []);
+  gamesP.then(l => { games = l; paint(); });
+  Promise.all([gamesP, U.stats()]).then(([, s]) => { if (s) { stats = s; paint(); } });
+})();
+</script>
+</body>
+</html>

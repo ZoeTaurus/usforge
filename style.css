@@ -542,3 +542,9 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
   .welcome-two > * { animation: rise linear both; animation-timeline: view(); animation-range: entry 5% cover 35%; }
 }
 @media (prefers-reduced-motion: reduce) { .welcome { scroll-behavior: auto; } .scroll-cue span, .welcome-two > * { animation: none !important; } }
+
+/* founders / community headline + credits sections */
+.hero h1 .now { color: var(--accent); text-shadow: 0 0 28px var(--glow); }
+.credits-head { margin: 8px 0 14px; font-size: 20px; font-weight: 750; letter-spacing: -.025em; }
+#communityWrap { margin-top: 12px; }
+#communityWrap .studio { margin: -6px 0 14px; }

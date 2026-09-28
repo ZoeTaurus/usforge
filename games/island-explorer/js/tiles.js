@@ -7,7 +7,7 @@ const T = {
   CAMPFIRE: 27, CHEST: 28, CHEST_OPEN: 29, SIGN: 30, RUINWALL: 31, RUINFLOOR: 32, GATE: 33, FOUNTAIN: 34,
   HUTROOF: 35, HUTWALL: 36, SKELETON: 37, TALLGRASS: 38, CROPS: 39, LAMP: 40, SHELL: 41, JSTUMP: 42,
   PINE: 43, RELIC: 44, SNOW: 45, MUD: 46, ASH: 47, LAVA: 48, ORE: 49, PEBBLE: 50, CRATE: 51, DIG: 52,
-  SNOWPINE: 53, DEADTREE: 54, MUSHROOMS: 55, WALL_WOOD: 56, WALL_STONE: 57, WGATE: 58,
+  SNOWPINE: 53, DEADTREE: 54, MUSHROOMS: 55, WALL_WOOD: 56, WALL_STONE: 57, WGATE: 58, BIGPINE: 59,
 };
 
 // walk:    can be walked on
@@ -43,6 +43,7 @@ defTile(T.JTREE,         { tall: true, chop: 7, act: 'Chop', map: '#1f5a2a' });
 defTile(T.PALM,          { tall: true, chop: 5, act: 'Chop', map: '#8ab35a' });
 defTile(T.PINE,          { tall: true, chop: 6, act: 'Chop', map: '#24583c' });
 defTile(T.SNOWPINE,      { tall: true, chop: 7, act: 'Chop', map: '#3a6a5a' });
+defTile(T.BIGPINE,       { tall: true, chop: 14, act: 'Chop', map: '#2a5a4a' });
 defTile(T.DEADTREE,      { tall: true, chop: 4, act: 'Chop', map: '#5a4a3a' });
 
 defTile(T.ROCK,          { overlay: true, mine: 6, act: 'Mine', map: '#8a8a8a' });

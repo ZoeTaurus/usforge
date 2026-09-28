@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#0a0f1a">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=14">
+  <link rel="stylesheet" href="css/style.css?v=17">
 </head>
 <body>
   <div id="wrap">
@@ -25,7 +25,7 @@
         <div id="roseWrap" class="panel"><canvas id="rose" width="76" height="76"></canvas></div>
         <div id="clock" class="panel"></div>
       </div>
-      <div id="keys">WASD move · Shift sprint · E interact · Space attack · Q roll · C craft · B build · F eat · H heal · M map · Esc pause</div>
+      <div id="keys">WASD move · Shift sprint · E interact · Space attack · Q roll · C craft · B build · J journal · F eat · H heal · M map · Esc pause</div>
       <div id="savedNote">Game saved</div>
       <div id="bossBar" class="hidden"><div id="bossName"></div><div class="btrack"><div id="bossFill"></div></div></div>
     </div>
@@ -45,6 +45,7 @@
       </div>
       <div id="tTop">
         <button class="tb" data-act="map">M</button>
+        <button class="tb" data-act="journal">J</button>
         <button class="tb" data-act="pause">II</button>
       </div>
     </div>
@@ -83,6 +84,14 @@
       </div>
     </div>
 
+    <div id="journal" class="overlay hidden">
+      <div class="panel menu jpanel">
+        <div class="mtitle">JOURNAL</div>
+        <div id="journalBody"></div>
+        <div class="small">[J] close</div>
+      </div>
+    </div>
+
     <div id="bigmap" class="overlay hidden">
       <div class="maptitle">~ Chart of the Nine Isles ~</div>
       <canvas id="bigmapc" width="580" height="360"></canvas>
@@ -111,9 +120,10 @@
           <div><kbd>Q</kbd></div><div>Dodge-roll (can't be hurt mid-roll)</div>
           <div><kbd>C</kbd> <kbd>B</kbd></div><div>Craft · build walls</div>
           <div><kbd>F</kbd> <kbd>H</kbd></div><div>Eat · bandage</div>
-          <div><kbd>M</kbd> <kbd>Esc</kbd></div><div>Map · pause</div>
+          <div><kbd>J</kbd> <kbd>M</kbd></div><div>Journal · map</div>
+          <div><kbd>Esc</kbd></div><div>Pause</div>
         </div>
-        <p class="tips">Punch trees → stone axe → raft. Red circles mean an attack is coming, so roll away!<br>
+        <p class="tips">Get off the first island, then find help. Your journal [J] keeps track of what you learn.<br>Red circles mean an attack is coming, so roll away!<br>
         Hit bosses while they're dazed for bonus damage. Campfires save your game.</p>
         <div class="menu-list"></div>
       </div>
@@ -147,19 +157,19 @@
     </div>
   </div>
 
-  <script src="js/rng.js?v=14"></script>
-  <script src="js/tiles.js?v=14"></script>
-  <script src="js/story.js?v=14"></script>
-  <script src="js/sprites.js?v=14"></script>
-  <script src="js/sound.js?v=14"></script>
-  <script src="js/world.js?v=14"></script>
-  <script src="js/fx.js?v=14"></script>
-  <script src="js/entities.js?v=14"></script>
-  <script src="js/bosses.js?v=14"></script>
-  <script src="js/input.js?v=14"></script>
-  <script src="js/ui.js?v=14"></script>
-  <script src="js/save.js?v=14"></script>
-  <script src="js/menu.js?v=14"></script>
-  <script src="js/game.js?v=14"></script>
+  <script src="js/rng.js?v=17"></script>
+  <script src="js/tiles.js?v=17"></script>
+  <script src="js/story.js?v=17"></script>
+  <script src="js/sprites.js?v=17"></script>
+  <script src="js/sound.js?v=17"></script>
+  <script src="js/world.js?v=17"></script>
+  <script src="js/fx.js?v=17"></script>
+  <script src="js/entities.js?v=17"></script>
+  <script src="js/bosses.js?v=17"></script>
+  <script src="js/input.js?v=17"></script>
+  <script src="js/ui.js?v=17"></script>
+  <script src="js/save.js?v=17"></script>
+  <script src="js/menu.js?v=17"></script>
+  <script src="js/game.js?v=17"></script>
 </body>
 </html>

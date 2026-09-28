@@ -15,9 +15,8 @@ const STORY = {
 
   intro: [
     'Ugh... my head. The storm... the ship broke apart.',
-    'I can see land far to the northeast. Maybe someone out there can help.',
-    'I\'ll need a raft. With no tools I\'ll have to punch trees for wood... that will take a while.',
-    'Pebbles on the ground could make a stone axe. Vines can be twisted into rope. (Press C to craft.)',
+    'There\'s nobody here. I have to get off this island somehow.',
+    'Maybe I can make something out of what\'s lying around. (C opens crafting, J opens your journal.)',
   ],
 
   wreck: [
@@ -54,7 +53,7 @@ const STORY = {
     ['A message in a bottle!', '"Day 40 on the jungle isle. Old Tobias talks to his hat. I think the hat is winning. -M."'],
     ['A message in a bottle!', '"You can\'t break rock with your bare hands, you fool. Make a pickaxe. -your pal Gus"'],
     ['A message in a bottle!', '"Iron ore glints on Gull Rock, far to the NORTHWEST. An iron axe cuts through trees like butter."'],
-    ['A message in a bottle!', '"I buried my spyglass on Crab Key, the little sandbar SOUTH of the jungle isle. Bring a shovel. -Capt. Rhee"'],
+    ['A message in a bottle!', '"My ship went down off Crab Key, the little sandbar SOUTH of the jungle isle. I buried what I could save: my spyglass, my rudder. Bring a shovel. -Capt. Rhee"'],
     ['A message in a bottle!', '"Sharks follow rafts. If they bite, swing back at them. They hate that."'],
     ['A message in a bottle!', '"Salty Pete trades on the Palm Atoll, SOUTH of the Great Isle\'s reef. He loves gold. Crates wash up everywhere, and some have coins inside."'],
   ],
@@ -63,20 +62,36 @@ const STORY = {
 
   hermitFirst: [
     'Well now! A castaway on a raft? I haven\'t seen a new face in twenty years.',
-    'Name\'s Tobias. I used to build ships for the fleet at Port Haven.',
-    'You want to reach the Great Isle to the east? Ha! A reef surrounds it, and the water there boils like soup.',
-    'No raft could survive that. You need a proper sailboat.',
-    'I could build you one. Bring me some SAILCLOTH, 10 WOOD and 2 ROPE.',
-    'The old tide-keepers\' ruins to the NORTH should still have sailcloth in them, but that chest is locked tight.',
-    'My friend M. went looking for the key along the EAST beach. He never came back...',
+    'Name\'s Tobias. I used to build ships for the fleet at Port Haven, on the Great Isle to the east.',
+    'But a reef surrounds the Great Isle and the water there boils like soup. No raft survives it.',
+    'I could build you a real ship... if I had the parts. And the parts are scattered across every island out there.',
+    'Seven of them. I\'ll tell you what I know, but my memory\'s like a sieve. Write it down! (Press J for your journal.)',
   ],
   hermitBuild: [
-    'Sailcloth! And good wood, too. Stand back, let an old man work...',
-    '*saw* *hammer* *hammer* *grumble* *hammer*',
-    'There she is! A sailboat that can handle the reef.',
-    'Sail EAST, then land on the Great Isle\'s WEST beach. The rest of the coast is sheer cliff.',
+    'That\'s the last of it! Stand back, let an old man work...',
+    '*saw* *hammer* *hammer* *grumble* *hammer* *hammer*',
+    'There she is. Sailcloth, mast, rudder, fittings, sealed with pitch... and a chart to thread the reef.',
+    'She\'ll carry you through the rough water. Look for the WEST beach of the Great Isle. The rest is cliffs.',
     'Tell them in Port Haven that old Tobias says hello.',
   ],
+  hermitGot: name => [name.startsWith('Tobias') ? 'My toolbox! I thought I\'d never see you again, old friend.' : `Ah, the ${name}! Leave it with me.`],
+  hermitNeed: n => [`That leaves ${n} more part${n > 1 ? 's' : ''}. Check your journal [J] if you've forgotten where to look.`],
+
+  // The seven ship parts: each lives on a different island.
+  parts: {
+    sailcloth: { name: 'Sailcloth', icon: 'sailcloth', island: 2, hint: 'The tide-keepers\' ruins, NORTH of Tobias\'s hut, once held fine cloth. Their chests were locked.' },
+    toolbox:   { name: 'Tobias\'s Toolbox', icon: 'toolbox', island: 4, hint: 'Lost on Gull Rock, far to the NORTHWEST, when a storm wrecked Tobias\'s dinghy. Boulders fell over it.' },
+    rudder:    { name: 'Rudder', icon: 'rudder', island: 5, hint: 'Captain Rhee\'s ship sank off Crab Key, a sandbar SOUTH of the jungle isle. He buried what washed ashore.' },
+    pitch:     { name: 'Swamp Pitch', icon: 'pitch', island: 6, hint: 'The swamp far to the SOUTH is thick with pitch, and with whatever lurks in its deepest pool.' },
+    mast:      { name: 'Frostpine Mast', icon: 'mast', island: 7, hint: 'Only an Ancient Frostpine on the snowy isle, far NORTHEAST, grows tall enough. Its wood is hard as iron.' },
+    fittings:  { name: 'Iron Fittings', icon: 'fittings', island: 8, hint: 'The old forge in the crater of the fire isle, far SOUTHEAST. Something enormous sleeps on it.' },
+    chart:     { name: 'Reef Chart', icon: 'chart', island: 9, hint: 'A trader named Salty Pete sails the atoll SOUTH of the Great Isle\'s reef. He sells charts for gold.' },
+  },
+  partGot: name => [`You found the ${name.toUpperCase()}!`, 'Tobias will want this for the ship.'],
+  toolboxChest: ['A battered wooden box, pinned under the rocks. Carved on the lid: "PROPERTY OF TOBIAS. HANDS OFF."', 'You found TOBIAS\'S TOOLBOX!'],
+  bigPine: ['The Ancient Frostpine crashes down, shaking snow from every tree around.', 'Its trunk is straight and true. You found the FROSTPINE MAST!'],
+  bigPineHard: 'This ancient trunk is hard as iron. You\'d need an iron axe.',
+
   hermitAfter: [
     ['East, traveler! Look for the sandy beach on the west side of the Great Isle.'],
     ['My hat says you should hurry. I agree with my hat.'],
@@ -114,7 +129,7 @@ const STORY = {
   ],
   mayor: [
     'By the tides! You\'re the survivor from the storm? We\'d given up all hope!',
-    'Across three islands, the reef, and the pass... on your own?',
+    'Across all nine islands, the reef, and the pass... on your own?',
     'Welcome to Port Haven. You\'re safe now. There will be a warm meal and a soft bed tonight.',
     'And tomorrow, a ship home.',
   ],
@@ -133,6 +148,8 @@ const STORY = {
 
   trader: {
     hello: ['Ahoy! Salty Pete\'s the name, tradin\'s the game. I take GOLD. Talk to me again to see my next deal.'],
+    chartOffer: g => [`A chart through the Great Isle\'s reef? Aye, I\'ve got one. 25 gold and it\'s yours. You\'ve got ${g}.`, 'Crates wash up on every beach, matey. Some have coins.'],
+    chartSold: ['Pleasure! One REEF CHART. Don\'t go droppin\' it in the sea.'],
     deals: [
       { cost: 12, give: { iron: 3 }, text: '3 iron bars' },
       { cost: 8, give: { bandage: 2 }, text: '2 bandages' },
@@ -142,14 +159,14 @@ const STORY = {
     ],
   },
   dig: {
-    5: ['You dig... CLUNK! A small chest!', 'Inside: Captain Rhee\'s SPYGLASS. You can see much further now!'],
+    5: ['You dig... CLUNK! A small chest, and a long wooden blade beside it!', 'Inside: Captain Rhee\'s SPYGLASS. You can see much further now!', 'And the blade is a ship\'s RUDDER! Tobias will want this.'],
     9: ['You dig... CLUNK! A brass box!', 'Inside: a tide-keeper COMPASS. Its needle points toward golden idols you haven\'t found yet.'],
     4: ['You dig... CLUNK! A pirate\'s stash!', 'Inside: 40 gold coins!'],
   },
   bossWin: {
-    magmaw: ['Magmaw crumbles into cooling stone...', 'In the rubble you find the MAGMA BLADE and a still-warm EMBER HEART.', '(Magma Blade: 5 damage. Ember Heart: +25 max health.)'],
+    magmaw: ['Magmaw crumbles into cooling stone...', 'In the rubble you find the MAGMA BLADE and a still-warm EMBER HEART.', '(Magma Blade: 5 damage. Ember Heart: +25 max health.)', 'On the old forge beneath him, still glowing: a set of IRON FITTINGS for a ship!'],
     frostfang: ['Old Frostfang lets out a final howl and lies still.', 'You fashion his thick pelt into the FROSTFANG CLOAK.', '(Take 55% less damage, and the cold can\'t touch you.)'],
-    bogking: ['The Bog King sinks beneath the mud for good. His crown bobs to the surface...', 'Tangled with it are the BOG BOOTS.', '(You move 18% faster.)'],
+    bogking: ['The Bog King sinks beneath the mud for good. His crown bobs to the surface...', 'Tangled with it are the BOG BOOTS.', '(You move 18% faster.)', 'The pool he guarded is thick with black SWAMP PITCH. You scoop up a jar for Tobias.'],
   },
   combatTip: 'Tip: SPACE to swing · Q to dodge-roll (you can\'t be hurt mid-roll) · H bandage · F eat',
   frostCold: 'It\'s freezing! You get hungry faster here. Leather armor and campfires help.',

@@ -26,6 +26,7 @@ After you're rescued you can **Keep Exploring** the islands.
 | Q | Dodge-roll (you can't be hurt mid-roll) |
 | B | Build mode: place walls, gates, campfires |
 | C | Crafting menu (W/S select, E craft, or 1-9) |
+| J | Journal: goal, ship parts, notes |
 | F / H | Eat cooked food / use a bandage |
 | M | Map |
 | Esc | Pause (music/sound toggles, save) |
@@ -34,23 +35,22 @@ Walk into the sea to set sail, and sail into a beach to go ashore.
 
 ## The journey
 
-1. **Driftwood Isle** (start). With no tools you punch trees (slow). Pick up pebbles for stone,
-   twist vines into rope, craft a **stone axe**, then a **raft** (12 wood + 3 rope).
-2. **Verdant Isle** (jungle). Meet Tobias the shipwright. Find the key on the east beach,
-   open the chest in the northern ruins, and bring the sailcloth, 10 wood and 2 rope. He'll build a sailboat.
-3. **The Great Isle** (largest). Only the sailboat can cross the reef. Land on the west beach,
-   repair the bridge (8 wood), cross Aurum Pass, and reach the fountain in Port Haven.
+You wake up on **Driftwood Isle** with nothing. Get off the island however you can (the crafting menu [C]
+has ideas), and find help. On **Verdant Isle** lives Tobias, an old shipwright. Only his ship can cross the
+reef around **the Great Isle**, and he needs seven parts, **one from each of the other islands**:
 
-## Optional islands
+| Part | Island | You'll need |
+| --- | --- | --- |
+| Sailcloth | Verdant Isle | The key from the east beach, then the ruins chest |
+| Tobias's Toolbox | Gull Rock | A pickaxe to break the boulders around it |
+| Rudder | Crab Key | A shovel to dig it up |
+| Swamp Pitch | Mossfen | To defeat the Bog King |
+| Frostpine Mast | Frostpeak | An iron axe for the Ancient Frostpine |
+| Iron Fittings | Ember Isle | To defeat Magmaw |
+| Reef Chart | Palm Atoll | 25 gold for Salty Pete |
 
-| Island | What's there |
-| --- | --- |
-| Gull Rock (far NW) | Rocks and **iron ore**, buried gold |
-| Crab Key (south of the jungle isle) | Crabs everywhere, a buried **spyglass** |
-| Mossfen (far south) | Swamp, crocodiles, mushrooms, a golden idol |
-| Palm Atoll (south of the reef) | Lagoon, **Salty Pete the trader**, a buried **compass** |
-| Frostpeak (far NE) | Snow, wolves, bears, deer, cold (food drains faster), a golden idol |
-| Ember Isle (far SE) | Lava, scorpions, lots of ore, a golden idol |
+Then sail through the reef, cross the Great Isle, and reach Port Haven. Your **journal [J]** records
+what you've learned and where the missing parts might be.
 
 ## Tools & crafting
 

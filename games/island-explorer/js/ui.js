@@ -54,6 +54,8 @@ const UI = {
     if (name === 'You') return g.player.sprites[0][0];
     const npc = g.npcs.find(n => n.name === name);
     if (npc) return npc.sprites[0][0];
+    const part = Object.values(STORY.parts).find(pt => pt.name === name);
+    if (part) return Sprites.items[part.icon];
     const I = Sprites.items, O = Sprites.over;
     return {
       'Biscuit': Sprites.mobs.cat.r[0], 'Sign': O[T.SIGN][0][0], 'Chest': O[T.CHEST][0][0], 'Shipwreck': O[T.WRECK][0][0],
@@ -254,6 +256,31 @@ const UI = {
     });
   },
   closeCraft() { this.craftEl.classList.add('hidden'); },
+
+  // ---------- journal ----------
+  openJournal() {
+    const g = Game, F = g.flags, P = g.parts(), st = g.stats;
+    const isl = id => F.visited[id] ? STORY.islands[id][0] : 'an island you haven\'t found';
+    let html = `<div class="jgoal"><span>Current goal</span>${g.objectiveText().replace(' · [J] journal', '')}</div>`;
+    if (!F.metHermit && !F.sailboat) {
+      html += `<p class="jnote">${!F.raft ? 'I\'m stranded. There\'s wood, vines and stone around... maybe I can put something together. (C to craft)' : 'The raft floats! Land lies to the northeast. Maybe someone out there can help.'}</p>`;
+    } else {
+      html += '<div class="jhead">Ship parts for Tobias</div>';
+      for (const [k, pt] of Object.entries(STORY.parts)) {
+        const s = F.sailboat ? 'given' : P[k];
+        const mark = s === 'given' ? '<b class="ok">✓ delivered</b>' : s === 'have' ? '<b class="got">● in your pack</b>' : '<b class="no">○ missing</b>';
+        html += `<div class="jpart${s ? ' done' : ''}"><img src="${this.icons[pt.icon]}" alt=""><div><div class="jn">${pt.name} · <i>${isl(pt.island)}</i></div>${s ? '' : `<div class="jh">${pt.hint}</div>`}</div>${mark}</div>`;
+      }
+    }
+    const visited = Object.keys(F.visited).length;
+    html += `<div class="jhead">Explorer's notes</div><div class="jstats">
+      <span>Islands visited <b>${visited}/9</b></span><span>Golden idols <b>${st.relics}/6</b></span>
+      <span>Bosses defeated <b>${st.bosses || 0}/3</b></span><span>Bottles <b>${st.bottles}/${World.bottles.length}</b></span>
+      <span>Biscuit the cat <b>${F.catHome ? 'home ♥' : F.catFound ? 'following you' : F.catKnown ? 'lost' : '?'}</b></span></div>`;
+    document.getElementById('journalBody').innerHTML = html;
+    document.getElementById('journal').classList.remove('hidden');
+  },
+  closeJournal() { document.getElementById('journal').classList.add('hidden'); },
 
   openPause() { this.pauseEl.classList.remove('hidden'); },
   closePause() { this.pauseEl.classList.add('hidden'); },

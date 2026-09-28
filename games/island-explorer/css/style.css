@@ -231,6 +231,21 @@ body.touch #dialog { bottom: 110px; }
 .fill.ghost { position: absolute; left: 0; top: 0; background: #fff4e0; transition: width 0.5s ease 0.35s; }
 .fill.hp { position: relative; }
 
+/* ---------- Journal ---------- */
+.jpanel { width: min(640px, 94vw); max-height: 88vh; overflow-y: auto; }
+.jgoal { font-size: 10px; line-height: 1.7; padding: 10px; background: #1e2842; border: 2px solid var(--gold); }
+.jgoal span { display: block; font-size: 7px; color: var(--gold); margin-bottom: 4px; }
+.jnote { font-size: 9px; line-height: 2; color: #c8d4e8; margin: 4px 0; }
+.jhead { font-size: 9px; color: var(--gold); margin-top: 8px; }
+.jpart { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 6px 8px; background: #141b2e; border: 2px solid #2a3550; }
+.jpart img { width: 32px; height: 32px; image-rendering: pixelated; }
+.jpart.done { opacity: 0.75; }
+.jn { font-size: 9px; } .jn i { font-style: normal; color: #9fb0d0; font-size: 7px; }
+.jh { font-size: 7px; line-height: 1.6; color: #b8c4dc; margin-top: 4px; }
+.jpart b { font-size: 7px; white-space: nowrap; } .jpart b.ok { color: #6fe06a; } .jpart b.got { color: var(--gold); } .jpart b.no { color: #8a94ac; }
+.jstats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 8px; line-height: 1.8; }
+.jstats b { color: var(--gold); }
+
 /* ---------- Win ---------- */
 #winShip { width: 320px; height: 120px; image-rendering: pixelated; margin-bottom: 8px; }
 #newBest { color: var(--gold); font-size: 12px; margin-bottom: 14px; animation: blink 0.6s steps(2) infinite; }

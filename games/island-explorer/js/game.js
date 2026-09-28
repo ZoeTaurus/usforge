@@ -82,6 +82,7 @@ const Game = {
     this.state = 'play';
     this.snapCam = true;
     for (const b of this.bosses) b.defeated = !!this.flags['boss_' + b.kind];
+    if (this.inv.sailcloth && !this.parts().sailcloth) { this.parts().sailcloth = 'have'; this.inv.sailcloth = 0; } // older saves
     this.revealAround(true);
     const p = this.player;
     this.curIsland = World.islandAt(Math.floor(p.x / TS), Math.floor((p.y + 4) / TS));
@@ -125,6 +126,7 @@ const Game = {
         if (Menu.settingsOpen) Menu.settingsAction(a); else Menu.onAction(a);
         return;
       case 'settings': Menu.settingsAction(a); return;
+      case 'journal': if (['journal', 'pause', 'interact', 'attack'].includes(a)) { UI.closeJournal(); this.state = 'play'; Sound.click(); } return;
       case 'dialog': if (a === 'interact' || a === 'attack') UI.advance(); return;
       case 'map': if (a === 'map' || a === 'pause' || a === 'interact') { UI.closeMap(); this.state = 'play'; } return;
       case 'craft':
@@ -157,6 +159,7 @@ const Game = {
       case 'pause': UI.openPause(); this.state = 'pause'; Sound.click(); break;
       case 'eat': this.eat(); break;
       case 'roll': this.roll(); break;
+      case 'journal': UI.openJournal(); this.state = 'journal'; Sound.click(); break;
       case 'build': this.toggleBuild(true); break;
       case 'heal': this.heal(); break;
     }
@@ -341,6 +344,10 @@ const Game = {
     this.target = this.findTarget();
     this.checkSurroundings();
 
+    if (!F.raft && !F.sailboat && this.playTime > 200 && !F.raftNudge) {
+      F.raftNudge = true;
+      UI.toast('Logs float... if only something could tie them together. [C]');
+    }
     this.autosaveT -= dt;
     if (this.autosaveT <= 0 && p.mode === 'walk') { this.autosaveT = 60; Save.write(); }
     UI.hudUpdate();
@@ -481,6 +488,16 @@ const Game = {
       this.trail.push({ x: p.x, y: p.y });
       if (this.trail.length > 30) this.trail.shift();
     }
+  },
+
+  // ---------------- ship parts (one on each island) ----------------
+  parts() { return this.flags.parts || (this.flags.parts = {}); },
+  partCount() { return Object.keys(STORY.parts).filter(k => this.parts()[k]).length; },
+  getPart(k, lines) {
+    this.parts()[k] = 'have';
+    Sound.treasure();
+    FX.burst(this.player.x, this.player.y - 6, '#ffd84a', 20, 80);
+    UI.say(STORY.parts[k].name, lines || STORY.partGot(STORY.parts[k].name), () => Save.write());
   },
 
   // loot that has flown into the player; pickup sounds climb in pitch during a streak
@@ -684,13 +701,15 @@ const Game = {
       case T.SIGN: UI.say('Sign', STORY.signs[World.signs[World.idx(x, y)]] || ['The writing has worn away.']); break;
       case T.CAMPFIRE: this.rest(x, y); break;
       case T.CHEST:
-        if (!I.key) { F.chestSeen = true; UI.say('Chest', STORY.chestLocked); Sound.deny(); }
-        else {
-          I.key = 0; I.sailcloth = 1;
+        if (World.questChests[World.idx(x, y)] === 'toolbox') {
           World.set(x, y, T.CHEST_OPEN);
-          Sound.treasure();
+          this.getPart('toolbox', STORY.toolboxChest);
+        } else if (!I.key) { F.chestSeen = true; UI.say('Chest', STORY.chestLocked); Sound.deny(); }
+        else {
+          I.key = 0;
+          World.set(x, y, T.CHEST_OPEN);
           FX.burst(x * TS + 8, y * TS + 4, '#ffd84a', 14);
-          UI.say('Chest', STORY.chestOpen, () => Save.write());
+          this.getPart('sailcloth', STORY.chestOpen);
         }
         break;
       case T.SKELETON:
@@ -727,6 +746,7 @@ const Game = {
     if (p.actT > 0) return false;
     const info = TILE[t];
     if (info.mine && !F.pick) { p.actT = 0.3; this.hint(STORY.hints.noPick); return true; }
+    if (t === T.BIGPINE && F.axe < 2) { p.actT = 0.3; this.hint(STORY.bigPineHard); Sound.chop(); return true; }
     const tool = info.mine ? F.pick : F.axe;
     p.actT = tool ? 0.26 : 0.5; p.attackT = 0.2;
     const idx = World.idx(x, y);
@@ -749,6 +769,11 @@ const Game = {
         if (t === T.ORE) FX.drop(x * TS + 8, y * TS + 8, 'iron', 1);
         else FX.drop(x * TS + 8, y * TS + 8, 'stone', Math.random() < 0.35 ? 2 : 1);
         FX.burst(x * TS + 8, y * TS + 9, '#8a8a8a', 12);
+      } else if (t === T.BIGPINE) {
+        World.set(x, y, T.STUMP);
+        FX.shake(6, 0.5); FX.burst(x * TS + 8, y * TS - 10, '#f4f8fc', 40, 110);
+        FX.drop(x * TS + 8, y * TS + 8, 'wood', 4);
+        this.getPart('mast', STORY.bigPine);
       } else {
         World.set(x, y, t === T.PALM || t === T.DEADTREE ? World.groundAt(x, y) : t === T.JTREE ? T.JSTUMP : T.STUMP);
         const n = F.axe === 2 && Math.random() < 0.4 ? 2 : 1;
@@ -786,7 +811,7 @@ const Game = {
     Sound.chop(); Sound.treasure();
     FX.burst(x * TS + 8, y * TS + 8, '#a07848', 16);
     const id = spot ? spot.id : 4;
-    if (id === 5) this.flags.spyglass = true;
+    if (id === 5) { this.flags.spyglass = true; this.parts().rudder = 'have'; }
     else if (id === 9) this.flags.compass = true;
     else { this.inv.gold += 40; this.stats.gold += 40; }
     this.lastFoot = -1;
@@ -967,9 +992,9 @@ const Game = {
     this.endBoss(b, true);
     F['boss_' + b.kind] = true;
     this.stats.bosses = (this.stats.bosses || 0) + 1;
-    if (b.kind === 'magmaw') { F.weapon = 3; p.maxHp += 25; }
+    if (b.kind === 'magmaw') { F.weapon = 3; p.maxHp += 25; this.parts().fittings = 'have'; }
     if (b.kind === 'frostfang') F.armor = 2;
-    if (b.kind === 'bogking') F.boots = true;
+    if (b.kind === 'bogking') { F.boots = true; this.parts().pitch = 'have'; }
     p.hp = p.maxHp;
     UI.say('Victory!', STORY.bossWin[b.kind], () => Save.write());
   },
@@ -1086,23 +1111,30 @@ const Game = {
     if (n.role === 'hermit') {
       if (!F.metHermit) { F.metHermit = true; return UI.say(n.name, STORY.hermitFirst, () => Save.write()); }
       if (F.sailboat) return UI.say(n.name, n.nextLine.call({ lines: STORY.hermitAfter, lineIdx: n.lineIdx++ }));
-      if (I.sailcloth && I.wood >= 10 && I.rope >= 2) {
-        I.sailcloth = 0; I.wood -= 10; I.rope -= 2;
-        return UI.say(n.name, STORY.hermitBuild, () => {
+      const P = this.parts(), keys = Object.keys(STORY.parts);
+      const got = keys.filter(k => P[k] === 'have');
+      got.forEach(k => { P[k] = 'given'; });
+      const given = keys.filter(k => P[k] === 'given').length;
+      const gotLines = got.map(k => STORY.hermitGot(STORY.parts[k].name)[0]);
+      if (given === keys.length) {
+        return UI.say(n.name, [...gotLines, ...STORY.hermitBuild], () => {
           F.sailboat = true;
           Sound.craft();
           UI.toast('You got a SAILBOAT! It can cross the rough reef.');
           Save.write();
         });
       }
-      const need = [];
-      if (!I.sailcloth) need.push(I.key ? 'that key should open the ruins chest up north' : 'SAILCLOTH from the ruins up north');
-      if (I.wood < 10) need.push(`${10 - I.wood} more wood`);
-      if (I.rope < 2) need.push(`${2 - I.rope} more rope`);
-      return UI.say(n.name, [`Still need ${need.join(', and ')}. Off you go!`]);
+      if (got.length) { Sound.pick(); return UI.say(n.name, [...gotLines, ...STORY.hermitNeed(keys.length - given)], () => Save.write()); }
+      const miss = keys.filter(k => P[k] !== 'given');
+      const k = miss[n.lineIdx++ % miss.length];
+      return UI.say(n.name, [`Still ${miss.length} part${miss.length > 1 ? 's' : ''} to go. The ${STORY.parts[k].name.toLowerCase()}? ${STORY.parts[k].hint}`]);
     }
     if (n.role === 'trader') {
       if (!F.metTrader) { F.metTrader = true; return UI.say(n.name, STORY.trader.hello); }
+      if (!this.parts().chart) {
+        if (I.gold >= 25) { I.gold -= 25; return this.getPart('chart', STORY.trader.chartSold); }
+        return UI.say(n.name, STORY.trader.chartOffer(I.gold));
+      }
       const deals = STORY.trader.deals, d = deals[n.lineIdx % deals.length];
       if (I.gold >= d.cost) {
         I.gold -= d.cost;
@@ -1147,24 +1179,17 @@ const Game = {
   },
 
   objectiveText() {
-    const F = this.flags, I = this.inv;
-    if (!F.raft && !F.sailboat) {
-      if (!F.axe) return `Punch trees for wood, pick up pebbles, twist vines into rope, then craft a Stone Axe [C] · Wood ${Math.min(I.wood, 3)}/3 · Stone ${Math.min(I.stone, 2)}/2 · Rope ${Math.min(I.rope, 1)}/1`;
-      return `Build a raft [C]: Wood ${Math.min(I.wood, 12)}/12 · Rope ${Math.min(I.rope, 3)}/3 (3 vines = 1 rope)`;
-    }
-    if (!F.visited[2]) return 'Sail NORTHEAST to the jungle island';
-    if (!F.metHermit) return 'Explore Verdant Isle. Someone may live here...';
+    const F = this.flags;
+    if (!F.raft && !F.sailboat) return 'Find a way off Driftwood Isle';
+    if (!F.metHermit) return F.visited[2] ? 'Explore Verdant Isle. Someone may live here...' : 'Explore the sea. Land lies to the northeast.';
     if (!F.sailboat) {
-      let s;
-      if (I.sailcloth) s = 'Bring the sailcloth to Tobias';
-      else if (I.key) s = 'Open the ruins chest in the NORTH';
-      else if (F.chestSeen) s = 'Find the chest key (Tobias mentioned the EAST beach)';
-      else s = 'Find sailcloth in the NORTHERN ruins';
-      return `${s} · Wood ${Math.min(I.wood, 10)}/10 · Rope ${Math.min(I.rope, 2)}/2`;
+      const n = this.partCount(), total = Object.keys(STORY.parts).length;
+      if (n === total) return 'Bring the ship parts back to Tobias';
+      return `Find the ship parts Tobias needs (${n}/${total}) · [J] journal`;
     }
-    if (!F.visited[3]) return 'Sail EAST across the reef and land on the Great Isle\'s WEST beach';
-    if (!F.bridge) return F.bridgeSeen ? `Repair the bridge: Wood ${Math.min(I.wood, 8)}/8` : 'Follow the old road EAST';
-    return 'Cross Aurum Pass and find Port Haven';
+    if (!F.visited[3]) return 'Cross the reef to the Great Isle';
+    if (!F.bridge) return 'Head east across the Great Isle';
+    return 'Find civilization';
   },
   sideText() {
     const F = this.flags, out = [];

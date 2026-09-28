@@ -5,7 +5,7 @@ const Input = {
   touch: { x: 0, y: 0, active: false },
   isTouch: false,
   KEYMAP: {
-    e: 'interact', enter: 'interact', ' ': 'attack', j: 'attack', k: 'attack',
+    e: 'interact', enter: 'interact', ' ': 'attack', k: 'attack', j: 'journal',
     c: 'craft', m: 'map', tab: 'map', f: 'eat', h: 'heal', escape: 'pause', p: 'pause',
     1: 'r1', 2: 'r2', 3: 'r3', 4: 'r4', 5: 'r5', 6: 'r6', 7: 'r7', 8: 'r8', 9: 'r9',
     arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', q: 'roll', l: 'roll', b: 'build', arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right',

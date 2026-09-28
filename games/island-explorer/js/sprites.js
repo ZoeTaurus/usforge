@@ -531,6 +531,31 @@ const Sprites = (() => {
     S.items.fire = make(16, 16, P => P.g.drawImage(o[T.CAMPFIRE][0][0], 0, 0));
 
     S.tall[T.SNOWPINE] = [0, 1, 2].map(i => snowPine(780 + i));
+    // the Ancient Frostpine: a huge, glittering tree
+    S.tall[T.BIGPINE] = [outline(make(26, 46, P => {
+      P.ellipse(13, 44, 9, 2, 'rgba(0,0,0,0.3)');
+      P.rect(11, 34, 4, 11, '#4a2e14'); P.rect(11, 34, 1, 11, '#6b4423');
+      for (let tier = 0; tier < 6; tier++) {
+        const y0 = 1 + tier * 6;
+        for (let row = 0; row < 9; row++) {
+          const hw = row * 0.8 + tier * 0.9;
+          for (let x = Math.floor(13 - hw); x <= Math.ceil(12 + hw); x++) {
+            if (x < 0 || x > 25) continue;
+            P.px(x, y0 + row, x < 11 ? (row < 2 ? '#6aa8b8' : '#3a7a6a') : x > 15 ? '#1d4a42' : '#2f6b5a');
+          }
+        }
+        for (let x = 13 - tier * 2; x < 13 + tier * 2; x += 2) P.px(x, y0 + 2, '#f4f8fc');
+      }
+      P.px(12, 0, '#ffffff'); P.px(13, 0, '#ffffff');
+      for (const [x, y] of [[6, 20], [19, 14], [9, 30], [17, 27], [13, 9]]) P.px(x, y, '#c0f0ff');
+    }), '#0f2a24', true)];
+    const QI = S.items;
+    QI.toolbox = outline(make(16, 16, P => { P.rect(2, 6, 12, 8, '#a0682a'); P.rect(2, 6, 12, 2, '#c0803a'); P.rect(5, 3, 6, 1, '#5a3a1a'); P.rect(5, 3, 1, 3, '#5a3a1a'); P.rect(10, 3, 1, 3, '#5a3a1a'); P.rect(7, 9, 2, 2, '#e0b040'); }));
+    QI.rudder = outline(make(16, 16, P => { P.rect(7, 1, 2, 7, '#6b4423'); P.ellipse(8, 11, 4, 4.5, (dx, dy) => dx < 0 ? '#b08850' : '#8a6236'); P.rect(6, 7, 4, 1, '#8aa0b8'); }));
+    QI.pitch = outline(make(16, 16, P => { P.rect(4, 5, 8, 9, '#6a7a8a'); P.rect(4, 5, 8, 2, '#2a2020'); P.rect(3, 4, 10, 1, '#8a9aaa'); P.px(6, 3, '#1a1414'); P.px(9, 2, '#1a1414'); P.rect(5, 9, 6, 3, '#1a1414'); }));
+    QI.mast = outline(make(16, 16, P => { for (let i = 0; i < 13; i++) { P.px(2 + i, 14 - i, '#8a6236'); P.px(3 + i, 14 - i, '#b08850'); } P.px(13, 2, '#c0f0ff'); P.px(4, 11, '#f4f8fc'); }));
+    QI.fittings = outline(make(16, 16, P => { P.disc(6, 6, 3.5, '#8aa0b8'); P.disc(6, 6, 1.5, 'rgba(0,0,0,0)'); P.g.clearRect(5, 5, 2, 2); P.rect(8, 9, 6, 2, '#6a7a8a'); P.rect(10, 7, 2, 7, '#8aa0b8'); P.px(9, 3, '#ff8a2a'); }));
+    QI.chart = outline(make(16, 16, P => { P.rect(2, 3, 12, 10, '#e8dcb8'); P.rect(2, 3, 12, 1, '#c8b890'); P.px(4, 6, '#3a8bc9'); P.px(5, 7, '#3a8bc9'); P.rect(8, 6, 3, 3, '#5aa545'); P.px(6, 10, '#e03030'); P.px(7, 9, '#e03030'); P.px(8, 10, '#e03030'); P.rect(12, 9, 1, 3, '#8a6236'); }));
     S.tall[T.DEADTREE] = [0, 1, 2].map(i => deadTree(790 + i));
 
     // animals

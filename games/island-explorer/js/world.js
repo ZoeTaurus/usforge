@@ -15,7 +15,7 @@ const World = {
     { id: 9, cx: 202, cy: 228, rx: 18, ry: 12, seed: 61 }, // Palm Atoll (lagoon, trader)
   ],
   town: { x0: 220, x1: 246, y0: 78, y1: 106, fx: 233, fy: 91 },
-  points: {}, signs: {}, campfires: [], lamps: [], mobSpawns: [], npcSpawns: [], pois: [], bottles: [], digs: [], bossSpawns: [],
+  points: {}, signs: {}, campfires: [], lamps: [], mobSpawns: [], npcSpawns: [], pois: [], bottles: [], digs: [], bossSpawns: [], questChests: {},
   totalShells: 0, landTotal: 0, landExplored: 0,
   changes: new Map(),
 
@@ -161,18 +161,20 @@ const World = {
   addCampfire(x, y) { this.set0(x, y, T.CAMPFIRE); this.campfires.push({ x, y }); this.pois.push({ x, y, kind: 'fire' }); },
 
   // A hidden golden idol, walled in by trees or rocks you have to chop / mine through.
-  addRelic(id, x, y, wall) {
+  addRelic(id, x, y, wall) { this.points['relic' + id] = this.addVault(id, x, y, T.RELIC, wall); },
+  // Something valuable in the middle of a ring of trees / rocks.
+  addVault(id, x, y, center, wall) {
     const p = this.findLand(id, x, y, t => this.isPlain(t) || TILE[t].tall);
     for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
       const tx = p.x + dx, ty = p.y + dy, d = Math.max(Math.abs(dx), Math.abs(dy));
       if (!this.isLand(id, tx, ty)) continue;
       const t = this.get(tx, ty);
       if (t === T.RIVER || t === T.MOUNTAIN || t === T.CLIFF || t === T.PATH || t === T.LAVA) continue;
-      if (d === 0) this.set0(tx, ty, T.RELIC);
+      if (d === 0) this.set0(tx, ty, center);
       else if (d === 1) this.set0(tx, ty, this.ground[this.idx(tx, ty)]);
       else this.set0(tx, ty, wall);
     }
-    this.points['relic' + id] = p;
+    return p;
   },
 
   // ---------------- Island 1: Driftwood Isle ----------------
@@ -490,7 +492,12 @@ const World = {
       else if (q < 0.46) o = T.TALLGRASS; else if (q < 0.51) o = T.TREE; else if (q < 0.54) o = T.BERRY;
       this.put(x, y, T.GRASS, o);
     });
-    this.addDig(4, I.cx, I.cy);
+    // Tobias's toolbox, pinned under a ring of boulders
+    const tb = this.addVault(4, I.cx - 3, I.cy, T.CHEST, T.ROCK);
+    this.questChests = this.questChests || {};
+    this.questChests[this.idx(tb.x, tb.y)] = 'toolbox';
+    this.points.toolbox = tb;
+    this.addDig(4, I.cx + 6, I.cy + 2);
     this.crates(4, 2, r);
     this.spawn('crab', 4, 3, r, t => t === T.SAND);
   },
@@ -556,6 +563,11 @@ const World = {
       this.put(x, y, T.SNOW, o);
     });
     this.addRelic(7, I.cx - 12, I.cy + 5, T.SNOWPINE);
+    // the Ancient Frostpine: the only tree tall enough for a ship's mast
+    const bp = this.findLand(7, I.cx + 11, I.cy + 7, t => t === T.SNOW || t === T.SNOWPINE);
+    this.clearArea(bp.x, bp.y, 2);
+    this.set0(bp.x, bp.y, T.BIGPINE);
+    this.points.bigpine = bp;
     const lx = I.cx + 2, ly = I.cy - 12;
     this.clearArea(lx, ly, 5);
     this.bossSpawns.push({ kind: 'frostfang', x: lx, y: ly });

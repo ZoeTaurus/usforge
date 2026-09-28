@@ -548,3 +548,11 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .credits-head { margin: 8px 0 14px; font-size: 20px; font-weight: 750; letter-spacing: -.025em; }
 #communityWrap { margin-top: 12px; }
 #communityWrap .studio { margin: -6px 0 14px; }
+
+/* community members: compact tiles */
+.members { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding-bottom: 40px; }
+.member { display: grid; grid-template-columns: 28px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); text-decoration: none; color: inherit; transition: border-color .15s; }
+.member:hover, .member:focus-visible { border-color: var(--accent); outline: none; }
+.member .mini { grid-row: span 2; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font: 700 14px var(--sans); color: var(--accent-ink); background: var(--accent); }
+.member-name { font-weight: 600; font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-n { font: 11px var(--mono); color: var(--dim); }

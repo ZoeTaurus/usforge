@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=25">
+<link rel="stylesheet" href="style.css?v=26">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=21"></script>
 </head>
@@ -30,7 +30,7 @@
   <section id="communityWrap" hidden>
     <h2 class="credits-head">Community</h2>
     <p class="studio">Makers who joined after the founders.</p>
-    <div class="credits" id="community"></div>
+    <div class="members" id="community"></div>
   </section>
 
   <footer class="foot">
@@ -61,12 +61,9 @@
     const founders = new Set(TEAM.map(p => p.name.toLowerCase())), seen = new Map();
     for (const g of games) if (!founders.has(g.author.toLowerCase())) seen.set(g.author, (seen.get(g.author) || 0) + 1);
     document.getElementById('communityWrap').hidden = !seen.size;
-    document.getElementById('community').innerHTML = [...seen].map(([name, n]) => `<article class="person">
-        <span class="initial" aria-hidden="true">${esc(name[0])}</span>
-        <h2><a class="person-link" href="maker.html?n=${encodeURIComponent(name)}">${esc(name)}</a></h2>
-        <div class="roles"><span class="role">Maker</span></div>
-        <a href="maker.html?n=${encodeURIComponent(name)}">${n} game${n === 1 ? '' : 's'} on UsForge →</a>
-      </article>`).join('');
+    // small tiles (no roles), so a big community still fits neatly
+    document.getElementById('community').innerHTML = [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, n]) =>
+      `<a class="member" href="maker.html?n=${encodeURIComponent(name)}"><span class="mini" aria-hidden="true">${esc(name[0])}</span><span class="member-name">${esc(name)}</span><span class="member-n">${n} game${n === 1 ? '' : 's'}</span></a>`).join('');
   };
   paint();
   fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(g => { paint(g); community(g); }).catch(() => {});

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0a10">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Deep Fortune</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="menu">
+<canvas id="game"></canvas>
+
+<!-- ============ HOME ============ -->
+<div id="home" class="screen">
+  <div class="home-inner">
+    <div class="logo">
+      <i class="spark" style="left:6%;top:18%"></i><i class="spark" style="left:92%;top:8%;animation-delay:.7s"></i>
+      <i class="spark" style="left:84%;top:62%;animation-delay:1.3s"></i><i class="spark" style="left:14%;top:70%;animation-delay:2s"></i>
+      <div class="logo-top">DEEP</div>
+      <div class="logo-bot">FORTUNE</div>
+      <div class="tagline">Dig deep. Get rich. Don't get buried.</div>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn big gold" id="btnContinue">CONTINUE</button>
+      <button class="btn big" id="btnCareer">NEW CAREER</button>
+      <button class="btn big blue" id="btnFree">FREE PLAY</button>
+      <button class="btn ach-btn" id="btnAch">ACHIEVEMENTS</button>
+      <div class="menu-row">
+        <button class="btn" id="btnHow">HOW TO PLAY</button>
+        <button class="btn" id="btnSettings">SETTINGS</button>
+      </div>
+    </div>
+    <p class="stats" id="homeStats"></p>
+    <p class="tip" id="homeTip"></p>
+  </div>
+</div>
+
+<!-- ============ DIFFICULTY ============ -->
+<div id="diffScreen" class="screen dim">
+  <div class="panel narrow">
+    <h1>NEW CAREER</h1>
+    <p class="center muted">How tough is the mine?</p>
+    <div id="diffList" class="diff-list"></div>
+    <div class="actions"><button class="btn" id="diffBack">BACK</button></div>
+  </div>
+</div>
+
+<!-- ============ ACHIEVEMENTS ============ -->
+<div id="achScreen" class="screen dim">
+  <div class="panel wide">
+    <h1>ACHIEVEMENTS</h1>
+    <div id="achHeader" class="center ach-header"></div>
+    <div id="achGrid" class="ach-grid"></div>
+    <h2 class="sub">LIFETIME STATS</h2>
+    <div id="lifeStats" class="life-grid"></div>
+    <p class="small-note center">Achievements and stats count in Career mode, and in Free Play when invincibility, unlimited items and starting gear are all off.</p>
+    <div class="actions"><button class="btn" id="achBack">BACK</button></div>
+  </div>
+</div>
+
+<!-- ============ FREE PLAY SETUP ============ -->
+<div id="freeSetup" class="screen dim">
+  <div class="panel narrow">
+    <h1>FREE PLAY</h1>
+    <p class="center muted">A sandbox with no goal and no save. Pick your rules.</p>
+    <div id="freeOpts" class="opts"></div>
+    <div class="actions">
+      <button class="btn" id="freeBack">BACK</button>
+      <button class="btn blue" id="freeStart">START</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ HOW TO PLAY ============ -->
+<div id="howto" class="screen dim">
+  <div class="panel">
+    <h1>HOW TO PLAY</h1>
+    <div class="how-grid">
+      <div class="card">
+        <h2>THE GOAL</h2>
+        <p>Mine ore, carry it back up and sell it at the shop. Buy better gear so you can dig deeper, where ore is worth more. In a career, earn <span class="money">$25,000</span> to retire. If you die, you lose the run.</p>
+      </div>
+      <div class="card">
+        <h2>BUILD YOUR MINESHAFT</h2>
+        <p><b>Ladders</b> are how you get back up. <b>Supports</b> hold up the roof for about 3 tiles around them. <b>Torches</b> light your tunnels.</p>
+        <p>Digging straight down is safe. Sideways tunnels without supports will <span class="bad">crack and cave in</span>.</p>
+      </div>
+      <div class="card">
+        <h2>DANGERS</h2>
+        <p>Long falls &bull; cave-ins &bull; loose <b>gravel</b> &bull; rising <span class="good">poison gas</span> &bull; flowing <span class="bad">lava</span> that burns your ladders. Your health slowly refills on the surface.</p>
+      </div>
+      <div class="card">
+        <h2>MONSTERS &amp; LOOT</h2>
+        <p><b>Bats</b>, <b>slimes</b>, <b>cave crawlers</b> and <span class="bad">fire wisps</span> lurk in the dark, and get tougher the deeper you go. Click one to hit it with your pick. They drop coins and sometimes gems.</p>
+        <p>Monsters won't spawn near <b>torches</b>. Crack open <b>treasure chests</b> in caves for cash and supplies.</p>
+      </div>
+      <div class="card keys">
+        <h2>KEYBOARD &amp; MOUSE</h2>
+        <p><b>A/D</b> walk &nbsp; <b>W/Space</b> jump &nbsp; <b>W/S</b> climb<br>
+        <b>Hold left click</b> mine / attack &nbsp; <b>Right click</b> or <b>B</b> build<br>
+        <b>Hold B</b> and sweep to build a row &nbsp; <b>F</b> build at feet<br>
+        <b>1-4</b> / wheel choose item (4 = dynamite)<br>
+        <b>J</b> dig / attack (+W/S up/down) &nbsp; <b>H</b> medkit &nbsp; <b>R</b> recall beacon<br>
+        <b>E</b> shop &nbsp; <b>TAB</b> world map &nbsp; <b>N</b> minimap<br>
+        <b>M</b> mute &nbsp; <b>Esc</b> pause</p>
+      </div>
+      <div class="card keys">
+        <h2>CONTROLLER</h2>
+        <p><b>Stick / D-pad</b> move &amp; climb &nbsp; <b>A</b> jump / jetpack<br>
+        <b>X / RT</b> dig &amp; attack (push up/down to aim) &nbsp; <b>B / LT</b> build at feet<br>
+        <b>LB / RB</b> switch item &nbsp; <b>Y</b> shop or medkit &nbsp; <b>Stick click</b> recall<br>
+        <b>Start</b> pause &nbsp; <b>Back</b> map</p>
+      </div>
+      <div class="card">
+        <h2>GETTING RICH</h2>
+        <p>The shop posts <b>contracts</b>: deliver the ore they want for a big bonus. Watch for <span class="hot">HOT</span> ores that sell for +50% for a while.</p>
+        <p>Save up for <b>spring boots</b> (softer landings) and a <b>jetpack</b> (hold jump in mid-air). Days pass on the surface: at night the stars come out.</p>
+      </div>
+      <div class="card keys">
+        <h2>TOUCH</h2>
+        <p>Use the arrows to walk, climb and jump. <b>Hold on a block</b> to mine it. Turn on <b>BUILD</b> and tap to place the selected item. Tap the hotbar to pick an item, or tap the medkit / beacon to use them. Hold on a monster to attack it.</p>
+      </div>
+    </div>
+    <div class="actions"><button class="btn" id="howBack">BACK</button></div>
+  </div>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<div id="settingsScreen" class="screen dim">
+  <div class="panel narrow">
+    <h1>SETTINGS</h1>
+    <div class="opts">
+      <label class="slider"><span>Volume <b id="volLabel"></b></span><input type="range" id="setVolume" min="0" max="100"></label>
+      <label class="toggle"><input type="checkbox" id="set_music"><span class="box"></span><span><b>Music</b></span></label>
+      <label class="toggle"><input type="checkbox" id="set_shake"><span class="box"></span><span><b>Screen shake</b></span></label>
+      <label class="toggle"><input type="checkbox" id="set_softLight"><span class="box"></span><span><b>Smooth lighting</b><br><small>Off = chunky retro light</small></span></label>
+      <label class="toggle"><input type="checkbox" id="set_minimap"><span class="box"></span><span><b>Minimap</b></span></label>
+      <label class="toggle"><input type="checkbox" id="set_hints"><span class="box"></span><span><b>Tutorial tips</b><br><small>Helpful pop-ups the first time things happen</small></span></label>
+      <button class="btn" id="resetHints">SHOW ALL TIPS AGAIN</button>
+    </div>
+    <div class="actions"><button class="btn" id="settingsBack">BACK</button></div>
+  </div>
+</div>
+
+<!-- ============ PAUSE ============ -->
+<div id="pause" class="screen dim">
+  <div class="panel narrow center">
+    <h1>PAUSED</h1>
+    <p class="muted" id="pauseInfo"></p>
+    <div class="menu-buttons">
+      <button class="btn big gold" id="pauseResume">RESUME</button>
+      <button class="btn" id="pauseHow">HOW TO PLAY</button>
+      <button class="btn" id="pauseAch">ACHIEVEMENTS</button>
+      <button class="btn" id="pauseSettings">SETTINGS</button>
+      <button class="btn red" id="pauseQuit">SAVE &amp; QUIT</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SHOP ============ -->
+<div id="shopScreen" class="screen dim">
+  <div class="panel wide">
+    <h1>GENERAL STORE</h1>
+    <div class="cols">
+      <div class="card"><h2>SELL ORE</h2><div id="sellList"></div></div>
+      <div class="card"><h2>SUPPLIES</h2><div id="supplyList"></div></div>
+      <div class="card"><h2>UPGRADES</h2><div id="upgradeList"></div></div>
+    </div>
+    <div class="row footer"><span>Cash: <span class="money" id="shopCash"></span></span><button class="btn red" id="closeShop">LEAVE</button></div>
+  </div>
+</div>
+
+<!-- ============ END ============ -->
+<div id="endScreen" class="screen dim">
+  <div class="panel narrow center">
+    <h1 id="endTitle">YOU DIED</h1>
+    <p id="endText"></p>
+    <div class="actions wrap">
+      <button class="btn gold" id="continueBtn" style="display:none">KEEP DIGGING</button>
+      <button class="btn" id="restartBtn">PLAY AGAIN</button>
+      <button class="btn" id="homeBtn">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CONFIRM ============ -->
+<div id="confirm" class="screen dim">
+  <div class="panel narrow center">
+    <p id="confirmText"></p>
+    <div class="actions"><button class="btn" id="confirmNo">CANCEL</button><button class="btn red" id="confirmYes">YES</button></div>
+  </div>
+</div>
+
+<!-- ============ TOUCH CONTROLS ============ -->
+<div id="touch">
+  <div class="tpad left">
+    <button id="tLeft" aria-label="left">&#9664;</button>
+    <button id="tRight" aria-label="right">&#9654;</button>
+  </div>
+  <div class="tpad right">
+    <button id="tDown" aria-label="down">&#9660;</button>
+    <button id="tUp" aria-label="up / jump">&#9650;</button>
+  </div>
+  <div class="tside">
+    <button id="tShop">SHOP</button>
+    <button id="tFeet">DROP</button>
+    <button id="tBuild">BUILD</button>
+    <button id="tMap">MAP</button>
+    <button id="tPause" aria-label="pause">II</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/textures.js"></script>
+<script src="js/world.js"></script>
+<script src="js/player.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/features.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

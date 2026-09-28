@@ -1,5 +1,23 @@
 [
   {
+    "slug": "deep-fortune",
+    "title": "Deep Fortune",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "Deep Fortune is a pixel-art mining game where you dig mineshafts, fight cave monsters and sell ore to retire rich, if you don't get buried first.",
+    "cover": null,
+    "pixel": true,
+    "url": null,
+    "genres": [
+      "Adventure"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790617624
+  },
+  {
     "slug": "pirate-madness",
     "title": "Pirate Madness",
     "author": "Alex",

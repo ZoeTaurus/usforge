@@ -1,0 +1,10 @@
+{
+  "title": "Deep Fortune",
+  "author": "Taurus",
+  "owner": "Taurus",
+  "blurb": "Deep Fortune is a pixel-art mining game where you dig mineshafts, fight cave monsters and sell ore to retire rich, if you don't get buried first.",
+  "pixel": true,
+  "genres": [
+    "Adventure"
+  ]
+}

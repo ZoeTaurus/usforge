@@ -299,7 +299,7 @@ const GLYPHS = {
   'X': '#...#|#...#|.#.#.|..#..|.#.#.|#...#|#...#',
   'Y': '#...#|#...#|.#.#.|..#..|..#..|..#..|..#..',
   'Z': '#####|....#|...#.|..#..|.#...|#....|#####',
-  'a': '....|....|.###|#..#|#..#|#..#|.###',
+  'a': '....|....|.##.|...#|.###|#..#|.###',
   'b': '#...|#...|###.|#..#|#..#|#..#|###.',
   'c': '....|....|.###|#...|#...|#...|.###',
   'd': '...#|...#|.###|#..#|#..#|#..#|.###',
@@ -4230,7 +4230,7 @@ MAPS.beach = {
     b.set(22, 11, 'c'); b.set(23, 11, 'k'); b.set(33, 11, 'c'); b.set(34, 10, 'k'); b.set(31, 4, 'c'); b.set(24, 4, 'k');
     b.set(17, 9, 'u'); b.set(39, 9, 'u');
     b.obj({ type: 'dinghy', x: 26, y: 35 });
-    b.obj({ type: 'sign', x: 29, y: 28, text: 'NORTH: Port Haven.\nBeware of OUTLAWS on the jungle road!' });
+    b.obj({ type: 'sign', x: 29, y: 28, text: 'NORTH: Barnacle Bay.\nBeware of OUTLAWS on the jungle road!' });
     b.obj({ type: 'sign', x: 26, y: 1, text: 'Wreck Beach.\nSouth: shipwrecks and crabs. Mostly crabs.' });
     b.obj({ type: 'wreck', x: 8, y: 36 });
     b.obj({ type: 'barrel', x: 37, y: 35 }); b.obj({ type: 'crate', x: 36, y: 34 });
@@ -4247,7 +4247,7 @@ MAPS.beach = {
 
 // ------------------------------------------------------------------
 MAPS.town = {
-  name: 'Port Haven', theme: 'tropical', music: 'town', w: 52, h: 44, fill: ',', flowerRate: 0.2, ambient: 'day',
+  name: 'Barnacle Bay', theme: 'tropical', music: 'town', w: 52, h: 44, fill: ',', flowerRate: 0.2, ambient: 'day',
   build(b) {
     b.fill(',');
     // harbor
@@ -4295,7 +4295,7 @@ MAPS.town = {
     b.obj({ type: 'stall', x: 20, y: 21.6, v: 0 }); b.obj({ type: 'stall', x: 30, y: 21.6, v: 3 });
     b.obj({ type: 'well', x: 20.2, y: 27.4 });
     b.obj({ type: 'bench', x: 29.4, y: 27.3 });
-    b.obj({ type: 'sign', x: 22, y: 40, text: 'Welcome to PORT HAVEN!\\nHome of the famous Redtide statue.' });
+    b.obj({ type: 'sign', x: 22, y: 40, text: 'Welcome to BARNACLE BAY!\\nHome of the famous Redtide statue.' });
     b.obj({ type: 'sign', x: 48, y: 23, text: 'EAST: Windy Cliffs.\\n(Great view. Mind the edge.)' });
     b.obj({ type: 'sign', x: 8.4, y: 22.4, text: 'THE RUSTY ANCHOR\\nGrog - Stew - Questionable Company' });
     b.obj({ type: 'ship', x: 17.5, y: 2.6, v: 0 });
@@ -5292,6 +5292,7 @@ class Projectile {
       case 'knife': { const a = Math.atan2(this.vy, this.vx); pline(g, x - Math.cos(a) * 4, y - Math.sin(a) * 4, x + Math.cos(a) * 2, y + Math.sin(a) * 2, PAL.white); px(g, x - Math.round(Math.cos(a) * 4), y - Math.round(Math.sin(a) * 4), PAL.purple); break; }
       case 'fire': pcircle(g, x, y, 3.2 + (this.t % 4 < 2 ? 0.5 : 0), PAL.orange); pcircle(g, x, y, 1.8, PAL.yellow); break;
       case 'wave': { const a = Math.atan2(this.vy, this.vx); parc(g, x, y, 5, 8, a - 0.9, a + 0.9, this.col || PAL.lav); break; }
+      case 'swordwave': { const a = Math.atan2(this.vy, this.vx); parc(g, x, y, 7, 12, a - 1.1, a + 1.1, PAL.cyan); parc(g, x, y, 9, 11, a - 0.8, a + 0.8, PAL.white); break; }
       case 'flask': pcircle(g, x, y, 2.5, PAL.black); pcircle(g, x, y, 1.6, this.col || PAL.lgreen); px(g, x, y - 3, PAL.beige); break;
       case 'lob': pcircle(g, x, y, 3, PAL.black); pcircle(g, x, y, 2, this.col || PAL.lgreen); break;
       case 'feather': pline(g, x - 3, y, x + 3, y, PAL.white); px(g, x, y - 1, PAL.lgray); break;
@@ -5467,9 +5468,9 @@ const ENEMY_DEFS = {
   dummy: { name: 'Training Dummy', hp: 24, dmg: 0, speed: 0, ai: 'none', prop: 'dummy', bodyR: 7, w: 8, h: 4, gold: [0, 0], height: 22, shadow: 12, kbResist: 0 },
   scab: { name: 'Scab', hp: 90, dmg: 10, speed: 0.95, ai: 'melee', char: 'outlaw2', weapon: 'cutlass', gold: [15, 15], noDeath: true, kbResist: 0.6 },
   // ---------------- bosses ----------------
-  gritt: { name: 'Gritt "Rustjaw"', title: 'Outlaw Boss', hp: 760, dmg: 13, speed: 0.75, ai: 'boss', char: 'gritt', big: true, weapon: 'anchor', gold: [60, 60], kbResist: 0.1, bodyR: 12, height: 36,
+  gritt: { name: 'Gritt "Rustjaw"', title: 'Outlaw Boss', hp: 1100, dmg: 13, speed: 0.75, ai: 'boss', char: 'gritt', big: true, weapon: 'anchor', gold: [60, 60], kbResist: 0.1, bodyR: 12, height: 36,
     moves: [['slashCombo', 3, { n: 2, r: 34 }], ['charge', 2, { spd: 3.6 }], ['slam', 2, { r: 58 }], ['summon', 1, { types: ['outlaw', 'outlaw2'], n: 2, max: 3 }], ['anchorSpin', 1, {}]] },
-  bogking: { name: 'Grub the Bog King', title: 'Swamp Tyrant', hp: 1000, dmg: 13, speed: 0.6, ai: 'boss', sprite: 'toad', gold: [70, 70], kbResist: 0.1, bodyR: 16, height: 36, shadow: 40,
+  bogking: { name: 'Grub the Bog King', title: 'Swamp Tyrant', hp: 1350, dmg: 13, speed: 0.6, ai: 'boss', sprite: 'toad', gold: [70, 70], kbResist: 0.1, bodyR: 16, height: 36, shadow: 40,
     moves: [['bombard', 3, { n: 5, kind: 'lob', col: PAL.lgreen, poison: true }], ['hop', 3, { r: 48 }], ['volley', 2, { n: 7, spread: 1.4, spd: 2.2, kind: 'lob2' }], ['summon', 1, { types: ['bogbandit'], n: 2, max: 3 }]] },
   bruno: { name: 'Bruno "Ironfist"', title: 'Champion of Iron Rock', hp: 760, dmg: 12, speed: 0.9, rest: 54, ai: 'boss', char: 'bruno', big: true, gold: [0, 0], kbResist: 0.15, bodyR: 12, height: 36, noDeath: true,
     moves: [['punchCombo', 4, { n: 3 }], ['charge', 2, { spd: 3.6 }], ['slam', 2, { r: 58 }]] },
@@ -5485,7 +5486,7 @@ const ENEMY_DEFS = {
     moves: [['teleSlash', 3, {}], ['volley', 2, { n: 10, spread: 6.28, spd: 1.6, kind: 'orb', col: PAL.cyan, col2: PAL.teal }], ['summon', 1, { types: ['ghostpirate', 'wisp'], n: 2, max: 3 }], ['slashCombo', 2, { n: 3, r: 32 }]] },
   queen: { name: 'Vesper', title: 'Queen of Smugglers', hp: 2200, dmg: 16, speed: 1.15, ai: 'boss', char: 'queen', big: true, weapon: 'dagger', gold: [120, 120], kbResist: 0.2, bodyR: 12, height: 36,
     moves: [['teleSlash', 3, {}], ['knifeFan', 3, { n: 7 }], ['smoke', 1, {}], ['summon', 1, { types: ['assassin'], n: 2, max: 2 }], ['slashCombo', 2, { n: 3, r: 30 }]] },
-  blackmaw: { name: 'Captain Blackmaw', title: 'Self-Proclaimed Strongest', hp: 4200, dmg: 20, speed: 0.85, ai: 'boss', char: 'blackmaw', big: true, weapon: 'anchor', gold: [300, 300], kbResist: 0, bodyR: 13, height: 38,
+  blackmaw: { name: 'Captain Blackmaw', title: 'Self-Proclaimed Strongest', hp: 4800, dmg: 20, speed: 0.85, ai: 'boss', char: 'blackmaw', big: true, weapon: 'anchor', gold: [300, 300], kbResist: 0, bodyR: 13, height: 38,
     moves: [['slashCombo', 3, { n: 3, r: 36 }], ['anchorSpin', 2, {}], ['cannons', 2, { n: 9 }], ['darkWave', 2, {}], ['slam', 2, { r: 70 }], ['summon', 1, { types: ['blackguard', 'blackgunner'], n: 2, max: 4 }], ['charge', 1, { spd: 4.2 }]] },
   silasSpar: { name: 'Silas', title: 'Sparring Partner', hp: 300, dmg: 4, speed: 1.1, ai: 'boss', char: 'silas', big: false, weapon: 'katana', gold: [0, 0], kbResist: 0.3, noDeath: true, height: 20,
     moves: [['teleSlash', 3, {}], ['slashCombo', 3, { n: 3, r: 24 }]] },
@@ -6196,9 +6197,10 @@ const CREW_ORDER = ['silas', 'mira', 'bruno', 'pepper', 'wren', 'gus', 'rivet', 
 const CREW_DEFS = {
   silas: {
     name: 'Silas', full: 'Silas Graves', title: 'The Ghost Blade', role: 'Swordsman', char: 'silas', weapon: 'katana',
-    hp: 150, speed: 1.4, style: 'melee', range: 22, cd: 34, blip: 0.75, col: PAL.lgray,
-    desc: 'Redtide\'s old first mate. Lightning twin-slashes; his Phantom Rush teleports through a whole crowd.',
-    special: 'Phantom Rush', specialCd: 420,
+    hp: 280, speed: 1.65, style: 'melee', range: 26, cd: 24, blip: 0.75, col: PAL.lgray,
+    power: 1.6, parry: 0.35, // the strongest of the crew by far
+    desc: 'Redtide\'s first mate and the deadliest blade alive. Triple slashes, flying sword waves, parries, and a Phantom Rush that cuts a crowd twice.',
+    special: 'Phantom Rush', specialCd: 300,
   },
   mira: {
     name: 'Mira', full: 'Dr. Mira Vale', title: 'The Storm Surgeon', role: 'Doctor', char: 'mira', weapon: null,
@@ -6259,7 +6261,7 @@ class Crew extends Actor {
     const up = (G.save && G.save.upgrades) || {};
     this.maxHp = this.hp = Math.round(def.hp * (1 + 0.15 * (up.drill || 0)));
     const recruits = (G.save && G.save.crew) ? G.save.crew.length : 1;
-    this.dmgMul = (0.55 + 0.035 * recruits) * (1 + 0.12 * (up.drill || 0));
+    this.dmgMul = (0.55 + 0.035 * recruits) * (1 + 0.12 * (up.drill || 0)) * (def.power || 1);
     this.speed = def.speed; this.weapon = def.weapon;
     this.cd = irnd(20, 50); this.spCd = Math.round(def.specialCd * rnd(0.35, 0.8));
     this.hurtIframes = 20; this.kbResist = def.taunt ? 0.4 : 0.8;
@@ -6291,7 +6293,7 @@ class Crew extends Actor {
     else this.followLeader(w);
     if (w.inCombat && this.spCd <= 0 && CREW_SPECIALS[this.crewId] && CREW_SPECIALS[this.crewId].ready(w, this)) {
       this.spCd = this.def.specialCd;
-      FX.text(w, this.x, this.y - 26, this.def.special + '!', this.def.col);
+      FX.text(w, this.x, this.y - 40, this.def.special + '!', this.def.col); // above the damage numbers
       this.act = CREW_SPECIALS[this.crewId].run.bind(null, this); this.actT = 0;
     }
     this.applyKnock(w);
@@ -6386,6 +6388,21 @@ class Crew extends Actor {
     if (ok) { this.act = null; this.stun = 6; }
     return ok;
   }
+  // parry (Silas): some hits just glance off his blade, and close attackers get knocked back
+  guard(w, dmg, fx, fy, opts) {
+    if (!this.def.parry || opts.poison || this.stun > 0 || Math.random() >= this.def.parry) return false;
+    const a = angTo(this.x, this.y - 7, fx, fy - 7);
+    this.iframes = 12; this.facing = sign(Math.cos(a)) || this.facing;
+    this.swingFx(w, a, 16, 0.8, PAL.cyan);
+    FX.spark(w, this.x + Math.cos(a) * 8, this.y - 8 + Math.sin(a) * 8, 8, PAL.white, 2.2);
+    FX.text(w, this.x, this.y - this.height - 4, 'PARRY!', PAL.cyan);
+    AudioSys.sfx('clang');
+    const src = opts.source;
+    if (src && src.team === 'enemy' && src.alive && !src.isBoss && dist(src.x, src.y, this.x, this.y) < 40) {
+      src.kvx += Math.cos(a) * 3; src.kvy += Math.sin(a) * 3; src.stun = Math.max(src.stun || 0, 24);
+    }
+    return true;
+  }
   onDown(w) {
     this.ko = true; this.hp = 0; this.koT = 0; this.act = null;
     FX.text(w, this.x, this.y - 24, 'KO!', PAL.lgray); AudioSys.sfx('hurt');
@@ -6425,14 +6442,22 @@ const CREW_ATTACKS = {
   silas(w, c, t) {
     const a = angTo(c.x, c.y - 7, t.x, t.y - 7);
     c.facing = sign(Math.cos(a)) || c.facing;
+    const n = (c.combo = (c.combo + 1) % 3);
     c.act = (ww, k) => {
-      if (k === 2 || k === 9) {
-        c.swingFx(ww, a, 22, 1.1, PAL.white); AudioSys.sfx('slash');
-        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 24, a, spread: 1.15, dmg: 9 * c.atk, follow: true });
-        c.kvx += Math.cos(a) * 1.2; c.kvy += Math.sin(a) * 1.2;
+      // lightning triple slash (7 frames apart so each one lands)
+      if (k === 1 || k === 8 || k === 15) {
+        const s = (k - 1) / 7, last = s === 2;
+        c.swingFx(ww, a + [0, 0.35, -0.35][s], 24, 1.2, last ? PAL.cyan : PAL.white); AudioSys.sfx(last ? 'slash2' : 'slash');
+        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 28, a, spread: 1.25, dmg: (last ? 14 : 10) * c.atk, kb: last ? 4 : 2, hitstop: last ? 3 : 1, follow: true });
+        c.kvx += Math.cos(a) * 1.4; c.kvy += Math.sin(a) * 1.4;
+      }
+      // every third attack ends with a flying sword wave that cuts through a whole line
+      if (n === 2 && k === 20) {
+        ww.addEnt(new Projectile({ x: c.x + Math.cos(a) * 10, y: c.y - 1 + Math.sin(a) * 10, z: 8, vx: Math.cos(a) * 4.2, vy: Math.sin(a) * 4.2, kind: 'swordwave', team: 'ally', dmg: 18 * c.atk, owner: c, life: 40, pierce: true, fly: true, r: 10, kb: 3.5 }));
+        FX.slash(ww, c, a, 26, 1.4, 10, PAL.cyan, false, 4); AudioSys.sfx('whirl');
       }
       c.pose = 'attack';
-      return k >= 16;
+      return k >= (n === 2 ? 26 : 20);
     };
     c.actT = 0;
   },
@@ -6549,24 +6574,43 @@ const CREW_ATTACKS = {
 const anyEnemyNear = (w, c, r) => w.actors.some(a => a.team === 'enemy' && a.alive && dist(a.x, a.y, c.x, c.y) < r);
 const CREW_SPECIALS = {
   silas: {
-    ready: (w, c) => w.actors.filter(a => a.team === 'enemy' && a.alive && dist(a.x, a.y, c.x, c.y) < 140).length >= 1,
+    ready: (w, c) => anyEnemyNear(w, c, 140),
     run(c, w, k) {
-      if (k === 0) { c.rush = w.actors.filter(a => a.team === 'enemy' && a.alive && dist(a.x, a.y, c.x, c.y) < 150).sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y)).slice(0, 4); c.rushI = 0; c.iframes = 80; AudioSys.sfx('skill'); }
-      const step = Math.floor(k / 9);
-      if (k % 9 === 0 && step < c.rush.length) {
-        const t = c.rush[step];
+      const STEP = 6;
+      if (k === 0) {
+        const near = w.actors.filter(a => a.team === 'enemy' && a.alive && !a.phaseOut && dist(a.x, a.y, c.x, c.y) < 160)
+          .sort((a, b) => dist(a.x, a.y, c.x, c.y) - dist(b.x, b.y, c.x, c.y)).slice(0, 7);
+        c.cut = near;
+        // against one or two foes (a boss) he zig-zags through them again and again
+        c.rush = [];
+        for (let i = 0; near.length && c.rush.length < Math.max(3, near.length); i++) c.rush.push(near[i % near.length]);
+        c.iframes = c.rush.length * STEP + 50; AudioSys.sfx('skill');
+      }
+      const end = c.rush.length * STEP;
+      if (k < end && k % STEP === 0) {
+        const step = k / STEP, t = c.rush[step];
         if (t && t.alive) {
           const x0 = c.x, y0 = c.y;
-          const a = angTo(c.x, c.y, t.x, t.y);
-          const sp = w.findFree(t.x + Math.cos(a) * 14, t.y + Math.sin(a) * 10, c.w, c.h);
+          const a = angTo(c.x, c.y, t.x, t.y) + (step % 2 ? 0.45 : -0.45);
+          const sp = w.findFree(t.x + Math.cos(a) * 16, t.y + Math.sin(a) * 11, c.w, c.h);
           FX.afterimage(w, c);
           c.x = sp.x; c.y = sp.y; c.facing = sign(Math.cos(a)) || c.facing;
-          c.hit(w, 'line', { x: x0, y: y0 - 7, x2: c.x, y2: c.y - 7, r: 10, dmg: 24 * c.atk, kb: 3.5, hitstop: 3, shake: 2, sfx: 'hitHeavy' });
-          FX.slash(w, c, a, 20, 1.3, 9, PAL.cyan, false, 4); AudioSys.sfx('dash');
+          c.hit(w, 'line', { x: x0, y: y0 - 7, x2: c.x, y2: c.y - 7, r: 12, dmg: 26 * c.atk, kb: 2, hitstop: 2, shake: 2, sfx: 'hitHeavy' });
+          FX.slash(w, c, a, 22, 1.3, 9, PAL.cyan, false, 4); AudioSys.sfx('dash');
         }
       }
-      c.pose = 'attack';
-      return k >= c.rush.length * 9 + 10;
+      // Ghost Cut: he sheathes his sword... and everything he passed through is cut again
+      if (k === end + 12) AudioSys.sfx('clang');
+      if (k === end + 22) {
+        const left = c.cut.filter(t => t.alive);
+        if (left.length) { w.flashWhite = Math.max(w.flashWhite, 4); w.shake = Math.max(w.shake, 5); AudioSys.sfx('slash2'); FX.text(w, c.x, c.y - 44, 'GHOST CUT!', PAL.cyan, true); }
+        for (const t of left) {
+          FX.slash(w, t, rnd(0, Math.PI * 2), 16, 1.5, 12, PAL.white, false, 5);
+          c.hit(w, 'circle', { x: t.x, y: t.y - 7, r: 10, dmg: 32 * c.atk, kb: 4, hitstop: 4, sfx: 'hitHeavy' });
+        }
+      }
+      c.pose = k < end + 12 ? 'attack' : null;
+      return k >= end + 30;
     },
   },
   mira: {
@@ -7315,7 +7359,7 @@ class DialogBox {
     }
     if (this.info.name) {
       const nw = textWidth(this.info.name) + 12;
-      drawPanel(g, tx - 4 + sx, by - 12, nw, 15, 'gold');
+      drawPanel(g, tx - 4 + sx, by - 12, nw, 16, 'gold');
       drawText(g, this.info.name, tx + 2 + sx, by - 8, PAL.yellow, { shadow: PAL.black });
     }
     // typed text
@@ -7510,9 +7554,9 @@ function renderHUD(g, w) {
     w.objT = (w.objT || 0) + 1;
     const a = Math.min(1, w.objT / 20);
     const tw = Math.min(textWidth(obj), 220) + 18;
-    const oy = H - 16 + Math.round((1 - a) * 20);
+    const oy = H - 18 + Math.round((1 - a) * 20);
     const flash = w.objT < 120 && Math.floor(w.objT / 10) % 2 === 0;
-    drawPanel(g, 2, oy, tw, 14, flash ? 'gold' : 'paper');
+    drawPanel(g, 2, oy, tw, 16, flash ? 'gold' : 'paper'); // tall enough for descenders (g, y, p)
     drawText(g, '\u25B6', 7, oy + 4, flash ? PAL.yellow : PAL.crimson);
     drawText(g, obj, 14, oy + 4, flash ? PAL.yellow : PAL.dbrown);
   }
@@ -7861,10 +7905,10 @@ const STORY = {
     const isl = ISLAND_STORY[World.mapId];
     if (isl && isl.objective) { const o = isl.objective(); if (o) return o; }
     if (!f.beachAmbush) return 'Head north up the jungle road';
-    if (!f.townArrived) return 'Reach Port Haven (north)';
+    if (!f.townArrived) return 'Reach Barnacle Bay (north)';
     if (!f.rec_silas) return 'Find a crew at the tavern';
     if (!f.trainingDone) return World.mapId === 'cliffs' ? 'Complete Silas\'s training' : 'Train with Silas on the Windy Cliffs (east)';
-    if (!f.grittDefeated) return 'Hurry! Save Port Haven!';
+    if (!f.grittDefeated) return 'Hurry! Save Barnacle Bay!';
     if (!f.hasShip) return 'Talk to the Harbor Master';
     for (const is of ISLANDS) { if (is.who && islandUnlocked(is) && !f['rec_' + is.who]) return 'Sail to ' + is.name + ' (ship at the pier)'; }
     if (!f.blackmawDefeated) return 'Sail to Blackmaw\'s Fortress!';
@@ -8017,7 +8061,7 @@ function* campAmbush() {
 }
 
 // ============================================================
-//  CHAPTER 2 - Port Haven & the mysterious stranger
+//  CHAPTER 2 - Barnacle Bay & the mysterious stranger
 // ============================================================
 function* townArrival() {
   const w = World, p = w.player;
@@ -8255,7 +8299,8 @@ function* training() {
     ['silas', '...Heh.', 'smirk'],
     ['silas', 'You actually landed some real hits on me. Nobody\'s done that in ten years.', 'happy'],
     ['cap', 'Hehe... you were holding back, weren\'t you?', 'happy'],
-    ['silas', 'A little. But not as much as you think.', 'smirk'],
+    ['silas', 'Kid. If I fought you for real, this cliff would be two cliffs.', 'smirk'],
+    ['cap', '...Noted. Never making you angry.', 'shock'],
   ]);
   yield 20;
   // alarm!
@@ -8268,7 +8313,7 @@ function* training() {
   yield* walkTo(finn, 9 * TS, 12 * TS, 2);
   yield* talk([
     ['sailor', 'SILAS! Kid! Th-there you are! *huff* *huff*', 'shock'],
-    ['sailor', 'OUTLAWS are attacking Port Haven! A whole army of them! Their boss is some huge guy with an iron jaw!', 'shock', 'shake'],
+    ['sailor', 'OUTLAWS are attacking Barnacle Bay! A whole army of them! Their boss is some huge guy with an iron jaw!', 'shock', 'shake'],
     ['cap', 'An iron jaw...? That\'s GRITT! The boss those outlaws were talking about!', 'shock'],
     ['silas', 'Gritt "Rustjaw". He\'s been bullying these islands for years.', 'angry'],
     ['silas', 'Well, Captain? Your first real battle. We fight side by side.', 'normal'],
@@ -8283,7 +8328,7 @@ function* training() {
 }
 
 // ============================================================
-//  CHAPTER 4 - Side by side: the battle for Port Haven
+//  CHAPTER 4 - Side by side: the battle for Barnacle Bay
 // ============================================================
 function* townAttack() {
   const w = World, p = w.player;
@@ -8296,7 +8341,10 @@ function* townAttack() {
     yield* talk([
       ['cap', 'They\'re wrecking the whole town!', 'angry'],
       ['silas', 'Stay close, Captain. Watch my back, and I\'ll watch yours.', 'normal'],
+      ['silas', '...Actually, just watch.', 'smirk'],
     ]);
+    const sl = crewEnt('silas');
+    if (sl) sl.spCd = 30; // he opens the battle with a Phantom Rush
     yield* fight([['outlaw', 22, 30], ['outlaw2', 28, 30], ['outlaw', 25, 33], ['gunner', 20, 26], ['gunner', 30, 26]]);
     yield 30;
     yield* say('silas', 'More coming from the harbor!', 'angry');
@@ -8329,7 +8377,7 @@ function* townAttack() {
   yield* bossFight('gritt', 0, 0, { entity: boss });
   yield 30;
   unlockArena();
-  yield* victory('PORT HAVEN IS SAVED!');
+  yield* victory('BARNACLE BAY IS SAVED!');
   // cleanup fires
   w.map.props = w.map.props.filter(pp => !pp.temp);
   const gd = addNPC('gritt', 'gritt', boss.x / TS, boss.y / TS, 'Gritt', 1);
@@ -8353,7 +8401,7 @@ function* townAttack() {
   yield* walkTo(hale, p.x + 20, p.y, 1.2);
   hale.facing = -1; p.facing = 1;
   yield* talk([
-    ['harbormaster', 'Extraordinary! Simply extraordinary! You\'ve saved Port Haven, young captain!', 'happy'],
+    ['harbormaster', 'Extraordinary! Simply extraordinary! You\'ve saved Barnacle Bay, young captain!', 'happy'],
     ['kid', 'THAT WAS SO COOL!! You went WHOOSH and then SPIN and then BAM!', 'happy'],
     ['granny', 'Such a polite young pirate, too. Come by for cookies anytime, dearie.', 'happy'],
     ['harbormaster', 'I\'m Hale, the harbor master. Gritt\'s gang has been squeezing this town dry for years.', 'normal'],
@@ -8379,7 +8427,7 @@ function* townAttack() {
   if (s) s.frozen = false;
   for (const n of [hale, ...folk]) n.dead = true;
   yield* say('narr', 'Board the Sea Sparrow at the end of the pier (north) to open the SEA CHART.');
-  yield* say('narr', 'Tip: Marco\'s market stall in the plaza sells upgrades. Spend the gold you win in battle! You can sail back to Port Haven any time.');
+  yield* say('narr', 'Tip: Marco\'s market stall in the plaza sells upgrades. Spend the gold you win in battle! You can sail back to Barnacle Bay any time.');
   saveGame();
 }
 
@@ -8393,7 +8441,7 @@ const TALK = {
       ['pete', 'Well I\'ll be! A new face! Didn\'t see a ship come in...', 'happy'],
       ['cap', 'I came in THAT boat!', 'happy'],
       ['pete', 'That little thing? Hoo boy. You\'re either very brave or very... never mind.', 'smirk'],
-      ['pete', 'Listen, sonny. Port Haven\'s north, up the jungle road. But outlaws took over the old camp up there.', 'normal'],
+      ['pete', 'Listen, sonny. Barnacle Bay\'s north, up the jungle road. But outlaws took over the old camp up there.', 'normal'],
       ['pete', 'Watch out for the crabs too. They pinch.', 'normal'],
     ]);
     else yield* say('pete', 'You chased off Scab\'s gang?! Hoo boy! Haven\'t seen fighting like that since Redtide\'s days!', 'happy');
@@ -8416,7 +8464,7 @@ const TALK = {
     else yield* say('kid', 'When I grow up I\'m gonna join the {crew}! Save me a spot, okay?!', 'happy');
   },
   merchant: function* (w, n) {
-    yield* say('merchant', F().grittDefeated ? 'Ah, the hero of Port Haven! Everything\'s for sale, as always!' : 'Welcome, welcome! Marco\'s Marvelous Market! Upgrades for the aspiring pirate!', 'happy');
+    yield* say('merchant', F().grittDefeated ? 'Ah, the hero of Barnacle Bay! Everything\'s for sale, as always!' : 'Welcome, welcome! Marco\'s Marvelous Market! Upgrades for the aspiring pirate!', 'happy');
     w.menu = new ShopMenu('Marco\'s Marvelous Market');
   },
   villagerA: function* () { yield* say('villagerA', F().grittDefeated ? 'I watched the whole fight from my window! You were incredible!' : 'Outlaws have been causing trouble on the jungle road for months. Be careful out there!', 'normal'); },
@@ -10455,7 +10503,7 @@ const GameOverScene = {
 //  Sea chart (world map) overlay
 // ---------------------------------------------------------------
 const ISLANDS = [
-  { id: 'town', name: 'Port Haven', x: 70, y: 112, map: 'town', spawn: 'pier', always: true },
+  { id: 'town', name: 'Barnacle Bay', x: 70, y: 112, map: 'town', spawn: 'pier', always: true },
   { id: 'mistwood', name: 'Mistwood Isle', x: 42, y: 58, map: 'mistwood', spawn: 'dock', unlock: 'hasShip', who: 'mira' },
   { id: 'ironrock', name: 'Iron Rock', x: 120, y: 44, map: 'ironrock', spawn: 'dock', unlock: 'rec_mira', who: 'bruno' },
   { id: 'fortflint', name: 'Fort Flint', x: 150, y: 110, map: 'fortflint', spawn: 'dock', unlock: 'rec_bruno', who: 'pepper' },
@@ -10554,7 +10602,7 @@ class SeaChart {
       const lab = s.name;
       const lw = textWidth(lab) + 10;
       const lx = clamp(s.x - lw / 2, 6, W - lw - 6), ly = s.y + 12 > H - 30 ? s.y - 26 : s.y + 12;
-      drawPanel(g, lx, ly, lw, 13, 'wood');
+      drawPanel(g, lx, ly, lw, 15, 'wood');
       drawText(g, lab, lx + 5, ly + 3, PAL.yellow);
     }
     // ship icon
@@ -10565,13 +10613,13 @@ class SeaChart {
     prect(g, sx, sy - 7 + bob, 1, 9, PAL.ddbrown); prect(g, sx + 1, sy - 6 + bob, 4, 5, PAL.white); prect(g, sx - 3, sy - 5 + bob, 3, 4, PAL.white);
     prect(g, sx, sy - 9 + bob, 3, 2, PAL.black);
     // header & info
-    drawPanel(g, 8, 6, 132, 15, 'wood');
+    drawPanel(g, 8, 6, 132, 16, 'wood');
     drawText(g, 'SEA CHART', 14, 10, PAL.gold);
     drawText(g, fmtText('{crew}'), 70, 10, PAL.beige);
     const info = this.sailing ? 'Setting sail for ' + this.sailing.to.name + '...' :
       (s.final && G.save.crew.length < 9) ? 'You need a full crew of 9 to face Blackmaw!' :
         s === this.from ? 'You are here.' : (s.who && !G.save.crew.includes(s.who)) ? 'Rumor has it someone strong lives here...' : 'Press ' + (Touch.enabled ? 'A' : 'Enter') + ' to set sail!';
-    drawPanel(g, 60, H - 20, W - 68, 15, 'paper');
+    drawPanel(g, 60, H - 20, W - 68, 16, 'paper');
     drawText(g, info, 66, H - 16, PAL.dbrown);
   }
 }

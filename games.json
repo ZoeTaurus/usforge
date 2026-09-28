@@ -1,5 +1,24 @@
 [
   {
+    "slug": "pirate-madness",
+    "title": "Pirate madness",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "You are a pirate. make your own strong crew and become the strongest pirate!",
+    "cover": "games/pirate-madness/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [
+      "Action",
+      "Adventure"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790598060
+  },
+  {
     "slug": "obey-the-light",
     "title": "Obey the Light",
     "author": "Alex",

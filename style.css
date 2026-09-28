@@ -517,3 +517,28 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 
 .panel textarea { font: 15px/1.45 var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; outline: none; resize: vertical; min-height: 64px; }
 .panel textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--tint-20); }
+
+/* ---------- title screen, part two: scroll down for "A hub for AI games" ---------- */
+.welcome { display: block; padding: 0; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; scroll-behavior: smooth;
+  background: radial-gradient(90% 70% at 50% 110%, var(--tint-30) 0%, transparent 60%), radial-gradient(90% 70% at 50% 110%, #0c1428 0%, #080d1a 45%, #07090e 100%); }
+.welcome .embers { position: fixed; }
+.welcome-in { min-height: 100vh; min-height: 100dvh; justify-content: center; padding: 24px; scroll-snap-align: start; box-sizing: border-box; }
+.welcome h1, .welcome h2 { text-shadow: 0 0 40px var(--glow); }
+.spark.big { box-shadow: 0 0 24px 6px var(--glow); }
+.continue { background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 30px var(--glow); }
+.continue:hover, .continue:focus-visible { box-shadow: 0 12px 38px var(--glow); }
+.scroll-cue { position: absolute; bottom: max(22px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: inline-flex; flex-direction: column; align-items: center; gap: 4px; font: 13px var(--mono); letter-spacing: .06em; color: #a9b6cc; text-decoration: none; }
+.scroll-cue span { font-size: 18px; color: var(--accent); animation: nudge 1.6s ease-in-out infinite; }
+.scroll-cue:hover, .scroll-cue:focus-visible { color: #eef2f9; outline: none; }
+@keyframes nudge { 50% { transform: translateY(6px); } }
+.welcome-two h2 { margin: 6px 0 0; font-size: clamp(34px, 7vw, 72px); font-weight: 800; letter-spacing: -.045em; line-height: 1.02; text-wrap: balance; }
+.welcome-two p { max-width: 46ch; line-height: 1.55; }
+.welcome-two .eyebrow { color: var(--accent); }
+.welcome-points { list-style: none; margin: 8px 0 0; padding: 0; display: flex; gap: 10px 22px; flex-wrap: wrap; justify-content: center; font-size: 14px; color: #c9d3e4; }
+.welcome-points li { display: inline-flex; align-items: center; gap: 8px; }
+.welcome-points li::before { content: ""; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); transform: rotate(45deg); box-shadow: 0 0 10px var(--glow); }
+/* it rises in as you scroll to it (browsers with scroll-driven animations; everywhere else it simply shows) */
+@supports (animation-timeline: view()) {
+  .welcome-two > * { animation: rise linear both; animation-timeline: view(); animation-range: entry 5% cover 35%; }
+}
+@media (prefers-reduced-motion: reduce) { .welcome { scroll-behavior: auto; } .scroll-cue span, .welcome-two > * { animation: none !important; } }

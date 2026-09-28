@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=22">
+<link rel="stylesheet" href="style.css?v=24">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=21"></script>
 <script>
@@ -22,12 +22,25 @@
 <!-- title screen -->
 <div class="welcome" id="welcome" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
   <canvas class="embers" id="embers" aria-hidden="true"></canvas>
-  <div class="welcome-in">
+  <section class="welcome-in">
     <span class="spark big" aria-hidden="true"></span>
     <h1 id="welcomeTitle">Welcome to UsForge</h1>
     <p>by Lazy Studios</p>
     <button class="continue" id="continue" type="button">Continue</button>
-  </div>
+    <a class="scroll-cue" href="#welcomeTwo" id="scrollCue">What is UsForge?<span aria-hidden="true">↓</span></a>
+  </section>
+  <!-- scroll down for a little more -->
+  <section class="welcome-in welcome-two" id="welcomeTwo" aria-labelledby="welcomeTwoTitle">
+    <span class="eyebrow">What is UsForge?</span>
+    <h2 id="welcomeTwoTitle">A hub for AI games</h2>
+    <p>Every game here was dreamed up by four friends at Lazy Studios, and built with the help of AI.</p>
+    <ul class="welcome-points">
+      <li>Free to play, right in your browser</li>
+      <li>New games from the crew all the time</li>
+      <li>No ads, no sign-ups</li>
+    </ul>
+    <button class="continue" id="continue2" type="button">Let’s play</button>
+  </section>
 </div>
 
 <div class="wrap">
@@ -104,7 +117,8 @@
     setTimeout(() => { welcome.hidden = true; big?.stop(); $('q').focus({ preventScroll: true }); }, calm ? 0 : 650);
   }
   if (showWelcome) {
-    $('continue').onclick = enter;
+    $('continue').onclick = enter; $('continue2').onclick = enter;
+    $('scrollCue').onclick = e => { e.preventDefault(); $('welcomeTwo').scrollIntoView({ behavior: calm ? 'auto' : 'smooth' }); };
     addEventListener('keydown', e => { if (!welcome.hidden && (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ')) { e.preventDefault(); enter(); } });
     setTimeout(() => $('continue').focus({ preventScroll: true }), 50);
     big = Embers($('embers'), { count: 70 });   // sparks rising from a forge below the screen

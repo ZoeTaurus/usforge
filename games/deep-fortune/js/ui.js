@@ -215,7 +215,7 @@ function renderShop(){
 
 // ---------- end states ----------
 function recordBest(extra = {}){
-  if (game.mode !== 'career' || game.devTest) return;
+  if (game.mode !== 'career') return;
   const best = store.get(BEST_KEY, {});
   best.earned = Math.max(best.earned || 0, game.earned);
   best.depth = Math.max(best.depth || 0, game.maxDepth);
@@ -230,19 +230,7 @@ function reportRunScore(){
   const secs = Math.round(game.time);
   if (!Number.isFinite(secs) || secs <= 0 || secs >= 1e9) return;
   game.scoreSent = true;
-  // developer test runs never reach the real board; show what would have been sent instead
-  if (game.devTest){ console.info('[UsForge] TEST RUN - not sent. Would send:', { usforge:'score', score:secs, order:'low', unit:'time' }); msg(`TEST: would send a time of ${fmtTime(secs)} (${secs}s) - not sent`, '#9fd3f5', 5); return; }
   sendScoreToUsForge(secs);
-}
-// Ctrl+Shift+D (hidden, for testing): hand over enough cash to retire right now.
-// The run is flagged as a test so it can't reach the leaderboard, records or achievements.
-function devRetireShortcut(){
-  if (scene !== 'game' || !game || game.mode !== 'career' || game.over || game.won) return;
-  game.devTest = true;
-  const need = Math.max(0, goalOf() - game.money);
-  game.money += need; game.earned += need;
-  msg('DEV TEST: cash added - this run will not go on the leaderboard', '#9fd3f5', 3);
-  checkWin();
 }
 function checkWin(){
   if (game.mode !== 'career' || game.won || game.money < goalOf()) return;

@@ -17,7 +17,7 @@
     "progress": 30,
     "next": "",
     "build": true,
-    "added": 1790685917
+    "added": 1790685918
   },
   {
     "slug": "late-bloomer",
@@ -75,7 +75,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790617626
+    "added": 1790617626,
+    "updated": 1790682622
   },
   {
     "slug": "pirate-madness",
@@ -94,7 +95,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790598063
+    "added": 1790598063,
+    "updated": 1790686126
   },
   {
     "slug": "obey-the-light",
@@ -133,7 +135,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790530878
+    "added": 1790530878,
+    "updated": 1790597919
   },
   {
     "slug": "base-strike-classic",
@@ -153,7 +156,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790495751
+    "added": 1790495751,
+    "updated": 1790528333
   },
   {
     "slug": "base-strike",
@@ -173,7 +177,8 @@
     "progress": 80,
     "next": "",
     "build": true,
-    "added": 1790495032
+    "added": 1790495032,
+    "updated": 1790684919
   },
   {
     "slug": "die-famous",
@@ -213,7 +218,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790437918
+    "added": 1790437918,
+    "updated": 1790521950
   },
   {
     "slug": "reel-deep",
@@ -233,7 +239,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790437527
+    "added": 1790437527,
+    "updated": 1790453800
   },
   {
     "slug": "snack-squad-showdown",
@@ -253,7 +260,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790435282
+    "added": 1790435282,
+    "updated": 1790440826
   },
   {
     "slug": "the-last-signal",
@@ -273,7 +281,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790434185
+    "added": 1790434185,
+    "updated": 1790503440
   },
   {
     "slug": "vax-attack",
@@ -293,6 +302,7 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790427753
+    "added": 1790427753,
+    "updated": 1790436496
   }
 ]

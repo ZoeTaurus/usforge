@@ -30,6 +30,10 @@ export default {
       if (url.pathname === '/api/blobs') return ok(await blobs(req, env));
       if (url.pathname === '/api/reviews') return ok(await reviews(req, env));
       if (url.pathname === '/api/review') return ok(await review(req, env));
+      if (url.pathname === '/api/pick') return ok(await pick(req, env));
+      if (url.pathname === '/api/feedback') return ok(await feedbackAdd(req, env, url));
+      if (url.pathname === '/api/feedback-list') return ok(await feedbackList(req, env));
+      if (url.pathname === '/api/feedback-delete') return ok(await feedbackDelete(req, env));
       throw fail(404, 'No such thing.');
     } catch (e) {
       return new Response(JSON.stringify({ error: e.msg || 'Something went wrong on our side. Try again in a minute.' }), { status: e.status || 500, headers: { 'content-type': 'application/json' } });
@@ -62,6 +66,24 @@ export class Plays extends DurableObject {
       if (v.game) games[v.game] = (games[v.game] || 0) + 1;
     }
     return { online: this.here.size, games };
+  }
+  // game feedback (private: only the maker and the founders can read it)
+  async fbAdd(slug, entry) {
+    const k = 'fb:' + slug, list = (await this.ctx.storage.get(k)) || [];
+    list.push(entry); while (list.length > 300) list.shift();
+    await this.ctx.storage.put(k, list);
+  }
+  async fbGet(slugs) { const out = {}; for (const s of slugs) out[s] = (await this.ctx.storage.get('fb:' + s)) || []; return out; }
+  async fbDel(slug, id) {
+    const k = 'fb:' + slug, list = (await this.ctx.storage.get(k)) || [], next = list.filter(e => e.id !== id);
+    await this.ctx.storage.put(k, next); return list.length - next.length;
+  }
+  recent = new Map();
+  cooldown(key, ms) {   // true = allowed now (kept in memory only)
+    const now = Date.now(), last = this.recent.get(key) || 0;
+    if (now - last < ms) return false;
+    if (this.recent.size > 5000) this.recent.clear();
+    this.recent.set(key, now); return true;
   }
 }
 async function knownSlug(env, url) {
@@ -280,7 +302,8 @@ async function upload(req, env) {
   const all = new Set([...files.map(f => f.path), ...kept]);
   const cover = COVERS.find(c => all.has(`games/${slug}/${c}`));
   const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null,
-    genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now };
+    genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now,
+    ...((before && (replacing || coverPath)) ? { updated: now } : (list || []).find(g => g.slug === slug)?.updated ? { updated: (list || []).find(g => g.slug === slug).updated } : {}) };
   // updates to games already on the site, and anything the admin (Taurus) uploads, go live straight away
   if (who.admin || before) {
     const livePaths = new Set(liveTree.map(e => e.path));
@@ -378,6 +401,50 @@ async function blobs(req, env) {
     shas.push(b.sha);
   }
   return { shas };
+}
+
+// ---------- founder picks (picks.json: [{ slug, by, at }]) ----------
+async function pick(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password), slug = String(b.slug || '');
+  if (!who.founder) throw fail(403, 'Only the founders can pick games.');
+  const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
+  const games = (await readJson(env, 'games.json', head)) || [];
+  const g = games.find(x => x.slug === slug);
+  if (!g) throw fail(404, 'Unknown game.');
+  let picks = (await readJson(env, 'picks.json', head)) || [];
+  const on = !!b.on, had = picks.some(p => p.slug === slug);
+  if (on === had) return { ok: true, picks };
+  picks = on ? [...picks, { slug, by: who.name, at: Math.floor(Date.now() / 1000) }] : picks.filter(p => p.slug !== slug);
+  await commit(env, head, [{ path: 'picks.json', text: JSON.stringify(picks, null, 2) + '\n' }], `${on ? 'Founder pick' : 'Unpick'}: ${g.title} (${who.name})`);
+  return { ok: true, picks };
+}
+
+// ---------- game feedback: 👍/👎 + a short note, readable only by the game's maker and the founders ----------
+const box = env => env.PLAYS.get(env.PLAYS.idFromName('all'));
+async function feedbackAdd(req, env, url) {
+  const slug = await knownSlug(env, url), b = await req.json().catch(() => ({}));
+  const vote = b.vote === 'up' ? 'up' : b.vote === 'down' ? 'down' : null;
+  const note = String(b.note || '').replace(/\s+/g, ' ').trim().slice(0, 280);
+  if (!vote && !note) throw fail(400, 'Pick 👍 or 👎, or write a note.');
+  const ip = req.headers.get('cf-connecting-ip') || 'x';
+  if (!(await box(env).cooldown(ip, 20000))) throw fail(429, 'Thanks! Give it a few seconds before sending more.');
+  await box(env).fbAdd(slug, { id: crypto.randomUUID().slice(0, 8), vote, note, at: Math.floor(Date.now() / 1000) });
+  return { ok: true };
+}
+async function readableGames(env, who) {   // founders read everything; members read their own games
+  const games = await env.ASSETS.fetch(new Request('https://x/games.json')).then(r => r.json()).catch(() => []);
+  return games.filter(g => who.founder || (g.owner || g.author || '').toLowerCase() === who.name.toLowerCase());
+}
+async function feedbackList(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password);
+  const games = await readableGames(env, who), fb = await box(env).fbGet(games.map(g => g.slug));
+  return { games: games.map(g => ({ slug: g.slug, title: g.title, author: g.author, mine: (g.owner || g.author || '').toLowerCase() === who.name.toLowerCase(),
+    up: fb[g.slug].filter(e => e.vote === 'up').length, down: fb[g.slug].filter(e => e.vote === 'down').length, notes: fb[g.slug].slice().reverse() })) };
+}
+async function feedbackDelete(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password), slug = String(b.slug || '');
+  if (!(await readableGames(env, who)).some(g => g.slug === slug)) throw fail(403, 'That isn’t your game.');
+  return { ok: true, removed: await box(env).fbDel(slug, String(b.id || '')) };
 }
 
 // ---------- remove ----------

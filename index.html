@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=35">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=28"></script>
 <script>
@@ -66,6 +66,11 @@
 
   <!-- game of the day -->
   <section class="spotlight" id="spotlight" hidden></section>
+
+  <section class="shelf" id="shelfPicks" hidden>
+    <div class="shelf-head"><h2>Founder picks</h2><span class="shelf-note">starred by Lazy Studios</span></div>
+    <div class="row" id="rowPicks"></div>
+  </section>
 
   <section class="shelf" id="shelfRecent" hidden>
     <div class="shelf-head"><h2>Jump back in</h2><span class="shelf-note">games you played lately</span></div>
@@ -154,7 +159,10 @@
   const genresOf = g => g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<button type="button" class="gtag" data-genre="${esc(x)}">${esc(x)}</button>`).join('')}</span>` : '';
   const progressOf = g => g.progress == null ? '' : `<span class="progress" title="${g.progress}% done"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span>`;
   const countsOf = g => stats ? `<span class="counts"><span title="${n(playsN(g), 'play', 'plays')}">▶ ${playsN(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}" title="${n(stokesN(g), 'stoke', 'stokes')}">${U.FLAME} ${stokesN(g).toLocaleString()}</span></span>` : '';
-  const tagOf = g => newForYou(g) && !g.dev ? '<span class="tag new">New for you</span>' : g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : '';
+  // "Updated" only on the 3 most recently updated games (from the last 3 days), so it stays special
+  let recentlyUpdated = new Set();
+  const justUpdated = g => recentlyUpdated.has(g.slug);
+  const tagOf = g => newForYou(g) && !g.dev ? '<span class="tag new">New for you</span>' : justUpdated(g) && !g.dev ? '<span class="tag upd">Updated</span>' : newForYou(g) && !g.dev ? '<span class="tag new">New for you</span>' : g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : '';
 
   // one game card, used in every shelf and grid
   const card = (g, i = 0, { blurb = true } = {}) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
@@ -191,8 +199,12 @@
   }
 
   // ---------- shelves ----------
+  let picks = [];
   function paintShelves() {
     const bySlug = Object.fromEntries(games.map(g => [g.slug, g]));
+    const picked = picks.map(p => bySlug[p.slug]).filter(g => g && !g.dev);
+    $('shelfPicks').hidden = !picked.length;
+    $('rowPicks').innerHTML = picked.map((g, i) => card(g, i, { blurb: false })).join('');
     const recent = U.recent().map(s => bySlug[s]).filter(Boolean).slice(0, 6);
     $('shelfRecent').hidden = !recent.length;
     $('rowRecent').innerHTML = recent.map((g, i) => card(g, i, { blurb: false })).join('');
@@ -271,7 +283,9 @@
     $('newNote').hidden = !fresh.length;
     if (fresh.length) $('newNote').innerHTML = `<b>${fresh.length} new game${fresh.length === 1 ? '' : 's'}</b> since your last visit: ${fresh.slice(0, 3).map(g => `<a href="${esc(href(g))}">${esc(g.title)}</a>`).join(', ')}${fresh.length > 3 ? ' and more' : ''}.`;
   }
-  function all() { paintNewNote(); paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); countUp(); U.paintLive(); }
+  function all() {
+    recentlyUpdated = new Set(released().filter(g => g.updated && now - g.updated < 3 * 24 * 3600).sort((a, b) => b.updated - a.updated).slice(0, 3).map(g => g.slug));
+    paintNewNote(); paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); countUp(); U.paintLive(); }
 
   $('q').addEventListener('input', () => { paint(); U.paintLive(); });
   $('sort').addEventListener('change', () => { paint(); U.paintLive(); });
@@ -288,6 +302,7 @@
     if (by || genre) setTimeout(() => $('library').scrollIntoView({ block: 'start' }), 60);
   }).catch(() => { $('grid').innerHTML = '<p class="empty">Couldn’t load the game list.</p>'; });
   Promise.all([gamesP, U.stats()]).then(([, s]) => { if (s) { stats = s; all(); } }).catch(() => {});
+  Promise.all([gamesP, fetch('picks.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).catch(() => [])]).then(([, p]) => { picks = Array.isArray(p) ? p : []; if (picks.length) all(); });
 })();
 </script>
 </body>

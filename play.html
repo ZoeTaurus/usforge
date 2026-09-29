@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=34">
+<link rel="stylesheet" href="style.css?v=35">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=28"></script>
 </head>
@@ -72,13 +72,20 @@
           ${g.blurb ? `<p class="desc">${esc(g.blurb)}</p>` : ''}
           ${g.dev && g.progress != null ? `<div class="devprog"><span class="progress"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span></div>` : ''}
           ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
-          <div class="facts"><span>${ago(g.added)}</span><span class="live-fact" data-live="${esc(g.slug)}" data-now hidden></span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          <div class="facts"><span>${ago(g.added)}</span>${g.updated ? `<span>${ago(g.updated).replace('Added', 'Updated')}</span>` : ''}<span id="pickFact" hidden></span><span class="live-fact" data-live="${esc(g.slug)}" data-now hidden></span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
           <div class="acts">
             ${g.build === false ? `<span class="soon">Nothing to play yet. ${esc(g.author)} is still making it.</span>` : g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">${g.dev ? '▶ Play early build' : '▶ Play'}</button>`}
             ${g.build === false ? '' : `<button class="stoke" id="stokeBtn" type="button" title="Stoke the fire: tell ${esc(g.author)} you love this game">${UsForge.FLAME}<span id="stokeLbl">Stoke</span><b id="stokeN"></b></button>`}
             <button class="btn-l" id="shareBtn" type="button">Share</button>
             ${g.url || g.build === false ? '' : `<a class="btn-l" href="games/${encodeURIComponent(g.slug)}/" target="_blank" rel="noopener">Open in a new tab ↗</a>`}
           </div>
+          ${g.build === false ? '' : `<form class="feedback" id="feedback">
+            <span class="fb-q">What did you think of ${esc(g.title)}?</span>
+            <span class="fb-votes"><button type="button" class="fb-vote" data-vote="up" aria-pressed="false" aria-label="I liked it">👍</button><button type="button" class="fb-vote" data-vote="down" aria-pressed="false" aria-label="Not for me">👎</button></span>
+            <textarea id="fbNote" maxlength="280" rows="2" placeholder="Anything to tell ${esc(g.author)}? (optional)"></textarea>
+            <span class="fb-row"><button class="btn-l" type="submit" id="fbSend">Send to ${esc(g.author)}</button><span class="fb-hint">Only ${esc(g.author)} and the founders can read this.</span></span>
+            <p class="fb-msg" id="fbMsg" role="status"></p>
+          </form>`}
           <p class="tipline" data-support hidden>Enjoying ${esc(g.title)}? <a href="support.html">Support Lazy Studios ♥</a></p>
         </div>
       </section>
@@ -89,6 +96,32 @@
     document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play
     for (const el of document.querySelectorAll('.tipline')) el.hidden = !UsForge.supportUrl;
     UsForge.paintLive();
+    // founder pick?
+    fetch('picks.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : []).then(p => { const k = (p || []).find(x => x.slug === g.slug); if (k) { $('pickFact').innerHTML = `<b class="pick-chip">★ Founder pick</b>`; $('pickFact').hidden = false; } }).catch(() => {});
+    // feedback: one per game per browser
+    const fb = $('feedback');
+    if (fb) {
+      const key = 'usforge-fb:' + g.slug; let vote = null, sent = false;
+      try { sent = !!localStorage.getItem(key); } catch (e) {}
+      const done = text => { fb.innerHTML = `<p class="fb-done">${text}</p>`; };
+      if (sent) done(`You sent ${esc(g.author)} your thoughts on this game. Thanks!`);
+      else {
+        for (const b of fb.querySelectorAll('.fb-vote')) b.onclick = () => { vote = vote === b.dataset.vote ? null : b.dataset.vote; for (const x of fb.querySelectorAll('.fb-vote')) x.setAttribute('aria-pressed', String(x.dataset.vote === vote)); };
+        fb.onsubmit = async e => {
+          e.preventDefault();
+          const note = $('fbNote').value.trim();
+          if (!vote && !note) { $('fbMsg').textContent = 'Pick 👍 or 👎, or write a note.'; return; }
+          $('fbSend').disabled = true; $('fbMsg').textContent = 'Sending…';
+          try {
+            const r = await fetch('/api/feedback?g=' + encodeURIComponent(g.slug), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ vote, note }) });
+            const d = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(d.error || 'That didn’t send. Try again in a moment.');
+            try { localStorage.setItem(key, '1'); } catch (e) {}
+            done(`Sent! ${esc(g.author)} will see it on their Upload page.`);
+          } catch (err) { $('fbMsg').textContent = err.message; $('fbSend').disabled = false; }
+        };
+      }
+    }
     UsForge.stats().then(st => { if (st) { showPlays(st.plays); showStokes(st.stokes); } });
     $('stokeBtn')?.addEventListener('click', doStoke);
     // share: the phone's share sheet where there is one, otherwise copy the link

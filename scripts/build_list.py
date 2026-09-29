@@ -31,6 +31,17 @@ def added_at(folder):
         return int(time.time())
 
 
+def updated_at(folder, added):
+    """When the game's files (not just its details) last changed, if that was after it was first added. None if never."""
+    try:
+        out = subprocess.run(['git', 'log', '-1', '--format=%at', '--', str(folder), f':(exclude){folder}/game.json'],
+                             cwd=ROOT, capture_output=True, text=True, timeout=20).stdout.split()
+        t = int(out[0]) if out else None
+        return t if t and t > added + 3600 else None
+    except Exception:
+        return None
+
+
 games, problems = [], []
 for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.startswith(('_', '.'))):
     info_file = folder / 'game.json'
@@ -65,6 +76,9 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         'build': playable or bool(url),   # False = a teaser for a game with nothing to play yet
         'added': added_at(folder),
     })
+    up = updated_at(folder, games[-1]['added'])
+    if up:
+        games[-1]['updated'] = up   # new files since it was first added (the site shows "Updated")
 
 games.sort(key=lambda g: (-g['added'], g['title'].lower()))
 (ROOT / 'games.json').write_text(json.dumps(games, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')

@@ -179,9 +179,49 @@
       const n = el.dataset.live === '*' ? LIVE.online : LIVE.games[el.dataset.live] || 0;
       el.hidden = !LIVE.ready || !n;
       if (n) el.innerHTML = `<i class="live-dot" aria-hidden="true"></i>${n} ${el.dataset.live === '*' ? 'online now' : 'playing' + (el.dataset.now !== undefined ? ' now' : '')}`;
+      if (el.dataset.live === '*' && !el.dataset.wired) wireWho(el);
     }
+    paintWho();
     dispatchEvent(new CustomEvent('usforge-live', { detail: LIVE }));
   }
+  // click "N online now" to see what everyone's playing
+  let titles = null, whoEl = null, whoPanel = null;
+  function wireWho(el) {
+    el.dataset.wired = '1'; el.classList.add('live-clickable');
+    el.setAttribute('role', 'button'); el.tabIndex = 0; el.setAttribute('aria-expanded', 'false'); el.title = 'See what everyone’s playing';
+    const toggle = async () => {
+      if (whoPanel) return closeWho();
+      whoEl = el; el.setAttribute('aria-expanded', 'true');
+      whoPanel = document.createElement('div'); whoPanel.className = 'who-panel'; whoPanel.setAttribute('role', 'dialog'); whoPanel.setAttribute('aria-label', 'Who’s online');
+      document.body.append(whoPanel); placeWho();
+      if (!titles) { titles = {}; try { for (const g of await (await fetch('/games.json', { cache: 'no-cache' })).json()) titles[g.slug] = g.title; } catch (e) {} }
+      paintWho();
+    };
+    el.addEventListener('click', e => { e.stopPropagation(); toggle(); });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  }
+  function placeWho() {
+    if (!whoPanel || !whoEl) return;
+    const r = whoEl.getBoundingClientRect();
+    whoPanel.style.top = `${r.bottom + scrollY + 8}px`;
+    whoPanel.style.left = `${Math.max(12, Math.min(r.left + scrollX, scrollX + innerWidth - whoPanel.offsetWidth - 12))}px`;
+  }
+  function paintWho() {
+    if (!whoPanel) return;
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const playing = Object.entries(LIVE.games).sort((a, b) => b[1] - a[1]);
+    const inGames = playing.reduce((t, [, n]) => t + n, 0), browsing = Math.max(0, LIVE.online - inGames);
+    whoPanel.innerHTML = `<b class="who-title">Right now on UsForge</b>
+      ${playing.length ? `<ul>${playing.map(([slug, n]) => `<li><a href="/play.html?g=${encodeURIComponent(slug)}"><i class="live-dot" aria-hidden="true"></i>${esc(titles?.[slug] || slug)}</a><span>${n} playing</span></li>`).join('')}</ul>` : '<p>Nobody’s in a game right now.</p>'}
+      ${browsing ? `<p>${browsing} ${browsing === 1 ? 'person is' : 'people are'} browsing${playing.length ? '' : ' the site'}.</p>` : ''}
+      <p class="who-note">Updates every 30 seconds · no names, just numbers</p>`;
+    placeWho();
+  }
+  function closeWho() { whoPanel?.remove(); whoPanel = null; whoEl?.setAttribute('aria-expanded', 'false'); whoEl?.focus?.(); whoEl = null; }
+  addEventListener('click', e => { if (whoPanel && !whoPanel.contains(e.target)) closeWho(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && whoPanel) closeWho(); });
+  addEventListener('resize', placeWho);
+
   async function beat() {
     if (document.hidden) return;
     try {

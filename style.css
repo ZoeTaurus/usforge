@@ -614,3 +614,16 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .site-banner.closing { opacity: 0; transform: translateY(-100%); }
 body.playing .site-banner { display: none; }
 @media (max-width: 600px) { .site-banner span { display: none; } }
+
+/* ---------- who's online panel ---------- */
+.live-clickable { cursor: pointer; border-radius: 99px; padding: 2px 8px; margin: -2px -8px; transition: background .15s; }
+.live-clickable:hover, .live-clickable:focus-visible, .live-clickable[aria-expanded="true"] { background: rgba(53, 208, 127, .12); outline: none; }
+.who-panel { position: absolute; z-index: 60; width: min(300px, calc(100vw - 24px)); background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: 0 20px 50px -20px rgba(0, 0, 0, .55); font-size: 14px; animation: rise .2s ease both; }
+.who-title { display: block; margin-bottom: 8px; font-size: 13px; letter-spacing: .02em; }
+.who-panel ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.who-panel li { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.who-panel li a { color: var(--ink); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who-panel li a:hover { color: var(--accent); }
+.who-panel li span { font: 12px var(--mono); color: #35d07f; white-space: nowrap; }
+.who-panel p { margin: 4px 0 0; color: var(--dim); }
+.who-panel .who-note { font: 11px var(--mono); margin-top: 10px; }

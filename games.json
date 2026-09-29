@@ -1,5 +1,25 @@
 [
   {
+    "slug": "late-bloomer",
+    "title": "Late Bloomer",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "grow your own, beautiful garden!",
+    "cover": "games/late-bloomer/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Casual",
+      "Open world",
+      "Simulation"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790685337
+  },
+  {
     "slug": "rooftop-run",
     "title": "Rooftop Run",
     "author": "Milan",

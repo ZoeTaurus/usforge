@@ -231,6 +231,58 @@ const BANK = [
   { c: "Life", q: "Have you ever touched real snow?", o: [["Yes", .60], ["No", .40]] },
   { c: "Life", q: "How many countries have you visited?", hint: "Including your own.", o: [["Just one", .60], ["2 to 5", .28], ["6 to 20", .10], ["More than 20", .02]] },
   { c: "Life", q: "Have you ever met a famous person in real life?", o: [["Yes", .25], ["No", .75]] },
+  { c: "Life", q: "Have you ever been on a plane?", o: [["Yes", .20], ["No", .80]] },
+  { c: "Life", q: "Have you ever won a trophy or medal?", o: [["Yes", .40], ["No", .60]] },
+  { c: "Life", q: "Have you ever been on TV?", o: [["Yes", .08], ["No", .92]] },
+  { c: "Life", q: "Have you ever stayed overnight in hospital?", hint: "Not counting when you were born.", o: [["Yes", .45], ["No", .55]] },
+  { c: "Life", q: "Have you ever seen a total solar eclipse?", o: [["Yes", .05], ["No", .95]] },
+  { c: "Life", q: "Have you ever held a snake?", o: [["Yes", .25], ["No", .75]] },
+  { c: "Life", q: "Have you ever felt an earthquake?", o: [["Yes", .35], ["No", .65]] },
+  { c: "Life", q: "Have you ever seen the Northern or Southern Lights?", o: [["Yes", .02], ["No", .98]] },
+  { c: "Life", q: "Have you ever met one of your great-grandparents?", o: [["Yes", .30], ["No", .70]] },
+  { c: "Life", q: "Have you ever cracked a phone screen?", o: [["Yes", .30], ["No", .70]] },
+
+  // Body
+  { c: "Body", q: "Do you have a gap between your front teeth?", o: [["Yes", .15], ["No", .85]] },
+  { c: "Body", q: "Are you taller than 180 cm (5 ft 11 in)?", o: [["Yes", .08], ["No", .92]] },
+  { c: "Body", q: "Do you get hay fever?", o: [["Yes", .20], ["No", .80]] },
+  { c: "Body", q: "Have you had your tonsils taken out?", o: [["Yes", .07], ["No", .93]] },
+  { c: "Body", q: "Have you had chickenpox?", o: [["Yes", .70], ["No", .30], ["Don't know", NS]] },
+  { c: "Body", q: "Look at your hand. Which finger is longer?", o: [["Ring finger", .50], ["Index finger", .35], ["About the same", .15]] },
+  { c: "Body", q: "Which of your eyes is dominant?", hint: "Point at something far away, then close each eye. The eye that keeps your finger on target is dominant.", o: [["Right", .65], ["Left", .32], ["Neither", .03], ["Not sure", NS]] },
+  { c: "Body", q: "Does music ever give you goosebumps?", o: [["Yes", .60], ["No", .40]] },
+  { c: "Body", q: "Are you ticklish?", o: [["Yes", .80], ["No", .20]] },
+  { c: "Body", q: "Can you touch your toes without bending your knees?", o: [["Yes", .50], ["No", .50]] },
+
+  // Mind
+  { c: "Mind", q: "Do you hear a voice in your head when you think?", o: [["Always", .75], ["Sometimes", .20], ["Never", .05]] },
+  { c: "Mind", q: "Are you an introvert or an extrovert?", o: [["Introvert", .40], ["Extrovert", .35], ["Somewhere in between", .25]] },
+  { c: "Mind", q: "Do you remember your dreams most mornings?", o: [["Yes", .40], ["No", .60]] },
+  { c: "Mind", q: "Do you cry at films?", o: [["Yes", .50], ["No", .50]] },
+
+  // Skills
+  { c: "Skills", q: "Can you ride a bike?", o: [["Yes", .60], ["No", .40]] },
+  { c: "Skills", q: "Do you have a driving licence?", o: [["Yes", .20], ["No", .80]] },
+  { c: "Skills", q: "Can you type without looking at the keyboard?", o: [["Yes", .30], ["No", .70]] },
+  { c: "Skills", q: "Do you know how to play chess?", o: [["Yes", .08], ["No", .92]] },
+  { c: "Skills", q: "Can you do a handstand without a wall?", o: [["Yes", .10], ["No", .90]] },
+  { c: "Skills", q: "Have you ever written computer code?", o: [["Yes", .10], ["No", .90]] },
+
+  // Taste
+  { c: "Taste", q: "Sweet or savoury breakfast?", o: [["Sweet", .45], ["Savoury", .55]] },
+  { c: "Taste", q: "Do you like olives?", o: [["Yes", .45], ["No", .55]] },
+  { c: "Taste", q: "What's your favourite fruit?", o: [["Banana", .20], ["Apple", .20], ["Mango", .15], ["Orange", .10], ["Strawberry", .10], ["Grapes", .08], ["Watermelon", .08], ["Something else", .09]] },
+  { c: "Taste", q: "Beach or mountains?", o: [["Beach", .60], ["Mountains", .40]] },
+  { c: "Taste", q: "Do you like horror films?", o: [["Yes", .45], ["No", .55]] },
+  { c: "Taste", q: "What's your favourite day of the week?", o: [["Friday", .40], ["Saturday", .35], ["Sunday", .10], ["Another day", .15]] },
+
+  // Origins
+  { c: "Origins", q: "Where are you in your family?", o: [["Oldest child", .30], ["Middle child", .20], ["Youngest child", .30], ["Only child", .20]] },
+  { c: "Origins", q: "How many letters are in your first name?", o: [["3 or fewer", .10], ["4", .20], ["5", .25], ["6", .20], ["7", .12], ["8 or more", .13]] },
+  { c: "Origins", q: "Were you born early (premature)?", o: [["Yes", .10], ["No", .90], ["Don't know", NS]] },
+  { c: "Origins", q: "Do you share a birthday with someone in your family?", o: [["Yes", .15], ["No", .85]] },
+  { c: "Origins", q: "What time of day were you born?", o: [["Morning", .25], ["Afternoon", .25], ["Evening", .25], ["Night", .25], ["No idea", NS]] },
+  { c: "Origins", q: "Do you still live in the town where you were born?", o: [["Yes", .40], ["No", .60]] },
 ];
 
 const RANKS = [
@@ -245,6 +297,16 @@ const COMPARE = [
   [1e6, "a big city"], [8e4, "a packed football stadium"], [1e4, "a small town"], [1e3, "a big school"],
   [50, "a school bus"], [11, "a football team"], [2, "a dinner party"], [1, "just you, maybe one other"], [0, "statistically, only you"],
 ];
+
+// Leaderboard: fewest questions needed to reach 1 in 10 billion, so lower is better.
+function sendScoreToUsForge(score) {
+  // only when running inside UsForge's page; does nothing when the game is opened on its own
+  if (window.parent === window) return;
+  if (!Number.isFinite(score) || score <= 0 || score >= 1e12) return;
+  try {
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'questions', order: 'low' }, '*');
+  } catch (e) {}
+}
 
 let state, best = null, shown = EARTH;
 try { best = JSON.parse(localStorage.getItem("ays-best-10b")); } catch (e) {}
@@ -419,6 +481,7 @@ function renderEnd() {
   let newBest = false;
   if (won && !state.scored) {
     state.scored = true;
+    sendScoreToUsForge(used);
     if (!best || used < best) {
       best = used; newBest = state.newBest = true;
       try { localStorage.setItem("ays-best-10b", JSON.stringify(best)); } catch (e) {}

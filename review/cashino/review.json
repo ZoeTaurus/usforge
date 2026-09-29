@@ -1,0 +1,42 @@
+{
+  "slug": "cashino",
+  "title": "CASHINO!",
+  "owner": "Alex",
+  "author": "Alex",
+  "submittedBy": "Alex",
+  "founder": true,
+  "submitted": 1790680279,
+  "kind": "new",
+  "status": "pending",
+  "info": {
+    "title": "CASHINO!",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "become rich.",
+    "genres": [
+      "Arcade",
+      "Casual",
+      "Simulation"
+    ]
+  },
+  "entry": {
+    "slug": "cashino",
+    "title": "CASHINO!",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "become rich.",
+    "cover": "games/cashino/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Arcade",
+      "Casual",
+      "Simulation"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790680279
+  }
+}

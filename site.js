@@ -55,6 +55,11 @@
       gear.href = 'settings.html'; gear.className = 'gear-btn'; gear.title = 'Settings'; gear.setAttribute('aria-label', 'Settings'); gear.textContent = '⚙';
       if (/settings(\.html)?$/.test(location.pathname)) gear.setAttribute('aria-current', 'page');
       spot.append(gear);
+      const app = document.createElement('button');
+      app.type = 'button'; app.className = 'app-btn'; app.hidden = true; app.innerHTML = '<span aria-hidden="true">⤓</span> Get the app';
+      app.onclick = () => install();
+      spot.insertBefore(app, b);
+      paintApp();   // (now that the button exists)
     }
     apply();
     setInterval(() => { if (get() === 'auto') apply(); }, 5 * 60 * 1000);   // day turns to night while the page is open
@@ -190,6 +195,38 @@
   addEventListener('visibilitychange', () => document.hidden ? leave() : beat());
   addEventListener('pagehide', leave);
 
-  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast };
+  // ---------- "Get the app": install UsForge (a real prompt where the browser allows it, otherwise a short how-to) ----------
+  let deferredPrompt = null;
+  const ua = navigator.userAgent;
+  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isMacSafari = !isIOS && /Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|Edg\/|OPR|Firefox/.test(ua);
+  const installMode = () => standalone() ? null : deferredPrompt ? 'prompt' : isIOS ? 'ios' : isMacSafari ? 'mac' : null;
+  function paintApp() { const m = installMode(); for (const b of document.querySelectorAll('.app-btn')) b.hidden = !m; dispatchEvent(new Event('usforge-app')); }
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; paintApp(); });
+  addEventListener('appinstalled', () => { deferredPrompt = null; paintApp(); toast('<b>UsForge installed!</b> Find it with your other apps.'); });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  const HOWTO = {
+    ios: ['Install UsForge on your iPhone or iPad', ['Tap the <b>Share</b> button (the square with an arrow pointing up) at the bottom or top of Safari.', 'Scroll down and tap <b>Add to Home Screen</b>.', 'Tap <b>Add</b>. UsForge appears on your home screen.'], 'Only works in Safari on iPhone and iPad.'],
+    mac: ['Install UsForge on your Mac', ['In the menu bar at the top of the screen, click <b>File</b>.', 'Click <b>Add to Dock</b>, then <b>Add</b>.', 'UsForge opens in its own window from your Dock.'], ''],
+  };
+  async function install() {
+    const m = installMode();
+    if (m === 'prompt') {
+      const p = deferredPrompt; deferredPrompt = null;
+      p.prompt(); const { outcome } = await p.userChoice.catch(() => ({}));
+      if (outcome !== 'accepted') deferredPrompt = null;
+      paintApp(); return;
+    }
+    if (!HOWTO[m]) return;
+    const [title, steps, note] = HOWTO[m];
+    let d = document.getElementById('appSheet');
+    if (!d) { d = document.createElement('dialog'); d.id = 'appSheet'; d.className = 'app-sheet'; document.body.append(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); }
+    d.innerHTML = `<h2>${title}</h2><ol>${steps.map(s => `<li>${s}</li>`).join('')}</ol>${note ? `<p>${note}</p>` : ''}<button type="button" class="big-play" autofocus>Got it</button>`;
+    d.querySelector('button').onclick = () => d.close();
+    d.showModal();
+  }
+
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

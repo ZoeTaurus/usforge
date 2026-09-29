@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=29">
+<link rel="stylesheet" href="style.css?v=30">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=24"></script>
+<script src="site.js?v=26"></script>
 </head>
 <body>
 <div class="wrap">
@@ -47,6 +47,12 @@
       <h2 id="modeTitle">Light or dark</h2>
       <p>Auto is light from 7am to 7pm, and dark the rest of the day.</p>
       <div class="seg" id="modes" role="group" aria-label="Light or dark"></div>
+    </section>
+
+    <section class="set-card" aria-labelledby="appTitle">
+      <h2 id="appTitle">Get the app</h2>
+      <p id="appText">Install UsForge so it opens in its own window, with its own icon.</p>
+      <div><button class="big-play" type="button" id="appInstall" style="padding:10px 22px;font-size:15px">⤓ Install UsForge</button></div>
     </section>
 
     <section class="set-card" aria-labelledby="fxTitle">
@@ -84,6 +90,16 @@
   seg('sparks', [['on', 'On'], ['off', 'Off']], () => U.pref('usforge-sparks', 'on'), v => { U.setPref('usforge-sparks', v === 'on' ? null : 'off'); const c = document.getElementById('bgEmbers'); if (c) c.hidden = v === 'off'; else if (v === 'on') location.reload(); });
   seg('tilt', [['on', 'On'], ['off', 'Off']], () => U.pref('usforge-tilt', 'on'), v => U.setPref('usforge-tilt', v === 'on' ? null : 'off'));
   paintColors();
+  // Get the app: what this browser can do
+  const paintApp = () => {
+    const m = U.installMode;
+    $('appInstall').hidden = !m;
+    $('appText').innerHTML = matchMedia('(display-mode: standalone)').matches || navigator.standalone ? 'You’re using the UsForge app right now. Nice!'
+      : m ? 'Install UsForge so it opens in its own window, with its own icon.'
+      : 'This browser can’t install sites as apps. Open UsForge in <b>Chrome</b>, <b>Edge</b> or <b>Safari</b> to install it.';
+  };
+  $('appInstall').onclick = () => U.install();
+  addEventListener('usforge-app', paintApp); paintApp();
   // the menu's theme button and this page stay in step
   document.addEventListener('click', e => { if (e.target.closest('.theme-btn')) setTimeout(() => seg('modes', [['auto', '◐ Auto'], ['light', '☀ Light'], ['dark', '☾ Dark']], () => U.theme, v => U.setTheme(v)), 0); });
 })();

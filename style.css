@@ -575,3 +575,14 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .new-note { margin: -4px 0 16px; padding: 10px 14px; border-radius: 10px; background: var(--tint-10); border: 1px solid var(--accent-edge); font-size: 14px; }
 .new-note b { color: var(--accent); }
 .new-note a { color: inherit; }
+
+/* ---------- get the app ---------- */
+.app-btn { font: 500 13px var(--sans); color: var(--accent); background: var(--tint-10); border: 1px solid var(--accent-edge); border-radius: 99px; padding: 4px 11px; margin-right: 6px; cursor: pointer; white-space: nowrap; }
+.app-btn:hover, .app-btn:focus-visible { background: var(--tint-20); outline: none; }
+.app-sheet { max-width: min(440px, calc(100vw - 32px)); border: 1px solid var(--line); border-radius: 16px; padding: 24px; background: var(--card); color: var(--ink); box-shadow: 0 30px 80px -20px rgba(0,0,0,.6); }
+.app-sheet::backdrop { background: rgba(5, 8, 14, .6); backdrop-filter: blur(3px); }
+.app-sheet h2 { margin: 0 0 12px; font-size: 20px; letter-spacing: -.02em; }
+.app-sheet ol { margin: 0 0 14px; padding-left: 20px; display: grid; gap: 8px; line-height: 1.5; }
+.app-sheet p { margin: 0 0 16px; color: var(--dim); font-size: 13px; }
+.app-sheet .big-play { padding: 10px 26px; font-size: 15px; }
+@media (max-width: 600px) { .app-btn { font-size: 12px; padding: 4px 9px; } }

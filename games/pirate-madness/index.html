@@ -4991,6 +4991,7 @@ class Player extends Actor {
     this.tick();
     if (this.comboReset > 0 && --this.comboReset === 0) this.combo = 0;
     if (this.rollCd > 0) this.rollCd--;
+    if (this.buffT > 0) this.buffT--; // crew buffs (Hearty Stew, Battle Hymn) wear off
     this.sp = Math.min(this.maxSp, this.sp + 0.1);
     if (this.dead || this.hp <= 0) { this.deadT = (this.deadT || 0) + 1; this.ko = true; return; }
     const ctrl = w.playerControl();
@@ -5472,21 +5473,21 @@ const ENEMY_DEFS = {
     moves: [['slashCombo', 3, { n: 2, r: 34 }], ['charge', 2, { spd: 3.6 }], ['slam', 2, { r: 58 }], ['summon', 1, { types: ['outlaw', 'outlaw2'], n: 2, max: 3 }], ['anchorSpin', 1, {}]] },
   bogking: { name: 'Grub the Bog King', title: 'Swamp Tyrant', hp: 1350, dmg: 13, speed: 0.6, ai: 'boss', sprite: 'toad', gold: [70, 70], kbResist: 0.1, bodyR: 16, height: 36, shadow: 40,
     moves: [['bombard', 3, { n: 5, kind: 'lob', col: PAL.lgreen, poison: true }], ['hop', 3, { r: 48 }], ['volley', 2, { n: 7, spread: 1.4, spd: 2.2, kind: 'lob2' }], ['summon', 1, { types: ['bogbandit'], n: 2, max: 3 }]] },
-  bruno: { name: 'Bruno "Ironfist"', title: 'Champion of Iron Rock', hp: 760, dmg: 12, speed: 0.9, rest: 54, ai: 'boss', char: 'bruno', big: true, gold: [0, 0], kbResist: 0.15, bodyR: 12, height: 36, noDeath: true,
-    moves: [['punchCombo', 4, { n: 3 }], ['charge', 2, { spd: 3.6 }], ['slam', 2, { r: 58 }]] },
-  commander: { name: 'Commander Vance', title: 'Iron Wall of the Navy', hp: 1500, dmg: 15, speed: 0.85, ai: 'boss', char: 'commander', big: true, weapon: 'sabre', gold: [80, 80], kbResist: 0.15, bodyR: 12, height: 36,
+  bruno: { name: 'Bruno "Ironfist"', title: 'Champion of Iron Rock', hp: 680, dmg: 12, speed: 0.9, rest: 62, ai: 'boss', char: 'bruno', big: true, gold: [0, 0], kbResist: 0.15, bodyR: 12, height: 36, noDeath: true,
+    moves: [['punchCombo', 4, { n: 3, wind: 13 }], ['charge', 2, { spd: 3.4 }], ['slam', 2, { r: 58 }]] },
+  commander: { name: 'Commander Vance', title: 'Iron Wall of the Navy', hp: 2100, dmg: 15, speed: 0.85, ai: 'boss', char: 'commander', big: true, weapon: 'sabre', gold: [80, 80], kbResist: 0.15, bodyR: 12, height: 36,
     moves: [['slashCombo', 3, { n: 3, r: 32 }], ['volley', 2, { n: 5, spread: 0.9, spd: 2.8, kind: 'bullet' }], ['cannons', 2, { n: 6 }], ['summon', 1, { types: ['marine', 'marineSword'], n: 2, max: 3 }]] },
-  kingcrab: { name: 'King Pinchy', title: 'Terror of Gale Point', hp: 1800, dmg: 16, speed: 0.7, ai: 'boss', sprite: 'kingcrab', gold: [90, 90], kbResist: 0, bodyR: 18, height: 30, shadow: 44,
+  kingcrab: { name: 'King Pinchy', title: 'Terror of Gale Point', hp: 2500, dmg: 16, speed: 0.7, ai: 'boss', sprite: 'kingcrab', gold: [90, 90], kbResist: 0, bodyR: 18, height: 30, shadow: 44,
     moves: [['clawSnap', 3, {}], ['charge', 2, { spd: 3.2, side: true }], ['bubbles', 2, { n: 8 }], ['strikes', 2, { n: 5 }], ['summon', 1, { types: ['stormcrab'], n: 2, max: 3 }]] },
-  rick: { name: 'Rotten Rick', title: 'The Stinking Scourge', hp: 1800, dmg: 16, speed: 0.7, ai: 'boss', char: 'rick', big: true, weapon: 'club', gold: [90, 90], kbResist: 0.1, bodyR: 13, height: 36,
+  rick: { name: 'Rotten Rick', title: 'The Stinking Scourge', hp: 3000, dmg: 16, speed: 0.7, ai: 'boss', char: 'rick', big: true, weapon: 'club', gold: [90, 90], kbResist: 0.1, bodyR: 13, height: 36,
     moves: [['slashCombo', 3, { n: 2, r: 34 }], ['bombard', 3, { n: 6, kind: 'lob', col: PAL.lgreen, poison: true }], ['bellyRoll', 2, {}], ['summon', 1, { types: ['rotten', 'rottenBomber'], n: 2, max: 3 }]] },
-  golem: { name: 'Iron Colossus', title: 'Pride of Rustbolt', hp: 2100, dmg: 18, speed: 0.5, ai: 'boss', sprite: 'golem', gold: [100, 100], kbResist: 0, bodyR: 18, height: 54, shadow: 44,
+  golem: { name: 'Iron Colossus', title: 'Pride of Rustbolt', hp: 3500, dmg: 18, speed: 0.5, ai: 'boss', sprite: 'golem', gold: [100, 100], kbResist: 0, bodyR: 18, height: 54, shadow: 44,
     moves: [['slam', 3, { r: 66 }], ['volley', 2, { n: 9, spread: 2.2, spd: 2.0, kind: 'fire' }], ['steam', 2, {}], ['summon', 1, { types: ['scrapbot'], n: 2, max: 3 }], ['charge', 1, { spd: 3 }]] },
-  ghostcap: { name: 'Captain Morrow', title: 'The Drowned Captain', hp: 2100, dmg: 16, speed: 0.8, ai: 'boss', char: 'ghostcap', big: true, weapon: 'sabre', gold: [100, 100], kbResist: 0.1, bodyR: 12, height: 36, fly: true, alpha: 0.85,
+  ghostcap: { name: 'Captain Morrow', title: 'The Drowned Captain', hp: 3500, dmg: 16, speed: 0.8, ai: 'boss', char: 'ghostcap', big: true, weapon: 'sabre', gold: [100, 100], kbResist: 0.1, bodyR: 12, height: 36, fly: true, alpha: 0.85,
     moves: [['teleSlash', 3, {}], ['volley', 2, { n: 10, spread: 6.28, spd: 1.6, kind: 'orb', col: PAL.cyan, col2: PAL.teal }], ['summon', 1, { types: ['ghostpirate', 'wisp'], n: 2, max: 3 }], ['slashCombo', 2, { n: 3, r: 32 }]] },
-  queen: { name: 'Vesper', title: 'Queen of Smugglers', hp: 2200, dmg: 16, speed: 1.15, ai: 'boss', char: 'queen', big: true, weapon: 'dagger', gold: [120, 120], kbResist: 0.2, bodyR: 12, height: 36,
+  queen: { name: 'Vesper', title: 'Queen of Smugglers', hp: 4200, dmg: 16, speed: 1.15, ai: 'boss', char: 'queen', big: true, weapon: 'dagger', gold: [120, 120], kbResist: 0.2, bodyR: 12, height: 36,
     moves: [['teleSlash', 3, {}], ['knifeFan', 3, { n: 7 }], ['smoke', 1, {}], ['summon', 1, { types: ['assassin'], n: 2, max: 2 }], ['slashCombo', 2, { n: 3, r: 30 }]] },
-  blackmaw: { name: 'Captain Blackmaw', title: 'Self-Proclaimed Strongest', hp: 4800, dmg: 20, speed: 0.85, ai: 'boss', char: 'blackmaw', big: true, weapon: 'anchor', gold: [300, 300], kbResist: 0, bodyR: 13, height: 38,
+  blackmaw: { name: 'Captain Blackmaw', title: 'Self-Proclaimed Strongest', hp: 7200, dmg: 20, speed: 0.85, ai: 'boss', char: 'blackmaw', big: true, weapon: 'anchor', gold: [300, 300], kbResist: 0, bodyR: 13, height: 38,
     moves: [['slashCombo', 3, { n: 3, r: 36 }], ['anchorSpin', 2, {}], ['cannons', 2, { n: 9 }], ['darkWave', 2, {}], ['slam', 2, { r: 70 }], ['summon', 1, { types: ['blackguard', 'blackgunner'], n: 2, max: 4 }], ['charge', 1, { spd: 4.2 }]] },
   silasSpar: { name: 'Silas', title: 'Sparring Partner', hp: 300, dmg: 4, speed: 1.1, ai: 'boss', char: 'silas', big: false, weapon: 'katana', gold: [0, 0], kbResist: 0.3, noDeath: true, height: 20,
     moves: [['teleSlash', 3, {}], ['slashCombo', 3, { n: 3, r: 24 }]] },
@@ -5933,18 +5934,21 @@ const BOSS_MOVES = {
   },
   punchCombo(w, e, tgt, t, o) {
     const D = e.mvData;
+    const wind = o.wind || 10;
     if (t === 0) { D.i = 0; D.t = 0; }
     const d = dist(e.x, e.y, tgt.x, tgt.y);
     if (D.phase !== 'go') { if (d > 26 && D.t < 60) { e.stepToward(w, tgt.x, tgt.y, e.spd() * 1.5); D.t++; return false; } D.phase = 'go'; D.t = 0; }
     D.t++; e.moving = false;
-    if (D.t === 10) {
+    if (D.t < wind) { e.state = 'windup'; e.stateT = wind - D.t; } // red flash telegraphs each punch
+    if (D.t === wind) {
+      e.state = 'attack';
       const a = angTo(e.x, e.y - 10, tgt.x, tgt.y - 7);
       e.kvx += Math.cos(a) * 2.6; e.kvy += Math.sin(a) * 2.6; e.pose = 'attack'; e.facing = sign(Math.cos(a)) || e.facing;
       w.addAttack({ owner: e, team: 'enemy', shape: 'arc', x: e.x, y: e.y - 12, r: 26, a, spread: 0.8, life: 4, dmg: e.dmg, kb: 3.5, hitstop: 3, follow: true });
       AudioSys.sfx('punch'); FX.ring(w, e.x + Math.cos(a) * 20, e.y - 12 + Math.sin(a) * 20, 2, 8, 8, PAL.white);
     }
-    if (D.t < 16 && D.t > 8) e.pose = 'attack';
-    if (D.t >= 18) { D.i++; D.t = 0; if (D.i >= (o.n || 3)) return true; }
+    if (D.t < wind + 6 && D.t > wind - 2) e.pose = 'attack';
+    if (D.t >= wind + 8) { D.i++; D.t = 0; if (D.i >= (o.n || 3)) { e.state = 'idle'; return true; } }
     return false;
   },
   charge(w, e, tgt, t, o) {
@@ -6204,51 +6208,51 @@ const CREW_DEFS = {
   },
   mira: {
     name: 'Mira', full: 'Dr. Mira Vale', title: 'The Storm Surgeon', role: 'Doctor', char: 'mira', weapon: null,
-    hp: 105, speed: 1.3, style: 'healer', pref: 70, cd: 80, blip: 1.3, col: PAL.magenta,
-    desc: 'The crew\'s doctor. Lobs healing flasks at the wounded, poison at enemies, and revives fallen crewmates.',
-    special: 'Miracle Mist', specialCd: 540,
+    hp: 150, speed: 1.3, style: 'healer', pref: 70, cd: 64, blip: 1.3, col: PAL.magenta,
+    desc: 'The crew\'s doctor. Big healing flasks for the wounded, toxic bombs for enemies, and a Miracle Mist that revives everyone.',
+    special: 'Miracle Mist', specialCd: 420,
   },
   bruno: {
     name: 'Bruno', full: 'Bruno "Ironfist"', title: 'The Unbreakable', role: 'Brawler', char: 'bruno', weapon: null,
-    hp: 250, speed: 1.1, style: 'melee', range: 20, cd: 42, blip: 0.6, col: PAL.red2, taunt: true,
-    desc: 'Former pit champion. Draws enemy attention, smashes with iron fists and quakes the ground.',
-    special: 'Earthquake Pound', specialCd: 480,
+    hp: 380, speed: 1.1, style: 'melee', range: 20, cd: 30, blip: 0.6, col: PAL.red2, taunt: true, armor: 0.7,
+    desc: 'Former pit champion. Tough as iron (takes less damage), draws enemy attention, and his Earthquake stuns a whole crowd.',
+    special: 'Earthquake Pound', specialCd: 360,
   },
   pepper: {
     name: 'Pepper', full: 'Pepper "Deadeye"', title: 'The Sharpshooter', role: 'Sniper', char: 'pepper', weapon: 'rifle',
-    hp: 95, speed: 1.25, style: 'ranged', pref: 115, cd: 80, blip: 1.2, col: PAL.orange,
-    desc: 'Never misses. Long-range rifle shots that hit like cannonballs, plus a piercing Trick Shot.',
-    special: 'Trick Shot', specialCd: 400,
+    hp: 130, speed: 1.25, style: 'ranged', pref: 115, cd: 56, blip: 1.2, col: PAL.orange,
+    desc: 'Never misses. Rifle shots that punch straight through a line of enemies, and a Trick Shot that fires three at once.',
+    special: 'Trick Shot', specialCd: 320,
   },
   wren: {
     name: 'Wren', full: 'Wren Skye', title: 'The Weather Witch', role: 'Navigator', char: 'wren', weapon: 'staff',
-    hp: 100, speed: 1.25, style: 'ranged', pref: 95, cd: 88, blip: 1.1, col: PAL.sky,
-    desc: 'Reads the sea like a book. Calls lightning down on foes and whips up a knockback Tempest.',
-    special: 'Tempest', specialCd: 520,
+    hp: 140, speed: 1.25, style: 'ranged', pref: 95, cd: 64, blip: 1.1, col: PAL.sky,
+    desc: 'Reads the sea like a book. Her lightning chains to a second foe, and her Tempest rains bolts on up to eight enemies.',
+    special: 'Tempest', specialCd: 400,
   },
   gus: {
     name: 'Gus', full: 'Gus Marlow', title: 'The Flambé King', role: 'Cook', char: 'gus', weapon: 'pan',
-    hp: 175, speed: 1.1, style: 'melee', range: 22, cd: 52, blip: 0.7, col: PAL.white,
-    desc: 'Frying-pan smacks that stun, fire-breath flambé, and a Hearty Stew that heals and powers up the crew.',
-    special: 'Hearty Stew', specialCd: 600,
+    hp: 240, speed: 1.1, style: 'melee', range: 22, cd: 40, blip: 0.7, col: PAL.white,
+    desc: 'Frying-pan smacks that stun, fire-breath flambé, and a Hearty Stew that heals everyone and hugely powers them up.',
+    special: 'Hearty Stew', specialCd: 480,
   },
   rivet: {
     name: 'Rivet', full: 'Rivet Ironsides', title: 'The Master Shipwright', role: 'Shipwright', char: 'rivet', weapon: 'wrench',
-    hp: 155, speed: 1.2, style: 'melee', range: 22, cd: 48, blip: 1.0, col: PAL.sky,
-    desc: 'Built your new ship. Wrench combos, and she deploys an auto-cannon turret in the middle of battle.',
-    special: 'Deploy Turret', specialCd: 540,
+    hp: 220, speed: 1.2, style: 'melee', range: 22, cd: 36, blip: 1.0, col: PAL.sky,
+    desc: 'Built your new ship. Stunning wrench combos, and a tough rapid-fire cannon turret she drops in the middle of battle.',
+    special: 'Deploy Turret', specialCd: 480,
   },
   lyra: {
     name: 'Lyra', full: 'Lyra Belle', title: 'The Siren of Echoes', role: 'Musician', char: 'lyra', weapon: 'fiddle',
-    hp: 100, speed: 1.25, style: 'ranged', pref: 80, cd: 58, blip: 1.4, col: PAL.yellow,
-    desc: 'Her fiddle fires piercing sound waves. Battle Hymn speeds up and powers up the whole crew.',
-    special: 'Battle Hymn', specialCd: 600,
+    hp: 140, speed: 1.25, style: 'ranged', pref: 80, cd: 46, blip: 1.4, col: PAL.yellow,
+    desc: 'Her fiddle fires twin piercing sound waves. Battle Hymn heals, speeds up and powers up the whole crew.',
+    special: 'Battle Hymn', specialCd: 480,
   },
   nyx: {
     name: 'Nyx', full: 'Nyx', title: 'The Shadow', role: 'Rogue', char: 'nyx', weapon: 'dagger',
-    hp: 110, speed: 1.55, style: 'melee', range: 16, cd: 26, blip: 1.15, col: PAL.lav,
-    desc: 'Master thief. Blinding dagger flurries, thrown knives, and Shadow Step backstabs for huge damage.',
-    special: 'Shadow Step', specialCd: 400,
+    hp: 150, speed: 1.55, style: 'melee', range: 16, cd: 22, blip: 1.15, col: PAL.lav,
+    desc: 'Master thief. Blinding dagger flurries, fans of thrown knives, and a Shadow Step that backstabs two enemies in a row.',
+    special: 'Shadow Step', specialCd: 320,
   },
 };
 
@@ -6265,6 +6269,7 @@ class Crew extends Actor {
     this.speed = def.speed; this.weapon = def.weapon;
     this.cd = irnd(20, 50); this.spCd = Math.round(def.specialCd * rnd(0.35, 0.8));
     this.hurtIframes = 20; this.kbResist = def.taunt ? 0.4 : 0.8;
+    if (def.armor) this.dmgTaken = def.armor;
     this.taunt = def.taunt;
     this.slot = opts.slot || 0;
     this.stuckT = 0; this.combo = 0;
@@ -6368,16 +6373,16 @@ class Crew extends Actor {
   }
   tryHeal(w) {
     if (this.healCd > 0) { this.healCd--; return false; }
-    let best = null, br = 0.68;
+    let best = null, br = 0.75;
     for (const a of w.actors) {
       if (a.team !== 'ally' || !a.alive || a.isTurret) continue;
       const r = a.hp / a.maxHp;
       if (r < br && dist(this.x, this.y, a.x, a.y) < 150) { br = r; best = a; }
     }
     if (!best) return false;
-    this.healCd = 70;
+    this.healCd = 50;
     this.pose = 'attack';
-    const heal = Math.round(24 * (1 + 0.1 * (G.save.upgrades.drill || 0)));
+    const heal = Math.round(36 * (1 + 0.1 * (G.save.upgrades.drill || 0)));
     const pj = new Projectile({ kind: 'flask', col: PAL.lgreen, sx: this.x, sy: this.y - 4, tx: best.x, ty: best.y, x: this.x, y: this.y, dur: 32, arc: 22, team: 'ally', owner: this,
       onLand: (ww, p) => { AudioSys.sfx('heal'); FX.ring(ww, p.x, p.y, 2, 16, 12, PAL.lgreen); for (const a of ww.actors) if (a.team === 'ally' && a.alive && dist(a.x, a.y, p.x, p.y) < 20) a.heal(ww, heal); } });
     w.addEnt(pj);
@@ -6464,7 +6469,7 @@ const CREW_ATTACKS = {
   mira(w, c, t) {
     c.pose = 'attack'; c.aimA = angTo(c.x, c.y, t.x, t.y);
     const pj = new Projectile({ kind: 'flask', col: PAL.magenta, sx: c.x, sy: c.y - 4, tx: t.x + rnd(-4, 4), ty: t.y + rnd(-3, 3), x: c.x, y: c.y, dur: 34, arc: 24, team: 'ally', owner: c,
-      onLand: (ww, p) => { poisonCloud(ww, p.x, p.y, 'ally', 5 * c.atk, p); } });
+      onLand: (ww, p) => { c.hit(ww, 'circle', { x: p.x, y: p.y - 4, r: 16, dmg: 10 * c.atk, kb: 1.5 }); poisonCloud(ww, p.x, p.y, 'ally', 9 * c.atk, p); } });
     w.addEnt(pj); AudioSys.sfx('pew');
   },
   bruno(w, c, t) {
@@ -6475,7 +6480,8 @@ const CREW_ATTACKS = {
       c.pose = 'attack';
       if (k === 3) {
         const big = n === 2;
-        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: big ? 24 : 20, a, spread: 0.9, dmg: (big ? 17 : 11) * c.atk, kb: big ? 5 : 2.5, hitstop: big ? 4 : 2, sfx: 'punch' });
+        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: big ? 26 : 20, a, spread: 0.9, dmg: (big ? 28 : 16) * c.atk, kb: big ? 5 : 2.5, hitstop: big ? 4 : 2, sfx: 'punch',
+          onHit: big ? (w2, tg) => { if (!tg.isBoss) { tg.stun = Math.max(tg.stun || 0, 30); FX.star(w2, tg.x, tg.y - 20, 3); } } : undefined });
         c.kvx += Math.cos(a) * 1.8; c.kvy += Math.sin(a) * 1.8;
         FX.ring(ww, c.x + Math.cos(a) * 14, c.y - 7 + Math.sin(a) * 14, 2, big ? 10 : 6, 8, PAL.white);
         AudioSys.sfx('punch');
@@ -6492,7 +6498,7 @@ const CREW_ATTACKS = {
       c.facing = sign(Math.cos(c.aimA)) || c.facing;
       if (k === 18) {
         const a = c.aimA;
-        const pj = new Projectile({ x: c.x + Math.cos(a) * 10, y: c.y - 1 + Math.sin(a) * 10, z: 8, vx: Math.cos(a) * 5, vy: Math.sin(a) * 5, kind: 'bullet', col: PAL.yellow, team: 'ally', dmg: 22 * c.atk, kb: 3.5, owner: c, life: 60 });
+        const pj = new Projectile({ x: c.x + Math.cos(a) * 10, y: c.y - 1 + Math.sin(a) * 10, z: 8, vx: Math.cos(a) * 6, vy: Math.sin(a) * 6, kind: 'bullet', col: PAL.yellow, team: 'ally', dmg: 34 * c.atk, kb: 3.5, owner: c, life: 50, pierce: true });
         ww.addEnt(pj); AudioSys.sfx('gun'); FX.spark(ww, c.x + Math.cos(a) * 14, c.y - 9 + Math.sin(a) * 14, 5, PAL.yellow, 1.8);
         c.kvx -= Math.cos(a) * 1.2; c.kvy -= Math.sin(a) * 1.2;
       }
@@ -6508,9 +6514,19 @@ const CREW_ATTACKS = {
       if (k === 0) { c.mark = { x: tx, y: ty }; }
       if (k === 22) {
         FX.bolt(ww, tx, ty); AudioSys.sfx('zap'); ww.shake = Math.max(ww.shake, 2);
-        c.hit(ww, 'circle', { x: tx, y: ty - 4, r: 18, dmg: 18 * c.atk, kb: 2.5, hitstop: 2 });
-        for (const a of ww.actors) if (a.team === 'enemy' && a.alive && dist(a.x, a.y, tx, ty) < 20) a.slowT = 60;
+        c.hit(ww, 'circle', { x: tx, y: ty - 4, r: 22, dmg: 28 * c.atk, kb: 2.5, hitstop: 2 });
+        for (const a of ww.actors) if (a.team === 'enemy' && a.alive && dist(a.x, a.y, tx, ty) < 24) a.slowT = 60;
         c.mark = null;
+        // chain lightning: jumps to the nearest other enemy
+        let j = null, jd = 70;
+        for (const a of ww.actors) if (a.team === 'enemy' && a.alive && !a.phaseOut) { const d = dist(a.x, a.y, tx, ty); if (d > 24 && d < jd) { jd = d; j = a; } }
+        c.chain = j;
+      }
+      if (k === 27 && c.chain && c.chain.alive) {
+        const j = c.chain;
+        FX.bolt(ww, j.x, j.y); AudioSys.sfx('zap');
+        c.hit(ww, 'circle', { x: j.x, y: j.y - 4, r: 14, dmg: 17 * c.atk, kb: 2, hitstop: 1 });
+        c.chain = null;
       }
       return k >= 28;
     };
@@ -6524,11 +6540,11 @@ const CREW_ATTACKS = {
       c.pose = 'attack';
       if (n < 2 && k === 5) {
         c.swingFx(ww, a, 20, 1.0, PAL.lgray); AudioSys.sfx('clang');
-        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 22, a, spread: 1.0, dmg: 14 * c.atk, kb: 3, hitstop: 3, onHit: (w2, tg) => { tg.stun = Math.max(tg.stun, 30); FX.star(w2, tg.x, tg.y - 20, 3); } });
+        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 22, a, spread: 1.0, dmg: 22 * c.atk, kb: 3, hitstop: 3, onHit: (w2, tg) => { tg.stun = Math.max(tg.stun, 30); FX.star(w2, tg.x, tg.y - 20, 3); } });
       }
       if (n === 2 && k >= 4 && k <= 18 && k % 3 === 1) {
         const aa = a + rnd(-0.35, 0.35);
-        ww.addEnt(new Projectile({ x: c.x + Math.cos(aa) * 8, y: c.y - 1 + Math.sin(aa) * 8, z: 8, vx: Math.cos(aa) * 2.4, vy: Math.sin(aa) * 2.4, kind: 'fire', team: 'ally', dmg: 7 * c.atk, owner: c, life: 22, pierce: true, kb: 1 }));
+        ww.addEnt(new Projectile({ x: c.x + Math.cos(aa) * 8, y: c.y - 1 + Math.sin(aa) * 8, z: 8, vx: Math.cos(aa) * 2.4, vy: Math.sin(aa) * 2.4, kind: 'fire', team: 'ally', dmg: 11 * c.atk, owner: c, life: 22, pierce: true, kb: 1 }));
         if (k === 4) AudioSys.sfx('fire');
       }
       return k >= (n === 2 ? 24 : 16);
@@ -6540,7 +6556,10 @@ const CREW_ATTACKS = {
     c.facing = sign(Math.cos(a)) || c.facing;
     c.act = (ww, k) => {
       c.pose = 'attack';
-      if (k === 6) { c.swingFx(ww, a, 22, 1.2, PAL.gray); AudioSys.sfx('clang'); c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 24, a, spread: 1.2, dmg: 14 * c.atk, kb: 3.4, hitstop: 3 }); }
+      if (k === 6) {
+        c.swingFx(ww, a, 22, 1.2, PAL.gray); AudioSys.sfx('clang');
+        c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 24, a, spread: 1.2, dmg: 22 * c.atk, kb: 3.4, hitstop: 3, onHit: (w2, tg) => { if (!tg.isBoss) tg.stun = Math.max(tg.stun || 0, 18); } });
+      }
       return k >= 18;
     };
     c.actT = 0;
@@ -6548,7 +6567,8 @@ const CREW_ATTACKS = {
   lyra(w, c, t) {
     const a = angTo(c.x, c.y - 8, t.x, t.y - 7);
     c.aimA = a; c.pose = 'attack';
-    w.addEnt(new Projectile({ x: c.x + Math.cos(a) * 8, y: c.y - 1 + Math.sin(a) * 8, z: 8, vx: Math.cos(a) * 2.4, vy: Math.sin(a) * 2.4, kind: 'wave', col: PAL.yellow, team: 'ally', dmg: 10 * c.atk, owner: c, life: 70, pierce: true, fly: true, r: 6, kb: 2.5 }));
+    // twin sound waves
+    for (const o of [-0.12, 0.12]) w.addEnt(new Projectile({ x: c.x + Math.cos(a + o) * 8, y: c.y - 1 + Math.sin(a + o) * 8, z: 8, vx: Math.cos(a + o) * 2.6, vy: Math.sin(a + o) * 2.6, kind: 'wave', col: PAL.yellow, team: 'ally', dmg: 12 * c.atk, owner: c, life: 70, pierce: true, fly: true, r: 7, kb: 2.5 }));
     AudioSys.sfx('note', [1, 1.25, 1.5, 1.33][Math.floor(Math.random() * 4)]);
     FX.note(w, c.x, c.y - 20, PAL.yellow);
   },
@@ -6557,13 +6577,13 @@ const CREW_ATTACKS = {
     const a = angTo(c.x, c.y - 7, t.x, t.y - 7);
     c.facing = sign(Math.cos(a)) || c.facing;
     if (d > 30) {
-      for (const o of [-0.15, 0, 0.15]) w.addEnt(new Projectile({ x: c.x, y: c.y - 1, z: 8, vx: Math.cos(a + o) * 3.4, vy: Math.sin(a + o) * 3.4, kind: 'knife', team: 'ally', dmg: 6 * c.atk, owner: c, life: 50 }));
+      for (const o of [-0.3, -0.15, 0, 0.15, 0.3]) w.addEnt(new Projectile({ x: c.x, y: c.y - 1, z: 8, vx: Math.cos(a + o) * 3.6, vy: Math.sin(a + o) * 3.6, kind: 'knife', team: 'ally', dmg: 9 * c.atk, owner: c, life: 50 }));
       AudioSys.sfx('slash'); c.pose = 'attack';
       return;
     }
     c.act = (ww, k) => {
       c.pose = 'attack';
-      if (k === 2 || k === 7 || k === 12) { c.swingFx(ww, a + (k === 7 ? 0.4 : -0.2), 16, 0.9, PAL.lav); AudioSys.sfx('slash'); c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 18, a, spread: 1.0, dmg: 7 * c.atk, kb: 1.2 }); }
+      if (k === 2 || k === 7 || k === 12) { c.swingFx(ww, a + (k === 7 ? 0.4 : -0.2), 16, 0.9, PAL.lav); AudioSys.sfx('slash'); c.hit(ww, 'arc', { x: c.x, y: c.y - 7, r: 18, a, spread: 1.0, dmg: 10 * c.atk, kb: 1.2 }); }
       return k >= 16;
     };
     c.actT = 0;
@@ -6614,32 +6634,34 @@ const CREW_SPECIALS = {
     },
   },
   mira: {
-    ready: (w, c) => w.actors.some(a => a.team === 'ally' && !a.isTurret && ((a.ko && a.isCrew) || (a.alive && a.hp / a.maxHp < 0.45))),
+    ready: (w, c) => w.actors.some(a => a.team === 'ally' && !a.isTurret && ((a.ko && a.isCrew) || (a.alive && a.hp / a.maxHp < 0.5))),
     run(c, w, k) {
       c.pose = 'attack'; c.moving = false;
       if (k === 0) AudioSys.sfx('charge');
       if (k === 20) {
         AudioSys.sfx('heal');
-        FX.ring(w, c.x, c.y - 4, 4, 90, 24, PAL.lgreen); FX.ring(w, c.x, c.y - 4, 2, 70, 20, PAL.white);
+        FX.ring(w, c.x, c.y - 4, 4, 120, 24, PAL.lgreen); FX.ring(w, c.x, c.y - 4, 2, 90, 20, PAL.white);
         for (const a of w.actors) {
           if (a.team !== 'ally' || a.isTurret) continue;
-          if (dist(a.x, a.y, c.x, c.y) > 110) continue;
-          if (a.ko && a.isCrew) a.revive(w, 0.45);
-          else if (a.alive) a.heal(w, Math.round(32 * (1 + 0.1 * (G.save.upgrades.drill || 0))));
+          if (dist(a.x, a.y, c.x, c.y) > 140) continue;
+          a.poison = 0;
+          if (a.ko && a.isCrew) a.revive(w, 0.7);
+          else if (a.alive) a.heal(w, Math.round(55 * (1 + 0.1 * (G.save.upgrades.drill || 0))));
         }
       }
       return k >= 30;
     },
   },
   bruno: {
-    ready: (w, c) => anyEnemyNear(w, c, 60),
+    ready: (w, c) => anyEnemyNear(w, c, 70),
     run(c, w, k) {
-      if (k === 0) { AudioSys.sfx('charge'); c.iframes = 40; }
-      if (k < 16) { c.z = Math.sin(k / 16 * Math.PI) * 14; }
+      if (k === 0) { AudioSys.sfx('charge'); c.iframes = 50; }
+      if (k < 16) { c.z = Math.sin(k / 16 * Math.PI) * 16; }
       if (k === 16) {
-        c.z = 0; AudioSys.sfx('slam'); w.shake = Math.max(w.shake, 6);
-        c.hit(w, 'ring', { x: c.x, y: c.y - 4, r: 8, r1: 54, th: 12, life: 14, dmg: 30 * c.atk, kb: 5, hitstop: 3, hits: new Set() });
-        FX.ring(w, c.x, c.y - 2, 6, 54, 18, PAL.beige); FX.dust(w, c.x, c.y, 10, PAL.lgray);
+        c.z = 0; AudioSys.sfx('slam'); w.shake = Math.max(w.shake, 7);
+        c.hit(w, 'ring', { x: c.x, y: c.y - 4, r: 8, r1: 72, th: 14, life: 16, dmg: 50 * c.atk, kb: 5, hitstop: 3, hits: new Set(),
+          onHit: (w2, tg) => { if (!tg.isBoss) { tg.stun = Math.max(tg.stun || 0, 45); FX.star(w2, tg.x, tg.y - 20, 3); } } });
+        FX.ring(w, c.x, c.y - 2, 6, 72, 18, PAL.beige); FX.ring(w, c.x, c.y - 2, 4, 50, 14, PAL.white); FX.dust(w, c.x, c.y, 14, PAL.lgray);
       }
       c.pose = 'attack';
       return k >= 30;
@@ -6654,23 +6676,32 @@ const CREW_SPECIALS = {
       if (!t || !t.alive) return true;
       c.aimA = angTo(c.x, c.y - 9, t.x, t.y - 7); c.facing = sign(Math.cos(c.aimA)) || c.facing;
       if (k === 30) {
+        // three piercing shots in a tight fan
         const a = c.aimA;
-        w.addEnt(new Projectile({ x: c.x + Math.cos(a) * 10, y: c.y - 1 + Math.sin(a) * 10, z: 8, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7, kind: 'bullet', col: PAL.orange, team: 'ally', dmg: 42 * c.atk, kb: 5, owner: c, life: 60, pierce: true, r: 4 }));
-        AudioSys.sfx('explode'); w.shake = Math.max(w.shake, 3); c.kvx -= Math.cos(a) * 3; c.kvy -= Math.sin(a) * 3;
+        for (const o of [-0.1, 0, 0.1]) w.addEnt(new Projectile({ x: c.x + Math.cos(a + o) * 10, y: c.y - 1 + Math.sin(a + o) * 10, z: 8, vx: Math.cos(a + o) * 7, vy: Math.sin(a + o) * 7, kind: 'bullet', col: PAL.orange, team: 'ally', dmg: 50 * c.atk, kb: 5, owner: c, life: 60, pierce: true, r: 4 }));
+        AudioSys.sfx('explode'); w.shake = Math.max(w.shake, 4); c.kvx -= Math.cos(a) * 3; c.kvy -= Math.sin(a) * 3;
+        FX.spark(w, c.x + Math.cos(a) * 14, c.y - 9 + Math.sin(a) * 14, 10, PAL.orange, 2.4);
       }
       return k >= 40;
     },
   },
   wren: {
-    ready: (w, c) => w.actors.filter(a => a.team === 'enemy' && a.alive && dist(a.x, a.y, c.x, c.y) < 160).length >= 2,
+    ready: (w, c) => anyEnemyNear(w, c, 160),
     run(c, w, k) {
       c.moving = false; c.pose = 'attack';
-      if (k === 0) { AudioSys.sfx('wave'); FX.ring(w, c.x, c.y - 4, 4, 60, 20, PAL.lblue); c.hit(w, 'circle', { x: c.x, y: c.y - 6, r: 60, dmg: 8 * c.atk, kb: 6, hitstop: 2 }); c.bolts = w.actors.filter(a => a.team === 'enemy' && a.alive && dist(a.x, a.y, c.x, c.y) < 180).slice(0, 5); }
+      if (k === 0) {
+        AudioSys.sfx('wave'); FX.ring(w, c.x, c.y - 4, 4, 60, 20, PAL.lblue);
+        c.hit(w, 'circle', { x: c.x, y: c.y - 6, r: 60, dmg: 14 * c.atk, kb: 6, hitstop: 2 });
+        // up to eight bolts; a lone foe (a boss) gets struck three times
+        const near = w.actors.filter(a => a.team === 'enemy' && a.alive && !a.phaseOut && dist(a.x, a.y, c.x, c.y) < 180).slice(0, 8);
+        c.bolts = [];
+        for (let i = 0; near.length && c.bolts.length < Math.max(3, near.length); i++) c.bolts.push(near[i % near.length]);
+      }
       const i = Math.floor((k - 10) / 8);
-      if (k >= 10 && (k - 10) % 8 === 0 && c.bolts[i]) {
+      if (k >= 10 && (k - 10) % 8 === 0 && c.bolts[i] && c.bolts[i].alive) {
         const t = c.bolts[i];
         FX.bolt(w, t.x, t.y); AudioSys.sfx('thunder'); w.shake = Math.max(w.shake, 3);
-        c.hit(w, 'circle', { x: t.x, y: t.y - 4, r: 18, dmg: 22 * c.atk, kb: 3, hitstop: 2 });
+        c.hit(w, 'circle', { x: t.x, y: t.y - 4, r: 22, dmg: 36 * c.atk, kb: 3, hitstop: 2 });
       }
       return k >= 10 + 8 * c.bolts.length + 6;
     },
@@ -6681,8 +6712,8 @@ const CREW_SPECIALS = {
       c.moving = false; c.pose = 'attack';
       if (k === 0) AudioSys.sfx('fire');
       if (k === 18) {
-        AudioSys.sfx('heal'); FX.ring(w, c.x, c.y - 4, 4, 80, 20, PAL.orange);
-        for (const a of w.actors) if (a.team === 'ally' && a.alive && !a.isTurret && dist(a.x, a.y, c.x, c.y) < 110) { a.heal(w, 16); a.buffT = 360; a.buffAtk = 1.25; a.buffSpd = Math.max(a.buffSpd || 1, 1); FX.text(w, a.x, a.y - 30, 'ATK UP', PAL.orange); }
+        AudioSys.sfx('heal'); FX.ring(w, c.x, c.y - 4, 4, 110, 20, PAL.orange);
+        for (const a of w.actors) if (a.team === 'ally' && a.alive && !a.isTurret && dist(a.x, a.y, c.x, c.y) < 140) { a.heal(w, 35); a.buffT = 480; a.buffAtk = 1.4; a.buffSpd = Math.max(a.buffSpd || 1, 1); FX.text(w, a.x, a.y - 30, 'ATK UP', PAL.orange); }
       }
       return k >= 28;
     },
@@ -6703,8 +6734,12 @@ const CREW_SPECIALS = {
       if (k % 6 === 0) { FX.note(w, c.x + rnd(-12, 12), c.y - 22, [PAL.yellow, PAL.salmon, PAL.cyan][k % 3]); AudioSys.sfx('note', [1, 1.26, 1.5, 2][(k / 6) % 4]); }
       if (k === 24) {
         FX.ring(w, c.x, c.y - 4, 4, 100, 24, PAL.yellow);
-        for (const a of w.actors) if (a.team === 'ally' && a.alive && !a.isTurret) { a.buffT = 480; a.buffSpd = 1.3; a.buffAtk = Math.max(a.buffAtk || 1, 1.2); FX.text(w, a.x, a.y - 30, 'HYMN!', PAL.yellow); }
-        if (w.player) w.player.sp = Math.min(w.player.maxSp, w.player.sp + 25);
+        for (const a of w.actors) if (a.team === 'ally' && a.alive && !a.isTurret) {
+          const cur = a.buffT > 0 ? (a.buffAtk || 1) : 1; // keep a stronger buff that is still running
+          a.heal(w, 20); a.buffT = 600; a.buffSpd = 1.4; a.buffAtk = Math.max(cur, 1.35);
+          FX.text(w, a.x, a.y - 30, 'HYMN!', PAL.yellow);
+        }
+        if (w.player) w.player.sp = Math.min(w.player.maxSp, w.player.sp + 40);
       }
       return k >= 30;
     },
@@ -6712,16 +6747,21 @@ const CREW_SPECIALS = {
   nyx: {
     ready: (w, c) => anyEnemyNear(w, c, 170),
     run(c, w, k) {
-      if (k === 0) {
-        let best = null; for (const a of w.actors) if (a.team === 'enemy' && a.alive && (!best || a.hp > best.hp) && dist(a.x, a.y, c.x, c.y) < 200) best = a;
-        c.vic = best; FX.poof(w, c.x, c.y - 6, PAL.navy); AudioSys.sfx('poof'); c.alpha = 0.2; c.iframes = 50;
+      // two backstabs in a row on the toughest enemies nearby (a lone boss gets stabbed twice)
+      const pick = skip => { let best = null; for (const a of w.actors) if (a.team === 'enemy' && a.alive && !a.phaseOut && a !== skip && (!best || a.hp > best.hp) && dist(a.x, a.y, c.x, c.y) < 200) best = a; return best; };
+      const kk = k % 30, round = Math.floor(k / 30);
+      if (kk === 0) {
+        if (round >= 2) { c.alpha = undefined; return true; }
+        c.vic = round === 0 ? pick(null) : (pick(c.vic) || (c.vic && c.vic.alive ? c.vic : null));
+        if (!c.vic) { c.alpha = undefined; return true; }
+        FX.poof(w, c.x, c.y - 6, PAL.navy); AudioSys.sfx('poof'); c.alpha = 0.2; c.iframes = 40;
       }
       const t = c.vic;
-      if (!t || !t.alive) { c.alpha = undefined; return true; }
-      if (k === 16) { const sp = w.findFree(t.x - t.facing * 14, t.y, c.w, c.h); c.x = sp.x; c.y = sp.y; c.facing = t.facing || 1; c.alpha = undefined; FX.poof(w, c.x, c.y - 6, PAL.navy); }
-      if (k === 22) { const a = angTo(c.x, c.y, t.x, t.y); c.swingFx(w, a, 18, 1.2, PAL.lav); c.hit(w, 'arc', { x: c.x, y: c.y - 7, r: 22, a, spread: 1.2, dmg: 46 * c.atk, kb: 4, hitstop: 5, shake: 3, crit: true, sfx: 'hitHeavy' }); FX.text(w, t.x, t.y - 34, 'CRIT!', PAL.yellow); }
-      c.pose = k > 16 ? 'attack' : null;
-      return k >= 30;
+      if (kk < 16 && (!t || !t.alive)) { c.alpha = undefined; return true; }
+      if (kk === 16) { const sp = w.findFree(t.x - (t.facing || 1) * 14, t.y, c.w, c.h); c.x = sp.x; c.y = sp.y; c.facing = t.facing || 1; c.alpha = undefined; FX.poof(w, c.x, c.y - 6, PAL.navy); }
+      if (kk === 22 && t.alive) { const a = angTo(c.x, c.y, t.x, t.y); c.swingFx(w, a, 18, 1.2, PAL.lav); c.hit(w, 'arc', { x: c.x, y: c.y - 7, r: 22, a, spread: 1.2, dmg: (round === 0 ? 80 : 60) * c.atk, kb: 4, hitstop: 5, shake: 3, crit: true, sfx: 'hitHeavy' }); FX.text(w, t.x, t.y - 34, 'CRIT!', PAL.yellow); }
+      c.pose = kk > 16 ? 'attack' : null;
+      return false;
     },
   },
 };
@@ -6731,7 +6771,7 @@ class Turret extends Actor {
   constructor(x, y, owner) {
     super(x, y, null);
     this.team = 'ally'; this.isTurret = true; this.owner = owner;
-    this.maxHp = this.hp = 70; this.life = 840; this.cd = 20; this.bodyR = 6; this.height = 12; this.shadowW = 14;
+    this.maxHp = this.hp = 120; this.life = this.maxLife = 1080; this.cd = 20; this.bodyR = 6; this.height = 12; this.shadowW = 14;
     this.untargetable = false; this.aimA = 0;
   }
   update(w) {
@@ -6743,8 +6783,8 @@ class Turret extends Actor {
       this.aimA = angTo(this.x, this.y - 8, best.x, best.y - 7);
       if (--this.cd <= 0) {
         const a = this.aimA;
-        w.addEnt(new Projectile({ x: this.x + Math.cos(a) * 8, y: this.y + Math.sin(a) * 8, z: 8, vx: Math.cos(a) * 3.6, vy: Math.sin(a) * 3.6, kind: 'ball', team: 'ally', dmg: 13 * (this.owner ? this.owner.atk : 1), kb: 3, owner: this, life: 70 }));
-        AudioSys.sfx('shoot'); FX.spark(w, this.x + Math.cos(a) * 10, this.y - 8 + Math.sin(a) * 10, 4, PAL.orange, 1.6); this.cd = 46;
+        w.addEnt(new Projectile({ x: this.x + Math.cos(a) * 8, y: this.y + Math.sin(a) * 8, z: 8, vx: Math.cos(a) * 3.6, vy: Math.sin(a) * 3.6, kind: 'ball', team: 'ally', dmg: 18 * (this.owner ? this.owner.atk : 1), kb: 3, owner: this, life: 70 }));
+        AudioSys.sfx('shoot'); FX.spark(w, this.x + Math.cos(a) * 10, this.y - 8 + Math.sin(a) * 10, 4, PAL.orange, 1.6); this.cd = 34;
       }
     }
   }
@@ -6759,7 +6799,7 @@ class Turret extends Actor {
     pline(g, x, y - 10, x + Math.cos(a) * 9, y - 10 + Math.sin(a) * 9, PAL.slate);
     if (this.flash > 0) { pcircle(g, x, y - 9, 4, PAL.white); }
     // lifetime bar
-    prect(g, x - 6, y + 1, 12, 1, PAL.black); prect(g, x - 6, y + 1, Math.round(12 * this.life / 840), 1, PAL.sky);
+    prect(g, x - 6, y + 1, 12, 1, PAL.black); prect(g, x - 6, y + 1, Math.round(12 * this.life / this.maxLife), 1, PAL.sky);
   }
 }
 
@@ -8760,7 +8800,7 @@ function* brunoChapter() {
   crewAll().forEach((c, i) => { const a = Math.PI * 0.5 + (i - 0.5) * 0.3; c.x = 22 * TS + (i % 2 ? 1 : -1) * (40 + i * 10); c.y = 23.5 * TS; c.facing = 1; });
   if (bn) bn.dead = true;
   const boss = spawnEnemy('bruno', 22, 12.5, { spawnFx: false });
-  boss.dmg = 9 * (0.7 + w.diff * 0.3);
+  boss.dmg = 8 * (0.7 + w.diff * 0.3);
   yield* bossFight('bruno', 0, 0, { entity: boss });
   unlockArena();
   AudioSys.sfx('crowd');

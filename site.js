@@ -88,7 +88,12 @@
   });
 
   // the genres a game can be tagged with (up to 3) — the same list lives in worker/index.js and scripts/build_list.py
-  const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Comedy', 'Horror', 'Party', 'Platformer', 'Puzzle', 'Racing', 'Roguelike', 'RPG', 'Sci-fi', 'Shooter', 'Simulation', 'Sports', 'Story', 'Strategy', 'Text-based'];
+  const GENRE_GROUPS = [
+    ['How it plays', ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Crafting', 'Endless runner', 'Exploration', 'Fighting', 'Idle', 'Management', 'Open world', 'Physics', 'Platformer', 'Puzzle', 'Racing', 'Rhythm', 'Roguelike', 'RPG', 'Sandbox', 'Shooter', 'Simulation', 'Sports', 'Stealth', 'Strategy', 'Survival', 'Tower defense']],
+    ['Cards, words & friends', ['Board game', 'Card game', 'Educational', 'Multiplayer', 'Party', 'Quiz', 'Text-based', 'Word game']],
+    ['Mood & setting', ['Comedy', 'Fantasy', 'Horror', 'Mystery', 'Pixel art', 'Sci-fi', 'Space', 'Story']],
+  ];
+  const GENRES = GENRE_GROUPS.flatMap(([, list]) => list);
 
   // the team (credits and maker pages); roles in `lead` are highlighted
   const TEAM = [
@@ -158,6 +163,6 @@
     document.body.prepend(c); Embers(c, { count: 16, alpha: .38, speed: .5 });
   });
 
-  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, GENRE_GROUPS, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

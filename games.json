@@ -143,9 +143,9 @@
     "pixel": false,
     "url": null,
     "genres": [
-      "Comedy",
       "Simulation",
-      "Strategy"
+      "Strategy",
+      "Comedy"
     ],
     "dev": false,
     "progress": null,
@@ -163,9 +163,9 @@
     "pixel": true,
     "url": null,
     "genres": [
-      "Party",
       "Puzzle",
-      "Sports"
+      "Sports",
+      "Party"
     ],
     "dev": false,
     "progress": null,
@@ -223,9 +223,9 @@
     "pixel": false,
     "url": null,
     "genres": [
+      "Text-based",
       "Horror",
-      "Sci-fi",
-      "Text-based"
+      "Sci-fi"
     ],
     "dev": false,
     "progress": null,

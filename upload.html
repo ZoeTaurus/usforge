@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=22"></script>
+<script src="site.js?v=23"></script>
 </head>
 <body>
 <div class="wrap">
@@ -53,7 +53,7 @@
 
         <fieldset>
           <legend>Genres <span class="hint">pick up to 3</span></legend>
-          <div class="genre-pick" id="fGenres"></div>
+          <div id="fGenres"></div>
         </fieldset>
 
         <fieldset>
@@ -188,7 +188,9 @@
   $('fBlurb').addEventListener('input', countBlurb);
 
   // ---------- genres (up to 3) and in-development details ----------
-  $('fGenres').innerHTML = (window.UsForge?.GENRES || []).map(x => `<label class="gpick"><input type="checkbox" value="${esc(x)}"><span>${esc(x)}</span></label>`).join('');
+  const pickOne = x => `<label class="gpick"><input type="checkbox" value="${esc(x)}"><span>${esc(x)}</span></label>`;
+  $('fGenres').innerHTML = (window.UsForge?.GENRE_GROUPS || [['', window.UsForge?.GENRES || []]])
+    .map(([name, list]) => `<div class="genre-group">${name ? `<span class="genre-lbl">${esc(name)}</span>` : ''}<div class="genre-pick">${list.map(pickOne).join('')}</div></div>`).join('');
   const genreBoxes = () => [...$('fGenres').querySelectorAll('input')];
   const limitGenres = () => { const n = genreBoxes().filter(b => b.checked).length; for (const b of genreBoxes()) b.disabled = !b.checked && n >= 3; };
   function setGenres(list) { const want = list.map(x => x.toLowerCase()); for (const b of genreBoxes()) b.checked = want.includes(b.value.toLowerCase()); limitGenres(); }

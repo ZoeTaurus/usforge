@@ -556,3 +556,7 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .member .mini { grid-row: span 2; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font: 700 14px var(--sans); color: var(--accent-ink); background: var(--accent); }
 .member-name { font-weight: 600; font-size: 14px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member-n { font: 11px var(--mono); color: var(--dim); }
+
+/* upload: genres grouped */
+#fGenres { display: grid; gap: 12px; }
+.genre-group { display: grid; gap: 6px; }

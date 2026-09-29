@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not found · UsForge</title>
+<meta name="description" content="That page isn’t on UsForge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%234d8cf7' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#0a0c11"><link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/style.css?v=29">
+<script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="/site.js?v=24"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="/"><span class="spark"></span>UsForge</a>
+    <nav><a href="/">Games</a><a href="/add.html">Share your game</a><a href="/upload.html">Upload</a><a href="/credits.html">Credits</a><span data-theme-switch></span></nav>
+  </header>
+  <main class="support intro">
+    <span class="eyebrow">404</span>
+    <h1>Lost in the forge.</h1>
+    <p class="lead">There’s nothing at this address. The game may have been renamed or removed, or the link has a typo.</p>
+    <div class="acts">
+      <a class="big-play" href="/">Back to the games</a>
+      <button class="btn-l" type="button" id="lucky">Play something random</button>
+    </div>
+  </main>
+  <footer class="foot"><span>UsForge · by Lazy Studios</span><a href="/">All games →</a></footer>
+</div>
+<script src="/embers.js?v=20"></script>
+<script>
+document.getElementById('lucky').onclick = async () => {
+  try { const g = (await (await fetch('/games.json')).json()).filter(x => !x.url && x.build !== false); location.href = '/play.html?g=' + encodeURIComponent(g[Math.floor(Math.random() * g.length)].slug); }
+  catch (e) { location.href = '/'; }
+};
+</script>
+</body>
+</html>

@@ -15,6 +15,7 @@ const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Craftin
 export default {
   async fetch(req, env) {
     const url = new URL(req.url);
+    if (url.pathname === '/play' || url.pathname === '/maker') return withPreview(req, env, url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
       if (['/api/plays', '/api/stats', '/api/stoke', '/api/here'].includes(url.pathname)) return await plays(req, env, url);
@@ -88,6 +89,37 @@ async function plays(req, env, url) {
 const clip = (text, n) => { text = text.replace(/\s+/g, ' ').trim(); return text.length <= n ? text : text.slice(0, n - 1).replace(/\s+\S*$/, '').replace(/[\s,;:–—-]+$/, '') + '…'; };
 const fail = (status, msg) => Object.assign(new Error(msg), { status, msg });
 const ok = data => new Response(JSON.stringify(data), { headers: { 'content-type': 'application/json' } });
+
+// ---------- link previews: when a game or maker link is pasted into a chat, show its title, description and cover ----------
+const attr = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function withPreview(req, env, url) {
+  const page = await env.ASSETS.fetch(req);
+  if (!page.ok || !(page.headers.get('content-type') || '').includes('text/html')) return page;
+  try {
+    const games = await env.ASSETS.fetch(new URL('/games.json', url)).then(r => r.json());
+    let title, desc, image;
+    if (url.pathname === '/play') {
+      const g = games.find(x => x.slug === url.searchParams.get('g'));
+      if (!g) return page;
+      title = `${g.title} · UsForge`; desc = g.blurb || `A game by ${g.author} on UsForge.`; image = g.cover;
+    } else {
+      const want = (url.searchParams.get('n') || '').toLowerCase(), mine = games.filter(g => g.author.toLowerCase() === want);
+      if (!mine.length) return page;   // (only real makers — never echo whatever was typed into the link)
+      const name = mine[0].author;
+      title = `${name} · UsForge`; desc = `${mine.length} game${mine.length === 1 ? '' : 's'} by ${name} on UsForge, a hub for AI games by Lazy Studios.`;
+      image = mine.find(g => g.cover)?.cover;
+    }
+    const img = new URL(image ? '/' + image : '/og.jpg', url).href;
+    const tags = [['og:site_name', 'UsForge'], ['og:type', 'website'], ['og:title', title], ['og:description', desc], ['og:image', img], ['og:url', url.href]]
+      .map(([k, v]) => `<meta property="${k}" content="${attr(v)}">`).join('')
+      + `<meta name="twitter:card" content="summary_large_image"><meta name="description" content="${attr(desc)}">`;
+    return new HTMLRewriter()
+      .on('title', { element(e) { e.setInnerContent(title); } })
+      .on('meta[name="description"]', { element(e) { e.remove(); } })
+      .on('head', { element(e) { e.append(tags, { html: true }); } })
+      .transform(page);
+  } catch (e) { return page; }
+}
 
 // ---------- accounts ----------
 const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');

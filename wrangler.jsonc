@@ -3,7 +3,9 @@
   "name": "usforge",
   "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
-  "assets": { "directory": ".", "binding": "ASSETS" },
+  "assets": { "directory": ".", "binding": "ASSETS", "not_found_handling": "404-page",
+    // the Worker adds link previews (title, description, cover) to game and maker pages
+    "run_worker_first": ["/play", "/play.html", "/maker", "/maker.html"] },
   // keep variables set in the Cloudflare dashboard (like GITHUB_TOKEN) when the site redeploys
   "keep_vars": true,
   // play counts live in one small Durable Object (created automatically on deploy; free plan)

@@ -570,3 +570,8 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .tag.live-tag[hidden] { display: none; }
 .live-fact { color: #35d07f; display: inline-flex; align-items: center; }
 @media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }
+
+/* new-for-you note above the library */
+.new-note { margin: -4px 0 16px; padding: 10px 14px; border-radius: 10px; background: var(--tint-10); border: 1px solid var(--accent-edge); font-size: 14px; }
+.new-note b { color: var(--accent); }
+.new-note a { color: inherit; }

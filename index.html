@@ -6,10 +6,12 @@
 <title>UsForge</title>
 <meta name="description" content="Started by Taurus, Henrique, Alex and Igor, now a community of game makers. By Lazy Studios.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%234d8cf7' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<meta property="og:site_name" content="UsForge"><meta property="og:title" content="UsForge"><meta property="og:description" content="A hub for AI games. Started by Taurus, Henrique, Alex and Igor, now a community."><meta property="og:image" content="https://usforge.usforge.workers.dev/og.jpg"><meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0a0c11"><link rel="apple-touch-icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=28">
+<link rel="stylesheet" href="style.css?v=29">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=24"></script>
 <script>
@@ -72,6 +74,7 @@
 
   <section class="library" id="library" aria-labelledby="libTitle">
     <div class="shelf-head"><h2 id="libTitle">The library</h2><span class="count" id="count"></span></div>
+    <p class="new-note" id="newNote" hidden></p>
     <div class="tools">
       <input class="search" id="q" type="search" placeholder="Search games, makers, genres  ( / )" aria-label="Search games, makers and genres">
       <label class="sort">Sort <select id="sort">
@@ -130,6 +133,14 @@
   const params = new URLSearchParams(location.search);
   let games = [], stats = null, by = params.get('by') || '', genre = params.get('genre') || '';
   const released = () => games.filter(g => !g.dev), cooking = () => games.filter(g => g.dev);
+  // "new for you": games added since this browser's last visit (the mark lasts for the whole visit)
+  let since = 0;
+  try {
+    since = +(sessionStorage.getItem('usforge-since') || localStorage.getItem('usforge-lastvisit') || 0);
+    sessionStorage.setItem('usforge-since', String(since));
+    localStorage.setItem('usforge-lastvisit', String(Math.floor(Date.now() / 1000)));
+  } catch (e) {}
+  const newForYou = g => since && g.added > since;
   const FRESH = 3 * 24 * 3600, now = Date.now() / 1000;   // "New" = added in the last 3 days
   const isNew = g => g.added && now - g.added < FRESH;
   const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
@@ -143,7 +154,7 @@
   const genresOf = g => g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<button type="button" class="gtag" data-genre="${esc(x)}">${esc(x)}</button>`).join('')}</span>` : '';
   const progressOf = g => g.progress == null ? '' : `<span class="progress" title="${g.progress}% done"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span>`;
   const countsOf = g => stats ? `<span class="counts"><span title="${n(playsN(g), 'play', 'plays')}">▶ ${playsN(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}" title="${n(stokesN(g), 'stoke', 'stokes')}">${U.FLAME} ${stokesN(g).toLocaleString()}</span></span>` : '';
-  const tagOf = g => g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : '';
+  const tagOf = g => newForYou(g) && !g.dev ? '<span class="tag new">New for you</span>' : g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : g.url ? '<span class="tag">opens elsewhere ↗</span>' : '';
 
   // one game card, used in every shelf and grid
   const card = (g, i = 0, { blurb = true } = {}) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
@@ -255,7 +266,12 @@
       tickTo('statPlays', sum(stats.plays)); tickTo('statStokes', sum(stats.stokes));
     }
   }
-  function all() { paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); countUp(); U.paintLive(); }
+  function paintNewNote() {
+    const fresh = released().filter(newForYou);
+    $('newNote').hidden = !fresh.length;
+    if (fresh.length) $('newNote').innerHTML = `<b>${fresh.length} new game${fresh.length === 1 ? '' : 's'}</b> since your last visit: ${fresh.slice(0, 3).map(g => `<a href="${esc(href(g))}">${esc(g.title)}</a>`).join(', ')}${fresh.length > 3 ? ' and more' : ''}.`;
+  }
+  function all() { paintNewNote(); paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); countUp(); U.paintLive(); }
 
   $('q').addEventListener('input', () => { paint(); U.paintLive(); });
   $('sort').addEventListener('change', () => { paint(); U.paintLive(); });

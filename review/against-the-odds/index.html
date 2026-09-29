@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Against the Odds — Historical Survival Prototype</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#15191f; --card:#1c222a; --text:#eef2f6; --muted:#a8b1bc;
+    --border:#313945; --accent:#e7edf4; --danger:#8f1f1f;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}
+  button{font:inherit}
+  .wrap{max-width:1100px;margin:0 auto;padding:18px}
+  .hidden{display:none!important}
+  .panel{border:1px solid var(--border);background:var(--panel);border-radius:16px;padding:18px}
+  .grid{display:grid;gap:14px}
+  .two{grid-template-columns:repeat(2,minmax(0,1fr))}
+  @media (max-width:760px){.two{grid-template-columns:1fr}}
+  .btn{border:1px solid var(--border);background:var(--card);color:var(--text);padding:12px 16px;border-radius:10px;cursor:pointer}
+  .btn.primary{background:#fff;color:#000;border-color:#fff;font-weight:700}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .title{font-size:34px;font-weight:800;letter-spacing:.02em}
+  .chapter{padding:18px;text-align:left}
+  .chapter h3{margin:4px 0 10px}
+  .hudrow{display:flex;gap:10px;flex-wrap:wrap}
+  .hud{flex:1;min-width:180px;background:rgba(0,0,0,.7);padding:10px;border-radius:10px}
+  .bar{height:7px;background:#ffffff22;border-radius:999px;overflow:hidden;margin-top:6px}
+  .bar>div{height:100%;background:#fff;width:100%}
+  #viewport{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:14px;background:#000}
+  #gameCanvas{display:block;width:100%;height:520px;max-height:68vw;min-height:330px;outline:none;touch-action:none;cursor:grab}
+  #gameCanvas:active{cursor:grabbing}
+  .overlay{position:absolute;inset:0;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center;padding:22px;z-index:20}
+  .overlay .box{max-width:700px;text-align:center}
+  .status{position:absolute;left:12px;right:12px;bottom:12px;background:rgba(0,0,0,.72);padding:10px;border-radius:9px;z-index:8}
+  .banner{position:absolute;top:32%;left:50%;transform:translateX(-50%);max-width:620px;width:90%;background:rgba(0,0,0,.86);padding:14px;border-radius:10px;text-align:center;z-index:9}
+  .interaction{position:absolute;bottom:75px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);padding:10px;border-radius:9px;z-index:8}
+  .crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:22px;z-index:7}
+  .topHud{position:absolute;left:12px;right:12px;top:12px;z-index:7}
+  .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:15}
+  .damage{position:absolute;inset:0;opacity:0;pointer-events:none;box-shadow:inset 0 0 90px 24px rgba(150,0,0,.7);z-index:14}
+  .lookpad{position:absolute;right:12px;bottom:60px;display:grid;grid-template-columns:repeat(3,44px);gap:4px;z-index:10}
+  .lookpad button{height:44px;border-radius:8px;border:1px solid #ffffff22;background:rgba(0,0,0,.55);color:#fff}
+  .topline{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:10px}
+  .clock{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;border:1px solid var(--border);padding:9px 11px;border-radius:9px}
+  .eventlog{margin-top:10px;border:1px solid var(--border);padding:10px;border-radius:9px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <section id="splash" class="panel" style="background:#000;text-align:center;padding:40px 24px">
+    <div class="small muted" style="letter-spacing:.28em;text-transform:uppercase">Unofficial fan-made interactive adaptation</div>
+    <div class="title" style="margin-top:16px">AGAINST THE ODDS</div>
+    <div class="muted" style="margin-top:6px;letter-spacing:.15em;text-transform:uppercase">Historical Survival Anthology</div>
+    <hr style="border:0;border-top:1px solid #ffffff22;max-width:420px;margin:24px auto">
+    <p class="muted">Inspired by the survival podcast <em>Against the Odds</em> from Wondery, available through Audible.</p>
+    <p class="small muted">This unofficial prototype is not affiliated with or endorsed by Wondery or Audible. Historical events are reconstructed from public records rather than podcast scripts.</p>
+    <button id="enterBtn" class="btn primary" style="margin-top:18px">Enter</button>
+  </section>
+
+  <section id="launcher" class="hidden">
+    <div class="grid two">
+      <div>
+        <div class="small muted" style="text-transform:uppercase;letter-spacing:.18em">Historical simulation rule</div>
+        <h2>History proceeds normally until you interfere.</h2>
+        <p class="muted">Major documented events happen on their historical clock. The player can change only their own route, timing and decisions.</p>
+      </div>
+      <div class="panel">
+        <strong>Controls</strong>
+        <div class="muted" style="line-height:1.7;margin-top:6px">
+          WASD / arrows — move<br>
+          Drag mouse — look<br>
+          J / L — turn<br>
+          I / K — look up/down<br>
+          Shift — sprint<br>
+          C — crouch<br>
+          E — interact
+        </div>
+      </div>
+    </div>
+
+    <div class="grid two" style="margin-top:16px">
+      <button class="btn chapter" data-level="apollo">
+        <div class="small muted">CHAPTER 01 · APRIL 13, 1970</div>
+        <h3>Apollo 13</h3>
+        <div class="muted">Begin shortly before the oxygen-system accident. Mission events remain locked to elapsed mission time.</div>
+      </button>
+      <button class="btn chapter" data-level="wtc">
+        <div class="small muted">CHAPTER 02 · SEPTEMBER 11, 2001</div>
+        <h3>World Trade Center</h3>
+        <div class="muted">A fictional South Tower occupant starts beside a window five seconds before impact, then must reach Stairwell A and descend to the lobby.</div>
+      </button>
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="topline">
+      <div>
+        <div id="chapterLabel" class="small muted"></div>
+        <div id="objective" style="font-weight:700"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div class="clock"><span id="clockLabel">TIME</span> <span id="historyClock">--:--:--</span></div>
+        <button id="menuBtn" class="btn">Exit</button>
+      </div>
+    </div>
+
+    <div id="viewport">
+      <canvas id="gameCanvas" tabindex="0"></canvas>
+
+      <div class="topHud">
+        <div class="hudrow">
+          <div class="hud">
+            <div style="display:flex;justify-content:space-between;font-size:11px"><span id="resourceName">OXYGEN</span><span id="resourceValue">100%</span></div>
+            <div class="bar"><div id="resourceBar"></div></div>
+          </div>
+          <div class="hud">
+            <div style="display:flex;justify-content:space-between;font-size:11px"><span id="secondaryName">POWER</span><span id="secondaryValue">100%</span></div>
+            <div class="bar"><div id="secondaryBar"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="crosshair">+</div>
+      <div id="flash" class="flash"></div>
+      <div id="damage" class="damage"></div>
+      <div id="interaction" class="interaction hidden"></div>
+      <div id="banner" class="banner hidden"></div>
+      <div id="status" class="status">Drag inside the view to look around.</div>
+
+      <div class="lookpad">
+        <span></span><button id="lookUp">↑</button><span></span>
+        <button id="turnLeft">←</button><button id="lookDown">↓</button><button id="turnRight">→</button>
+      </div>
+
+      <div id="intro" class="overlay">
+        <div class="box">
+          <div id="introKicker" class="small muted"></div>
+          <h2 id="introTitle"></h2>
+          <p id="introText" class="muted"></p>
+          <div id="historyNote" class="panel small muted" style="text-align:left;margin-top:14px"></div>
+          <button id="beginBtn" class="btn primary" style="margin-top:16px">Begin in real time</button>
+        </div>
+      </div>
+
+      <div id="cutscene" class="overlay hidden">
+        <div class="box">
+          <div id="cutKicker" class="small muted"></div>
+          <h2 id="cutTitle"></h2>
+          <p id="cutBody" class="muted"></p>
+          <div id="divergence" class="panel small muted" style="margin-top:14px"></div>
+          <p class="small muted">Original documentary-style score; not the copyrighted podcast theme.</p>
+          <button id="continueBtn" class="btn primary">Return to chapters</button>
+        </div>
+      </div>
+
+      <div id="fail" class="overlay hidden">
+        <div class="box">
+          <h2 id="failTitle"></h2>
+          <p id="failText" class="muted"></p>
+          <button id="retryBtn" class="btn primary">Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="eventLog" class="eventlog"><strong>Event log:</strong> waiting to begin.</div>
+  </section>
+</div>
+
+<script type="module">
+const $=s=>document.querySelector(s);
+const splash=$('#splash'),launcher=$('#launcher'),game=$('#game'),canvas=$('#gameCanvas');
+const chapterLabel=$('#chapterLabel'),objective=$('#objective'),historyClock=$('#historyClock'),clockLabel=$('#clockLabel');
+const resourceName=$('#resourceName'),secondaryName=$('#secondaryName'),resourceValue=$('#resourceValue'),secondaryValue=$('#secondaryValue'),resourceBar=$('#resourceBar'),secondaryBar=$('#secondaryBar');
+const intro=$('#intro'),introKicker=$('#introKicker'),introTitle=$('#introTitle'),introText=$('#introText'),historyNote=$('#historyNote');
+const banner=$('#banner'),interaction=$('#interaction'),status=$('#status'),eventLog=$('#eventLog'),flash=$('#flash'),damage=$('#damage');
+const cutscene=$('#cutscene'),cutKicker=$('#cutKicker'),cutTitle=$('#cutTitle'),cutBody=$('#cutBody'),divergence=$('#divergence');
+const fail=$('#fail'),failTitle=$('#failTitle'),failText=$('#failText');
+
+let THREE,renderer,scene,camera,gameClock,raf=null,current=null,started=false,failed=false,startPerf=0;
+let yaw=0,pitch=0,resource=100,secondary=100,keys={},colliders=[],interactables=[],hazards=[],nearest=null,smoke=null;
+let dragging=false,lastX=0,lastY=0,dragPointer=null,apolloAccident=false,apolloStir=false,wtcImpact=false,collected=new Set(),shake=0,audioCtx=null,music=[];
+let npcs=[],plane=null,wtcPhase='office',stairFloor=44,stairSegmentLength=22;
+
+const hist={
+  apollo:{base:55*3600+53*60,stir:55*3600+53*60+20,accident:55*3600+54*60+53},
+  wtc:{base:9*3600+3*60+6,impact:9*3600+3*60+11}
+};
+
+const info={
+  apollo:{
+    label:'CHAPTER 01 · APOLLO 13 · APRIL 13, 1970',
+    title:'Before the bang',
+    text:'You begin shortly before the oxygen-system accident. The mission clock does not pause while you move.',
+    note:'The accident is fixed at GET 55:54:53. After it occurs, locate three components for the improvised life-support fix.',
+    r:'OXYGEN',s:'POWER'
+  },
+  wtc:{
+    label:'CHAPTER 02 · SOUTH TOWER · SEPTEMBER 11, 2001',
+    title:'9:03:06 A.M.',
+    text:'You begin beside an exterior window five seconds before the South Tower impact. Evacuees are already moving toward Stairwell A. The approaching aircraft is represented as a simplified Boeing 767 silhouette; the impact itself is non-graphic.',
+    note:'The South Tower impact is fixed at 9:03:11 A.M. The playable office floor and NPCs are fictionalized composites. After reaching Stairwell A, you must continue descending floor by floor rather than ending the level at the stairwell door.',
+    r:'AIR QUALITY',s:'STAMINA'
+  }
+};
+
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function hms(s){s=Math.floor(s);return String(Math.floor(s/3600)).padStart(2,'0')+':'+String(Math.floor(s%3600/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function histNow(){return hist[current].base+(performance.now()-startPerf)/1000}
+function log(t){eventLog.innerHTML='<strong>Event log:</strong> '+t}
+function showBanner(t){banner.textContent=t;banner.classList.remove('hidden');setTimeout(()=>banner.classList.add('hidden'),3500)}
+function hud(){resource=clamp(resource,0,100);secondary=clamp(secondary,0,100);resourceValue.textContent=Math.round(resource)+'%';secondaryValue.textContent=Math.round(secondary)+'%';resourceBar.style.width=resource+'%';secondaryBar.style.width=secondary+'%'}
+
+async function engine(){
+  if(THREE)return true;
+  try{
+    THREE=await import('https://cdn.jsdelivr.net/npm/three@0.180.0/+esm');
+    return true;
+  }catch(e){
+    status.textContent='3D engine failed to load. Check your internet connection.';
+    return false;
+  }
+}
+
+function dispose(){
+  if(raf)cancelAnimationFrame(raf);
+  raf=null;
+  if(renderer){renderer.dispose()}
+  renderer=scene=camera=null;
+  colliders=[];interactables=[];hazards=[];nearest=null;smoke=null;keys={};npcs=[];plane=null;wtcPhase='office'
+}
+
+function m(c,r=.8,mt=.04){return new THREE.MeshStandardMaterial({color:c,roughness:r,metalness:mt})}
+function box(x,y,z,sx,sy,sz,mat,collision=true){
+  const q=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),mat);
+  q.position.set(x,y,z);scene.add(q);
+  if(collision)colliders.push({minX:x-sx/2,maxX:x+sx/2,minZ:z-sz/2,maxZ:z+sz/2});
+  return q;
+}
+
+function label(text){
+  const c=document.createElement('canvas');c.width=512;c.height=128;
+  const x=c.getContext('2d');x.fillStyle='rgba(0,0,0,.72)';x.fillRect(0,0,512,128);
+  x.fillStyle='#fff';x.font='bold 40px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText(text,256,64);
+  const t=new THREE.CanvasTexture(c),s=new THREE.Sprite(new THREE.SpriteMaterial({map:t,transparent:true}));
+  s.scale.set(4,1,1);return s;
+}
+
+
+function makeNPC(x,z,shirt=0x405d78){
+  const g=new THREE.Group();
+  const skin=m(0xc69c7b,.9),cloth=m(shirt,.9),dark=m(0x25282c,.95);
+  const torso=new THREE.Mesh(new THREE.CylinderGeometry(.22,.28,.72,10),cloth);torso.position.y=1.05;g.add(torso);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.18,10,8),skin);head.position.y=1.55;g.add(head);
+  const leg1=new THREE.Mesh(new THREE.CylinderGeometry(.07,.07,.65,8),dark);leg1.position.set(-.10,.42,0);g.add(leg1);
+  const leg2=leg1.clone();leg2.position.x=.10;g.add(leg2);
+  g.position.set(x,0,z);scene.add(g);
+  return g
+}
+
+function spawnOfficeNPCs(){
+  npcs=[];
+  const colors=[0x4d6077,0x6a5143,0x465845,0x635a72,0x725149,0x3f5c68];
+  const starts=[[-12,2],[-8,-5],[-13,-14],[-7,-23],[-12,-34],[-4,-43]];
+  starts.forEach((p,i)=>{
+    const g=makeNPC(p[0],p[1],colors[i%colors.length]);
+    npcs.push({group:g,mode:'office',speed:.85+i*.06,phase:i*.7});
+  });
+}
+
+function makeApproaching767(){
+  const g=new THREE.Group();
+  const fusMat=m(0xb8bcc2,.45,.45),blue=m(0x244c7a,.5,.25),engineMat=m(0x555a60,.4,.5);
+
+  const fus=new THREE.Mesh(new THREE.CylinderGeometry(.42,.55,8.4,16),fusMat);
+  fus.rotation.z=Math.PI/2;g.add(fus);
+
+  const nose=new THREE.Mesh(new THREE.ConeGeometry(.42,1.1,16),fusMat);
+  nose.rotation.z=-Math.PI/2;nose.position.x=4.65;g.add(nose);
+
+  const wingGeo=new THREE.BoxGeometry(3.8,.10,7.2);
+  const wings=new THREE.Mesh(wingGeo,fusMat);wings.position.x=-.25;g.add(wings);
+
+  const tail=new THREE.Mesh(new THREE.BoxGeometry(1.4,2.1,.16),blue);
+  tail.position.set(-3.4,.95,0);tail.rotation.z=-.18;g.add(tail);
+
+  for(const z of [-1.8,1.8]){
+    const eng=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,1.4,12),engineMat);
+    eng.rotation.z=Math.PI/2;eng.position.set(.4,-.25,z);g.add(eng);
+  }
+  g.scale.set(.62,.62,.62);
+  g.position.set(58,2.15,6);
+  g.rotation.y=Math.PI;
+  scene.add(g);
+  plane=g;
+}
+
+function updatePlane(){
+  if(!plane || current!=='wtc' || wtcPhase!=='office' || wtcImpact)return;
+  const rem=hist.wtc.impact-histNow();
+  const t=clamp((5-rem)/5,0,1);
+  plane.position.x=58-39*t;
+  plane.position.z=6-3.5*t;
+  plane.position.y=2.15+.35*t;
+  plane.rotation.z=-.03*t;
+}
+
+function updateNPCs(dt){
+  for(const n of npcs){
+    if(n.mode==='office'){
+      // Scripted evacuation path toward the stairwell; kept simple to avoid
+      // pathfinding failures in the lightweight browser prototype.
+      if(n.group.position.z>-49){
+        n.group.position.z-=n.speed*dt;
+      }else if(n.group.position.x<5.4){
+        n.group.position.x+=n.speed*dt;
+      }else{
+        n.group.position.z-=n.speed*dt;
+      }
+      n.group.rotation.y=Math.PI;
+    }else if(n.mode==='stairs'){
+      n.group.position.z-=n.speed*dt;
+      const floorDrop=stairHeightAt(n.group.position.z);
+      n.group.position.y=floorDrop;
+      if(n.group.position.z<-20.5){
+        n.group.position.z=2.5+Math.random()*4;
+        n.group.position.x=-.7+Math.random()*1.4;
+      }
+    }
+  }
+}
+
+function stairHeightAt(z){
+  const progress=clamp((3-z)/stairSegmentLength,0,1);
+  return -2.75*progress;
+}
+
+function stairwellScene(){
+  // Clear the office scene but preserve the renderer and historical clock.
+  while(scene.children.length)scene.remove(scene.children[0]);
+  colliders=[];interactables=[];hazards=[];npcs=[];smoke=null;plane=null;
+  scene.background=new THREE.Color(0x17191c);
+  scene.fog=new THREE.Fog(0x17191c,12,55);
+  scene.add(new THREE.HemisphereLight(0xc9c2b5,0x171717,.68));
+
+  const concrete=m(0x777873,.96),rail=m(0x30343a,.65,.35),stepMat=m(0x565957,.96);
+  // Long reusable descending flight. Reaching the bottom advances one real floor,
+  // then the same geometry is reused, preserving real elapsed time.
+  box(-2.7,-1.1,-9.5,.25,7,30,concrete,true);
+  box(2.7,-1.1,-9.5,.25,7,30,concrete,true);
+  for(let i=0;i<22;i++){
+    const z=3-i*(stairSegmentLength/21);
+    const y=stairHeightAt(z);
+    box(0,y-.10,z,5.1,.20,1.12,stepMat,false);
+  }
+  box(0,3.1,-9.5,5.4,.18,30,concrete,false);
+
+  for(let i=0;i<7;i++){
+    const z=2-i*3.5;
+    const y=stairHeightAt(z)+1.0;
+    const r1=box(-2.25,y,z,.08,.08,3.1,rail,false);
+    r1.rotation.x=.08;
+    const r2=box(2.25,y,z,.08,.08,3.1,rail,false);
+    r2.rotation.x=.08;
+  }
+
+  const floorSign=label('FLOOR '+stairFloor);
+  floorSign.position.set(0,1.8,1.1);floorSign.scale.set(3.2,.8,1);scene.add(floorSign);
+  floorSign.userData.dynamicFloor=true;
+
+  camera.position.set(0,1.55,2.7);
+  yaw=Math.PI;
+  pitch=-.08;
+
+  for(let i=0;i<5;i++){
+    const g=makeNPC(-.8+i*.35,-1-i*3.2,[0x465845,0x4d6077,0x6a5143,0x635a72,0x725149][i]);
+    npcs.push({group:g,mode:'stairs',speed:1.0+i*.08});
+  }
+  objective.textContent='Descend Stairwell A — Floor '+stairFloor+' of 44.';
+  status.textContent='Keep descending. The historical clock continues in real time.';
+}
+
+function enterStairwell(){
+  if(wtcPhase==='stairs')return;
+  wtcPhase='stairs';
+  stairFloor=44;
+  showBanner('STAIRWELL A — KEEP DESCENDING');
+  log(hms(histNow())+' — entered Stairwell A. Evacuation continues.');
+  stairwellScene();
+}
+
+function advanceStairFloor(){
+  if(wtcPhase!=='stairs')return;
+  if(stairFloor>1){
+    stairFloor--;
+    camera.position.set(0,1.55,2.7);
+    yaw=Math.PI;pitch=-.08;
+    const sign=scene.children.find(o=>o.userData&&o.userData.dynamicFloor);
+    if(sign){
+      scene.remove(sign);
+      const next=label('FLOOR '+stairFloor);next.position.set(0,1.8,1.1);next.scale.set(3.2,.8,1);next.userData.dynamicFloor=true;scene.add(next);
+    }
+    if(stairFloor%5===0 || stairFloor<=3)showBanner('FLOOR '+stairFloor);
+    objective.textContent='Descend Stairwell A — Floor '+stairFloor+' of 44.';
+  }else{
+    // At the end of the Floor 1 flight, the player reaches the lobby.
+    finishLevel('You completed the stairwell descent and reached the lobby. The NPCs and exact route are fictionalized, while the external event clock remained fixed.');
+  }
+}
+
+function setup(){
+  renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));
+  camera=new THREE.PerspectiveCamera(72,1,.05,150);
+  resize()
+}
+
+function resize(){
+  if(!renderer||!camera)return;
+  const r=canvas.getBoundingClientRect();
+  renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);
+  camera.aspect=Math.max(1,r.width)/Math.max(1,r.height);
+  camera.updateProjectionMatrix()
+}
+
+function apolloScene(){
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x05070b);scene.fog=new THREE.Fog(0x05070b,20,75);
+  setup();camera.position.set(0,1.55,3);yaw=Math.PI;
+  scene.add(new THREE.HemisphereLight(0xa5bed1,0x111111,.6));
+  const wall=m(0x83888d,.68,.18),dark=m(0x30343a),panel=m(0x161d23,.5,.35);
+  box(0,-.15,-28,7,.3,66,dark,false);box(-3.5,1.6,-28,.25,3.5,66,wall);box(3.5,1.6,-28,.25,3.5,66,wall);box(0,3.35,-28,7,.2,66,wall,false);
+  for(let z=1;z>-61;z-=6){
+    box(-3.18,1.4,z,.35,2.3,.18,panel,false);box(3.18,1.4,z,.35,2.3,.18,panel,false);
+    const l=new THREE.PointLight(0x9bd6ff,2.8,8);l.position.set(0,2.8,z);scene.add(l)
+  }
+  box(-1.6,.6,-15,1.3,1.2,2.1,dark);box(1.7,.55,-25,1.6,1.1,2.2,dark);box(-1.65,.65,-40,1.7,1.3,2,dark);
+  const p=box(0,1.35,-59,3.8,2.5,.35,panel,true);p.visible=false;
+  interactables.push({mesh:p,type:'panel',name:'Life-support panel',used:false});
+  const s=label('LIFE SUPPORT');s.position.set(0,2.5,-58.7);scene.add(s)
+}
+
+function apolloEmergency(){
+  apolloAccident=true;shake=2.8;flash.style.opacity='.9';setTimeout(()=>flash.style.opacity='0',170);
+  showBanner('GET 55:54:53 — OXYGEN SYSTEM ACCIDENT');
+  log('55:54:53 GET — oxygen-system accident. Historical event locked.');
+  objective.textContent='Emergency: collect 3 scrubber components.';
+  const r=new THREE.PointLight(0xff4138,12,20);r.position.set(0,2.5,-30);scene.add(r);
+  hazards.push({x:0,z:-34,r:4.3},{x:0,z:-50,r:3.5});
+  const item=m(0xd6cfb8,.55,.1);
+  [[2.2,.75,-12,'Square canister'],[-2.1,.75,-29,'Flexible hose'],[1.9,.75,-44,'Plastic cover']].forEach(a=>{
+    const q=box(a[0],a[1],a[2],.65,.65,.65,item,false);
+    interactables.push({mesh:q,type:'item',name:a[3],used:false})
+  });
+  const p=interactables.find(o=>o.type==='panel');if(p)p.mesh.visible=true
+}
+
+function wtcScene(){
+  wtcPhase='office';
+  scene=new THREE.Scene();scene.background=new THREE.Color(0x7599b4);scene.fog=new THREE.FogExp2(0x777777,.010);
+  setup();
+
+  // Start immediately beside the window and facing outward.
+  camera.position.set(14.2,1.55,6.5);yaw=Math.PI/2;pitch=.02;
+
+  scene.add(new THREE.HemisphereLight(0xe3dccd,0x282420,.86));
+  const ceiling=m(0xb8b0a4,.95),carpet=m(0x343438,1),wall=m(0x918d84,.95),desk=m(0x453f39,.85);
+  const frame=m(0x41464d,.55,.35);
+  const glass=new THREE.MeshStandardMaterial({color:0xa9d3e9,transparent:true,opacity:.16,roughness:.12,metalness:.05,side:THREE.DoubleSide});
+
+  box(0,-.12,-23,34,.24,72,carpet,false);
+  box(0,3.2,-23,34,.16,72,ceiling,false);
+  box(-17,1.5,-23,.3,3,72,wall);
+  box(0,1.5,13,34,3,.3,wall);
+  box(0,1.5,-59,34,3,.3,wall);
+
+  // Exterior curtain wall with visible window bays instead of an opaque wall.
+  box(17,.25,-23,.25,.5,72,frame,true);
+  box(17,2.85,-23,.25,.7,72,frame,true);
+  for(let z=12;z>=-58;z-=4.6){
+    box(17,1.55,z,.28,2.45,.16,frame,true);
+    const pane=new THREE.Mesh(new THREE.PlaneGeometry(4.4,2.15),glass);
+    pane.position.set(16.86,1.55,z-2.2);pane.rotation.y=-Math.PI/2;scene.add(pane);
+  }
+
+  [[-6,1.5,3,.3,3,20],[5,1.5,-3,.3,3,24],[-11,1.5,-12,12,3,.3],[10,1.5,-18,14,3,.3],[-4,1.5,-28,18,3,.3],[7,1.5,-39,.3,3,18],[-9,1.5,-44,16,3,.3],[1,1.5,-52,.3,3,14]].forEach(w=>box(...w,wall,true));
+  [[-12,-4],[-2,-7],[11,-8],[-13,-21],[12,-27],[-12,-34],[1,-34],[-12,-52],[10,-49]].forEach(d=>box(d[0],.45,d[1],2.2,.9,1.1,desk,true));
+
+  // A few simple exterior forms make the windows read as real windows.
+  for(let i=0;i<8;i++){
+    const h=8+Math.random()*15;
+    const b=box(42+Math.random()*30,h/2-2,-45+Math.random()*80,5+Math.random()*8,h,5+Math.random()*8,m(0x6d747b,.9,.1),false);
+    b.material.transparent=true;b.material.opacity=.35;
+  }
+
+  for(let z=4;z>-57;z-=8){const l=new THREE.PointLight(0xf5e4c2,2.5,10);l.position.set(z%16===4?-5:6,2.75,z);scene.add(l)}
+
+  const ex=label('STAIRWELL A →');ex.position.set(3,2.35,-55);ex.scale.set(4.8,.8,1);scene.add(ex);
+  const door=box(6.5,1.35,-57.8,4.8,2.7,.35,m(0x3b443d),true);
+  interactables.push({mesh:door,type:'exit',name:'Stairwell A',used:false});
+
+  const pts=[];for(let i=0;i<100;i++)pts.push((Math.random()-.5)*32,.4+Math.random()*2.6,5-Math.random()*60);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pts,3));
+  smoke=new THREE.Points(g,new THREE.PointsMaterial({color:0xaaa39b,size:.10,transparent:true,opacity:.05,depthWrite:false}));
+  scene.add(smoke);
+
+  spawnOfficeNPCs();
+  makeApproaching767();
+
+  log('9:03:06 A.M. — five seconds to the fixed historical impact.');
+  showBanner('5 SECONDS TO HISTORICAL IMPACT');
+  objective.textContent='The stairwell is behind you. Decide whether to move now.'
+}
+
+function wtcHit(){
+  wtcImpact=true;shake=4.5;flash.style.opacity='.95';setTimeout(()=>flash.style.opacity='0',220);
+  showBanner('9:03:11 A.M. — SOUTH TOWER IMPACT');
+  log('9:03:11 A.M. — South Tower impact. Historical event locked.');
+  objective.textContent='Reach Stairwell A. Stay low in smoke.';
+  scene.fog.density=.04;resource=Math.min(resource,88);damage.style.opacity='.18';
+  hazards.push({x:10,z:-10,r:5.5},{x:-9,z:-31,r:6.2},{x:9,z:-46,r:6.5});
+  if(smoke)smoke.material.opacity=.34
+}
+
+function blocked(x,z){return colliders.some(c=>x+.38>c.minX&&x-.38<c.maxX&&z+.38>c.minZ&&z-.38<c.maxZ)}
+function tryMove(dx,dz){
+  let nx=camera.position.x+dx;if(!blocked(nx,camera.position.z))camera.position.x=nx;
+  let nz=camera.position.z+dz;if(!blocked(camera.position.x,nz))camera.position.z=nz
+}
+function findNear(){
+  let best=null,d=2.1;
+  for(const o of interactables){
+    if(o.used||!o.mesh.visible)continue;
+    const n=Math.hypot(o.mesh.position.x-camera.position.x,o.mesh.position.z-camera.position.z);
+    if(n<d){d=n;best=o}
+  }
+  return best
+}
+function use(){
+  if(!started||failed||!nearest)return;
+  const o=nearest;
+  if(o.type==='item'){
+    o.used=true;o.mesh.visible=false;collected.add(o.name);
+    objective.textContent=collected.size<3?'Collect components: '+collected.size+'/3':'Reach the LIFE SUPPORT panel.'
+  }else if(o.type==='panel'){
+    if(collected.size<3){status.textContent='You still need all three components.';return}
+    finishLevel('Your route through the spacecraft differed from history, but the accident itself occurred on schedule.')
+  }else if(o.type==='exit'){
+    o.used=true;
+    enterStairwell()
+  }
+}
+function updateInteraction(){
+  nearest=findNear();
+  if(!nearest){interaction.classList.add('hidden');return}
+  let t='E — interact';
+  if(nearest.type==='item')t='E — collect '+nearest.name;
+  if(nearest.type==='panel')t=collected.size===3?'E — stabilize life support':'Life support requires 3 components';
+  if(nearest.type==='exit')t='E — enter Stairwell A';
+  interaction.textContent=t;interaction.classList.remove('hidden')
+}
+function historyTick(){
+  const t=histNow();historyClock.textContent=hms(t);
+  if(current==='apollo'){
+    if(!apolloStir&&t>=hist.apollo.stir){apolloStir=true;showBanner('GET 55:53:20 — CRYOGENIC TANK FAN CYCLE');log('55:53:20 GET — tank fan cycle begins.')}
+    if(!apolloAccident&&t>=hist.apollo.accident)apolloEmergency()
+  }else if(!wtcImpact&&t>=hist.wtc.impact)wtcHit()
+}
+function updateResource(dt,moving,sprint,crouch){
+  if(current==='apollo'){
+    if(apolloAccident){
+      let d=.7;for(const h of hazards)if(Math.hypot(camera.position.x-h.x,camera.position.z-h.z)<h.r)d+=1.5;
+      resource-=d*dt;secondary-=((moving?.15:.04)+(sprint?.25:0))*dt;secondary+=!sprint?.04*dt:0
+    }
+  }else{
+    let d=wtcPhase==='stairs'?.005:.02;
+    if(wtcImpact && wtcPhase==='office'){d=.18;for(const h of hazards)if(Math.hypot(camera.position.x-h.x,camera.position.z-h.z)<h.r)d+=crouch?.65:2}
+    resource-=d*dt;if(sprint&&moving)secondary-=12*dt;else secondary+=7*dt
+  }
+  if(resource<=0)endFail(current==='apollo'?'Oxygen reserves were exhausted.':'Smoke exposure became overwhelming.');
+  hud()
+}
+function update(dt){
+  if(!started||failed)return;
+  historyTick();
+  const f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0);
+  const s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+  const moving=!!(f||s),sprint=!!keys.ShiftLeft&&secondary>1,crouch=!!keys.KeyC,l=Math.hypot(f,s)||1;
+  const sp=current==='wtc'&&wtcPhase==='stairs'?(sprint?2.25:1.85):(current==='wtc'&&crouch?1.65:sprint?4.5:2.65);
+  tryMove((Math.sin(yaw)*f/l+Math.cos(yaw)*s/l)*sp*dt,(Math.cos(yaw)*f/l-Math.sin(yaw)*s/l)*sp*dt);
+  if(keys.KeyJ)yaw+=1.45*dt;if(keys.KeyL)yaw-=1.45*dt;if(keys.KeyI)pitch=clamp(pitch+1.1*dt,-1.25,1.25);if(keys.KeyK)pitch=clamp(pitch-1.1*dt,-1.25,1.25);
+  camera.position.y+=(crouch?1.0:1.55-camera.position.y)*Math.min(1,dt*12);
+  camera.rotation.order='YXZ';camera.rotation.y=yaw;camera.rotation.x=pitch;
+  if(shake>0){camera.rotation.z=(Math.random()-.5)*.025*shake;shake=Math.max(0,shake-dt*1.6)}else camera.rotation.z=0;
+
+  if(current==='wtc'){
+    updatePlane();
+    updateNPCs(dt);
+    if(wtcPhase==='stairs'){
+      camera.position.y=1.55+stairHeightAt(camera.position.z);
+      if(camera.position.z<-20.6)advanceStairFloor();
+    }
+  }
+  updateResource(dt,moving,sprint,crouch)
+}
+function loop(){
+  raf=requestAnimationFrame(loop);
+  if(!renderer)return;
+  const dt=Math.min(gameClock.getDelta(),.05);
+  update(dt);updateInteraction();
+  if(smoke)smoke.rotation.y+=dt*.01;
+  for(const o of interactables)if(o.type==='item'&&!o.used){o.mesh.rotation.y+=dt;o.mesh.position.y=.75+Math.sin(performance.now()*.003+o.mesh.position.z)*.08}
+  renderer.render(scene,camera)
+}
+async function load(level){
+  dispose();current=level;started=false;failed=false;apolloAccident=apolloStir=wtcImpact=false;resource=secondary=100;damage.style.opacity='0';collected.clear();wtcPhase='office';stairFloor=44;hud();
+  const x=info[level];
+  launcher.classList.add('hidden');game.classList.remove('hidden');
+  chapterLabel.textContent=x.label;introKicker.textContent=x.label;introTitle.textContent=x.title;introText.textContent=x.text;historyNote.textContent=x.note;resourceName.textContent=x.r;secondaryName.textContent=x.s;
+  clockLabel.textContent=level==='apollo'?'GET':'LOCAL';historyClock.textContent=level==='apollo'?'55:53:00':'09:03:06';
+  intro.classList.remove('hidden');cutscene.classList.add('hidden');fail.classList.add('hidden');
+  if(!(await engine()))return;
+  if(level==='apollo')apolloScene();else wtcScene();
+  gameClock=new THREE.Clock();gameClock.start();loop();
+  status.textContent='Drag inside the view to look around. J/L and I/K also control the camera.'
+}
+function begin(){
+  intro.classList.add('hidden');startPerf=performance.now();started=true;canvas.focus();
+  status.textContent='Drag to look · WASD move · E interact · J/L turn · I/K look.';
+  if(current==='apollo'){objective.textContent='Monitor the spacecraft. Historical clock is running.';log('55:53:00 GET — simulation begins.')}
+  else log('9:03:06 A.M. — five seconds to impact. Evacuees are already moving toward Stairwell A.')
+}
+function endFail(txt){
+  failed=true;started=false;failTitle.textContent=current==='apollo'?'Life support lost':'Evacuation failed';failText.textContent=txt;fail.classList.remove('hidden')
+}
+function finishLevel(diff){
+  if(!started)return;started=false;
+  if(current==='apollo'){
+    cutKicker.textContent='APOLLO 13 · CHAPTER COMPLETE';cutTitle.textContent='The historical clock stayed fixed';cutBody.textContent='The accident occurred at its documented mission time. Your response determined the playable outcome.'
+  }else{
+    cutKicker.textContent='SEPTEMBER 11 · CHAPTER COMPLETE';cutTitle.textContent='History stayed fixed. Your choice did not.';cutBody.textContent='External historical milestones remained locked while your fictional character made an independent evacuation decision.'
+  }
+  divergence.textContent='PLAYER DIVERGENCE — '+diff;cutscene.classList.remove('hidden');playMusic()
+}
+function playMusic(){
+  stopMusic();
+  try{
+    audioCtx||=new(window.AudioContext||window.webkitAudioContext)();audioCtx.resume?.();
+    const n=audioCtx.currentTime,m=audioCtx.createGain();m.gain.setValueAtTime(.0001,n);m.gain.exponentialRampToValueAtTime(.1,n+.5);m.gain.exponentialRampToValueAtTime(.0001,n+10);m.connect(audioCtx.destination);
+    [146.83,174.61,220,196,146.83,246.94].forEach((f,i)=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=i%2?'triangle':'sine';o.frequency.value=f;
+      g.gain.setValueAtTime(.0001,n+i*1.3);g.gain.exponentialRampToValueAtTime(.13,n+i*1.3+.12);g.gain.exponentialRampToValueAtTime(.0001,n+i*1.3+1.15);
+      o.connect(g);g.connect(m);o.start(n+i*1.3);o.stop(n+i*1.3+1.2);music.push(o)
+    })
+  }catch(e){}
+}
+function stopMusic(){music.forEach(n=>{try{n.stop?.();n.disconnect?.()}catch(e){}});music=[]}
+function back(){stopMusic();started=false;dispose();game.classList.add('hidden');launcher.classList.remove('hidden')}
+function nudgeLook(dy,dp){yaw+=dy;pitch=clamp(pitch+dp,-1.25,1.25)}
+
+$('#enterBtn').addEventListener('click',()=>{splash.classList.add('hidden');launcher.classList.remove('hidden')});
+document.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>load(b.dataset.level)));
+$('#beginBtn').addEventListener('click',begin);$('#retryBtn').addEventListener('click',()=>load(current));$('#continueBtn').addEventListener('click',back);$('#menuBtn').addEventListener('click',back);
+
+canvas.addEventListener('pointerdown',e=>{
+  if(!started)return;canvas.focus();dragging=true;dragPointer=e.pointerId;lastX=e.clientX;lastY=e.clientY;
+  try{canvas.setPointerCapture(e.pointerId)}catch(err){};e.preventDefault()
+});
+canvas.addEventListener('pointermove',e=>{
+  if(!dragging||e.pointerId!==dragPointer||!started)return;
+  const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;
+  yaw-=dx*.006;pitch=clamp(pitch-dy*.005,-1.25,1.25);e.preventDefault()
+});
+function stopDrag(e){if(e.pointerId!==dragPointer)return;dragging=false;try{canvas.releasePointerCapture(e.pointerId)}catch(err){}dragPointer=null}
+canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
+
+document.addEventListener('keydown',e=>{
+  if(document.activeElement!==canvas)return;
+  if(['KeyW','KeyA','KeyS','KeyD','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ShiftLeft','KeyC','KeyJ','KeyL','KeyI','KeyK'].includes(e.code)){keys[e.code]=true;e.preventDefault()}
+  if(e.code==='KeyE'){use();e.preventDefault()}
+});
+document.addEventListener('keyup',e=>{keys[e.code]=false});
+
+$('#turnLeft').addEventListener('click',()=>nudgeLook(.16,0));$('#turnRight').addEventListener('click',()=>nudgeLook(-.16,0));$('#lookUp').addEventListener('click',()=>nudgeLook(0,.12));$('#lookDown').addEventListener('click',()=>nudgeLook(0,-.12));
+window.addEventListener('resize',resize);
+</script>
+</body>
+</html>

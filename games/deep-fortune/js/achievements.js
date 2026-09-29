@@ -16,7 +16,7 @@ const LIFE = Object.assign({ ores:0, kills:0, chests:0, contracts:0, earned:0, d
 const UNLOCKED = store.get(ACH_KEY, {});
 let lifeDirty = false, lifeSaveT = 0, achCheckT = 0;
 const achToasts = [];
-const fair = () => game && (game.mode === 'career' || (!game.opts.invincible && !game.opts.infinite && !game.opts.maxGear));
+const fair = () => game && !game.devTest && (game.mode === 'career' || (!game.opts.invincible && !game.opts.infinite && !game.opts.maxGear));
 function life(key, n = 1){ if (!fair()) return; LIFE[key] = (LIFE[key]||0) + n; lifeDirty = true; }
 function saveLife(){ if (lifeDirty){ store.set(LIFE_KEY, LIFE); lifeDirty = false; } }
 

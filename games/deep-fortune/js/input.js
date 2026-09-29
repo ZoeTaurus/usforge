@@ -71,6 +71,7 @@ window.addEventListener('keydown', e => {
   keys[k] = true;
   if ([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k) || (k === 'tab' && scene === 'game' && !currentScreen)) e.preventDefault();
   if (e.repeat) return;
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyD'){ e.preventDefault(); devRetireShortcut(); return; }
   onKey(k);
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });

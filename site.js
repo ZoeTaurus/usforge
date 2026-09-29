@@ -105,7 +105,7 @@
     { name: 'Taurus', roles: ['Director', 'Leader', 'Developer', 'Quality Control', 'Ideas'], lead: 2 },
     { name: 'Henrique', roles: ['Designer', 'Developer', 'Ideas', 'Composer'] },
     { name: 'Alex', roles: ['Developer', 'Ideas', 'Quality Control', 'Potato'] },
-    { name: 'Igor', roles: ['Developer'] },
+    { name: 'Igor', roles: ['Developer', 'Marketing'] },
   ];
 
   // plays + stokes from the Worker, fetched once per page ({plays, stokes}, or null on the GitHub Pages copy)

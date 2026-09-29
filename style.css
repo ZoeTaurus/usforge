@@ -602,3 +602,15 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .rstat.wait { color: var(--accent); background: var(--tint-10); }
 .rstat.no { color: #e5534b; background: rgba(229, 83, 75, .1); }
 @media (max-width: 520px) { .review-item { grid-template-columns: 1fr; } }
+
+/* ---------- "we need more members" banner ---------- */
+.site-banner { position: relative; z-index: 5; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 9px 48px 9px 16px; background: linear-gradient(90deg, var(--tint-20), var(--tint-30), var(--tint-20)); border-bottom: 1px solid var(--accent-edge); font-size: 14px; text-align: center; transition: opacity .25s, transform .25s; }
+.site-banner p { margin: 0; }
+.site-banner b { color: var(--accent); }
+.site-banner a { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.site-banner a:hover { color: var(--accent); }
+.banner-x { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: var(--dim); font-size: 14px; cursor: pointer; }
+.banner-x:hover, .banner-x:focus-visible { background: var(--tint-20); color: var(--ink); outline: none; }
+.site-banner.closing { opacity: 0; transform: translateY(-100%); }
+body.playing .site-banner { display: none; }
+@media (max-width: 600px) { .site-banner span { display: none; } }

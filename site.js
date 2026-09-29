@@ -227,6 +227,18 @@
     d.showModal();
   }
 
+  // ---------- "We need more members!" banner (closable; stays closed in this browser) ----------
+  const BANNER = 'usforge-banner-members-1';   // (change the number to show a new banner to everyone again)
+  addEventListener('DOMContentLoaded', () => {
+    if (pref(BANNER, '') === 'closed' || /\/add(\.html)?$/.test(location.pathname) || /\/404(\.html)?$/.test(location.pathname)) return;
+    const bar = document.createElement('div');
+    bar.className = 'site-banner'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Announcement');
+    bar.innerHTML = `<p><b>We need more members!</b> <span>Make games with AI? Join UsForge and share them with everyone.</span> <a href="/add.html#join">How to join →</a></p>
+      <button type="button" class="banner-x" aria-label="Close this message">✕</button>`;
+    bar.querySelector('.banner-x').onclick = () => { setPref(BANNER, 'closed'); bar.classList.add('closing'); setTimeout(() => bar.remove(), 250); };
+    document.body.prepend(bar);
+  });
+
   window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

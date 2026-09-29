@@ -10,15 +10,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=42">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=30"></script>
+<script src="icons.js?v=2"></script>
+<script src="site.js?v=31"></script>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
-    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html" aria-current="page">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span><span id="whoNav"></span></nav>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html" aria-current="page">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support <span data-icon="heart"></span></a><span data-theme-switch></span><span id="whoNav"></span></nav>
   </header>
 
   <main class="doc">
@@ -229,7 +230,7 @@
     $('hsBox').hidden = !boards.length;
     $('hsList').innerHTML = boards.map(({ g, b }) => `<div class="fb-game" data-slug="${esc(g.slug)}">
         <button class="fb-head" type="button" aria-expanded="false"><b>${esc(g.title)}</b><span class="fb-counts">${b.list.length} on the board</span></button>
-        <div class="fb-notes" hidden>${b.list.map((e, i) => `<div class="fb-note" data-id="${esc(e.id)}"><span>${i + 1}</span><span><b>${esc(e.name)}</b> · ${Number(e.score).toLocaleString()}${b.unit ? ' ' + esc(b.unit) : ''}<time>${ago(e.at)}</time></span><button class="ghost" type="button">Delete</button></div>`).join('')}</div>
+        <div class="fb-notes" hidden>${b.list.map((e, i) => `<div class="fb-note" data-id="${esc(e.id)}"><span>${i + 1}</span><span><b>${esc(e.name)}</b> · ${b.unit === 'time' ? `${Math.floor(e.score / 60)}:${String(Math.round(e.score % 60)).padStart(2, '0')}` : `${Number(e.score).toLocaleString()}${b.unit ? ' ' + esc(b.unit) : ''}`}<time>${ago(e.at)}</time></span><button class="ghost" type="button">Delete</button></div>`).join('')}</div>
       </div>`).join('');
     for (const h of $('hsList').querySelectorAll('.fb-head')) h.onclick = () => { const n = h.nextElementSibling; n.hidden = !n.hidden; h.setAttribute('aria-expanded', String(!n.hidden)); };
     for (const b of $('hsList').querySelectorAll('.fb-note .ghost')) b.onclick = async () => {
@@ -239,16 +240,16 @@
     };
   }
   // ---------- your profile ----------
-  const EMOJI = ['🎮', '👾', '🕹️', '🚀', '🐉', '🦊', '🐸', '🐙', '🦈', '🐧', '🦉', '🐱', '🐶', '🥔', '🍕', '🔥', '⚡', '🌙', '⭐', '💎', '🎨', '🎵', '🧠', '🤖'];
-  let pEmoji = '';
+  const AVATARS = UsForgeIcon.avatars;
+  let pIcon = '';
   async function loadProfile() {
     let all = {};
     try { all = await (await fetch('profiles.json', { cache: 'no-cache' })).json(); } catch (e) {}
     const mine = all[Object.keys(all).find(k => k.toLowerCase() === me.name.toLowerCase())] || {};
-    pEmoji = mine.emoji || '';
+    pIcon = AVATARS.includes(mine.icon) ? mine.icon : '';
     const paintEmoji = () => {
-      $('emojiPick').innerHTML = ['', ...EMOJI].map(e => `<button type="button" class="emo" data-e="${e}" aria-pressed="${e === pEmoji}" title="${e ? 'Use ' + e : 'Just my first letter'}">${e || esc(me.name[0].toUpperCase())}</button>`).join('');
-      for (const b of $('emojiPick').children) b.onclick = () => { pEmoji = b.dataset.e; paintEmoji(); };
+      $('emojiPick').innerHTML = ['', ...AVATARS].map(e => `<button type="button" class="emo" data-e="${e}" aria-pressed="${e === pIcon}" title="${e ? 'Use the ' + e : 'Just my first letter'}" aria-label="${e || 'First letter'}">${e ? UsForgeIcon(e) : esc(me.name[0].toUpperCase())}</button>`).join('');
+      for (const b of $('emojiPick').children) b.onclick = () => { pIcon = b.dataset.e; paintEmoji(); };
     };
     paintEmoji();
     $('pBio').value = mine.bio || ''; $('bioCount').textContent = `${$('pBio').value.length} / 160`;
@@ -259,7 +260,7 @@
   $('pBio').addEventListener('input', () => { $('bioCount').textContent = `${$('pBio').value.length} / 160`; });
   $('profileForm').onsubmit = async e => {
     e.preventDefault(); $('pSave').disabled = true; say('pMsg', 'Saving…');
-    try { await api('profile', { name: me.name, password: pass, emoji: pEmoji, bio: $('pBio').value, fav: $('pFav').value }); say('pMsg', 'Saved! Your page updates in about a minute.'); }
+    try { await api('profile', { name: me.name, password: pass, icon: pIcon, bio: $('pBio').value, fav: $('pFav').value }); say('pMsg', 'Saved! Your page updates in about a minute.'); }
     catch (err) { say('pMsg', err.message, true); }
     $('pSave').disabled = false;
   };
@@ -271,7 +272,7 @@
     try { picks = await (await fetch('picks.json', { cache: 'no-cache' })).json(); } catch (e) {}
     const on = new Set((picks || []).map(p => p.slug)), by = Object.fromEntries((picks || []).map(p => [p.slug, p.by]));
     $('pickList').innerHTML = games.filter(g => !g.dev).map(g => `<div class="pick-row" data-slug="${esc(g.slug)}"><span><b>${esc(g.title)}</b> <span class="dim">by ${esc(g.author)}${on.has(g.slug) ? ` · picked by ${esc(by[g.slug])}` : ''}</span></span>
-      <button class="star-btn" type="button" aria-pressed="${on.has(g.slug)}">${on.has(g.slug) ? '★ Picked' : '☆ Pick'}</button></div>`).join('');
+      <button class="star-btn" type="button" aria-pressed="${on.has(g.slug)}">${on.has(g.slug) ? UsForgeIcon('starFill') + ' Picked' : UsForgeIcon('star') + ' Pick'}</button></div>`).join('');
     for (const b of $('pickList').querySelectorAll('.star-btn')) b.onclick = async () => {
       const slug = b.closest('.pick-row').dataset.slug, want = b.getAttribute('aria-pressed') !== 'true';
       b.disabled = true; b.textContent = want ? 'Picking…' : 'Removing…';
@@ -287,8 +288,8 @@
     $('fbBox').hidden = !data.games.length;
     $('fbLead').textContent = me.founder ? 'What players said about every game. Makers see their own; founders see all.' : 'What players said about your games. Only you and the founders can see this.';
     $('fbList').innerHTML = list.length ? list.map(g => `<div class="fb-game" data-slug="${esc(g.slug)}">
-        <button class="fb-head" type="button" aria-expanded="false"><span><b>${esc(g.title)}</b>${me.founder && !g.mine ? ` <span class="dim">by ${esc(g.author)}</span>` : ''}</span><span class="fb-counts">👍 ${g.up} · 👎 ${g.down} · ${g.notes.filter(n => n.note).length} note${g.notes.filter(n => n.note).length === 1 ? '' : 's'}</span></button>
-        <div class="fb-notes" hidden>${g.notes.map(n => `<div class="fb-note" data-id="${esc(n.id)}"><span>${n.vote === 'up' ? '👍' : n.vote === 'down' ? '👎' : '💬'}</span><span>${n.note ? esc(n.note) : '<span class="dim">(no note)</span>'}<time>${ago(n.at)}</time></span><button class="ghost" type="button">Delete</button></div>`).join('')}</div>
+        <button class="fb-head" type="button" aria-expanded="false"><span><b>${esc(g.title)}</b>${me.founder && !g.mine ? ` <span class="dim">by ${esc(g.author)}</span>` : ''}</span><span class="fb-counts">${UsForgeIcon('thumbUp')} ${g.up} · ${UsForgeIcon('thumbDown')} ${g.down} · ${g.notes.filter(n => n.note).length} note${g.notes.filter(n => n.note).length === 1 ? '' : 's'}</span></button>
+        <div class="fb-notes" hidden>${g.notes.map(n => `<div class="fb-note" data-id="${esc(n.id)}"><span>${UsForgeIcon(n.vote === 'up' ? 'thumbUp' : n.vote === 'down' ? 'thumbDown' : 'chat')}</span><span>${n.note ? esc(n.note) : '<span class="dim">(no note)</span>'}<time>${ago(n.at)}</time></span><button class="ghost" type="button">Delete</button></div>`).join('')}</div>
       </div>`).join('') : '<p class="dim">No feedback yet. It shows up here when players send some from a game’s page.</p>';
     for (const h of $('fbList').querySelectorAll('.fb-head')) h.onclick = () => { const n = h.nextElementSibling; n.hidden = !n.hidden; h.setAttribute('aria-expanded', String(!n.hidden)); };
     for (const b of $('fbList').querySelectorAll('.fb-note .ghost')) b.onclick = async () => {

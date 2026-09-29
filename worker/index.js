@@ -46,7 +46,7 @@ export default {
 };
 
 // ---------- play counts ----------
-// One tiny Durable Object keeps every game's counts: plays, and stokes (the 🔥 "I love this" button).
+// One tiny Durable Object keeps every game's counts: plays, and stokes (the flame "I love this" button).
 //   GET  /api/plays → {slug: n}            POST /api/plays?g=slug adds a play
 //   GET  /api/stats → {plays, stokes}      POST /api/stoke?g=slug adds a stoke
 export class Plays extends DurableObject {
@@ -83,9 +83,11 @@ export class Plays extends DurableObject {
     await this.ctx.storage.put(k, next); return list.length - next.length;
   }
   // high scores: the top 10 per game (best score per nickname); order 'high' = bigger is better, 'low' = smaller (like golf)
-  async hsGet(slug) { return (await this.ctx.storage.get('hs:' + slug)) || { order: 'high', unit: '', list: [] }; }
+  // (boards were cleared on 2026-09-29: they now live under "hs2:", and the old "hs:" ones are deleted the first time any board is used)
+  async hsWipeOld() { if (this.hsWiped) return; const old = await this.ctx.storage.list({ prefix: 'hs:' }); if (old.size) await this.ctx.storage.delete([...old.keys()]); this.hsWiped = true; }
+  async hsGet(slug) { await this.hsWipeOld(); return (await this.ctx.storage.get('hs2:' + slug)) || { order: 'high', unit: '', list: [] }; }
   async hsAdd(slug, name, score, order, unit) {
-    const k = 'hs:' + slug, b = await this.hsGet(slug);
+    const k = 'hs2:' + slug, b = await this.hsGet(slug);
     if (!b.list.length) { b.order = order; b.unit = unit; }   // (the first score sets which way the board sorts)
     const better = (a, c) => b.order === 'low' ? a < c : a > c;
     const at = Math.floor(Date.now() / 1000), same = b.list.find(e => e.name.toLowerCase() === name.toLowerCase());
@@ -98,7 +100,7 @@ export class Plays extends DurableObject {
     const rank = b.list.findIndex(e => e.id === id) + 1;
     return { board: b, rank: rank || null, improved: !same || same.score === score };
   }
-  async hsDel(slug, id) { const b = await this.hsGet(slug), n = b.list.length; b.list = b.list.filter(e => e.id !== id); await this.ctx.storage.put('hs:' + slug, b); return n - b.list.length; }
+  async hsDel(slug, id) { const b = await this.hsGet(slug), n = b.list.length; b.list = b.list.filter(e => e.id !== id); await this.ctx.storage.put('hs2:' + slug, b); return n - b.list.length; }
   recent = new Map();
   cooldown(key, ms) {   // true = allowed now (kept in memory only)
     const now = Date.now(), last = this.recent.get(key) || 0;
@@ -441,13 +443,13 @@ async function pick(req, env) {
   return { ok: true, picks };
 }
 
-// ---------- game feedback: 👍/👎 + a short note, readable only by the game's maker and the founders ----------
+// ---------- game feedback: thumbs up/down + a short note, readable only by the game's maker and the founders ----------
 const box = env => env.PLAYS.get(env.PLAYS.idFromName('all'));
 async function feedbackAdd(req, env, url) {
   const slug = await knownSlug(env, url), b = await req.json().catch(() => ({}));
   const vote = b.vote === 'up' ? 'up' : b.vote === 'down' ? 'down' : null;
   const note = String(b.note || '').replace(/\s+/g, ' ').trim().slice(0, 280);
-  if (!vote && !note) throw fail(400, 'Pick 👍 or 👎, or write a note.');
+  if (!vote && !note) throw fail(400, 'Pick thumbs up or down, or write a note.');
   const ip = req.headers.get('cf-connecting-ip') || 'x';
   if (!(await box(env).cooldown(ip, 20000))) throw fail(429, 'Thanks! Give it a few seconds before sending more.');
   await box(env).fbAdd(slug, { id: crypto.randomUUID().slice(0, 8), vote, note, at: Math.floor(Date.now() / 1000) });
@@ -486,17 +488,18 @@ async function scoreDelete(req, env) {
   return { ok: true, removed: await box(env).hsDel(slug, String(b.id || '')) };
 }
 
-// ---------- member profiles (profiles.json: { Name: { emoji, bio, fav } }) ----------
+// ---------- member profiles (profiles.json: { Name: { icon, bio, fav } }) ----------
+const AVATARS = ['gamepad', 'rocket', 'star', 'heart', 'flame', 'bolt', 'moon', 'sun', 'gem', 'crown', 'ghost', 'invader', 'robot', 'sword', 'shield', 'planet', 'music', 'brush', 'bulb', 'potato', 'pizza', 'leaf', 'cat', 'dice'];   // (same list as icons.js)
 async function profile(req, env) {
   const b = await req.json(), who = await check(b.name, b.password);
-  const emoji = [...String(b.emoji || '').trim()].slice(0, 4).join('');   // one emoji (some are a few characters long)
-  if (emoji && /[A-Za-z0-9<>"'&]/.test(emoji)) throw fail(400, 'Pick an emoji for your avatar.');
+  const icon = String(b.icon || '');
+  if (icon && !AVATARS.includes(icon)) throw fail(400, 'Pick one of the avatars.');
   const bio = String(b.bio || '').replace(/\s+/g, ' ').trim().slice(0, 160), fav = String(b.fav || '');
   const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
   const games = (await readJson(env, 'games.json', head)) || [];
   if (fav && !games.some(g => g.slug === fav)) throw fail(400, 'Pick a game that’s on UsForge.');
   const all = (await readJson(env, 'profiles.json', head)) || {};
-  all[who.name] = { ...(emoji ? { emoji } : {}), ...(bio ? { bio } : {}), ...(fav ? { fav } : {}) };
+  all[who.name] = { ...(icon ? { icon } : {}), ...(bio ? { bio } : {}), ...(fav ? { fav } : {}) };
   if (!Object.keys(all[who.name]).length) delete all[who.name];
   await commit(env, head, [{ path: 'profiles.json', text: JSON.stringify(all, null, 2) + '\n' }], `Profile: ${who.name}`);
   return { ok: true, profile: all[who.name] || {} };

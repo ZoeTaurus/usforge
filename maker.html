@@ -10,15 +10,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=42">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=30"></script>
+<script src="icons.js?v=2"></script>
+<script src="site.js?v=31"></script>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
-    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span></nav>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support <span data-icon="heart"></span></a><span data-theme-switch></span></nav>
   </header>
 
   <section class="maker-hero" id="hero"></section>
@@ -56,13 +57,13 @@
   const want = (new URLSearchParams(location.search).get('n') || '').toLowerCase();
   let games = [], stats = null, profiles = {};
   const prof = name => profiles[Object.keys(profiles).find(k => k.toLowerCase() === String(name).toLowerCase())] || {};
-  const avatar = (name, cls = 'initial', extra = '') => { const e = prof(name).emoji; return `<span class="${cls}${e ? ' emoji' : ''}"${extra} aria-hidden="true">${esc(e || name[0])}</span>`; };
+  const avatar = (name, cls = 'initial', extra = '') => { const e = UsForgeIcon.avatars.includes(prof(name).icon) ? prof(name).icon : ''; return `<span class="${cls}${e ? ' emoji' : ''}"${extra} aria-hidden="true">${e ? UsForgeIcon(e) : esc(name[0])}</span>`; };
   const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
   const P = g => stats?.plays[g.slug] || 0, S = g => stats?.stokes[g.slug] || 0;
   const card = (g, i) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
       <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : `<span class="tag live-tag" data-live="${esc(g.slug)}" hidden></span>`}<span class="glint" aria-hidden="true"></span></div></a>
       <div class="meta"><b>${esc(g.title)}</b>
-        ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
+        ${stats && !g.dev ? `<span class="counts"><span>${UsForgeIcon('play')} ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
 </div>
     </article>`;
 

@@ -32,14 +32,14 @@
   // Auto follows the clock: light from 7am to 7pm, dark the rest of the day
   const resolve = mode => mode === 'auto' ? ((h => h >= 7 && h < 19)(new Date().getHours()) ? 'light' : 'dark') : mode;
   const apply = () => { document.documentElement.dataset.theme = resolve(get()); document.documentElement.dataset.mode = get(); paint(); };
-  const LABEL = { auto: 'Auto', light: 'Light', dark: 'Dark' }, ICON = { auto: '◐', light: '☀', dark: '☾' };
+  const LABEL = { auto: 'Auto', light: 'Light', dark: 'Dark' }, ICON = { auto: 'auto', light: 'sun', dark: 'moon' };
   const NEXT = { auto: 'light', light: 'dark', dark: 'auto' };
 
   // the switch: one button that cycles Auto → Light → Dark, dropped into any element marked data-theme-switch
   function paint() {
     for (const b of document.querySelectorAll('.theme-btn')) {
       const m = get(), now = resolve(m);
-      b.innerHTML = `<span aria-hidden="true">${ICON[m]}</span> ${LABEL[m]}`;
+      b.innerHTML = `${window.UsForgeIcon?.(ICON[m]) || ''} ${LABEL[m]}`;
       b.title = m === 'auto' ? `Theme: Auto (${now} right now — light 7am–7pm)` : `Theme: ${LABEL[m]}`;
       b.setAttribute('aria-label', `Theme: ${LABEL[m]}. Click to change.`);
     }
@@ -52,19 +52,19 @@
       b.onclick = () => { set(NEXT[get()]); apply(); };
       spot.append(b);
       const gear = document.createElement('a');
-      gear.href = 'settings.html'; gear.className = 'gear-btn'; gear.title = 'Settings'; gear.setAttribute('aria-label', 'Settings'); gear.textContent = '⚙';
+      gear.href = 'settings.html'; gear.className = 'gear-btn'; gear.title = 'Settings'; gear.setAttribute('aria-label', 'Settings'); gear.innerHTML = window.UsForgeIcon?.('gear') || 'Settings';
       if (/settings(\.html)?$/.test(location.pathname)) gear.setAttribute('aria-current', 'page');
       spot.append(gear);
       // "You" (favorites, stats, badges) in the menu
       const nav = spot.closest('nav');
       if (nav && !nav.querySelector('.you-link')) {
         const you = document.createElement('a');
-        you.href = '/you.html'; you.className = 'you-link'; you.innerHTML = '<span aria-hidden="true">♥</span> You';
+        you.href = '/you.html'; you.className = 'you-link'; you.innerHTML = `${window.UsForgeIcon?.('heart') || ''} You`;
         if (/\/you(\.html)?$/.test(location.pathname)) you.setAttribute('aria-current', 'page');
         nav.insertBefore(you, spot);
       }
       const app = document.createElement('button');
-      app.type = 'button'; app.className = 'app-btn'; app.hidden = true; app.innerHTML = '<span aria-hidden="true">⤓</span> Get the app';
+      app.type = 'button'; app.className = 'app-btn'; app.hidden = true; app.innerHTML = `${window.UsForgeIcon?.('download') || ''} Get the app`;
       app.onclick = () => install();
       spot.insertBefore(app, b);
       paintApp();   // (now that the button exists)
@@ -298,7 +298,7 @@
     const bar = document.createElement('div');
     bar.className = 'site-banner'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Announcement');
     bar.innerHTML = `<p><b>We need more members!</b> <span>Make games with AI? Join UsForge and share them with everyone.</span> <a href="/add.html#join">How to join →</a></p>
-      <button type="button" class="banner-x" aria-label="Close this message">✕</button>`;
+      <button type="button" class="banner-x" aria-label="Close this message">${window.UsForgeIcon?.('close') || '×'}</button>`;
     bar.querySelector('.banner-x').onclick = () => { setPref(BANNER, 'closed'); bar.classList.add('closing'); setTimeout(() => bar.remove(), 250); };
     document.body.prepend(bar);
   });

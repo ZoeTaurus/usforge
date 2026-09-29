@@ -702,3 +702,25 @@ body.playing .site-banner { display: none; }
 .detail > div:not(.cover) { grid-column: 2; grid-row: 1 / span 2; }
 .detail > .board { grid-column: 1; grid-row: 2; margin: 0; max-width: none; }
 @media (max-width: 760px) { .detail > .cover, .detail > div:not(.cover), .detail > .board { grid-column: auto; grid-row: auto; } }
+
+/* ---------- SVG icons (instead of emojis) ---------- */
+.ico { width: 1em; height: 1em; vertical-align: -.14em; flex: none; }
+[data-icon] { display: inline-flex; vertical-align: -.14em; }
+[data-icon] .ico { vertical-align: 0; }
+.theme-btn .ico, .you-link .ico, .app-btn .ico { color: var(--accent); }
+.gear-btn .ico { width: 16px; height: 16px; }
+.banner-x .ico { width: 14px; height: 14px; }
+.nav-support .ico, .tipline .ico, .foot-links .ico { color: #ff5f7e; }
+.fav-btn .ico { color: #ff5f7e; }
+.fb-vote .ico { width: 22px; height: 22px; }
+.fb-vote[aria-pressed="true"] { color: var(--accent); }
+.pick-chip .ico, .star-btn .ico { vertical-align: -.16em; }
+.board-list .rank .ico { width: 22px; height: 22px; vertical-align: middle; }
+.medal-1 { color: #f2b53a; } .medal-2 { color: #aab4c3; } .medal-3 { color: #cd7f4a; }
+.badge-ico { display: grid; place-items: center; color: var(--dim); opacity: .45; }
+.badge-ico .ico { width: 30px; height: 30px; }
+.badge.got .badge-ico { color: var(--accent); opacity: 1; }
+.emo .ico { width: 20px; height: 20px; }
+.initial.emoji .ico, .mini.emoji .ico { width: 58%; height: 58%; color: var(--accent); }
+.fb-note > span:first-child .ico { width: 18px; height: 18px; color: var(--dim); }
+.fb-counts .ico { vertical-align: -.2em; }

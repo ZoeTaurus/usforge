@@ -11,9 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=42">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=30"></script>
+<script src="icons.js?v=2"></script>
+<script src="site.js?v=31"></script>
 <script>
   // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
   try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
@@ -48,7 +49,7 @@
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
-    <nav><a href="./" aria-current="page">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span></nav>
+    <nav><a href="./" aria-current="page">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support <span data-icon="heart"></span></a><span data-theme-switch></span></nav>
   </header>
 
   <section class="intro hero">
@@ -108,7 +109,7 @@
 
   <footer class="foot">
     <span>UsForge · by Lazy Studios</span>
-    <span class="foot-links"><a href="support.html" data-support hidden>Support Lazy Studios ♥</a><a href="add.html">Share your game →</a></span>
+    <span class="foot-links"><a href="support.html" data-support hidden>Support Lazy Studios <span data-icon="heart"></span></a><a href="add.html">Share your game →</a></span>
   </footer>
 </div>
 
@@ -163,7 +164,7 @@
   const n = (v, one, many) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
   const genresOf = g => g.genres?.length ? `<span class="gtags">${g.genres.map(x => `<button type="button" class="gtag" data-genre="${esc(x)}">${esc(x)}</button>`).join('')}</span>` : '';
   const progressOf = g => g.progress == null ? '' : `<span class="progress" title="${g.progress}% done"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span>`;
-  const countsOf = g => stats ? `<span class="counts"><span title="${n(playsN(g), 'play', 'plays')}">▶ ${playsN(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}" title="${n(stokesN(g), 'stoke', 'stokes')}">${U.FLAME} ${stokesN(g).toLocaleString()}</span></span>` : '';
+  const countsOf = g => stats ? `<span class="counts"><span title="${n(playsN(g), 'play', 'plays')}">${UsForgeIcon('play')} ${playsN(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}" title="${n(stokesN(g), 'stoke', 'stokes')}">${U.FLAME} ${stokesN(g).toLocaleString()}</span></span>` : '';
   // "Updated" only on the 3 most recently updated games (from the last 3 days), so it stays special
   let recentlyUpdated = new Set();
   const justUpdated = g => recentlyUpdated.has(g.slug);
@@ -198,7 +199,7 @@
         ${countsOf(g)}
         ${g.blurb ? `<p>${esc(g.blurb)}</p>` : ''}
         <div class="spot-acts">
-          ${g.url ? `<a class="play-btn" href="${esc(href(g))}">View game</a>` : `<a class="play-btn" href="${esc(href(g))}#play">▶ Play now</a><a class="btn-l" href="${esc(href(g))}" data-cover>Details</a>`}
+          ${g.url ? `<a class="play-btn" href="${esc(href(g))}">View game</a>` : `<a class="play-btn" href="${esc(href(g))}#play">${UsForgeIcon('play')} Play now</a><a class="btn-l" href="${esc(href(g))}" data-cover>Details</a>`}
         </div>
       </div>`;
   }

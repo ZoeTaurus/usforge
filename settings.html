@@ -10,15 +10,16 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=42">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=30"></script>
+<script src="icons.js?v=2"></script>
+<script src="site.js?v=31"></script>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <a class="mark" href="./"><span class="spark"></span>UsForge</a>
-    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span></nav>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support <span data-icon="heart"></span></a><span data-theme-switch></span></nav>
   </header>
 
   <section class="intro">
@@ -36,7 +37,7 @@
         <button class="btn-l" type="button" id="resetColor">Back to default</button>
       </div>
       <div class="preview" aria-hidden="true">
-        <span class="big-play" style="padding:10px 22px;font-size:15px">▶ Play</span>
+        <span class="big-play" style="padding:10px 22px;font-size:15px"><span data-icon="play"></span> Play</span>
         <span class="chip-demo">Puzzle</span>
         <span class="eyebrow">Game of the day</span>
         <a href="#" onclick="return false" style="color:var(--accent)">a link</a>
@@ -52,7 +53,7 @@
     <section class="set-card" aria-labelledby="appTitle">
       <h2 id="appTitle">Get the app</h2>
       <p id="appText">Install UsForge so it opens in its own window, with its own icon.</p>
-      <div><button class="big-play" type="button" id="appInstall" style="padding:10px 22px;font-size:15px">⤓ Install UsForge</button></div>
+      <div><button class="big-play" type="button" id="appInstall" style="padding:10px 22px;font-size:15px"><span data-icon="download"></span> Install UsForge</button></div>
     </section>
 
     <section class="set-card" aria-labelledby="fxTitle">
@@ -86,7 +87,7 @@
     $(id).innerHTML = options.map(([v, label]) => `<button type="button" data-v="${v}" aria-pressed="${v === current()}">${label}</button>`).join('');
     for (const b of $(id).children) b.onclick = () => { onPick(b.dataset.v); seg(id, options, current, onPick); };
   };
-  seg('modes', [['auto', '◐ Auto'], ['light', '☀ Light'], ['dark', '☾ Dark']], () => U.theme, v => U.setTheme(v));
+  seg('modes', [['auto', UsForgeIcon('auto') + ' Auto'], ['light', UsForgeIcon('sun') + ' Light'], ['dark', UsForgeIcon('moon') + ' Dark']], () => U.theme, v => U.setTheme(v));
   seg('sparks', [['on', 'On'], ['off', 'Off']], () => U.pref('usforge-sparks', 'on'), v => { U.setPref('usforge-sparks', v === 'on' ? null : 'off'); const c = document.getElementById('bgEmbers'); if (c) c.hidden = v === 'off'; else if (v === 'on') location.reload(); });
   seg('tilt', [['on', 'On'], ['off', 'Off']], () => U.pref('usforge-tilt', 'on'), v => U.setPref('usforge-tilt', v === 'on' ? null : 'off'));
   paintColors();
@@ -101,7 +102,7 @@
   $('appInstall').onclick = () => U.install();
   addEventListener('usforge-app', paintApp); paintApp();
   // the menu's theme button and this page stay in step
-  document.addEventListener('click', e => { if (e.target.closest('.theme-btn')) setTimeout(() => seg('modes', [['auto', '◐ Auto'], ['light', '☀ Light'], ['dark', '☾ Dark']], () => U.theme, v => U.setTheme(v)), 0); });
+  document.addEventListener('click', e => { if (e.target.closest('.theme-btn')) setTimeout(() => seg('modes', [['auto', UsForgeIcon('auto') + ' Auto'], ['light', UsForgeIcon('sun') + ' Light'], ['dark', UsForgeIcon('moon') + ' Dark']], () => U.theme, v => U.setTheme(v)), 0); });
 })();
 </script>
 </body>

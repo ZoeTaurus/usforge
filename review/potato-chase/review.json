@@ -1,0 +1,43 @@
+{
+  "slug": "potato-chase",
+  "title": "Potato chase",
+  "owner": "Alex",
+  "author": "Alex",
+  "submittedBy": "Alex",
+  "founder": true,
+  "submitted": 1790713234,
+  "kind": "new",
+  "status": "pending",
+  "info": {
+    "title": "Potato chase",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Chase the potato and try to catch it. credits to: julia",
+    "pixel": true,
+    "genres": [
+      "Action",
+      "Endless runner",
+      "Strategy"
+    ]
+  },
+  "entry": {
+    "slug": "potato-chase",
+    "title": "Potato chase",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Chase the potato and try to catch it. credits to: julia",
+    "cover": "games/potato-chase/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [
+      "Action",
+      "Endless runner",
+      "Strategy"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790713234
+  }
+}

@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=26"></script>
 </head>
@@ -23,7 +23,7 @@
 
   <main class="doc">
     <h1>Upload</h1>
-    <p class="dim" id="lead">Members can add and update their own games here.</p>
+    <p class="dim" id="lead">Members can add and update their own games here. New games are checked by one of the founders before they go live. Updates go live straight away.</p>
 
     <!-- only the Cloudflare address can save uploads -->
     <div id="elsewhere" hidden>
@@ -40,6 +40,13 @@
     </form>
 
     <div id="member" hidden>
+      <!-- founders: games waiting for a yes -->
+      <section id="reviewBox" hidden>
+        <h2>Needs review <span class="review-count" id="reviewCount"></span></h2>
+        <p class="dim">New games wait here until a founder approves them. You can’t review your own; another founder does.</p>
+        <div id="reviewList" class="review-list"></div>
+      </section>
+
       <h2>Your games</h2>
       <div id="mine" class="mine"></div>
 
@@ -161,14 +168,69 @@
 
   // ---------- your games ----------
   let games = [];
+  const ago = t => { const m = Math.max(1, Math.round((Date.now() / 1000 - t) / 60)); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`; };
+  let waiting = [];
   async function listMine() {
     try { games = await (await fetch('games.json', { cache: 'no-cache' })).json(); } catch (e) { games = []; }
-    const mine = games.filter(g => me.admin || (g.owner || g.author).toLowerCase() === me.name.toLowerCase());
-    $('mine').innerHTML = mine.length ? mine.map(g => `<div class="mine-row" data-slug="${esc(g.slug)}">
-        <span><b>${esc(g.title)}</b> <span class="dim">· ${esc(g.slug)}${me.admin ? ' · ' + esc(g.author) : ''}</span></span>
-        <span class="acts"><button class="ghost" data-act="edit">Update</button><button class="ghost" data-act="del">Remove</button></span>
+    try { waiting = (await api('reviews', { name: me.name, password: pass })).reviews; } catch (e) { waiting = []; }
+    // your games: live ones, plus anything waiting for review or sent back
+    const own = waiting.filter(w => w.mine), live = games.filter(g => me.admin || (g.owner || g.author).toLowerCase() === me.name.toLowerCase());
+    const status = slug => own.find(w => w.slug === slug);
+    const rows = live.map(g => ({ slug: g.slug, title: g.title, author: g.author, live: true, w: status(g.slug) }))
+      .concat(own.filter(w => !live.some(g => g.slug === w.slug)).map(w => ({ slug: w.slug, title: w.title, author: w.author, live: false, w })));
+    $('mine').innerHTML = rows.length ? rows.map(r => `<div class="mine-row" data-slug="${esc(r.slug)}">
+        <span><b>${esc(r.title)}</b> <span class="dim">· ${esc(r.slug)}${me.admin ? ' · ' + esc(r.author) : ''}</span>
+          ${r.w?.status === 'pending' ? `<span class="rstat wait">${r.live ? 'Update waiting for review' : 'Waiting for review'}</span>` : ''}
+          ${r.w?.status === 'rejected' ? `<span class="rstat no">Not approved${r.w.note ? `: “${esc(r.w.note)}”` : ''}${r.w.reviewer ? ` (${esc(r.w.reviewer)})` : ''}</span>` : ''}</span>
+        <span class="acts">${r.live || r.w?.status === 'pending' ? '<button class="ghost" data-act="edit">Update</button>' : ''}${r.w ? `<button class="ghost" data-act="withdraw">${r.w.status === 'pending' ? 'Take back' : 'Dismiss'}</button>` : ''}${r.live ? '<button class="ghost" data-act="del">Remove</button>' : ''}</span>
       </div>`).join('') : '<p class="dim">None yet — add one below.</p>';
-    for (const b of $('mine').querySelectorAll('button')) b.onclick = () => (b.dataset.act === 'edit' ? startEdit : askRemove)(b.closest('.mine-row').dataset.slug, b);
+    for (const b of $('mine').querySelectorAll('button')) b.onclick = () => {
+      const slug = b.closest('.mine-row').dataset.slug;
+      if (b.dataset.act === 'edit') startEdit(slug);
+      else if (b.dataset.act === 'del') askRemove(slug, b);
+      else reviewAct(slug, 'withdraw', '', b);
+    };
+    paintReviews();
+  }
+  // founders: the queue
+  function paintReviews() {
+    const queue = waiting.filter(w => w.status === 'pending' && (me.founder || w.mine));
+    $('reviewBox').hidden = !me.founder;
+    if (!me.founder) return;
+    $('reviewCount').textContent = queue.length ? queue.length : '';
+    $('reviewList').innerHTML = queue.length ? queue.map(w => `<article class="review-item" data-slug="${esc(w.slug)}">
+        <a class="review-cover" href="review/${encodeURIComponent(w.slug)}/" target="_blank" rel="noopener">${w.cover ? `<img src="${esc(w.cover)}" alt="">` : `<span>${esc(w.title[0] || '?')}</span>`}</a>
+        <div class="review-meta"><b>${esc(w.title)}</b><span class="dim">${w.kind === 'update' ? 'Update' : 'New game'} by ${esc(w.author)} · sent ${ago(w.submitted)}</span>
+          <span class="acts">
+            <a class="ghost" href="review/${encodeURIComponent(w.slug)}/" target="_blank" rel="noopener">Preview ↗</a>
+            ${w.canReview ? '<button class="go" data-act="approve">Approve</button><button class="ghost" data-act="reject">Reject…</button>' : '<span class="dim">Waiting for another founder</span>'}
+          </span>
+          <p class="msg review-msg"></p>
+        </div>
+      </article>`).join('') : '<p class="dim">Nothing waiting. All caught up!</p>';
+    for (const b of $('reviewList').querySelectorAll('button')) b.onclick = () => {
+      const item = b.closest('.review-item'), slug = item.dataset.slug;
+      if (b.dataset.act === 'approve') return reviewAct(slug, 'approve', '', b);
+      // reject: ask for a reason right in the card
+      const acts = b.closest('.acts');
+      acts.innerHTML = `<input class="reason" maxlength="300" placeholder="Why? (they’ll see this, optional)"><button class="danger" data-go>Reject</button><button class="ghost" data-cancel>Cancel</button>`;
+      acts.querySelector('[data-cancel]').onclick = paintReviews;
+      acts.querySelector('[data-go]').onclick = e => reviewAct(slug, 'reject', acts.querySelector('.reason').value, e.target);
+      acts.querySelector('.reason').focus();
+    };
+  }
+  async function reviewAct(slug, action, note, btn) {
+    const item = btn.closest('.review-item, .mine-row'), msgEl = item.querySelector('.review-msg');
+    for (const x of item.querySelectorAll('button')) x.disabled = true;
+    if (msgEl) { msgEl.classList.remove('bad'); msgEl.textContent = action === 'approve' ? 'Approving…' : action === 'reject' ? 'Sending it back…' : 'Taking it back…'; }
+    try {
+      await api('review', { name: me.name, password: pass, slug, action, note });
+      UsForge.toast(action === 'approve' ? '<b>Approved!</b> It’ll be live in about a minute.' : action === 'reject' ? 'Sent back with your note.' : 'Done.');
+      await listMine();
+    } catch (err) {
+      if (msgEl) { msgEl.textContent = err.message; msgEl.classList.add('bad'); } else UsForge.toast(err.message);
+      for (const x of item.querySelectorAll('button')) x.disabled = false;
+    }
   }
   function startEdit(slug) {
     const g = games.find(x => x.slug === slug); if (!g) return;
@@ -317,7 +379,9 @@
       }
       say('upMsg', 'Saving your game…');
       const r = await api('upload', fd);
-      say('upMsg', ''); $('upMsg').innerHTML = `${r.updated ? 'Updated' : 'Added'}! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">see it</a>.`;
+      say('upMsg', ''); $('upMsg').innerHTML = r.pending
+        ? `Sent for review! ${me.founder ? 'Another founder' : 'A founder'} will check it soon, and it goes live once they approve it.`
+        : `Updated! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">see it</a>.`;
       endEdit(); listMine();
     } catch (err) { say('upMsg', err.message, true); }
     $('send').disabled = false;

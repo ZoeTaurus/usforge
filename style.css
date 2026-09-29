@@ -586,3 +586,19 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .app-sheet p { margin: 0 0 16px; color: var(--dim); font-size: 13px; }
 .app-sheet .big-play { padding: 10px 26px; font-size: 15px; }
 @media (max-width: 600px) { .app-btn { font-size: 12px; padding: 4px 9px; } }
+
+/* ---------- review queue ---------- */
+#reviewBox h2 { display: flex; align-items: center; gap: 10px; }
+.review-count:not(:empty) { font: 700 13px var(--sans); color: var(--accent-ink); background: var(--accent); border-radius: 99px; padding: 2px 9px; }
+.review-list { display: grid; gap: 10px; margin-bottom: 28px; }
+.review-item { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: start; padding: 12px; border: 1px solid var(--accent-edge); border-radius: 12px; background: var(--card); }
+.review-cover { aspect-ratio: 16 / 10; border-radius: 8px; overflow: hidden; background: var(--hover); display: grid; place-items: center; font: 800 28px var(--sans); color: var(--dim); text-decoration: none; }
+.review-cover img { width: 100%; height: 100%; object-fit: cover; }
+.review-meta { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.review-meta .acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.review-meta .go, .review-meta .ghost, .review-meta .danger { padding: 6px 12px; font-size: 13px; }
+.review-meta .reason { flex: 1 1 200px; font: 14px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+.rstat { display: inline-block; margin-left: 6px; font: 12px var(--mono); border-radius: 99px; padding: 2px 8px; }
+.rstat.wait { color: var(--accent); background: var(--tint-10); }
+.rstat.no { color: #e5534b; background: rgba(229, 83, 75, .1); }
+@media (max-width: 520px) { .review-item { grid-template-columns: 1fr; } }

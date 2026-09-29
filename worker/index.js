@@ -5,6 +5,9 @@ import { DurableObject } from 'cloudflare:workers';
 import ACCOUNTS from '../accounts.json';
 
 const REPO = 'ZoeTaurus/usforge', BRANCH = 'main';
+// the founders review new games (a founder's own upload needs one of the OTHER founders)
+const FOUNDERS = ['taurus', 'henrique', 'alex', 'igor'];
+const isFounder = name => FOUNDERS.includes(String(name).toLowerCase());
 const MAX_BYTES = 60 * 1024 * 1024, MAX_FILES = 1000, MAX_BINARIES = 35;   // (Workers can only make ~50 requests per upload…)
 const BLOB_BATCH = 30, BLOB_BATCH_BYTES = 12 * 1024 * 1024, MAX_ONE_FILE = 25 * 1024 * 1024;   // (…so pictures and sounds come first, in batches, via /api/blobs)
 const TEXT = /\.(html?|js|mjs|css|json|txt|md|svg|csv|xml|glsl|frag|vert|map)$/i;
@@ -25,6 +28,8 @@ export default {
       if (url.pathname === '/api/delete') return ok(await remove(req, env));
       if (url.pathname === '/api/member') return ok(await addMember(req, env));
       if (url.pathname === '/api/blobs') return ok(await blobs(req, env));
+      if (url.pathname === '/api/reviews') return ok(await reviews(req, env));
+      if (url.pathname === '/api/review') return ok(await review(req, env));
       throw fail(404, 'No such thing.');
     } catch (e) {
       return new Response(JSON.stringify({ error: e.msg || 'Something went wrong on our side. Try again in a minute.' }), { status: e.status || 500, headers: { 'content-type': 'application/json' } });
@@ -134,7 +139,7 @@ async function check(name, password) {
       const [iter, salt] = rest, base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
       got = hex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: new TextEncoder().encode(salt), iterations: +iter }, base, 256));
     }
-    if (got && same(got, rest[rest.length - 1])) return { name: key, admin: !!ACCOUNTS[key].admin };
+    if (got && same(got, rest[rest.length - 1])) return { name: key, admin: !!ACCOUNTS[key].admin, founder: isFounder(key) };
   }
   await new Promise(r => setTimeout(r, 600));   // slow down guessing
   throw fail(401, 'Wrong name or password.');
@@ -178,6 +183,11 @@ async function ownerCheck(env, head, slug, who) {
   const info = await readJson(env, `games/${slug}/game.json`, head);
   if (info && !who.admin && (info.owner || info.author || '').toLowerCase() !== who.name.toLowerCase()) throw fail(403, `“${slug}” belongs to ${info.owner || info.author}. Pick another folder name.`);
   return info;
+}
+// every file under a folder, with its git id (so files can be moved without re-uploading them)
+async function entriesUnder(env, head, prefix) {
+  const t = await gh(env, `/git/trees/${head}?recursive=1`);
+  return t.tree.filter(x => x.type === 'blob' && x.path.startsWith(prefix)).map(x => ({ path: x.path, sha: x.sha }));
 }
 async function existingPaths(env, head, slug) {
   const t = await gh(env, `/git/trees/${head}?recursive=1`);
@@ -246,7 +256,16 @@ async function upload(req, env) {
   if (total > MAX_BYTES) throw fail(400, `That game is over ${MAX_BYTES / 1024 / 1024} MB — too big.`);
   const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
   const before = await ownerCheck(env, head, slug, who);
-  const existing = before ? await existingPaths(env, head, slug) : [];
+  const waiting = await readJson(env, `review/${slug}/review.json`, head);   // an earlier submission still waiting?
+  if (waiting && !who.admin && waiting.owner.toLowerCase() !== who.name.toLowerCase()) throw fail(403, `“${slug}” is waiting for review for ${waiting.owner}. Pick another folder name.`);
+  const pendingFiles = waiting?.status === 'pending';
+  // one look at the project: the live game's files, and any version waiting for review
+  const everything = (before || waiting) ? await entriesUnder(env, head, '') : [];
+  const liveTree = everything.filter(e => e.path.startsWith(`games/${slug}/`)), reviewTree = everything.filter(e => e.path.startsWith(`review/${slug}/`));
+  // the files we build on: the waiting version if there is one, otherwise the live game
+  const baseTree = pendingFiles ? reviewTree.filter(e => !e.path.endsWith('/review.json')).map(e => ({ path: e.path.replace(`review/${slug}/`, `games/${slug}/`), sha: e.sha })) : liveTree;
+  const shaOf = new Map(baseTree.map(e => [e.path, e.sha]));
+  const existing = [...shaOf.keys()];
   const kept = replacing
     // new game files replace the old ones, but the cover picture stays unless a new one came with them
     ? (coverPath || files.some(f => rootCover(f.path)) ? [] : existing.filter(rootCover))
@@ -262,12 +281,85 @@ async function upload(req, env) {
   const cover = COVERS.find(c => all.has(`games/${slug}/${c}`));
   const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null,
     genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now };
-  const stale = existing.filter(p => !all.has(p) && !p.endsWith('/game.json')).map(path => ({ path, remove: true }));   // old files (and an old cover) that were replaced
-  await commit(env, head, [...files, ...stale,
-    { path: `games/${slug}/game.json`, text: JSON.stringify(info, null, 2) + '\n' },
+  // updates to games already on the site, and anything the admin (Taurus) uploads, go live straight away
+  if (who.admin || before) {
+    const livePaths = new Set(liveTree.map(e => e.path));
+    const fromWaiting = kept.filter(p => !livePaths.has(p) && shaOf.has(p)).map(p => ({ path: p, sha: shaOf.get(p) }));   // (files kept from a waiting version)
+    const stale = [...livePaths].filter(p => !all.has(p) && !p.endsWith('/game.json')).map(path => ({ path, remove: true }));   // old files (and an old cover) that were replaced
+    await commit(env, head, [...files, ...fromWaiting, ...stale, ...reviewTree.map(e => ({ path: e.path, remove: true })),
+      { path: `games/${slug}/game.json`, text: JSON.stringify(info, null, 2) + '\n' },
+      { path: 'games.json', text: relist(list, entry, slug) }],
+      `${before ? 'Update' : 'Add'} ${title} (by ${info.author}, via the upload page)`);
+    return { ok: true, slug, updated: !!before, pending: false };
+  }
+  // a brand-new game from anyone else waits in review/<slug>/ until a founder approves it
+  const toReview = p => p.replace(`games/${slug}/`, `review/${slug}/`);
+  const staged = [...files.map(f => ({ ...f, path: toReview(f.path) })), ...kept.filter(p => shaOf.has(p)).map(p => ({ path: toReview(p), sha: shaOf.get(p) }))];
+  const keep = new Set(staged.map(f => f.path));
+  const clear = reviewTree.filter(e => !keep.has(e.path) && !e.path.endsWith('/review.json')).map(e => ({ path: e.path, remove: true }));
+  const note = { slug, title, owner, author: info.author, submittedBy: who.name, founder: isFounder(who.name), submitted: now, kind: 'new', status: 'pending', info, entry };
+  await commit(env, head, [...staged, ...clear, { path: `review/${slug}/review.json`, text: JSON.stringify(note, null, 2) + '\n' }],
+    `Submit ${title} for review (by ${info.author})`);
+  return { ok: true, slug, updated: false, pending: true };
+}
+
+// ---------- reviews: founders approve or reject what's waiting ----------
+async function reviewNotes(env, head) {
+  const t = await gh(env, `/git/trees/${head}?recursive=1`);
+  const paths = t.tree.filter(x => x.type === 'blob' && /^review\/[a-z0-9-]+\/review\.json$/.test(x.path)).map(x => x.path);
+  return (await Promise.all(paths.map(p => readJson(env, p, head)))).filter(Boolean);
+}
+async function reviews(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password);
+  const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
+  const notes = await reviewNotes(env, head);
+  const mine = n => n.owner.toLowerCase() === who.name.toLowerCase() || n.submittedBy.toLowerCase() === who.name.toLowerCase();
+  const out = notes.filter(n => mine(n) || (who.founder && n.status === 'pending')).map(n => ({
+    slug: n.slug, title: n.title, author: n.author, submittedBy: n.submittedBy, submitted: n.submitted, kind: n.kind, status: n.status,
+    note: n.rejectNote || '', reviewer: n.reviewer || '', cover: n.entry?.cover ? n.entry.cover.replace(`games/${n.slug}/`, `review/${n.slug}/`) : null,
+    mine: mine(n), canReview: who.founder && n.status === 'pending' && n.submittedBy.toLowerCase() !== who.name.toLowerCase(),
+  }));
+  return { founder: who.founder, reviews: out.sort((a, b) => a.submitted - b.submitted) };
+}
+async function review(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password), slug = String(b.slug || ''), action = String(b.action || '');
+  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) throw fail(400, 'Unknown game.');
+  const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
+  const n = await readJson(env, `review/${slug}/review.json`, head);
+  if (!n) throw fail(404, 'That game isn’t waiting for review any more.');
+  const staged = await entriesUnder(env, head, `review/${slug}/`);
+  const own = n.submittedBy.toLowerCase() === who.name.toLowerCase() || n.owner.toLowerCase() === who.name.toLowerCase();
+
+  if (action === 'withdraw') {   // the uploader takes it back (or clears a "not approved" note)
+    if (!own && !who.admin) throw fail(403, 'Only the person who sent it can take it back.');
+    await commit(env, head, staged.map(e => ({ path: e.path, remove: true })), `Withdraw ${n.title} from review`);
+    return { ok: true };
+  }
+  if (!who.founder) throw fail(403, 'Only the founders can review games.');
+  if (n.status !== 'pending') throw fail(400, 'That one has already been reviewed.');
+  if (n.submittedBy.toLowerCase() === who.name.toLowerCase()) throw fail(403, 'You sent this one, so another founder has to review it.');
+
+  if (action === 'reject') {
+    const reason = String(b.note || '').trim().slice(0, 300);
+    const updated = { ...n, status: 'rejected', rejectNote: reason, reviewer: who.name, reviewed: Math.floor(Date.now() / 1000) };
+    await commit(env, head, [...staged.filter(e => !e.path.endsWith('/review.json')).map(e => ({ path: e.path, remove: true })),
+      { path: `review/${slug}/review.json`, text: JSON.stringify(updated, null, 2) + '\n' }], `Not approved: ${n.title} (reviewed by ${who.name})`);
+    return { ok: true };
+  }
+  if (action !== 'approve') throw fail(400, 'Approve or reject?');
+  // approve: move the files into games/<slug>/ (no re-upload — same git ids), replace the old version, list it
+  const live = await entriesUnder(env, head, `games/${slug}/`);
+  const moved = staged.filter(e => !e.path.endsWith('/review.json')).map(e => ({ path: e.path.replace(`review/${slug}/`, `games/${slug}/`), sha: e.sha }));
+  const incoming = new Set(moved.map(e => e.path));
+  const list = await readJson(env, 'games.json', head);
+  const entry = { ...n.entry, added: (list || []).find(g => g.slug === slug)?.added || Math.floor(Date.now() / 1000) };
+  await commit(env, head, [...moved,
+    ...live.filter(e => !incoming.has(e.path) && !e.path.endsWith('/game.json')).map(e => ({ path: e.path, remove: true })),
+    ...staged.map(e => ({ path: e.path, remove: true })),
+    { path: `games/${slug}/game.json`, text: JSON.stringify(n.info, null, 2) + '\n' },
     { path: 'games.json', text: relist(list, entry, slug) }],
-    `${before ? 'Update' : 'Add'} ${title} (by ${info.author}, via the upload page)`);
-  return { ok: true, slug, updated: !!before };
+    `Approve ${n.title} (by ${n.author}, reviewed by ${who.name})`);
+  return { ok: true };
 }
 
 // ---------- pictures and sounds, sent ahead in batches (each becomes a GitHub blob; the upload then points at them) ----------

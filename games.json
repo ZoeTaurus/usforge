@@ -1,5 +1,25 @@
 [
   {
+    "slug": "cashino",
+    "title": "CASHINO!",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "A gambling game; walk around the casino and make a lotta moolah!",
+    "cover": "games/cashino/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Casual",
+      "Simulation",
+      "Strategy"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790674136
+  },
+  {
     "slug": "rooftop-run",
     "title": "Rooftop Run",
     "author": "Milan",

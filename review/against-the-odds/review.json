@@ -7,7 +7,7 @@
   "founder": true,
   "submitted": 1790710619,
   "kind": "new",
-  "status": "pending",
+  "status": "rejected",
   "info": {
     "title": "Against the Odds",
     "author": "Igor",
@@ -41,5 +41,8 @@
     "next": "More levels",
     "build": true,
     "added": 1790710619
-  }
+  },
+  "rejectNote": "Fix the controls; all of them are reversed for some reason. also the game is kinda too.... simple. yknow?",
+  "reviewer": "Alex",
+  "reviewed": 1790710906
 }

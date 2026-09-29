@@ -46,16 +46,23 @@ function genWorld(seed, opts = {}){
     if (y >= WH-1 || (y >= WH-4 && R() < (y-(WH-5))/4)) t = T.BEDROCK;
     tiles[I(x,y)] = t; layer[I(x,y)] = L;
   }
-  // winding caves
-  for (let i=0;i<24;i++){
+  // winding caves: short, mostly one tile tall, plus a scattering of small pockets
+  for (let i=0;i<16;i++){
     let x = R()*WW, y = SURF+28+R()*(WH-SURF-40), a = R()*Math.PI*2;
-    const len = 30+R()*70, rad = R()<.3 ? 2 : 1;
+    const len = 10+R()*24, rad = R()<.12 ? 2 : 1;
     for (let s=0;s<len;s++){
       a += (R()-.5)*.7; x += Math.cos(a); y += Math.sin(a)*.6;
       for (let dy=-rad+1;dy<rad;dy++) for (let dx=-rad+1;dx<rad+1;dx++){
         const cx = x+dx|0, cy = y+dy|0;
         if (inb(cx,cy) && cy>SURF+20 && cy<WH-4 && tiles[I(cx,cy)]!==T.BEDROCK) tiles[I(cx,cy)] = T.AIR;
       }
+    }
+  }
+  for (let i=0;i<34;i++){                                           // little air pockets
+    const cx = ri(2, WW-3), cy = ri(SURF+22, WH-8), rx = 1 + R()*2, ry = 1 + R()*.8;
+    for (let y=Math.floor(cy-ry); y<=cy+ry; y++) for (let x=Math.floor(cx-rx); x<=cx+rx; x++){
+      const nx = (x-cx)/rx, ny = (y-cy)/ry;
+      if (nx*nx + ny*ny <= 1 && inb(x,y) && tiles[I(x,y)] !== T.BEDROCK) tiles[I(x,y)] = T.AIR;
     }
   }
   const d2y = d => SURF + d;
@@ -129,6 +136,7 @@ function breakTile(x,y){
   if (d.ore){
     if (game.opts.infinite || bagCount() < bagCap()){
       game.bag[t] = (game.bag[t]||0) + 1; game.stats.ores++; track('ore', t);
+      veinStreak(t, x, y);
       d.value >= 70 ? SFX.gem() : SFX.ore();
       floater(x*TS+8, y*TS, `+${d.name} $${d.value}`, rgb(d.c2));
       if (d.value >= 140) burst(x*TS+8, y*TS+8, rgb(d.c2), 16, 90, 0, .9, true);
@@ -419,4 +427,19 @@ function harvestDecor(x, y){
     SFX.chest(); msg(`Abandoned minecart! Coins + ${loot[0]} x${loot[1]}`, '#ffd24a', 2.5); track('cart');
   }
   return true;
+}
+
+// mining the same ore again within a few seconds builds a streak that pays a bonus
+function veinStreak(t, x, y){
+  const c = game.combo;
+  if (c && c.id === t && game.time - c.at < 4){ c.n++; c.at = game.time; }
+  else game.combo = { id:t, n:1, at:game.time };
+  const n = game.combo.n;
+  if (n >= 2){
+    const bonus = Math.max(1, Math.round(DEF[t].value * .15 * (n - 1)));
+    game.money += bonus; game.earned += bonus; track('earn', bonus);
+    floater(x*TS + 8, y*TS - 10, `VEIN x${n}  +$${bonus}`, '#ffd24a');
+    tone(520 + n*90, .08, 'square', .04);
+    if (n === 5) msg('Rich vein! Keep going!', '#ffd24a', 1.5);
+  }
 }

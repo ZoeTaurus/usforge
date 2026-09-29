@@ -43,10 +43,10 @@ function doRewind(){
   while (i > 0 && snaps[i].time > game.time - REWIND_SECS) i--;
   const s = snaps[i];
   snaps = snaps.slice(0, i);                                    // rewinding again goes further back
-  const keep = { stats: game.stats, runAch: game.runAch, won: game.won };
+  const keep = { stats: game.stats, runAch: game.runAch, won: game.won, scoreSent: game.scoreSent };
   tiles.set(s.tiles); deco.set(s.deco); decor.set(s.decor);
   game = Object.assign(clone(s.game), { over:false, paused:false, shopOpen:false, hint:null, banner:null, recall:null });
-  game.stats = keep.stats; game.runAch = keep.runAch; game.won = keep.won;
+  game.stats = keep.stats; game.runAch = keep.runAch; game.won = keep.won; game.scoreSent = keep.scoreSent;
   game.stats.rewinds = (game.stats.rewinds || 0) + 1;
   P = Object.assign({}, s.P, { iframes:2.5, hurtT:0, mining:null, kbx:0 });
   enemies = s.enemies.map(e => Object.assign({}, e));

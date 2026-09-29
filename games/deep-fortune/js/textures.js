@@ -852,3 +852,75 @@ function buildDecorArt(){
     for (const X of [3, 10]){ px(x, [30,30,34], X, TS-5, 3, 3); px(x, [90,90,100], X+1, TS-4, 1, 1); }
     return c; })();
 }
+
+
+// ============================================================
+//  Item icons: drawn as icons (not in-world tiles), outlined
+//  so they read clearly on the hotbar, in the shop and menus
+// ============================================================
+function outlined(src, col = '#120a14'){
+  const w = src.width, h = src.height, [c, x] = mkCanvas(w, h);
+  const d = src.getContext('2d').getImageData(0, 0, w, h).data, on = (X, Y) => X >= 0 && Y >= 0 && X < w && Y < h && d[(Y*w + X)*4 + 3] > 40;
+  x.fillStyle = col;
+  for (let Y=0; Y<h; Y++) for (let X=0; X<w; X++) if (!on(X, Y) && (on(X-1,Y) || on(X+1,Y) || on(X,Y-1) || on(X,Y+1))) x.fillRect(X, Y, 1, 1);
+  x.drawImage(src, 0, 0);
+  return c;
+}
+function icon(fn){ const [c, x] = mkCanvas(TS, TS); fn(x); return outlined(c); }
+function buildIcons(){
+  const wood = [150,98,48], woodLt = [200,146,82], woodDk = [92,58,26], iron = [96,96,110], ironLt = [168,168,184];
+  // ladder, leaning slightly
+  ICON.ladder = icon(x => {
+    for (let y=1; y<15; y++){ const o = Math.round((15 - y)*.18); px(x, woodDk, 3 + o, y, 2, 1); px(x, woodLt, 3 + o, y, 1, 1); px(x, woodDk, 10 + o, y, 2, 1); px(x, woodLt, 10 + o, y, 1, 1); }
+    for (const y of [3, 7, 11]){ const o = Math.round((15 - y)*.18); px(x, wood, 5 + o, y, 5, 2); px(x, woodLt, 5 + o, y, 5, 1); }
+  });
+  // support: a little timber frame with an X brace
+  ICON.support = icon(x => {
+    px(x, wood, 1, 2, 14, 3); px(x, woodLt, 1, 2, 14, 1); px(x, woodDk, 1, 4, 14, 1);
+    for (const X of [2, 11]){ px(x, wood, X, 5, 3, 10); px(x, woodLt, X, 5, 1, 10); }
+    for (let k=0;k<6;k++){ px(x, woodDk, 5 + k, 6 + k, 1, 1); px(x, woodDk, 10 - k, 6 + k, 1, 1); }
+    px(x, ironLt, 3, 3, 1, 1); px(x, ironLt, 12, 3, 1, 1); px(x, [110,106,118], 1, 14, 5, 1); px(x, [110,106,118], 10, 14, 5, 1);
+  });
+  // torch with a big bright flame
+  ICON.torch = icon(x => {
+    px(x, woodDk, 7, 7, 3, 8); px(x, woodLt, 7, 7, 1, 8); px(x, iron, 6, 6, 5, 2); px(x, ironLt, 6, 6, 5, 1);
+    px(x, [216,64,26], 6, 1, 5, 5); px(x, [216,64,26], 7, 0, 3, 1);
+    px(x, [255,138,30], 7, 2, 3, 4); px(x, [255,214,90], 8, 3, 1, 3); px(x, [255,250,220], 8, 4, 1, 1);
+  });
+  // a dynamite bundle with a lit fuse
+  ICON.dynamite = icon(x => {
+    for (let k=0;k<3;k++){ const X = 2 + k*4; px(x, [168,32,28], X, 5, 4, 10); px(x, [220,70,60], X, 5, 2, 10); px(x, [245,120,108], X, 5, 1, 10); }
+    px(x, [236,226,196], 2, 9, 12, 3); px(x, [255,250,230], 2, 9, 12, 1);
+    px(x, [70,50,34], 8, 2, 1, 3); px(x, [70,50,34], 9, 1, 2, 1); px(x, [255,230,120], 11, 0, 2, 2); px(x, [255,140,40], 12, 1, 1, 1);
+  });
+  // a plank platform with brackets
+  ICON.platform = icon(x => {
+    px(x, wood, 0, 5, 16, 4); px(x, woodLt, 0, 5, 16, 1); px(x, woodDk, 0, 8, 16, 1);
+    px(x, woodDk, 5, 5, 1, 4); px(x, woodDk, 11, 5, 1, 4); px(x, ironLt, 2, 6, 1, 1); px(x, ironLt, 8, 6, 1, 1); px(x, ironLt, 14, 6, 1, 1);
+    for (let k=0;k<4;k++){ px(x, woodDk, 2 + k, 9 + k, 2, 1); px(x, woodDk, 12 - k, 9 + k, 2, 1); }
+  });
+  // a bridge post standing on a stone footing
+  ICON.post = icon(x => {
+    px(x, wood, 6, 1, 4, 12); px(x, woodLt, 6, 1, 1, 12); px(x, woodDk, 9, 1, 1, 12); px(x, woodDk, 7, 5, 1, 2);
+    px(x, iron, 5, 3, 6, 2); px(x, ironLt, 5, 3, 6, 1); px(x, iron, 5, 9, 6, 2); px(x, ironLt, 5, 9, 6, 1);
+    px(x, [104,100,110], 3, 13, 10, 3); px(x, [150,146,156], 3, 13, 10, 1);
+  });
+  // a first-aid kit
+  ICON.medkit = icon(x => {
+    px(x, [110,110,122], 6, 1, 4, 2); px(x, [236,236,240], 1, 3, 14, 12); px(x, [255,255,255], 1, 3, 14, 2); px(x, [196,196,208], 1, 13, 14, 2);
+    px(x, [216,52,48], 7, 5, 2, 8); px(x, [216,52,48], 4, 8, 8, 2); px(x, [255,120,110], 7, 5, 1, 2);
+  });
+  // a recall beacon: glowing crystal on a base, with signal waves
+  ICON.beacon = icon(x => {
+    px(x, [60,60,72], 4, 12, 8, 3); px(x, [110,110,124], 4, 12, 8, 1);
+    px(x, [40,120,210], 6, 5, 4, 7); px(x, [110,210,255], 6, 5, 2, 7); px(x, [230,250,255], 6, 5, 1, 3); px(x, [40,120,210], 7, 3, 2, 2);
+    px(x, [140,220,255], 2, 4, 1, 3); px(x, [140,220,255], 13, 4, 1, 3); px(x, [140,220,255], 1, 2, 1, 1); px(x, [140,220,255], 14, 2, 1, 1);
+  });
+  // an ore scanner: handheld radar with a sweep and blips
+  ICON.scanner = icon(x => {
+    px(x, [52,52,64], 2, 3, 12, 11); px(x, [86,86,100], 2, 3, 12, 1); px(x, [36,36,46], 2, 13, 12, 1);
+    px(x, [16,48,32], 4, 5, 8, 6); px(x, [60,200,120], 4, 8, 8, 1); px(x, [60,200,120], 8, 5, 1, 6);
+    px(x, [160,255,190], 8, 8, 3, 1); px(x, [160,255,190], 9, 7, 1, 1); px(x, [255,220,90], 5, 6, 1, 1); px(x, [255,120,200], 10, 9, 1, 1);
+    px(x, [220,60,60], 11, 12, 1, 1); px(x, [110,110,124], 7, 1, 1, 2);
+  });
+}

@@ -222,10 +222,19 @@ function recordBest(extra = {}){
   if (extra.retired) best.retired = best.retired ? Math.min(best.retired, extra.retired) : extra.retired;
   store.set(BEST_KEY, best);
 }
+// The leaderboard only takes Career runs on Normal difficulty (the default), once per run:
+// the score is the total money earned during that run.
+function reportRunScore(){
+  if (!game || game.mode !== 'career' || (game.diff || 'normal') !== 'normal' || game.scoreSent) return;
+  const score = Math.round(game.earned);
+  if (!Number.isFinite(score) || score < 0 || score >= 1e12) return;
+  game.scoreSent = true;
+  sendScoreToUsForge(score);
+}
 function checkWin(){
   if (game.mode !== 'career' || game.won || game.money < goalOf()) return;
   game.won = true; game.paused = true; game.shopOpen = false;
-  track('win'); saveLife(); recordBest({ retired: game.time }); saveGame();
+  track('win'); saveLife(); recordBest({ retired: game.time }); reportRunScore(); saveGame();
   SFX.win();
   $('endTitle').textContent = 'RETIRED RICH!'; $('endTitle').className = 'win';
   $('endText').innerHTML = `You made <span class="money">${fmtMoney(game.money)}</span> and lived to spend it.<br><br>Deepest dig: ${game.maxDepth}m<br>Time: ${fmtTime(game.time)}` + `<br>Ore mined: ${game.stats.ores} &nbsp; Monsters: ${game.stats.kills}<br>Chests: ${game.stats.chests} &nbsp; Contracts: ${game.stats.contracts||0}` + runAchHTML();
@@ -239,7 +248,7 @@ function die(cause){
   burst(pcx(), pcy(), '#c0392b', 36, 90);
   track('death'); saveLife();
   // with rewind on, keep the save until the player decides not to rewind
-  if (game.mode === 'career'){ recordBest(); if (!settings.rewind) store.del(SAVE_KEY); }
+  if (game.mode === 'career'){ recordBest(); if (!settings.rewind){ store.del(SAVE_KEY); reportRunScore(); } }   // with rewind on, the run only ends when the player gives up
   setTimeout(() => {
     $('endTitle').textContent = 'YOU DIED'; $('endTitle').className = 'lose';
     $('endText').innerHTML = `${cause}<br><br>Cash: <span class="money">${fmtMoney(game.money)}</span><br>Total earned: ${fmtMoney(game.earned)}<br>Deepest dig: ${game.maxDepth}m &nbsp; Time: ${fmtTime(game.time)}` + `<br>Ore mined: ${game.stats.ores} &nbsp; Monsters: ${game.stats.kills}<br>Chests: ${game.stats.chests} &nbsp; Contracts: ${game.stats.contracts||0}` + runAchHTML();
@@ -252,7 +261,7 @@ function die(cause){
 $('continueBtn').onclick = () => { SFX.click(); hideScreens(); game.paused = false; };
 $('rewindBtn').onclick = () => { doRewind(); };
 $('pauseRewind').onclick = () => { if (doRewind()) SFX.click(); };
-const giveUp = () => { if (game.over && game.mode === 'career') store.del(SAVE_KEY); };
+const giveUp = () => { if (game.over && game.mode === 'career'){ store.del(SAVE_KEY); reportRunScore(); } };
 $('restartBtn').onclick = () => { SFX.click(); giveUp(); startGame(game.mode, game.mode === 'free' ? game.opts : undefined); };
 $('homeBtn').onclick = () => { SFX.click(); giveUp(); goHome(); };
 

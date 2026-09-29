@@ -15,7 +15,7 @@ function makeGame(mode, opts){
            time:0, lastLayer:T.DIRT, banner:null, recall:null, stats:{ ores:0, kills:0, chests:0, contracts:0 } };
 }
 function careerOpts(){ return { invincible:false, infinite:false, maxGear:false, caveins:true, hazards:true, enemies:true }; }
-function clearEntities(){ particles = []; floaters = []; messages = []; enemies = []; pickups = []; bombs = []; flashes = []; boss = null; fireballs = []; spawnT = 3; mapOpen = false; fadeA = 1; look.x = look.y = 0; resetRewind(); rainLevel = 0; if (rainGain && actx) rainGain.gain.setTargetAtTime(0, actx.currentTime, .2); }
+function clearEntities(){ particles = []; floaters = []; messages = []; enemies = []; pickups = []; bombs = []; flashes = []; boss = null; fireballs = []; spawnT = 10; mapOpen = false; fadeA = 1; look.x = look.y = 0; resetRewind(); rainLevel = 0; if (rainGain && actx) rainGain.gain.setTargetAtTime(0, actx.currentTime, .2); }
 
 function startGame(mode, freeOpts, diffKey){
   const opts = mode === 'free' ? Object.assign({}, freeDefaults, freeOpts) : careerOpts();
@@ -143,6 +143,7 @@ function loop(t){
 
 // ---------- boot ----------
 buildArt();
+buildIcons();                 // item icons (after the in-world art they're based on)
 resize();
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 200));

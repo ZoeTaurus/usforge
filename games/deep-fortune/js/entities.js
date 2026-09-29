@@ -4,7 +4,7 @@
 //  recall beacon
 // ============================================================
 let enemies = [], pickups = [], bombs = [], flashes = [];
-let spawnT = 2;
+let spawnT = 8;
 
 //                name            hp  dmg  speed  fly    minDepth  size    loot  spawn weight by depth
 const ENEMY = {
@@ -45,10 +45,11 @@ function torchNear(x, y, r){
 function trySpawn(){
   if (game.opts.enemies === false) return;
   const px = Math.floor(pcx()/TS), py = Math.floor(pcy()/TS), dep = depthOf(py);
-  if (dep < 10) return;
-  if (enemies.length >= Math.round(Math.min(8, 2 + Math.floor(dep/40)) * diff().mobs)) return;
+  if (dep < 14) return;
+  if (enemies.length >= Math.max(1, Math.round(Math.min(4, 1 + Math.floor(dep/70)) * diff().mobs))) return;
+  if (Math.random() < .45) return;                            // most spawn checks come up empty
   for (let tries=0; tries<14; tries++){
-    const a = Math.random()*Math.PI*2, r = 10 + Math.random()*12;
+    const a = Math.random()*Math.PI*2, r = 14 + Math.random()*10;       // well out of sight
     const x = Math.round(px + Math.cos(a)*r), y = Math.round(py + Math.sin(a)*r*.7);
     if (!inb(x,y) || y < SURF+10 || tiles[I(x,y)] !== T.AIR || inArena(x,y)) continue;
     const d = depthOf(y), pool = Object.keys(ENEMY).filter(k => d >= ENEMY[k].minD);
@@ -59,7 +60,8 @@ function trySpawn(){
     if (def.ceiling){ if (!isSolid(x,y-1)) continue; }
     else if (!def.fly && !isSolid(x,y+1)) continue;
     if (def.tall && get(x,y-1) !== T.AIR) continue;
-    if (torchNear(x, y, 6)) continue;                       // light keeps monsters away
+    if (torchNear(x, y, 7)) continue;                       // light keeps monsters away
+    if (seen[I(x,y)] && Math.random() < .7) continue;       // they prefer places you haven't lit up
     const hp = Math.round(def.hp * (1 + d/250));
     enemies.push({ type, def, x: x*TS + (TS-def.w)/2, y: def.fly ? y*TS+4 : (y+1)*TS - def.h, vx:0, vy:0,
                    hp, maxHp:hp, face: Math.random()<.5 ? 1 : -1, t: Math.random()*5, ai:0, tvx:0, tvy:0,
@@ -72,14 +74,14 @@ function trySpawn(){
 
 // ---------- AI ----------
 function stepEnemies(dt){
-  spawnT -= dt; if (spawnT <= 0){ spawnT = 1.3; trySpawn(); }
+  spawnT -= dt; if (spawnT <= 0){ spawnT = 4 + Math.random()*3; trySpawn(); }
   const px = pcx(), py = pcy();
   for (let i=enemies.length-1;i>=0;i--){
     const e = enemies[i], d = e.def;
     e.t += dt; e.flash -= dt; e.cool -= dt; e.squash = Math.max(0, e.squash - dt);
     const ex = e.x + d.w/2, ey = e.y + d.h/2, dx = px - ex, dy = py - ey, dist = Math.hypot(dx, dy) || 1;
     if (dist > 42*TS){ enemies.splice(i,1); continue; }
-    const aggro = !game.over && dist < (d.fly ? 9 : 11)*TS;
+    const aggro = !game.over && dist < (d.fly ? 6.5 : 7.5)*TS;
     if (e.type === 'bat' || e.type === 'wisp'){
       const k = Math.min(1, dt*(e.type === 'bat' ? 3 : 1.6));
       if (e.cool > 0){ /* retreating after a bite */ }

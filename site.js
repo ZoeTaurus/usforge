@@ -163,6 +163,33 @@
     document.body.prepend(c); Embers(c, { count: 16, alpha: .38, speed: .5 });
   });
 
-  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, GENRE_GROUPS, TEAM, stats, recent, played, stoked, stoke, FLAME, toast };
+  // ---------- live count: this tab checks in every 30s while it's visible; the site shows who's here ----------
+  const LIVE = { online: 0, games: {}, ready: false };
+  let tabId = '', playingNow = '';
+  try { tabId = sessionStorage.getItem('usforge-tab') || ''; } catch (e) {}
+  if (!/^[a-z0-9]{8,32}$/.test(tabId)) { tabId = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join(''); try { sessionStorage.setItem('usforge-tab', tabId); } catch (e) {} }
+  const hereUrl = leave => `/api/here?id=${tabId}&g=${encodeURIComponent(playingNow)}${leave ? '&leave=1' : ''}`;
+  function paintLive() {
+    for (const el of document.querySelectorAll('[data-live]')) {   // "● 2 playing" wherever a page asks for it
+      const n = el.dataset.live === '*' ? LIVE.online : LIVE.games[el.dataset.live] || 0;
+      el.hidden = !LIVE.ready || !n;
+      if (n) el.innerHTML = `<i class="live-dot" aria-hidden="true"></i>${n} ${el.dataset.live === '*' ? 'online now' : 'playing' + (el.dataset.now !== undefined ? ' now' : '')}`;
+    }
+    dispatchEvent(new CustomEvent('usforge-live', { detail: LIVE }));
+  }
+  async function beat() {
+    if (document.hidden) return;
+    try {
+      const r = await fetch(hereUrl(false), { method: 'POST', cache: 'no-store' });
+      if (!r.ok) return;
+      Object.assign(LIVE, await r.json(), { ready: true }); paintLive();
+    } catch (e) {}
+  }
+  const leave = () => { try { navigator.sendBeacon?.(hereUrl(true)); } catch (e) {} };
+  addEventListener('DOMContentLoaded', () => { beat(); setInterval(beat, 30000); });
+  addEventListener('visibilitychange', () => document.hidden ? leave() : beat());
+  addEventListener('pagehide', leave);
+
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

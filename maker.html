@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="style.css?v=28">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=23"></script>
+<script src="site.js?v=24"></script>
 </head>
 <body>
 <div class="wrap">
@@ -57,7 +57,7 @@
   const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
   const P = g => stats?.plays[g.slug] || 0, S = g => stats?.stokes[g.slug] || 0;
   const card = (g, i) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
-      <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : ''}<span class="glint" aria-hidden="true"></span></div></a>
+      <a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${g.dev ? `<span class="tag dev">${g.build ? 'Early build' : 'Coming soon'}</span>` : `<span class="tag live-tag" data-live="${esc(g.slug)}" hidden></span>`}<span class="glint" aria-hidden="true"></span></div></a>
       <div class="meta"><b>${esc(g.title)}</b>
         ${stats && !g.dev ? `<span class="counts"><span>▶ ${P(g).toLocaleString()}</span><span class="${U.stoked(g.slug) ? 'is-mine' : ''}">${U.FLAME} ${S(g).toLocaleString()}</span></span>` : ''}
 </div>
@@ -91,6 +91,7 @@
     $('gamesTitle').textContent = `${person.name}’s games`;
     $('gamesNote').textContent = first && isFinite(first) ? `first one added ${new Date(first * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}` : '';
     $('games').innerHTML = done.map(card).join('');
+    U.paintLive();
     $('devShelf').hidden = !dev.length;
     $('dev').innerHTML = dev.map(card).join('');
     $('crew').innerHTML = U.TEAM.filter(p => p !== known).map(p => {

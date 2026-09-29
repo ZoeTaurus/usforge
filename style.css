@@ -560,3 +560,13 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 /* upload: genres grouped */
 #fGenres { display: grid; gap: 12px; }
 .genre-group { display: grid; gap: 6px; }
+
+/* ---------- live count ---------- */
+.live-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #35d07f; box-shadow: 0 0 0 0 rgba(53, 208, 127, .6); animation: live-pulse 2s ease-out infinite; vertical-align: middle; }
+@keyframes live-pulse { 70% { box-shadow: 0 0 0 7px rgba(53, 208, 127, 0); } 100% { box-shadow: 0 0 0 0 rgba(53, 208, 127, 0); } }
+.stat-live { font: 13px var(--sans); color: var(--dim); align-items: center; }
+.stat-live::before { order: -2; }
+.tag.live-tag { left: 8px; right: auto; background: rgba(8, 12, 20, .78); color: #d8ffe9; border-color: rgba(53, 208, 127, .5); display: inline-flex; align-items: center; backdrop-filter: blur(4px); }
+.tag.live-tag[hidden] { display: none; }
+.live-fact { color: #35d07f; display: inline-flex; align-items: center; }
+@media (prefers-reduced-motion: reduce) { .live-dot { animation: none; } }

@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="style.css?v=28">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=23"></script>
+<script src="site.js?v=24"></script>
 </head>
 <body>
 
@@ -71,7 +71,7 @@
           ${g.blurb ? `<p class="desc">${esc(g.blurb)}</p>` : ''}
           ${g.dev && g.progress != null ? `<div class="devprog"><span class="progress"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span></div>` : ''}
           ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
-          <div class="facts"><span>${ago(g.added)}</span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          <div class="facts"><span>${ago(g.added)}</span><span class="live-fact" data-live="${esc(g.slug)}" data-now hidden></span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
           <div class="acts">
             ${g.build === false ? `<span class="soon">Nothing to play yet. ${esc(g.author)} is still making it.</span>` : g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">${g.dev ? '▶ Play early build' : '▶ Play'}</button>`}
             ${g.build === false ? '' : `<button class="stoke" id="stokeBtn" type="button" title="Stoke the fire: tell ${esc(g.author)} you love this game">${UsForge.FLAME}<span id="stokeLbl">Stoke</span><b id="stokeN"></b></button>`}
@@ -86,6 +86,7 @@
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
     document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play
     for (const el of document.querySelectorAll('.tipline')) el.hidden = !UsForge.supportUrl;
+    UsForge.paintLive();
     UsForge.stats().then(st => { if (st) { showPlays(st.plays); showStokes(st.stokes); } });
     $('stokeBtn')?.addEventListener('click', doStoke);
     if (location.hash === '#play' && !g.url && g.build !== false) { history.replaceState(null, '', location.pathname + location.search); history.pushState({ playing: true }, '', location.href); play(); }
@@ -130,7 +131,7 @@
   // ---------- playing ----------
   function play() {
     const g = game; if (!g || g.url || g.build === false) return;
-    countPlay(); UsForge.played(g.slug);
+    countPlay(); UsForge.played(g.slug); UsForge.setPlaying(g.slug);
     const src = `games/${encodeURIComponent(g.slug)}/`;
     $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
     $('alone').href = src;
@@ -148,7 +149,7 @@
   }
   function stop() {   // back to the game page (the game is removed so it stops making noise)
     $('player').hidden = true; document.body.classList.remove('playing');
-    frame?.remove(); frame = null; window.UsForge?.refreshScroll();
+    frame?.remove(); frame = null; window.UsForge?.refreshScroll(); UsForge.setPlaying(null);
     setTimeout(() => $('playBtn')?.focus(), 50);
   }
   $('back').onclick = () => history.state?.playing ? history.back() : stop();

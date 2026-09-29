@@ -17,7 +17,7 @@ export default {
     const url = new URL(req.url);
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
-      if (['/api/plays', '/api/stats', '/api/stoke'].includes(url.pathname)) return await plays(req, env, url);
+      if (['/api/plays', '/api/stats', '/api/stoke', '/api/here'].includes(url.pathname)) return await plays(req, env, url);
       if (req.method !== 'POST') throw fail(405, 'Use POST.');
       if (url.pathname === '/api/login') return ok(await login(req));
       if (url.pathname === '/api/upload') return ok(await upload(req, env));
@@ -44,6 +44,19 @@ export class Plays extends DurableObject {
     return c;
   }
   async stats() { return { plays: await this.all('counts'), stokes: await this.all('stokes') }; }
+  // who's here right now: each open tab checks in every ~30s (kept in memory only — nothing is saved)
+  here = new Map();
+  beat(id, game, leave) {
+    const now = Date.now();
+    if (leave) this.here.delete(id);
+    else if (this.here.has(id) || this.here.size < 5000) this.here.set(id, { game, t: now });
+    const games = {};
+    for (const [k, v] of this.here) {
+      if (now - v.t > 70000) { this.here.delete(k); continue; }
+      if (v.game) games[v.game] = (games[v.game] || 0) + 1;
+    }
+    return { online: this.here.size, games };
+  }
 }
 async function knownSlug(env, url) {
   const slug = url.searchParams.get('g') || '';
@@ -56,6 +69,12 @@ const fresh = data => new Response(JSON.stringify(data), { headers: { 'content-t
 async function plays(req, env, url) {
   const box = env.PLAYS.get(env.PLAYS.idFromName('all'));
   if (url.pathname === '/api/stats') return fresh(await box.stats());
+  if (url.pathname === '/api/here') {   // live count: POST ?id=<random tab id>&g=<game being played, or empty>[&leave=1]
+    if (req.method !== 'POST') throw fail(405, 'Use POST.');
+    const id = url.searchParams.get('id') || '', game = url.searchParams.get('g') || '';
+    if (!/^[a-z0-9]{8,32}$/.test(id) || !/^[a-z0-9-]{0,60}$/.test(game)) throw fail(400, 'Bad check-in.');
+    return new Response(JSON.stringify(await box.beat(id, game, url.searchParams.get('leave') === '1')), { headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  }
   if (url.pathname === '/api/stoke') {
     if (req.method !== 'POST') throw fail(405, 'Use POST.');
     await box.hit(await knownSlug(env, url), 'stokes');

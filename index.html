@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="style.css?v=28">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=23"></script>
+<script src="site.js?v=24"></script>
 <script>
   // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
   try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
@@ -57,6 +57,7 @@
       <div class="stat"><b id="statMakers">0</b><span>Makers</span></div>
       <div class="stat" id="statPlaysBox" hidden><b id="statPlays">0</b><span>Plays</span></div>
       <div class="stat" id="statStokesBox" hidden><b id="statStokes">0</b><span>Stokes</span></div>
+      <div class="stat stat-live" data-live="*" hidden></div>
       <div class="stat" id="statDevBox" hidden><b id="statDev">0</b><span>In development</span></div>
     </div>
   </section>
@@ -147,7 +148,7 @@
   // one game card, used in every shelf and grid
   const card = (g, i = 0, { blurb = true } = {}) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
       <a class="card tilt" href="${esc(href(g))}" data-cover>
-        <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${tagOf(g)}<span class="glint" aria-hidden="true"></span></div>
+        <div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}${tagOf(g)}<span class="tag live-tag" data-live="${esc(g.slug)}" hidden></span><span class="glint" aria-hidden="true"></span></div>
       </a>
       <div class="meta">
         <b>${esc(g.title)}</b>
@@ -165,7 +166,7 @@
     const day = new Date(), key = `${day.getFullYear()}-${day.getMonth() + 1}-${day.getDate()}`;
     const g = pool[[...key].reduce((h, c) => (h * 131 + c.charCodeAt(0)) >>> 0, 17) % pool.length];
     $('spotlight').innerHTML = `
-      <a class="spot-cover tilt cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}" data-cover tabindex="-1" aria-hidden="true">${cover(g, true)}<span class="glint"></span></a>
+      <a class="spot-cover tilt cover${g.pixel ? ' pixel' : ''}" href="${esc(href(g))}" data-cover tabindex="-1" aria-hidden="true">${cover(g, true)}<span class="tag live-tag" data-live="${esc(g.slug)}" hidden></span><span class="glint"></span></a>
       <div class="spot-text">
         <span class="eyebrow">Game of the day · ${day.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}</span>
         <h2>${esc(g.title)}</h2>
@@ -254,10 +255,10 @@
       tickTo('statPlays', sum(stats.plays)); tickTo('statStokes', sum(stats.stokes));
     }
   }
-  function all() { paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); countUp(); }
+  function all() { paintSpotlight(); paintShelves(); paintMakers(); paintGenres(); paint(); countUp(); U.paintLive(); }
 
-  $('q').addEventListener('input', paint);
-  $('sort').addEventListener('change', paint);
+  $('q').addEventListener('input', () => { paint(); U.paintLive(); });
+  $('sort').addEventListener('change', () => { paint(); U.paintLive(); });
   $('makers').addEventListener('change', () => { by = $('makers').value; syncUrl(); paint(); });
   $('genres').addEventListener('change', () => { genre = $('genres').value; syncUrl(); paint(); });
   $('surprise').onclick = () => {

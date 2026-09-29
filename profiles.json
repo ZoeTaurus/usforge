@@ -1,5 +1,10 @@
 {
   "Taurus": {
     "icon": "gem"
+  },
+  "Alex": {
+    "icon": "potato",
+    "bio": "i like potatoes :)",
+    "fav": "pirate-madness"
   }
 }

@@ -9,9 +9,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=29"></script>
+<script src="site.js?v=30"></script>
 </head>
 <body>
 <div class="wrap">
@@ -43,6 +43,11 @@
     <p>A game needs an <code>index.html</code> (plus any other files it uses). If your game is a Claude artifact, ask Claude in that chat: <em>“give me this game as an HTML file I can download.”</em> A link also works — the card then opens it in a new tab.</p>
     <p><b>Game made of several files or folders?</b> Zip it into one file: on a Mac, right-click the game’s folder → <b>Compress</b>; on Windows, right-click → <b>Send to → Compressed (zipped) folder</b>. Send or upload that <code>.zip</code> — UsForge unpacks it by itself.</p>
     <p class="dim">Nice extras: a screenshot named <code>cover.png</code> in the folder becomes the game’s card picture.</p>
+
+    <h2 id="leaderboards">Add a leaderboard to your game</h2>
+    <p>UsForge can show a top-10 leaderboard on your game’s page. When a round ends, your game just sends its score with one line of code:</p>
+    <pre><code>parent.postMessage({ usforge: 'score', score: 1234 }, '*');</code></pre>
+    <p class="dim">Fewest wins, like golf or a speedrun time? Add <code>order: 'low'</code>. Want a label? Add <code>unit: 'points'</code>. The player then gets asked for a nickname. Made your game with Claude? Just ask it: <em>“When the game ends, send the score to UsForge with parent.postMessage({ usforge: 'score', score: SCORE }, '*').”</em></p>
 
     <h2>House rules</h2>
     <ol>

@@ -55,6 +55,14 @@
       gear.href = 'settings.html'; gear.className = 'gear-btn'; gear.title = 'Settings'; gear.setAttribute('aria-label', 'Settings'); gear.textContent = '⚙';
       if (/settings(\.html)?$/.test(location.pathname)) gear.setAttribute('aria-current', 'page');
       spot.append(gear);
+      // "You" (favorites, stats, badges) in the menu
+      const nav = spot.closest('nav');
+      if (nav && !nav.querySelector('.you-link')) {
+        const you = document.createElement('a');
+        you.href = '/you.html'; you.className = 'you-link'; you.innerHTML = '<span aria-hidden="true">♥</span> You';
+        if (/\/you(\.html)?$/.test(location.pathname)) you.setAttribute('aria-current', 'page');
+        nav.insertBefore(you, spot);
+      }
       const app = document.createElement('button');
       app.type = 'button'; app.className = 'app-btn'; app.hidden = true; app.innerHTML = '<span aria-hidden="true">⤓</span> Get the app';
       app.onclick = () => install();
@@ -115,7 +123,18 @@
   // this browser's own memory: games played recently, and games it has stoked
   const store = { get(k, d) { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
   const recent = () => store.get('usforge-recent', []);
-  const played = slug => store.set('usforge-recent', [slug, ...recent().filter(s => s !== slug)].slice(0, 8));
+  const played = slug => {
+    store.set('usforge-recent', [slug, ...recent().filter(s => s !== slug)].slice(0, 8));
+    const n = store.get('usforge-plays', {}); n[slug] = (n[slug] || 0) + 1; store.set('usforge-plays', n);   // your own play counts
+    const h = new Date().getHours(); if (h < 5) store.set('usforge-nightowl', true);
+  };
+  // ---------- "You": favorites, play time and badges (this browser only; no account) ----------
+  const favs = () => store.get('usforge-favs', []);
+  const isFav = slug => favs().includes(slug);
+  const toggleFav = slug => { const on = !isFav(slug); store.set('usforge-favs', on ? [slug, ...favs()] : favs().filter(s => s !== slug)); return on; };
+  const addTime = (slug, secs) => { const t = store.get('usforge-time', {}); t[slug] = (t[slug] || 0) + secs; store.set('usforge-time', t); };
+  (() => { const d = new Date().toISOString().slice(0, 10), days = store.get('usforge-days', []); if (!days.includes(d)) store.set('usforge-days', [...days, d].slice(-400)); })();
+  const flag = k => store.set('usforge-' + k, true);
   const stoked = slug => store.get('usforge-stoked', []).includes(slug);
   async function stoke(slug) {
     if (stoked(slug)) return null;
@@ -222,8 +241,13 @@
   addEventListener('keydown', e => { if (e.key === 'Escape' && whoPanel) closeWho(); });
   addEventListener('resize', placeWho);
 
+  // a tab you switch away from keeps counting for 5 minutes (browsers slow background timers to about once a
+  // minute, which is enough); after that it drops out. Closing the tab removes it straight away.
+  const AWAY_MS = 5 * 60 * 1000;
+  let hiddenSince = document.hidden ? Date.now() : 0, gone = false;
   async function beat() {
-    if (document.hidden) return;
+    if (document.hidden && hiddenSince && Date.now() - hiddenSince > AWAY_MS) { if (!gone) { gone = true; leave(); } return; }
+    gone = false;
     try {
       const r = await fetch(hereUrl(false), { method: 'POST', cache: 'no-store' });
       if (!r.ok) return;
@@ -232,7 +256,7 @@
   }
   const leave = () => { try { navigator.sendBeacon?.(hereUrl(true)); } catch (e) {} };
   addEventListener('DOMContentLoaded', () => { beat(); setInterval(beat, 30000); });
-  addEventListener('visibilitychange', () => document.hidden ? leave() : beat());
+  addEventListener('visibilitychange', () => { if (document.hidden) hiddenSince = Date.now(); else { hiddenSince = 0; beat(); } });
   addEventListener('pagehide', leave);
 
   // ---------- "Get the app": install UsForge (a real prompt where the browser allows it, otherwise a short how-to) ----------
@@ -279,6 +303,6 @@
     document.body.prepend(bar);
   });
 
-  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast };
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast, store, favs, isFav, toggleFav, addTime, flag };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

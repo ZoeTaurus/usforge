@@ -72,6 +72,8 @@
     V.meta.unseed();
     V.ui.hud(true);
     V.ui.showOver(S, isBest, summary);
+    // on UsForge, offer the score for the game's leaderboard (fair runs only)
+    if (!S.bot && !S.cheated && window.parent !== window) try { window.parent.postMessage({ usforge: 'score', score: S.score, unit: 'points' }, '*'); } catch (e) {}
   }
 
   // ---------- waves & upgrades ----------

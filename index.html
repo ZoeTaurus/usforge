@@ -11,9 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=29"></script>
+<script src="site.js?v=30"></script>
 <script>
   // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
   try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
@@ -70,6 +70,11 @@
   <section class="shelf" id="shelfPicks" hidden>
     <div class="shelf-head"><h2>Founder picks</h2><span class="shelf-note">starred by Lazy Studios</span></div>
     <div class="row" id="rowPicks"></div>
+  </section>
+
+  <section class="shelf" id="shelfFavs" hidden>
+    <div class="shelf-head"><h2>Your favorites</h2><a class="shelf-note" href="you.html">see all on your page →</a></div>
+    <div class="row" id="rowFavs"></div>
   </section>
 
   <section class="shelf" id="shelfRecent" hidden>
@@ -205,6 +210,9 @@
     const picked = picks.map(p => bySlug[p.slug]).filter(g => g && !g.dev);
     $('shelfPicks').hidden = !picked.length;
     $('rowPicks').innerHTML = picked.map((g, i) => card(g, i, { blurb: false })).join('');
+    const favs = U.favs().map(s => bySlug[s]).filter(Boolean).slice(0, 8);
+    $('shelfFavs').hidden = !favs.length;
+    $('rowFavs').innerHTML = favs.map((g, i) => card(g, i, { blurb: false })).join('');
     const recent = U.recent().map(s => bySlug[s]).filter(Boolean).slice(0, 6);
     $('shelfRecent').hidden = !recent.length;
     $('rowRecent').innerHTML = recent.map((g, i) => card(g, i, { blurb: false })).join('');

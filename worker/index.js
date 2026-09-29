@@ -22,6 +22,7 @@ export default {
     if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(req);
     try {
       if (['/api/plays', '/api/stats', '/api/stoke', '/api/here'].includes(url.pathname)) return await plays(req, env, url);
+      if (url.pathname === '/api/scores') return fresh(await box(env).hsGet(await knownSlug(env, url)));   // (public: a game's top 10)
       if (req.method !== 'POST') throw fail(405, 'Use POST.');
       if (url.pathname === '/api/login') return ok(await login(req));
       if (url.pathname === '/api/upload') return ok(await upload(req, env));
@@ -31,6 +32,9 @@ export default {
       if (url.pathname === '/api/reviews') return ok(await reviews(req, env));
       if (url.pathname === '/api/review') return ok(await review(req, env));
       if (url.pathname === '/api/pick') return ok(await pick(req, env));
+      if (url.pathname === '/api/score') return ok(await scoreAdd(req, env, url));
+      if (url.pathname === '/api/score-delete') return ok(await scoreDelete(req, env));
+      if (url.pathname === '/api/profile') return ok(await profile(req, env));
       if (url.pathname === '/api/feedback') return ok(await feedbackAdd(req, env, url));
       if (url.pathname === '/api/feedback-list') return ok(await feedbackList(req, env));
       if (url.pathname === '/api/feedback-delete') return ok(await feedbackDelete(req, env));
@@ -62,7 +66,7 @@ export class Plays extends DurableObject {
     else if (this.here.has(id) || this.here.size < 5000) this.here.set(id, { game, t: now });
     const games = {};
     for (const [k, v] of this.here) {
-      if (now - v.t > 70000) { this.here.delete(k); continue; }
+      if (now - v.t > 100000) { this.here.delete(k); continue; }   // (background tabs check in about once a minute)
       if (v.game) games[v.game] = (games[v.game] || 0) + 1;
     }
     return { online: this.here.size, games };
@@ -78,6 +82,23 @@ export class Plays extends DurableObject {
     const k = 'fb:' + slug, list = (await this.ctx.storage.get(k)) || [], next = list.filter(e => e.id !== id);
     await this.ctx.storage.put(k, next); return list.length - next.length;
   }
+  // high scores: the top 10 per game (best score per nickname); order 'high' = bigger is better, 'low' = smaller (like golf)
+  async hsGet(slug) { return (await this.ctx.storage.get('hs:' + slug)) || { order: 'high', unit: '', list: [] }; }
+  async hsAdd(slug, name, score, order, unit) {
+    const k = 'hs:' + slug, b = await this.hsGet(slug);
+    if (!b.list.length) { b.order = order; b.unit = unit; }   // (the first score sets which way the board sorts)
+    const better = (a, c) => b.order === 'low' ? a < c : a > c;
+    const at = Math.floor(Date.now() / 1000), same = b.list.find(e => e.name.toLowerCase() === name.toLowerCase());
+    let id = same?.id;
+    if (same) { if (better(score, same.score)) Object.assign(same, { score, at, name }); }
+    else { id = crypto.randomUUID().slice(0, 8); b.list.push({ id, name, score, at }); }
+    b.list.sort((x, y) => (b.order === 'low' ? x.score - y.score : y.score - x.score) || x.at - y.at);
+    b.list = b.list.slice(0, 10);
+    await this.ctx.storage.put(k, b);
+    const rank = b.list.findIndex(e => e.id === id) + 1;
+    return { board: b, rank: rank || null, improved: !same || same.score === score };
+  }
+  async hsDel(slug, id) { const b = await this.hsGet(slug), n = b.list.length; b.list = b.list.filter(e => e.id !== id); await this.ctx.storage.put('hs:' + slug, b); return n - b.list.length; }
   recent = new Map();
   cooldown(key, ms) {   // true = allowed now (kept in memory only)
     const now = Date.now(), last = this.recent.get(key) || 0;
@@ -445,6 +466,39 @@ async function feedbackDelete(req, env) {
   const b = await req.json(), who = await check(b.name, b.password), slug = String(b.slug || '');
   if (!(await readableGames(env, who)).some(g => g.slug === slug)) throw fail(403, 'That isn’t your game.');
   return { ok: true, removed: await box(env).fbDel(slug, String(b.id || '')) };
+}
+
+// ---------- high scores (games send them with postMessage; see the Share page) ----------
+async function scoreAdd(req, env, url) {
+  const slug = await knownSlug(env, url), b = await req.json().catch(() => ({}));
+  const name = String(b.name || '').replace(/\s+/g, ' ').trim(), score = Number(b.score);
+  if (!/^[A-Za-z0-9 _-]{2,16}$/.test(name)) throw fail(400, 'Nicknames: 2–16 letters, numbers, spaces, - or _.');
+  if (!Number.isFinite(score) || Math.abs(score) > 1e12) throw fail(400, 'That score doesn’t look right.');
+  const ip = req.headers.get('cf-connecting-ip') || 'x';
+  if (!(await box(env).cooldown('hs:' + ip, 4000))) throw fail(429, 'Slow down a little!');
+  const order = b.order === 'low' ? 'low' : 'high', unit = String(b.unit || '').replace(/[^A-Za-z ]/g, '').slice(0, 12);
+  return await box(env).hsAdd(slug, name, Math.round(score * 100) / 100, order, unit);
+}
+async function scoreDelete(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password), slug = String(b.slug || '');
+  if (!(await readableGames(env, who)).some(g => g.slug === slug)) throw fail(403, 'That isn’t your game.');
+  return { ok: true, removed: await box(env).hsDel(slug, String(b.id || '')) };
+}
+
+// ---------- member profiles (profiles.json: { Name: { emoji, bio, fav } }) ----------
+async function profile(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password);
+  const emoji = [...String(b.emoji || '').trim()].slice(0, 4).join('');   // one emoji (some are a few characters long)
+  if (emoji && /[A-Za-z0-9<>"'&]/.test(emoji)) throw fail(400, 'Pick an emoji for your avatar.');
+  const bio = String(b.bio || '').replace(/\s+/g, ' ').trim().slice(0, 160), fav = String(b.fav || '');
+  const head = (await gh(env, `/git/ref/heads/${BRANCH}`)).object.sha;
+  const games = (await readJson(env, 'games.json', head)) || [];
+  if (fav && !games.some(g => g.slug === fav)) throw fail(400, 'Pick a game that’s on UsForge.');
+  const all = (await readJson(env, 'profiles.json', head)) || {};
+  all[who.name] = { ...(emoji ? { emoji } : {}), ...(bio ? { bio } : {}), ...(fav ? { fav } : {}) };
+  if (!Object.keys(all[who.name]).length) delete all[who.name];
+  await commit(env, head, [{ path: 'profiles.json', text: JSON.stringify(all, null, 2) + '\n' }], `Profile: ${who.name}`);
+  return { ok: true, profile: all[who.name] || {} };
 }
 
 // ---------- remove ----------

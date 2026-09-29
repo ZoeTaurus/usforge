@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=29"></script>
+<script src="site.js?v=30"></script>
 </head>
 <body>
 <div class="wrap">
@@ -50,10 +50,26 @@
       <h2>Your games</h2>
       <div id="mine" class="mine"></div>
 
+      <h2>Your profile</h2>
+      <form class="panel" id="profileForm">
+        <p class="hint" style="margin:0">Shown on your maker page and in Credits. First names or nicknames only, nothing private.</p>
+        <div class="cover-field"><span class="lbl">Avatar</span><div class="emoji-pick" id="emojiPick" role="group" aria-label="Avatar"></div></div>
+        <label>About you <span class="hint" id="bioCount">0 / 160</span><textarea id="pBio" maxlength="160" rows="2" placeholder="I make pixel games about space and potatoes."></textarea></label>
+        <label>Favorite game on UsForge <select id="pFav"><option value="">(none)</option></select></label>
+        <div class="row"><button class="go" type="submit" id="pSave">Save profile</button><a class="btn-l" id="pView" href="#" target="_blank" rel="noopener">See your page ↗</a></div>
+        <p class="msg" id="pMsg" role="status"></p>
+      </form>
+
       <section id="fbBox" hidden>
         <h2>Feedback</h2>
         <p class="dim" id="fbLead">What players said about your games. Only you and the founders can see this.</p>
         <div id="fbList" class="fb-list"></div>
+      </section>
+
+      <section id="hsBox" hidden>
+        <h2>Leaderboards</h2>
+        <p class="dim">Top scores on your games. Delete any nickname that’s rude or a real full name.</p>
+        <div id="hsList" class="fb-list"></div>
       </section>
 
       <section id="pickBox" hidden>
@@ -203,8 +219,50 @@
       else reviewAct(slug, 'withdraw', '', b);
     };
     paintReviews();
-    paintPicks(); loadFeedback();
+    paintPicks(); loadFeedback(); loadProfile(); loadBoards();
   }
+  // leaderboards on your games (founders: every game)
+  async function loadBoards() {
+    const mineOnly = games.filter(g => !g.dev && (me.founder || (g.owner || g.author).toLowerCase() === me.name.toLowerCase()));
+    const boards = (await Promise.all(mineOnly.map(async g => { try { return { g, b: await (await fetch('/api/scores?g=' + encodeURIComponent(g.slug), { cache: 'no-store' })).json() }; } catch (e) { return null; } })))
+      .filter(x => x?.b?.list?.length);
+    $('hsBox').hidden = !boards.length;
+    $('hsList').innerHTML = boards.map(({ g, b }) => `<div class="fb-game" data-slug="${esc(g.slug)}">
+        <button class="fb-head" type="button" aria-expanded="false"><b>${esc(g.title)}</b><span class="fb-counts">${b.list.length} on the board</span></button>
+        <div class="fb-notes" hidden>${b.list.map((e, i) => `<div class="fb-note" data-id="${esc(e.id)}"><span>${i + 1}</span><span><b>${esc(e.name)}</b> · ${Number(e.score).toLocaleString()}${b.unit ? ' ' + esc(b.unit) : ''}<time>${ago(e.at)}</time></span><button class="ghost" type="button">Delete</button></div>`).join('')}</div>
+      </div>`).join('');
+    for (const h of $('hsList').querySelectorAll('.fb-head')) h.onclick = () => { const n = h.nextElementSibling; n.hidden = !n.hidden; h.setAttribute('aria-expanded', String(!n.hidden)); };
+    for (const b of $('hsList').querySelectorAll('.fb-note .ghost')) b.onclick = async () => {
+      const row = b.closest('.fb-note'); b.disabled = true;
+      try { await api('score-delete', { name: me.name, password: pass, slug: b.closest('.fb-game').dataset.slug, id: row.dataset.id }); row.remove(); }
+      catch (err) { UsForge.toast(err.message); b.disabled = false; }
+    };
+  }
+  // ---------- your profile ----------
+  const EMOJI = ['🎮', '👾', '🕹️', '🚀', '🐉', '🦊', '🐸', '🐙', '🦈', '🐧', '🦉', '🐱', '🐶', '🥔', '🍕', '🔥', '⚡', '🌙', '⭐', '💎', '🎨', '🎵', '🧠', '🤖'];
+  let pEmoji = '';
+  async function loadProfile() {
+    let all = {};
+    try { all = await (await fetch('profiles.json', { cache: 'no-cache' })).json(); } catch (e) {}
+    const mine = all[Object.keys(all).find(k => k.toLowerCase() === me.name.toLowerCase())] || {};
+    pEmoji = mine.emoji || '';
+    const paintEmoji = () => {
+      $('emojiPick').innerHTML = ['', ...EMOJI].map(e => `<button type="button" class="emo" data-e="${e}" aria-pressed="${e === pEmoji}" title="${e ? 'Use ' + e : 'Just my first letter'}">${e || esc(me.name[0].toUpperCase())}</button>`).join('');
+      for (const b of $('emojiPick').children) b.onclick = () => { pEmoji = b.dataset.e; paintEmoji(); };
+    };
+    paintEmoji();
+    $('pBio').value = mine.bio || ''; $('bioCount').textContent = `${$('pBio').value.length} / 160`;
+    $('pFav').innerHTML = '<option value="">(none)</option>' + games.filter(g => !g.dev).map(g => `<option value="${esc(g.slug)}">${esc(g.title)}</option>`).join('');
+    $('pFav').value = mine.fav || '';
+    $('pView').href = `maker.html?n=${encodeURIComponent(me.name)}`;
+  }
+  $('pBio').addEventListener('input', () => { $('bioCount').textContent = `${$('pBio').value.length} / 160`; });
+  $('profileForm').onsubmit = async e => {
+    e.preventDefault(); $('pSave').disabled = true; say('pMsg', 'Saving…');
+    try { await api('profile', { name: me.name, password: pass, emoji: pEmoji, bio: $('pBio').value, fav: $('pFav').value }); say('pMsg', 'Saved! Your page updates in about a minute.'); }
+    catch (err) { say('pMsg', err.message, true); }
+    $('pSave').disabled = false;
+  };
   // founders: star games for the home page
   async function paintPicks() {
     $('pickBox').hidden = !me.founder;

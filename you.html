@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You · UsForge</title>
+<meta name="description" content="Your favorites, play time and badges on UsForge.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='4' y='4' width='8' height='8' rx='1.5' fill='%234d8cf7' transform='rotate(45 8 8)'/%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0a0c11"><link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="style.css?v=37">
+<script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
+<script src="site.js?v=30"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="mark" href="./"><span class="spark"></span>UsForge</a>
+    <nav><a href="./">Games</a><a href="add.html">Share your game</a><a href="upload.html">Upload</a><a href="credits.html">Credits</a><a class="nav-support" href="support.html" data-support hidden>Support ♥</a><span data-theme-switch></span></nav>
+  </header>
+
+  <section class="intro">
+    <span class="eyebrow">You</span>
+    <h1>Your UsForge</h1>
+    <p>Your favorites, play time and badges. Saved in this browser only, no account needed.</p>
+    <div class="stats you-stats" id="youStats"></div>
+  </section>
+
+  <section class="shelf">
+    <div class="shelf-head"><h2>Badges</h2><span class="shelf-note" id="badgeCount"></span></div>
+    <div class="badges" id="badges"></div>
+  </section>
+
+  <section class="shelf">
+    <div class="shelf-head"><h2>Favorites</h2><span class="shelf-note">tap ♡ on a game’s page to add it</span></div>
+    <div class="grid" id="favGrid"></div>
+  </section>
+
+  <section class="shelf">
+    <div class="shelf-head"><h2>Most played by you</h2></div>
+    <div class="you-list" id="mostPlayed"></div>
+  </section>
+
+  <footer class="foot">
+    <span>UsForge · by Lazy Studios</span>
+    <button class="link you-clear" type="button" id="clearYou">Clear my UsForge data on this browser</button>
+  </footer>
+</div>
+<script src="embers.js?v=20"></script>
+<script src="eggs.js?v=20"></script>
+<script>
+(() => {
+  const U = window.UsForge, S = U.store, $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const hue = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
+  const time = s => s < 60 ? `${Math.round(s)}s` : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min`;
+  const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
+
+  function paint(games) {
+    const bySlug = Object.fromEntries(games.map(g => [g.slug, g]));
+    const plays = S.get('usforge-plays', {}), secs = S.get('usforge-time', {}), favs = U.favs().filter(s => bySlug[s]);
+    const distinct = Object.keys(plays).filter(s => bySlug[s]).length, total = Object.values(plays).reduce((a, b) => a + b, 0);
+    const allTime = Object.values(secs).reduce((a, b) => a + b, 0), days = S.get('usforge-days', []).length;
+    const feedbacks = Object.keys(localStorage).filter(k => k.startsWith('usforge-fb:')).length, stoked = S.get('usforge-stoked', []).length;
+    const playable = games.filter(g => !g.dev && g.build !== false);
+    $('youStats').innerHTML = [[distinct, distinct === 1 ? 'game played' : 'games played'], [total, total === 1 ? 'play' : 'plays'], [time(allTime), 'played'], [favs.length, favs.length === 1 ? 'favorite' : 'favorites'], [days, days === 1 ? 'day visited' : 'days visited']]
+      .map(([n, l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+
+    const BADGES = [
+      ['🎮', 'First Game', 'Play any game', distinct >= 1],
+      ['🧭', 'Explorer', 'Play 5 different games', distinct >= 5],
+      ['🏆', 'Completionist', `Play every game on UsForge (${Math.min(distinct, playable.length)}/${playable.length})`, playable.length && playable.every(g => plays[g.slug])],
+      ['❤️', 'Collector', 'Favorite 3 games', favs.length >= 3],
+      ['⏱️', 'Marathon', 'Play for an hour in total', allTime >= 3600],
+      ['🔥', 'Superfan', 'Play one game for 30 minutes', Object.values(secs).some(v => v >= 1800)],
+      ['💬', 'Critic', 'Send feedback on 3 games', feedbacks >= 3],
+      ['✨', 'Stoker', 'Stoke 5 games', stoked >= 5],
+      ['📅', 'Regular', 'Visit on 5 different days', days >= 5],
+      ['🥇', 'High Scorer', 'Get onto a leaderboard', !!S.get('usforge-hs', false)],
+      ['🦉', 'Night Owl', 'Play a game after midnight', !!S.get('usforge-nightowl', false)],
+      ['🥔', 'Secret Potato', 'Find the secret…', !!S.get('usforge-potato', false)],
+    ];
+    const got = BADGES.filter(b => b[3]).length;
+    $('badgeCount').textContent = `${got} of ${BADGES.length}`;
+    $('badges').innerHTML = BADGES.map(([ico, name, how, ok]) => `<div class="badge${ok ? ' got' : ''}" title="${esc(how)}"><span class="ico" aria-hidden="true">${ico}</span><b>${esc(name)}</b><small>${ok ? 'Earned!' : esc(how)}</small></div>`).join('');
+
+    $('favGrid').innerHTML = favs.length ? favs.map(s => bySlug[s]).map(g => `<article class="gcard"><a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(g.slug)}"><div class="cover${g.pixel ? ' pixel' : ''}">${cover(g)}<span class="glint" aria-hidden="true"></span></div></a><div class="meta"><b>${esc(g.title)}</b><span class="by">by ${esc(g.author)}</span></div></article>`).join('')
+      : '<p class="empty">No favorites yet. Open a game and tap <b>♡ Favorite</b>.</p>';
+    const most = Object.keys(plays).filter(s => bySlug[s]).sort((a, b) => (secs[b] || 0) - (secs[a] || 0) || plays[b] - plays[a]).slice(0, 8);
+    $('mostPlayed').innerHTML = most.length ? most.map(s => `<a class="you-row" href="play.html?g=${encodeURIComponent(s)}"><b>${esc(bySlug[s].title)}</b><span>${plays[s]} play${plays[s] === 1 ? '' : 's'}${secs[s] ? ` · ${time(secs[s])}` : ''}</span></a>`).join('') : '<p class="empty">Nothing yet. Go play something!</p>';
+  }
+  fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).then(paint).catch(() => paint([]));
+
+  // clear (two taps, right on the button)
+  $('clearYou').onclick = () => {
+    const b = $('clearYou');
+    if (!b.dataset.arm) { b.dataset.arm = '1'; b.textContent = 'Sure? Tap again to clear everything'; setTimeout(() => { delete b.dataset.arm; b.textContent = 'Clear my UsForge data on this browser'; }, 4000); return; }
+    for (const k of Object.keys(localStorage)) if (k.startsWith('usforge-') && !['usforge-theme', 'usforge-accent', 'usforge-sparks', 'usforge-tilt'].includes(k)) localStorage.removeItem(k);
+    location.reload();
+  };
+})();
+</script>
+</body>
+</html>

@@ -658,3 +658,40 @@ body.playing .site-banner { display: none; }
 .fb-note time { font: 11px var(--mono); color: var(--dim); display: block; }
 .fb-note .ghost { padding: 3px 8px; font-size: 12px; }
 .stats { align-items: baseline; }   /* (keeps every number on one line — "12 games" sat a little high) */
+
+/* ---------- You link, favorites, badges ---------- */
+.you-link span { color: var(--accent); }
+.fav-btn[aria-pressed="true"] { color: #ff5f7e; border-color: rgba(255, 95, 126, .6); }
+.fav-btn[aria-pressed="true"] span { color: #ff5f7e; }
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 34px; }
+.badge { display: grid; gap: 4px; justify-items: center; text-align: center; padding: 14px 10px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); }
+.badge .ico { font-size: 30px; line-height: 1; filter: grayscale(1); opacity: .35; }
+.badge b { font-size: 14px; }
+.badge small { font-size: 12px; color: var(--dim); line-height: 1.35; }
+.badge.got { border-color: var(--accent-edge); background: linear-gradient(180deg, var(--tint-10), transparent), var(--card); }
+.badge.got .ico { filter: none; opacity: 1; }
+.you-stats { margin-top: 16px; }
+.you-list { display: grid; gap: 6px; margin-bottom: 34px; }
+.you-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); text-decoration: none; color: inherit; }
+.you-row:hover { border-color: var(--accent); }
+.you-row span { font: 13px var(--mono); color: var(--dim); }
+.you-clear { font-size: 13px; color: var(--dim); }
+
+/* ---------- leaderboard ---------- */
+.board { margin: 6px 0 40px; max-width: 520px; }
+.board-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.board-list li { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); }
+.board-list li.me { border-color: var(--accent); background: var(--tint-10); }
+.board-list .rank { font: 700 14px var(--mono); text-align: center; }
+.board-list .score { font: 600 14px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; }
+.score-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 8px 16px; background: var(--bar); border-bottom: 1px solid var(--accent-edge); font-size: 14px; }
+.score-bar input { font: 14px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 6px 10px; width: 160px; }
+.score-bar b { color: var(--accent); }
+
+/* profile editor + emoji avatars */
+.emoji-pick { display: flex; flex-wrap: wrap; gap: 6px; }
+.emo { width: 40px; height: 40px; font-size: 20px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-weight: 800; color: var(--ink); }
+.emo[aria-pressed="true"] { border-color: var(--accent); background: var(--tint-20); box-shadow: 0 0 0 2px var(--tint-30); }
+.panel select { font: 15px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.initial.emoji, .mini.emoji { background: var(--tint-20) !important; font-size: 1.15em; }
+.maker-bio { margin: 10px 0 0; max-width: 52ch; font-size: 16px; }

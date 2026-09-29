@@ -44,6 +44,7 @@
   })();
 
   function potatoRain() {
+    try { localStorage.setItem('usforge-potato', 'true'); } catch (e) {}
     UsForge?.toast('<b>Potato mode.</b> Alex approves.');
     if (calm) return;
     layer();

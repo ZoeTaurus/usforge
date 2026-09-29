@@ -706,6 +706,8 @@
     };
     $('cardBest').textContent = round.mode === 'endless' && final ? (round.endless.record ? 'New best run!' : `Best run: ${store.get(KEY('endlessBest', 'all'), 0)} hole${store.get(KEY('endlessBest', 'all'), 0) === 1 ? '' : 's'}`) : '';
     if (final && round.mode === 'solo' && !round.single) {
+      // on UsForge, a full Classic round on Normal goes on the leaderboard (fewest strokes wins)
+      if (c.id === 'classic' && !settings.hard && window.parent !== window) try { window.parent.postMessage({ usforge: 'score', score: totals[0].s, order: 'low', unit: 'strokes' }, '*'); } catch (e) {}
       const bk = KEY('bestRound', c.id), best = store.get(bk, null);
       if (best === null || totals[0].vs < best) { store.set(bk, totals[0].vs); $('cardBest').textContent = 'New best round!'; }
       else $('cardBest').textContent = `Best round: ${vsPar(best)}`;

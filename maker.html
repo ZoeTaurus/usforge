@@ -10,9 +10,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="site.js?v=29"></script>
+<script src="site.js?v=30"></script>
 </head>
 <body>
 <div class="wrap">
@@ -54,7 +54,9 @@
   const n = (v, one, many) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
 
   const want = (new URLSearchParams(location.search).get('n') || '').toLowerCase();
-  let games = [], stats = null;
+  let games = [], stats = null, profiles = {};
+  const prof = name => profiles[Object.keys(profiles).find(k => k.toLowerCase() === String(name).toLowerCase())] || {};
+  const avatar = (name, cls = 'initial', extra = '') => { const e = prof(name).emoji; return `<span class="${cls}${e ? ' emoji' : ''}"${extra} aria-hidden="true">${esc(e || name[0])}</span>`; };
   const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
   const P = g => stats?.plays[g.slug] || 0, S = g => stats?.stokes[g.slug] || 0;
   const card = (g, i) => `<article class="gcard${g.dev ? ' devcard' : ''}" style="--i:${i}">
@@ -75,7 +77,7 @@
     const best = stats && done.length > 1 ? [...done].sort((a, b) => P(b) - P(a))[0] : null;
     const first = done.length ? Math.min(...done.map(g => g.added || Infinity)) : 0;
     $('hero').innerHTML = `
-      <span class="initial" style="--h:${hue(person.name)}" aria-hidden="true">${esc(person.name[0])}</span>
+      ${avatar(person.name)}
       <div>
         <span class="eyebrow">Lazy Studios</span>
         <h1>${esc(person.name)}</h1>
@@ -85,6 +87,8 @@
           ${stats ? `<div class="stat"><b>${plays.toLocaleString()}</b><span>Plays</span></div><div class="stat"><b>${stokes.toLocaleString()}</b><span>Stokes</span></div>` : ''}
           ${dev.length ? `<div class="stat"><b>${dev.length}</b><span>In development</span></div>` : ''}
         </div>
+        ${prof(person.name).bio ? `<p class="maker-bio">${esc(prof(person.name).bio)}</p>` : ''}
+        ${prof(person.name).fav && games.find(g => g.slug === prof(person.name).fav) ? `<p class="maker-quote">Favorite game on UsForge: <a href="play.html?g=${encodeURIComponent(prof(person.name).fav)}">${esc(games.find(g => g.slug === prof(person.name).fav).title)}</a></p>` : ''}
         ${best && P(best) ? `<p class="maker-quote">Most played: <a href="play.html?g=${encodeURIComponent(best.slug)}">${esc(best.title)}</a> (${n(P(best), 'play', 'plays')}).</p>` : ''}
         ${!done.length && !dev.length ? `<p class="maker-quote">No games on UsForge yet. The first one is coming soon.</p>` : ''}
       </div>`;
@@ -97,12 +101,13 @@
     $('dev').innerHTML = dev.map(card).join('');
     $('crew').innerHTML = U.TEAM.filter(p => p !== known).map(p => {
       const theirs = games.filter(g => g.author.toLowerCase() === p.name.toLowerCase()), c = theirs.filter(g => !g.dev).length, d = theirs.length - c;
-      return `<a class="crew-card tilt" href="maker.html?n=${encodeURIComponent(p.name)}"><span class="initial" style="--h:${hue(p.name)}">${esc(p.name[0])}</span><span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span></a>`;
+      return `<a class="crew-card tilt" href="maker.html?n=${encodeURIComponent(p.name)}">${avatar(p.name)}<span class="crew-name">${esc(p.name)}</span><span class="crew-role">${esc(p.roles[0])}</span><span class="crew-n">${n(c, 'game', 'games')}${d ? ` · ${d} in dev` : ''}</span></a>`;
     }).join('');
   }
   const gamesP = fetch('games.json', { cache: 'no-cache' }).then(r => r.json()).catch(() => []);
   gamesP.then(l => { games = l; paint(); });
   Promise.all([gamesP, U.stats()]).then(([, s]) => { if (s) { stats = s; paint(); } });
+  Promise.all([gamesP, fetch('profiles.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))]).then(([, p]) => { profiles = p || {}; paint(); });
 })();
 </script>
 </body>

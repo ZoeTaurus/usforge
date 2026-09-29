@@ -1,5 +1,25 @@
 [
   {
+    "slug": "the-last-city",
+    "title": "The Last City",
+    "author": "Igor",
+    "owner": "Igor",
+    "blurb": "Survive the invasion. Defend the city. A game based on War of the Worlds (2005)",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Action",
+      "Fighting",
+      "Shooter"
+    ],
+    "dev": true,
+    "progress": 30,
+    "next": "",
+    "build": true,
+    "added": 1790685917
+  },
+  {
     "slug": "late-bloomer",
     "title": "Late Bloomer",
     "author": "Alex",

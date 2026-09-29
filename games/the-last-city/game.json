@@ -1,0 +1,13 @@
+{
+  "title": "The Last City",
+  "author": "Igor",
+  "owner": "Igor",
+  "blurb": "Survive the invasion. Defend the city. A game based on War of the Worlds (2005)",
+  "genres": [
+    "Action",
+    "Fighting",
+    "Shooter"
+  ],
+  "dev": true,
+  "progress": 30
+}

@@ -627,3 +627,6 @@ body.playing .site-banner { display: none; }
 .who-panel li span { font: 12px var(--mono); color: #35d07f; white-space: nowrap; }
 .who-panel p { margin: 4px 0 0; color: var(--dim); }
 .who-panel .who-note { font: 11px var(--mono); margin-top: 10px; }
+
+/* maker badges: the same theme colour for everyone (it used to mix in a colour picked from each name) */
+.crew-card .initial, .maker-hero .initial { background: linear-gradient(135deg, rgba(255, 255, 255, .18), rgba(0, 0, 0, .16)), var(--accent); }

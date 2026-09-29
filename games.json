@@ -27,7 +27,9 @@
     "pixel": true,
     "url": null,
     "genres": [
-      "Adventure"
+      "Adventure",
+      "Sandbox",
+      "Pixel art"
     ],
     "dev": false,
     "progress": null,

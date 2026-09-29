@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Base Strike: Reloaded</title>
+<title>Base Strike: Reloaded — VECTOR SCORE</title>
 <style>
 :root{
   --cyan:#8deaff;--cyan2:#22bfe8;--red:#ff4938;--amber:#ffb347;
@@ -30,6 +30,67 @@ button{font:inherit}
 #caption{position:absolute;z-index:32;left:50%;bottom:14%;transform:translateX(-50%);width:min(88%,900px);text-align:center;pointer-events:none}
 #caption .kick{font:600 11px ui-monospace,Consolas,monospace;letter-spacing:.32em;color:rgba(173,242,255,.75)}
 #caption .main{margin-top:7px;font-size:clamp(20px,3vw,38px);font-weight:800;letter-spacing:.06em;text-shadow:0 2px 16px #000}
+#caption.cineSlam .kick{animation:cineKickIn .28s cubic-bezier(.15,.8,.2,1)}
+#caption.cineSlam .main{animation:cineMainIn .38s cubic-bezier(.12,.8,.16,1)}
+@keyframes cineKickIn{
+  0%{opacity:0;transform:translateY(8px);letter-spacing:.55em}
+  55%{opacity:1}
+  100%{opacity:1;transform:translateY(0);letter-spacing:.32em}
+}
+@keyframes cineMainIn{
+  0%{opacity:0;transform:scale(1.28) translateY(10px);filter:blur(7px)}
+  55%{opacity:1;filter:blur(0)}
+  72%{transform:scale(.97) translateY(0)}
+  100%{opacity:1;transform:scale(1)}
+}
+#cineFx{pointer-events:none;position:absolute;inset:0;z-index:31;overflow:hidden}
+#cineGlitch{position:absolute;inset:0;opacity:0;
+  background:
+  repeating-linear-gradient(0deg,transparent 0 9px,rgba(255,255,255,.04) 10px 11px,transparent 12px 18px),
+  linear-gradient(90deg,rgba(0,215,255,.12),transparent 31%,rgba(255,35,20,.12));
+  mix-blend-mode:screen}
+#cineGlitch.hot{animation:cineGlitch .17s steps(2,end)}
+@keyframes cineGlitch{
+  0%{opacity:.04;transform:translateX(0) skewX(0)}
+  20%{opacity:.75;transform:translateX(-12px) skewX(-2deg)}
+  45%{opacity:.18;transform:translateX(9px) skewX(1deg)}
+  70%{opacity:.62;transform:translateX(-5px) skewX(-1deg)}
+  100%{opacity:0;transform:translateX(0)}
+}
+#cineShutter{position:absolute;inset:-10%;opacity:0;
+  background:linear-gradient(112deg,transparent 0 36%,rgba(0,220,255,.48) 44%,rgba(255,255,255,.72) 49%,rgba(255,55,25,.5) 54%,transparent 64%);
+  transform:translateX(-120%)}
+#cineShutter.hot{animation:cineShutter .32s cubic-bezier(.2,.7,.1,1)}
+@keyframes cineShutter{
+  0%{opacity:0;transform:translateX(-120%)}
+  18%{opacity:.9}
+  75%{opacity:.55}
+  100%{opacity:0;transform:translateX(120%)}
+}
+#cineThreatCard{position:absolute;z-index:33;right:6%;top:19%;min-width:210px;
+  border-left:2px solid #ff6b55;padding:8px 12px;background:linear-gradient(90deg,rgba(70,5,0,.58),rgba(10,15,20,.08));
+  font-family:ui-monospace,Consolas,monospace;opacity:0;transform:translateX(18px);
+  transition:opacity .12s ease,transform .12s ease}
+#cineThreatCard.show{opacity:1;transform:translateX(0)}
+#cineThreatCard .ctLabel{font-size:9px;letter-spacing:.24em;color:#ff9a86}
+#cineThreatCard .ctMain{margin-top:4px;font-size:17px;font-weight:900;letter-spacing:.08em;color:#fff}
+#cineThreatCard .ctSub{margin-top:3px;font-size:9px;letter-spacing:.12em;color:rgba(220,245,255,.7)}
+#cineReticle{position:absolute;left:50%;top:50%;width:190px;height:190px;transform:translate(-50%,-50%);opacity:0}
+#cineReticle:before,#cineReticle:after{content:"";position:absolute;inset:0;border:1px solid rgba(150,235,255,.22);border-radius:50%}
+#cineReticle:after{inset:34px;border-color:rgba(255,90,55,.30)}
+#cineReticle.hot{animation:cineReticlePulse .58s ease}
+@keyframes cineReticlePulse{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(1.45) rotate(-15deg)}
+  35%{opacity:.85}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(.72) rotate(10deg)}
+}
+#bars.hot:before,#bars.hot:after{animation:cineBarsHit .28s ease}
+@keyframes cineBarsHit{
+  0%{height:11%}
+  38%{height:15%}
+  100%{height:11%}
+}
+
 #warning{position:absolute;z-index:25;top:22px;right:22px;border:1px solid rgba(255,80,55,.72);background:rgba(90,5,0,.74);color:#fff2ee;padding:8px 11px;border-radius:5px;font:800 12px ui-monospace,Consolas,monospace;letter-spacing:.11em;box-shadow:0 0 20px rgba(255,35,20,.22)}
 #crosshair{pointer-events:none;position:absolute;z-index:18;width:48px;height:48px;transform:translate(-50%,-50%);left:50%;top:42%}
 #crosshair .ring{position:absolute;left:16px;top:16px;width:16px;height:16px;border:1px solid rgba(160,241,255,.95);border-radius:50%;box-shadow:0 0 8px rgba(0,210,255,.32)}
@@ -82,6 +143,11 @@ button{font:inherit}
 .row b{color:#fff}
 #help{position:absolute;z-index:23;left:50%;top:18px;transform:translateX(-50%);font:600 10px ui-monospace,Consolas,monospace;letter-spacing:.07em;color:rgba(220,247,255,.62);text-shadow:0 2px 5px #000;white-space:nowrap}
 #controls{pointer-events:auto;position:absolute;z-index:26;right:18px;top:66px;display:flex;gap:8px}
+#musicNow{pointer-events:none;position:absolute;z-index:25;right:18px;top:112px;
+font:800 9px ui-monospace,Consolas,monospace;letter-spacing:.15em;color:rgba(180,238,255,.72);
+text-shadow:0 2px 6px #000}
+#musicNow.hot{color:#ffd36a}
+
 .uiBtn{border:1px solid rgba(150,230,255,.28);background:rgba(3,12,18,.65);color:#eafcff;padding:8px 10px;border-radius:5px;cursor:pointer;font-size:12px}
 .uiBtn:hover{background:rgba(15,44,58,.72)}
 
@@ -132,6 +198,16 @@ linear-gradient(0deg,rgba(0,0,0,.82),transparent 55%);
   <div id="cineFrame" class="hidden">
     <div class="cineLine c1"></div><div class="cineLine c2"></div><div class="cineLine c3"></div>
   </div>
+  <div id="cineFx">
+    <div id="cineGlitch"></div>
+    <div id="cineShutter"></div>
+    <div id="cineReticle"></div>
+  </div>
+  <div id="cineThreatCard">
+    <div class="ctLabel" id="cineThreatLabel">THREAT ID</div>
+    <div class="ctMain" id="cineThreatMain">CORE INTERCEPTOR</div>
+    <div class="ctSub" id="cineThreatSub">VECTOR UNKNOWN</div>
+  </div>
   <div id="caption" class="hidden"><div class="kick" id="captionKick"></div><div class="main" id="captionMain"></div></div>
   <div id="warning" class="hidden">MISSILE WARNING</div>
   <div id="hitMarker"><i class="hm1"></i><i class="hm2"></i><i class="hm3"></i><i class="hm4"></i></div>
@@ -163,7 +239,8 @@ linear-gradient(0deg,rgba(0,0,0,.82),transparent 55%);
     <div class="row"><span>KILLS</span><b id="killsText">0</b></div>
     <div class="row"><span>SCORE</span><b id="scoreText">000000</b></div>
   </div>
-  <div id="controls"><button class="uiBtn" id="audioBtn">Audio: On</button><button class="uiBtn" id="restartBtn">Restart</button></div>
+  <div id="controls"><button class="uiBtn" id="musicBtn">Music: On</button><button class="uiBtn" id="audioBtn">Audio: On</button><button class="uiBtn" id="restartBtn">Restart</button></div>
+  <div id="musicNow">VECTOR // LAUNCH</div>
 
   <div id="cover">
     <div id="coverArt">
@@ -204,6 +281,7 @@ linear-gradient(0deg,rgba(0,0,0,.82),transparent 55%);
         <div class="coverActions">
           <button class="primary" id="launchBtn">LAUNCH MISSION</button>
           <button class="secondary" id="coverAudio">AUDIO: ON</button>
+          <button class="secondary" id="coverMusic">MUSIC: ON</button>
         </div>
         <div class="coverMeta">WASD / ARROWS MOVE · MOUSE AIM · LEFT CLICK FIRE · M MISSILE</div>
       </div>
@@ -218,9 +296,9 @@ linear-gradient(0deg,rgba(0,0,0,.82),transparent 55%);
 if(typeof THREE==='undefined'){document.getElementById('cover').classList.add('hidden');document.getElementById('errorBox').classList.remove('hidden');return;}
 
 const $=id=>document.getElementById(id);
-const stage=$('stage'),cover=$('cover'),launchBtn=$('launchBtn'),audioBtn=$('audioBtn'),coverAudio=$('coverAudio'),restartBtn=$('restartBtn');
+const stage=$('stage'),cover=$('cover'),launchBtn=$('launchBtn'),audioBtn=$('audioBtn'),coverAudio=$('coverAudio'),musicBtn=$('musicBtn'),coverMusic=$('coverMusic'),musicNow=$('musicNow'),restartBtn=$('restartBtn');
 const healthText=$('healthText'),healthBar=$('healthBar'),contacts=$('contacts'),lockStatus=$('lockStatus'),speedText=$('speedText'),ammoText=$('ammoText'),missilesText=$('missilesText'),killsText=$('killsText'),scoreText=$('scoreText');
-const warning=$('warning'),crosshair=$('crosshair'),bars=$('bars'),cineFrame=$('cineFrame'),caption=$('caption'),captionKick=$('captionKick'),captionMain=$('captionMain'),colorWash=$('colorWash'),flash=$('flash');
+const warning=$('warning'),crosshair=$('crosshair'),bars=$('bars'),cineFrame=$('cineFrame'),caption=$('caption'),captionKick=$('captionKick'),captionMain=$('captionMain'),colorWash=$('colorWash'),flash=$('flash'),cineGlitch=$('cineGlitch'),cineShutter=$('cineShutter'),cineReticle=$('cineReticle'),cineThreatCard=$('cineThreatCard'),cineThreatLabel=$('cineThreatLabel'),cineThreatMain=$('cineThreatMain'),cineThreatSub=$('cineThreatSub');
 const hitMarker=$('hitMarker'),combatBanner=$('combatBanner'),combatMain=$('combatMain'),combatSub=$('combatSub'),comboHud=$('comboHud'),comboText=$('comboText'),speedFx=$('speedFx'),damageEdge=$('damageEdge'),targetBracket=$('targetBracket'),targetRange=$('targetRange'),scoreLayer=$('scoreLayer'),dangerPulse=$('dangerPulse');
 const keys=new Set(),pointer={x:0,y:0,firing:false};
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -229,14 +307,375 @@ let enemies=[],bullets=[],enemyBullets=[],missiles=[],enemyMissiles=[],effects=[
 let running=false,cinematic=false,raf=0,elapsed=0,spawnTimer=0,gunTimer=0,missileTimer=0,enemyId=1,cutscene=null;
 let eventFlags={first:false,ace:false,critical:false};
 let state={hull:100,speed:620,vx:0,vy:0,ammo:480,missiles:6,kills:0,score:0};
-let audioEnabled=true,audioCtx=null,master=null,engineOsc=null,engineGain=null,engineSub=null,engineSubGain=null,windSource=null,windGain=null,warningTimer=0,warningPulse=0,lastLock=false,flashTime=0;
-let shake=0,fovKick=0,timeScale=1,slowMoTimer=0,hitTimer=0,bannerTimer=0,combo=0,comboTimer=0,nearMissCooldown=0;
+let audioEnabled=true,musicEnabled=true,audioCtx=null,master=null,engineOsc=null,engineGain=null,engineSub=null,engineSubGain=null,windSource=null,windGain=null,warningTimer=0,warningPulse=0,lastLock=false,flashTime=0;
+let musicBus=null,musicComp=null,musicFilter=null,musicDelay=null,musicDelayFeedback=null,musicDelayWet=null;
+let musicDrumBus=null,musicBassBus=null,musicSynthBus=null,musicBassTone=null,musicLeadDrive=null;
+let musicPad1=null,musicPad2=null,musicBass=null,musicSub=null,musicArp=null,musicLead=null,musicLead2=null,musicLead3=null,musicStab=null,musicKick=null,musicNoise=null;
+let musicPadGain=null,musicBassGain=null,musicSubGain=null,musicArpGain=null,musicLeadGain=null,musicStabGain=null,musicKickGain=null,musicSnareGain=null,musicHatGain=null,musicRiserGain=null;
+let musicSnareFilter=null,musicHatFilter=null,musicRiserFilter=null,musicIntensity=0,musicNextStep=0,musicStep=0,musicStarted=false;
+let shake=0,fovKick=0,timeScale=1,slowMoTimer=0,hitTimer=0,bannerTimer=0,combo=0,comboTimer=0,nearMissCooldown=0,lastCineText='',cineFovKick=0;
+
+
+function driveCurve(amount=70){
+  const n=2048,curve=new Float32Array(n),k=typeof amount==='number'?amount:70,deg=Math.PI/180;
+  for(let i=0;i<n;i++){
+    const x=i*2/n-1;
+    curve[i]=(3+k)*x*20*deg/(Math.PI+k*Math.abs(x));
+  }
+  return curve;
+}
+
+function initMusic(){
+  if(!audioCtx||musicBus)return;
+
+  musicBus=audioCtx.createGain();
+  musicBus.gain.value=musicEnabled?.70:0;
+
+  musicComp=audioCtx.createDynamicsCompressor();
+  musicComp.threshold.value=-17;
+  musicComp.knee.value=16;
+  musicComp.ratio.value=5;
+  musicComp.attack.value=.004;
+  musicComp.release.value=.18;
+
+  musicDrumBus=audioCtx.createGain();musicDrumBus.gain.value=1;
+  musicBassBus=audioCtx.createGain();musicBassBus.gain.value=1;
+  musicSynthBus=audioCtx.createGain();musicSynthBus.gain.value=1;
+
+  musicFilter=audioCtx.createBiquadFilter();
+  musicFilter.type='lowpass';
+  musicFilter.frequency.value=5000;
+  musicFilter.Q.value=.72;
+
+  musicDelay=audioCtx.createDelay(.8);
+  musicDelay.delayTime.value=.20;
+  musicDelayFeedback=audioCtx.createGain();
+  musicDelayFeedback.gain.value=.16;
+  musicDelayWet=audioCtx.createGain();
+  musicDelayWet.gain.value=.10;
+  musicDelay.connect(musicDelayFeedback);
+  musicDelayFeedback.connect(musicDelay);
+  musicDelay.connect(musicDelayWet);
+  musicDelayWet.connect(musicBus);
+
+  musicDrumBus.connect(musicBus);
+  musicBassBus.connect(musicBus);
+  musicSynthBus.connect(musicFilter);
+  musicFilter.connect(musicBus);
+  musicBus.connect(musicComp);
+  musicComp.connect(master);
+
+  // Clean, controlled low-end: filtering instead of hard waveshaping.
+  musicBassTone=audioCtx.createBiquadFilter();
+  musicBassTone.type='lowpass';
+  musicBassTone.frequency.value=165;
+  musicBassTone.Q.value=.55;
+
+  musicLeadDrive=audioCtx.createWaveShaper();
+  musicLeadDrive.curve=driveCurve(22);
+  musicLeadDrive.oversample='2x';
+
+  musicPadGain=audioCtx.createGain();musicPadGain.gain.value=.020;
+  musicBassGain=audioCtx.createGain();musicBassGain.gain.value=.0001;
+  musicSubGain=audioCtx.createGain();musicSubGain.gain.value=.0001;
+  musicArpGain=audioCtx.createGain();musicArpGain.gain.value=.0001;
+  musicLeadGain=audioCtx.createGain();musicLeadGain.gain.value=.0001;
+  musicStabGain=audioCtx.createGain();musicStabGain.gain.value=.0001;
+  musicKickGain=audioCtx.createGain();musicKickGain.gain.value=.0001;
+  musicSnareGain=audioCtx.createGain();musicSnareGain.gain.value=.0001;
+  musicHatGain=audioCtx.createGain();musicHatGain.gain.value=.0001;
+  musicRiserGain=audioCtx.createGain();musicRiserGain.gain.value=.0001;
+
+  musicPad1=audioCtx.createOscillator();
+  musicPad2=audioCtx.createOscillator();
+  musicBass=audioCtx.createOscillator();
+  musicSub=audioCtx.createOscillator();
+  musicArp=audioCtx.createOscillator();
+  musicLead=audioCtx.createOscillator();
+  musicLead2=audioCtx.createOscillator();
+  musicLead3=audioCtx.createOscillator();
+  musicStab=audioCtx.createOscillator();
+  musicKick=audioCtx.createOscillator();
+
+  // Darker timbres: no bright "8-bit" square-wave melody.
+  musicPad1.type='triangle';
+  musicPad2.type='sine';
+  musicBass.type='triangle';
+  musicSub.type='sine';
+  musicArp.type='triangle';
+  musicLead.type='sawtooth';
+  musicLead2.type='sawtooth';
+  musicLead3.type='sawtooth';
+  musicStab.type='sawtooth';
+  musicKick.type='sine';
+
+  musicLead2.detune.value=8;
+  musicLead3.detune.value=-8;
+
+  musicPad1.frequency.value=55;
+  musicPad2.frequency.value=82.41;
+  musicBass.frequency.value=41.20;
+  musicSub.frequency.value=30.87;
+  musicArp.frequency.value=123.47;
+  musicLead.frequency.value=220;
+  musicLead2.frequency.value=220;
+  musicLead3.frequency.value=220;
+  musicStab.frequency.value=110;
+  musicKick.frequency.value=48;
+
+  musicPad1.connect(musicPadGain);
+  musicPad2.connect(musicPadGain);
+  musicPadGain.connect(musicSynthBus);
+
+  musicBass.connect(musicBassGain);
+  musicBassGain.connect(musicBassTone);
+  musicBassTone.connect(musicBassBus);
+  musicSub.connect(musicSubGain);
+  musicSubGain.connect(musicBassBus);
+
+  musicArp.connect(musicArpGain);
+  musicArpGain.connect(musicSynthBus);
+  musicArpGain.connect(musicDelay);
+
+  musicLead.connect(musicLeadGain);
+  musicLead2.connect(musicLeadGain);
+  musicLead3.connect(musicLeadGain);
+  musicLeadGain.connect(musicLeadDrive);
+  musicLeadDrive.connect(musicSynthBus);
+  musicLeadDrive.connect(musicDelay);
+
+  musicStab.connect(musicStabGain);
+  musicStabGain.connect(musicSynthBus);
+
+  musicKick.connect(musicKickGain);
+  musicKickGain.connect(musicDrumBus);
+
+  const nFrames=Math.floor(audioCtx.sampleRate*2);
+  const nBuf=audioCtx.createBuffer(1,nFrames,audioCtx.sampleRate);
+  const nData=nBuf.getChannelData(0);
+  for(let i=0;i<nFrames;i++)nData[i]=Math.random()*2-1;
+  musicNoise=audioCtx.createBufferSource();
+  musicNoise.buffer=nBuf;
+  musicNoise.loop=true;
+
+  musicSnareFilter=audioCtx.createBiquadFilter();
+  musicSnareFilter.type='bandpass';
+  musicSnareFilter.frequency.value=1250;
+  musicSnareFilter.Q.value=.72;
+
+  musicHatFilter=audioCtx.createBiquadFilter();
+  musicHatFilter.type='highpass';
+  musicHatFilter.frequency.value=8900;
+
+  musicRiserFilter=audioCtx.createBiquadFilter();
+  musicRiserFilter.type='bandpass';
+  musicRiserFilter.frequency.value=520;
+  musicRiserFilter.Q.value=.9;
+
+  musicNoise.connect(musicSnareFilter);
+  musicSnareFilter.connect(musicSnareGain);
+  musicSnareGain.connect(musicDrumBus);
+
+  musicNoise.connect(musicHatFilter);
+  musicHatFilter.connect(musicHatGain);
+  musicHatGain.connect(musicDrumBus);
+
+  musicNoise.connect(musicRiserFilter);
+  musicRiserFilter.connect(musicRiserGain);
+  musicRiserGain.connect(musicSynthBus);
+
+  musicPad1.start();musicPad2.start();musicBass.start();musicSub.start();
+  musicArp.start();musicLead.start();musicLead2.start();musicLead3.start();
+  musicStab.start();musicKick.start();musicNoise.start();
+
+  musicStarted=true;
+  resetMusicTransport();
+}
+
+function resetMusicTransport(){
+  if(!audioCtx)return;
+  musicStep=0;
+  musicIntensity=.28;
+  musicNextStep=audioCtx.currentTime+.06;
+}
+
+function env(param,time,peak,attack,release){
+  param.cancelScheduledValues(time);
+  param.setValueAtTime(.0001,time);
+  param.linearRampToValueAtTime(Math.max(.0002,peak),time+attack);
+  param.exponentialRampToValueAtTime(.0001,time+release);
+}
+
+function sidechain(time,depth=.38){
+  musicBassBus.gain.cancelScheduledValues(time);
+  musicSynthBus.gain.cancelScheduledValues(time);
+  musicBassBus.gain.setValueAtTime(depth,time);
+  musicSynthBus.gain.setValueAtTime(Math.min(.72,depth+.18),time);
+  musicBassBus.gain.exponentialRampToValueAtTime(1,time+.15);
+  musicSynthBus.gain.exponentialRampToValueAtTime(1,time+.18);
+}
+
+function scheduleMusicStep(step,time,intensity){
+  const bpm=150;
+  const sixteenth=60/bpm/4;
+  const barDur=sixteenth*16;
+  const pos=step%16;
+  const bar=Math.floor(step/16);
+  const phrase=bar%16;
+
+  const launch=phrase<2;
+  const build=phrase>=2&&phrase<4;
+  const drop=phrase>=4&&phrase<8;
+  const breakBar=phrase===8;
+  const redline=phrase>=9;
+  const energy=clamp(.34+intensity*.50+(drop?.14:0)+(redline?.22:0),0,1.08);
+
+  // Original minor-key festival progression: Cm -> Ab -> Eb -> Bb.
+  const roots=[65.41,51.91,77.78,58.27];
+  const root=roots[bar%4];
+  const minorThird=root*Math.pow(2,3/12);
+  const fifth=root*Math.pow(2,7/12);
+
+  if(pos===0){
+    musicPad1.frequency.setTargetAtTime(root*2,time,.04);
+    musicPad2.frequency.setTargetAtTime(minorThird*2,time,.04);
+    musicPadGain.gain.setTargetAtTime(musicEnabled?(.018+energy*.018):0,time,.06);
+
+    if(phrase===3||phrase===8){
+      musicRiserGain.gain.cancelScheduledValues(time);
+      musicRiserGain.gain.setValueAtTime(.0001,time);
+      musicRiserGain.gain.linearRampToValueAtTime(.055,time+barDur*.92);
+      musicRiserGain.gain.exponentialRampToValueAtTime(.0001,time+barDur);
+      musicRiserFilter.frequency.cancelScheduledValues(time);
+      musicRiserFilter.frequency.setValueAtTime(550,time);
+      musicRiserFilter.frequency.exponentialRampToValueAtTime(6800,time+barDur*.94);
+    }
+  }
+
+  // Clean, hard kick. No exaggerated low sweep.
+  const kick=breakBar?(pos===0||pos===8):
+             launch?(pos===0||pos===8):
+             (pos===0||pos===4||pos===8||pos===12);
+  if(kick){
+    musicKick.frequency.cancelScheduledValues(time);
+    musicKick.frequency.setValueAtTime(68,time);
+    musicKick.frequency.exponentialRampToValueAtTime(45,time+.065);
+    env(musicKickGain.gain,time,.225+energy*.055,.0025,.145);
+    sidechain(time,redline?.30:.36);
+  }
+
+  if(!launch&&!breakBar&&(pos===4||pos===12)){
+    env(musicSnareGain.gain,time,.080+energy*.026,.002,.080);
+  }
+
+  const hat=breakBar?false:
+            launch?(pos===6||pos===14):
+            build?(pos===2||pos===6||pos===10||pos===14):
+            (pos%2===0);
+  if(hat){
+    const accent=(pos===6||pos===14)?1.18:1;
+    env(musicHatGain.gain,time,(.013+energy*.010)*accent,.0015,.025);
+  }
+
+  // Tight sidechained bass with roots/fifths/octaves only.
+  const bassPattern=launch
+    ? [0,-99,-99,-99,-99,-99,-99,-99,0,-99,-99,-99,-99,-99,-99,-99]
+    : drop||redline
+      ? [0,-99,-99,7,0,-99,12,-99,0,-99,-99,7,0,-99,12,-99]
+      : [0,-99,-99,-99,7,-99,-99,-99,0,-99,-99,-99,12,-99,-99,-99];
+
+  const bs=bassPattern[pos];
+  if(!breakBar&&bs!==-99){
+    const bf=root*Math.pow(2,bs/12);
+    musicBass.frequency.setValueAtTime(bf,time);
+    musicBassTone.frequency.setTargetAtTime(150+energy*55,time,.025);
+    musicSub.frequency.setValueAtTime(Math.max(32,Math.min(58,bf/2)),time);
+    env(musicBassGain.gain,time,.032+energy*.024,.004,Math.min(.15,sixteenth*1.25));
+    env(musicSubGain.gain,time,.040+energy*.021,.004,Math.min(.18,sixteenth*1.45));
+  }
+
+  // Offbeat electro stabs.
+  if((drop||redline)&&(pos===2||pos===6||pos===10||pos===14)){
+    musicStab.frequency.setValueAtTime(fifth*2,time);
+    env(musicStabGain.gain,time,.010+energy*.022,.003,.075);
+  }
+
+  // Smooth pulse texture — avoids retro-game chirping.
+  if(!launch&&!breakBar&&(pos===1||pos===5||pos===9||pos===13)){
+    const arpNotes=[0,7,12,15];
+    const af=root*4*Math.pow(2,arpNotes[Math.floor(pos/4)]/12);
+    musicArp.frequency.setValueAtTime(af,time);
+    env(musicArpGain.gain,time,.007+energy*.011,.005,.10);
+  }
+
+  // Original broad euphoric hook, sparse enough to stay modern.
+  const hook=[12,-99,-99,15,-99,-99,12,-99,10,-99,-99,7,-99,-99,10,-99,
+              12,-99,-99,15,-99,-99,19,-99,15,-99,-99,12,-99,-99,10,-99];
+  const hs=hook[step%32];
+  if((drop||redline)&&hs!==-99){
+    const lf=root*4*Math.pow(2,hs/12);
+    musicLead.frequency.setValueAtTime(lf,time);
+    musicLead2.frequency.setValueAtTime(lf,time);
+    musicLead3.frequency.setValueAtTime(lf,time);
+    env(musicLeadGain.gain,time,.009+energy*.024+(redline?.008:0),.010,Math.min(.24,sixteenth*2.15));
+  }
+
+  if(pos===0&&(phrase===4||phrase===9)){
+    env(musicSnareGain.gain,time,.15,.001,.20);
+    env(musicRiserGain.gain,time,.045,.002,.28);
+  }
+
+  musicFilter.frequency.setTargetAtTime(breakBar?1250:2200+energy*3300,time,.055);
+  musicDelayWet.gain.setTargetAtTime(.08+energy*.055,time,.07);
+  return sixteenth;
+}
+
+function updateMusic(dt){
+  if(!audioCtx||!musicBus||!musicStarted)return;
+
+  const threat=clamp(
+    enemies.length*.09+
+    (warningTimer>0?.44:0)+
+    (eventFlags.ace?.18:0)+
+    (state.hull<40?.14:0)+
+    (cinematic?.10:0),
+    0,1
+  );
+
+  const targetIntensity=.28+threat*.72;
+  musicIntensity+=(targetIntensity-musicIntensity)*Math.min(1,dt*2.7);
+
+  const horizon=audioCtx.currentTime+.14;
+  while(musicNextStep<horizon){
+    const stepDur=scheduleMusicStep(musicStep,musicNextStep,musicIntensity);
+    musicNextStep+=stepDur;
+    musicStep++;
+  }
+
+  if(musicNow){
+    const phrase=Math.floor(musicStep/16)%16;
+    const phase=phrase<2?'LAUNCH':phrase<4?'BUILD':phrase===8?'BREAK':phrase>=9?'REDLINE':'DROP';
+    musicNow.textContent='VECTOR // '+phase;
+    musicNow.classList.toggle('hot',phase==='DROP'||phase==='REDLINE');
+  }
+}
+
+function setMusic(on){
+  musicEnabled=on;
+  musicBtn.textContent='Music: '+(on?'On':'Off');
+  coverMusic.textContent='MUSIC: '+(on?'ON':'OFF');
+  ensureAudio();
+  if(musicBus&&audioCtx){
+    musicBus.gain.cancelScheduledValues(audioCtx.currentTime);
+    musicBus.gain.setTargetAtTime(on?.70:0,audioCtx.currentTime,.05);
+  }
+}
 
 function ensureAudio(){
   if(!audioEnabled)return;
   if(!audioCtx){
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-    audioCtx=new AC();master=audioCtx.createGain();master.gain.value=.34;master.connect(audioCtx.destination);
+    audioCtx=new AC();master=audioCtx.createGain();master.gain.value=.38;master.connect(audioCtx.destination);
 
     engineOsc=audioCtx.createOscillator();engineSub=audioCtx.createOscillator();
     engineGain=audioCtx.createGain();engineSubGain=audioCtx.createGain();
@@ -251,6 +690,7 @@ function ensureAudio(){
     windSource=audioCtx.createBufferSource();windSource.buffer=buf;windSource.loop=true;
     const windFilter=audioCtx.createBiquadFilter();windFilter.type='bandpass';windFilter.frequency.value=950;windFilter.Q.value=.5;
     windGain=audioCtx.createGain();windGain.gain.value=.008;windSource.connect(windFilter);windFilter.connect(windGain);windGain.connect(master);windSource.start();
+    initMusic();
   }
   if(audioCtx.state==='suspended')audioCtx.resume();
 }
@@ -532,45 +972,111 @@ function explode(pos){explosionSound();screenPunch(1.65);visualFlash('rgba(255,1
 const hit=(a,b,r)=>a.distanceToSquared(b)<r*r;
 function damage(n){state.hull=Math.max(0,state.hull-n);screenPunch(1.25);visualFlash('rgba(255,25,18,.3)',.11);if(state.hull<=35&&!eventFlags.critical){eventFlags.critical=true;masterWarning();playCutscene('critical')}if(state.hull<=0)endGame()}
 
-function setCine(k,m){captionKick.textContent=k;captionMain.textContent=m;caption.classList.remove('hidden')}
+function setCine(k,m){
+  const key=k+'|'+m;
+  captionKick.textContent=k;captionMain.textContent=m;caption.classList.remove('hidden');
+  if(key!==lastCineText){
+    lastCineText=key;
+    caption.classList.remove('cineSlam');
+    void caption.offsetWidth;
+    caption.classList.add('cineSlam');
+  }
+}
+function cineClassPulse(el,cls='hot'){
+  if(!el)return;
+  el.classList.remove(cls);void el.offsetWidth;el.classList.add(cls);
+}
+function cineThreat(label,main,sub){
+  cineThreatLabel.textContent=label||'THREAT ID';
+  cineThreatMain.textContent=main||'CORE INTERCEPTOR';
+  cineThreatSub.textContent=sub||'VECTOR UNKNOWN';
+  cineThreatCard.classList.add('show');
+}
+function clearCineThreat(){cineThreatCard.classList.remove('show')}
+function cineMusicHit(power=1){
+  if(!audioCtx||!musicEnabled)return;
+  const t=audioCtx.currentTime;
+  try{
+    if(musicKickGain&&musicKick){
+      musicKick.frequency.cancelScheduledValues(t);
+      musicKick.frequency.setValueAtTime(72,t);
+      musicKick.frequency.exponentialRampToValueAtTime(43,t+.085);
+      env(musicKickGain.gain,t,.20+.11*power,.002,.22);
+    }
+    if(musicSnareGain)env(musicSnareGain.gain,t,.08+.08*power,.001,.14);
+    if(musicBassBus){
+      musicBassBus.gain.cancelScheduledValues(t);
+      musicBassBus.gain.setValueAtTime(.18,t);
+      musicBassBus.gain.exponentialRampToValueAtTime(1,t+.18);
+    }
+  }catch(_){}
+}
+function cineImpact(power=1,color='rgba(255,255,255,.34)',threat=null){
+  screenPunch(.9+power*.9);
+  cineFovKick=Math.max(cineFovKick,3.5+power*4.5);
+  visualFlash(color,.09+.05*power);
+  cineClassPulse(cineGlitch);
+  cineClassPulse(cineReticle);
+  cineClassPulse(bars);
+  cineMusicHit(power);
+  tone(48,.22,'sine',.08+.035*power,26);
+  noise(.09,.025+.018*power);
+  if(threat)cineThreat(threat[0],threat[1],threat[2]);
+}
+function cineWhoosh(power=1){
+  cineClassPulse(cineShutter);
+  noise(.15,.018+.014*power);
+  tone(160,.18,'sawtooth',.022+.02*power,520);
+}
+
 function playCutscene(type){
-  if(!running)return;cinematic=true;pointer.firing=false;bars.classList.remove('hidden');cineFrame.classList.remove('hidden');crosshair.classList.add('hidden');
+  if(!running)return;cinematic=true;pointer.firing=false;lastCineText='';cineFovKick=0;clearCineThreat();
+  bars.classList.remove('hidden');cineFrame.classList.remove('hidden');crosshair.classList.add('hidden');
   cutscene={type,t:0,duration:type==='intro'?6.1:type==='first'?4.1:type==='ace'?5.1:3.6,beat:0};
+  cineWhoosh(.7);
   if(type==='intro'){radarSweep();dangerRise()}else if(type==='first'){radarSweep();warningTone()}else if(type==='ace'){dangerRise();masterWarning()}else masterWarning();
 }
 function beat(id,fn){if(!cutscene||cutscene.beat>=id)return;cutscene.beat=id;fn()}
 function updateCutscene(dt){
   if(!cutscene)return;cutscene.t+=dt;const t=cutscene.t,p=clamp(t/cutscene.duration,0,1),e=p*p*(3-2*p);
+  cineFovKick=Math.max(0,cineFovKick-dt*7.5);
+  camera.fov=67+cineFovKick+Math.sin(t*2.3)*.45;
+  camera.updateProjectionMatrix();
   if(cutscene.type==='intro'){
-    if(t<1.15){setCine('SYSTEM OVERRIDE','UNAUTHORIZED LAUNCH');colorWash.style.background='linear-gradient(135deg,rgba(0,205,255,.22),rgba(12,25,40,.05))';colorWash.style.opacity='.85';cyanLight.intensity=7;redLight.intensity=0;amberLight.intensity=1;camera.position.set(12-5*p,4.5+2*Math.sin(p*Math.PI),19-4*p);camera.lookAt(player.position.x,player.position.y,-16);beat(1,()=>visualFlash('rgba(100,220,255,.35)',.13))}
-    else if(t<2.5){setCine('CORE AIR DEFENSE','TRACK ACQUIRED');colorWash.style.background='linear-gradient(120deg,rgba(0,180,255,.12),rgba(255,65,20,.22))';redLight.intensity=4;amberLight.intensity=3;cyanLight.intensity=4;camera.position.set(6-4*(p-.2),7,-1-25*(p-.2));camera.lookAt(player.position.x,player.position.y,-55);beat(2,()=>{warningTone();visualFlash('rgba(255,60,30,.28)',.11)})}
-    else if(t<4.05){setCine('THREAT NETWORK','INTERCEPTORS SCRAMBLING');redLight.intensity=7;amberLight.intensity=5;cyanLight.intensity=2.5;camera.position.set(-11+7*p,3.8+Math.sin(t*3),12-8*p);camera.lookAt(player.position.x,player.position.y,-70);beat(3,()=>{spawnEnemy(false,new THREE.Vector3(-28,4,-105));spawnEnemy(false,new THREE.Vector3(25,-2,-130));dangerRise();screenPunch(1.4);showBanner('INTERCEPTORS LAUNCHED','CORE AIR DEFENSE NETWORK','#ff795f')})}
-    else{setCine('VESPER // ROGUE','BREAK THE SCREEN');colorWash.style.background='linear-gradient(135deg,rgba(255,20,20,.12),rgba(255,165,20,.18),rgba(0,190,255,.12))';redLight.intensity=4;amberLight.intensity=4;cyanLight.intensity=5;camera.position.set(2*Math.sin(t*2),5.8,14-2*e);camera.lookAt(player.position.x,player.position.y,-65);beat(4,()=>visualFlash('rgba(255,210,110,.3)',.1))}
+    if(t<1.15){setCine('SYSTEM OVERRIDE','UNAUTHORIZED LAUNCH');colorWash.style.background='linear-gradient(135deg,rgba(0,205,255,.22),rgba(12,25,40,.05))';colorWash.style.opacity='.85';cyanLight.intensity=7;redLight.intensity=0;amberLight.intensity=1;camera.position.set(12-5*p,4.5+2*Math.sin(p*Math.PI),19-4*p);camera.lookAt(player.position.x,player.position.y,-16);beat(1,()=>{cineImpact(.8,'rgba(100,220,255,.38)');cineWhoosh(.8)})}
+    else if(t<2.5){setCine('CORE AIR DEFENSE','TRACK ACQUIRED');colorWash.style.background='linear-gradient(120deg,rgba(0,180,255,.12),rgba(255,65,20,.22))';redLight.intensity=4;amberLight.intensity=3;cyanLight.intensity=4;camera.position.set(6-4*(p-.2),7,-1-25*(p-.2));camera.lookAt(player.position.x,player.position.y,-55);beat(2,()=>{warningTone();cineImpact(1.0,'rgba(255,60,30,.34)',['CORE TRACK','VESPER ACQUIRED','INTERCEPT VECTOR LOCKED']);cineWhoosh(1)})}
+    else if(t<4.05){setCine('THREAT NETWORK','INTERCEPTORS SCRAMBLING');redLight.intensity=7;amberLight.intensity=5;cyanLight.intensity=2.5;camera.position.set(-11+7*p,3.8+Math.sin(t*3),12-8*p);camera.lookAt(player.position.x,player.position.y,-70);beat(3,()=>{spawnEnemy(false,new THREE.Vector3(-28,4,-105));spawnEnemy(false,new THREE.Vector3(25,-2,-130));dangerRise();cineImpact(1.45,'rgba(255,75,35,.42)',['AIR DEFENSE','2× CORE FIGHTERS','CLOSING FAST']);cineWhoosh(1.25);showBanner('INTERCEPTORS LAUNCHED','CORE AIR DEFENSE NETWORK','#ff795f')})}
+    else{setCine('VESPER // ROGUE','BREAK THE SCREEN');colorWash.style.background='linear-gradient(135deg,rgba(255,20,20,.12),rgba(255,165,20,.18),rgba(0,190,255,.12))';redLight.intensity=4;amberLight.intensity=4;cyanLight.intensity=5;camera.position.set(2*Math.sin(t*2),5.8,14-2*e);camera.lookAt(player.position.x,player.position.y,-65);beat(4,()=>{clearCineThreat();cineImpact(.9,'rgba(255,210,110,.34)');cineWhoosh(1.1)})}
   }else if(cutscene.type==='first'){
     const a=enemies[0],b=enemies[1]||enemies[0];
-    if(t<1.2){setCine('RADAR CONTACT','TWO FAST MOVERS — HEAD-ON');colorWash.style.background='linear-gradient(90deg,rgba(0,190,255,.1),rgba(255,40,20,.3))';colorWash.style.opacity='.9';redLight.intensity=6;amberLight.intensity=1;cyanLight.intensity=3;if(a){camera.position.lerp(new THREE.Vector3(a.mesh.position.x+9,a.mesh.position.y+3,a.mesh.position.z+18),.11);camera.lookAt(a.mesh.position)}beat(1,()=>{radarSweep();visualFlash('rgba(255,45,30,.25)',.09)})}
-    else if(t<2.4){setCine('CORE FORMATION','WEAPONS HOT');redLight.intensity=8;amberLight.intensity=4;if(b){camera.position.lerp(new THREE.Vector3(b.mesh.position.x-10,b.mesh.position.y+5,b.mesh.position.z+10),.12);camera.lookAt(b.mesh.position)}beat(2,()=>warningTone())}
-    else{setCine('ENGAGE','TAKE THE FIRST SHOT');colorWash.style.background='linear-gradient(135deg,rgba(255,40,20,.2),rgba(0,210,255,.12))';camera.position.lerp(new THREE.Vector3(player.position.x,player.position.y+5.5,15),.1);camera.lookAt(player.position.x,player.position.y,-60);beat(3,()=>visualFlash('rgba(255,255,255,.24)',.07))}
+    if(t<1.2){setCine('RADAR CONTACT','TWO FAST MOVERS — HEAD-ON');colorWash.style.background='linear-gradient(90deg,rgba(0,190,255,.1),rgba(255,40,20,.3))';colorWash.style.opacity='.9';redLight.intensity=6;amberLight.intensity=1;cyanLight.intensity=3;if(a){camera.position.lerp(new THREE.Vector3(a.mesh.position.x+9,a.mesh.position.y+3,a.mesh.position.z+18),.11);camera.lookAt(a.mesh.position)}beat(1,()=>{radarSweep();cineImpact(.9,'rgba(255,45,30,.32)',['RADAR CONTACT','TWO FAST MOVERS','HEAD-ON INTERCEPT'])})}
+    else if(t<2.4){setCine('CORE FORMATION','WEAPONS HOT');redLight.intensity=8;amberLight.intensity=4;if(b){camera.position.lerp(new THREE.Vector3(b.mesh.position.x-10,b.mesh.position.y+5,b.mesh.position.z+10),.12);camera.lookAt(b.mesh.position)}beat(2,()=>{warningTone();cineImpact(1.15,'rgba(255,70,20,.34)',['STRUCTURAL ALERT','HULL 35%','KEEP AIRCRAFT MOVING'])})}
+    else{setCine('ENGAGE','TAKE THE FIRST SHOT');colorWash.style.background='linear-gradient(135deg,rgba(255,40,20,.2),rgba(0,210,255,.12))';camera.position.lerp(new THREE.Vector3(player.position.x,player.position.y+5.5,15),.1);camera.lookAt(player.position.x,player.position.y,-60);beat(3,()=>{clearCineThreat();cineImpact(1.05,'rgba(255,255,255,.30)');cineWhoosh(1.25)})}
   }else if(cutscene.type==='ace'){
     const ace=enemies.find(x=>x.ace);
-    if(t<1.35){setCine('PRIORITY THREAT','CORE ACE FLIGHT ENTERING');colorWash.style.background='linear-gradient(135deg,rgba(130,0,255,.18),rgba(255,20,20,.34))';colorWash.style.opacity='1';redLight.intensity=9;amberLight.intensity=2;cyanLight.intensity=1.5;beat(1,()=>{masterWarning();visualFlash('rgba(210,40,255,.24)',.12);screenPunch(1.8);showBanner('PRIORITY THREAT','CORE ACE FLIGHT','#ff6b6b')});if(ace){camera.position.lerp(new THREE.Vector3(ace.mesh.position.x+15,ace.mesh.position.y+7,ace.mesh.position.z+22),.09);camera.lookAt(ace.mesh.position)}}
-    else if(t<3){setCine('ACE VECTOR','CLOSING RAPIDLY');redLight.intensity=10;amberLight.intensity=5;cyanLight.intensity=2;if(ace){camera.position.lerp(new THREE.Vector3(ace.mesh.position.x-11,ace.mesh.position.y+2,ace.mesh.position.z+9),.13);camera.lookAt(ace.mesh.position)}beat(2,()=>{dangerRise();warningTone()})}
-    else if(t<4.15){setCine('INTERCEPT GEOMETRY','MERGE IN THREE SECONDS');colorWash.style.background='linear-gradient(90deg,rgba(255,0,20,.28),rgba(255,155,20,.18))';camera.position.set(player.position.x+Math.sin(t*7)*1.8,player.position.y+4.5,10);camera.lookAt(player.position.x,player.position.y,-80);beat(3,()=>visualFlash('rgba(255,90,35,.32)',.1))}
+    if(t<1.35){setCine('PRIORITY THREAT','CORE ACE FLIGHT ENTERING');colorWash.style.background='linear-gradient(135deg,rgba(130,0,255,.18),rgba(255,20,20,.34))';colorWash.style.opacity='1';redLight.intensity=9;amberLight.intensity=2;cyanLight.intensity=1.5;beat(1,()=>{masterWarning();cineImpact(1.75,'rgba(210,40,255,.38)',['PRIORITY THREAT','CORE ACE FLIGHT','ELITE INTERCEPTOR']);cineWhoosh(1.4);showBanner('PRIORITY THREAT','CORE ACE FLIGHT','#ff6b6b')});if(ace){camera.position.lerp(new THREE.Vector3(ace.mesh.position.x+15,ace.mesh.position.y+7,ace.mesh.position.z+22),.09);camera.lookAt(ace.mesh.position)}}
+    else if(t<3){setCine('ACE VECTOR','CLOSING RAPIDLY');redLight.intensity=10;amberLight.intensity=5;cyanLight.intensity=2;if(ace){camera.position.lerp(new THREE.Vector3(ace.mesh.position.x-11,ace.mesh.position.y+2,ace.mesh.position.z+9),.13);camera.lookAt(ace.mesh.position)}beat(2,()=>{dangerRise();warningTone();cineImpact(1.25,'rgba(255,55,35,.38)',['ACE VECTOR','CLOSING RAPIDLY','MERGE IMMINENT']);cineWhoosh(1.1)})}
+    else if(t<4.15){setCine('INTERCEPT GEOMETRY','MERGE IN THREE SECONDS');colorWash.style.background='linear-gradient(90deg,rgba(255,0,20,.28),rgba(255,155,20,.18))';camera.position.set(player.position.x+Math.sin(t*7)*1.8,player.position.y+4.5,10);camera.lookAt(player.position.x,player.position.y,-80);beat(3,()=>{cineImpact(1.5,'rgba(255,90,35,.44)',['INTERCEPT GEOMETRY','MERGE // 3 SECONDS','NO CLEAN EXIT']);cineWhoosh(1.4)})}
     else{setCine('MERGE','SURVIVE THE FIRST PASS');redLight.intensity=7;amberLight.intensity=6;cyanLight.intensity=3;camera.position.lerp(new THREE.Vector3(player.position.x,player.position.y+6,15),.16);camera.lookAt(player.position.x,player.position.y,-75)}
   }else{
-    if(t<1.15){setCine('MASTER WARNING','FLIGHT CONTROL DAMAGE');colorWash.style.background='linear-gradient(135deg,rgba(255,0,0,.35),rgba(255,145,0,.15))';colorWash.style.opacity='1';redLight.intensity=11;amberLight.intensity=5;cyanLight.intensity=.8;camera.position.set(player.position.x+Math.sin(t*24)*.8,player.position.y+4.3+Math.cos(t*18)*.3,10);camera.lookAt(player.position.x,player.position.y,-45);beat(1,()=>{masterWarning();visualFlash('rgba(255,0,0,.38)',.15);screenPunch(2.1);showBanner('CRITICAL DAMAGE','FLIGHT CONTROLS DEGRADED','#ff5544')})}
-    else if(t<2.45){setCine('STRUCTURAL INTEGRITY','THIRTY-FIVE PERCENT');redLight.intensity=9+Math.sin(t*15)*2;amberLight.intensity=7;camera.position.set(player.position.x+Math.sin(t*19)*.55,player.position.y+3.8,11);camera.lookAt(player.position.x,player.position.y,-50);beat(2,()=>warningTone())}
+    if(t<1.15){setCine('MASTER WARNING','FLIGHT CONTROL DAMAGE');colorWash.style.background='linear-gradient(135deg,rgba(255,0,0,.35),rgba(255,145,0,.15))';colorWash.style.opacity='1';redLight.intensity=11;amberLight.intensity=5;cyanLight.intensity=.8;camera.position.set(player.position.x+Math.sin(t*24)*.8,player.position.y+4.3+Math.cos(t*18)*.3,10);camera.lookAt(player.position.x,player.position.y,-45);beat(1,()=>{masterWarning();cineImpact(1.9,'rgba(255,0,0,.48)',['MASTER WARNING','FLIGHT CONTROL DAMAGE','AUTHORITY DEGRADED']);cineWhoosh(1.2);showBanner('CRITICAL DAMAGE','FLIGHT CONTROLS DEGRADED','#ff5544')})}
+    else if(t<2.45){setCine('STRUCTURAL INTEGRITY','THIRTY-FIVE PERCENT');redLight.intensity=9+Math.sin(t*15)*2;amberLight.intensity=7;camera.position.set(player.position.x+Math.sin(t*19)*.55,player.position.y+3.8,11);camera.lookAt(player.position.x,player.position.y,-50);beat(2,()=>{warningTone();cineImpact(1.12,'rgba(255,70,20,.34)',['STRUCTURAL ALERT','HULL 35%','KEEP AIRCRAFT MOVING'])})}
     else{setCine('EMERGENCY MODE','KEEP THE AIRCRAFT MOVING');colorWash.style.background='linear-gradient(135deg,rgba(255,25,0,.26),rgba(0,160,255,.08))';camera.position.lerp(new THREE.Vector3(player.position.x,player.position.y+5.5,15),.12);camera.lookAt(player.position.x,player.position.y,-60)}
   }
-  if(t>=cutscene.duration){cutscene=null;cinematic=false;bars.classList.add('hidden');cineFrame.classList.add('hidden');caption.classList.add('hidden');crosshair.classList.remove('hidden');colorWash.style.opacity='.18';colorWash.style.background='linear-gradient(135deg,rgba(0,180,255,.06),rgba(255,50,20,.05))';redLight.intensity=1.4;amberLight.intensity=1.2;cyanLight.intensity=4.2}
+  if(cutscene.type!=='intro'&&t>.35){
+    const j=(cutscene.type==='ace'?0.045:.025)*(1+musicIntensity);
+    camera.position.x+=(Math.random()-.5)*j;
+    camera.position.y+=(Math.random()-.5)*j;
+  }
+  if(t>=cutscene.duration){clearCineThreat();cineWhoosh(1.25);cineImpact(.72,'rgba(150,235,255,.30)');cutscene=null;cinematic=false;bars.classList.add('hidden');cineFrame.classList.add('hidden');caption.classList.add('hidden');crosshair.classList.remove('hidden');colorWash.style.opacity='.18';colorWash.style.background='linear-gradient(135deg,rgba(0,180,255,.06),rgba(255,50,20,.05))';redLight.intensity=1.4;amberLight.intensity=1.2;cyanLight.intensity=4.2;camera.fov=67;camera.updateProjectionMatrix()}
 }
 
 function startGame(){
   cover.classList.add('hidden');clearEntities();state={hull:100,speed:620,vx:0,vy:0,ammo:480,missiles:6,kills:0,score:0};player.position.set(0,0,0);player.rotation.set(0,0,0);
-  elapsed=0;spawnTimer=1.5;gunTimer=0;missileTimer=0;warningTimer=0;warningPulse=0;shake=0;fovKick=0;timeScale=1;slowMoTimer=0;combo=0;comboTimer=0;hitTimer=0;bannerTimer=0;nearMissCooldown=0;targetBracket.classList.add('hidden');scoreLayer.innerHTML='';dangerPulse.style.opacity='0';eventFlags={first:false,ace:false,critical:false};running=true;stage.focus();clock.getDelta();playCutscene('intro');cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);updateHUD();
+  elapsed=0;spawnTimer=1.5;gunTimer=0;missileTimer=0;warningTimer=0;warningPulse=0;if(audioCtx&&musicStarted)resetMusicTransport();shake=0;fovKick=0;timeScale=1;slowMoTimer=0;combo=0;comboTimer=0;hitTimer=0;bannerTimer=0;nearMissCooldown=0;targetBracket.classList.add('hidden');scoreLayer.innerHTML='';dangerPulse.style.opacity='0';eventFlags={first:false,ace:false,critical:false};running=true;stage.focus();clock.getDelta();playCutscene('intro');cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);updateHUD();
 }
 function endGame(){
-  running=false;cinematic=false;pointer.firing=false;warning.classList.add('hidden');bars.classList.add('hidden');cineFrame.classList.add('hidden');caption.classList.add('hidden');targetBracket.classList.add('hidden');dangerPulse.style.opacity='0';masterWarning();visualFlash('rgba(255,0,0,.45)',.18);
+  running=false;cinematic=false;pointer.firing=false;if(musicBus&&audioCtx)musicBus.gain.setTargetAtTime(musicEnabled?.28:0,audioCtx.currentTime,.18);warning.classList.add('hidden');bars.classList.add('hidden');cineFrame.classList.add('hidden');caption.classList.add('hidden');clearCineThreat();targetBracket.classList.add('hidden');dangerPulse.style.opacity='0';masterWarning();visualFlash('rgba(255,0,0,.45)',.18);
   cover.classList.remove('hidden');cover.querySelector('.eyebrow').textContent='AIRCRAFT LOST // SORTIE COMPLETE';cover.querySelector('.tagline').textContent='Final score '+Math.round(state.score).toString().padStart(6,'0')+' · '+state.kills+' confirmed kills. Re-arm the Vesper and try again.';launchBtn.textContent='FLY AGAIN';
 }
 function restart(){cancelAnimationFrame(raf);running=false;cover.querySelector('.eyebrow').textContent='ROGUE FLIGHT // CORE TERRITORY';cover.querySelector('.tagline').textContent='Steal the Vesper. Break the interceptor screen. Survive the Core. A fast 3D air-combat prototype with mouse-aimed cannon fire, guided missiles, alarms and cinematic threat sequences.';launchBtn.textContent='LAUNCH MISSION';cover.classList.remove('hidden');renderer.render(scene,camera)}
@@ -584,6 +1090,7 @@ function update(dt){
   if(flashTime>0){flashTime-=dt;flash.style.opacity=String(clamp(flashTime/.12,0,1))}else flash.style.opacity='0';
   warning.classList.toggle('hidden',warningTimer<=0);
   if(warningTimer>0&&warningPulse<=0){warningPulse=.48;warningTone();redLight.intensity=7;visualFlash('rgba(255,25,20,.2)',.07)}else if(!cinematic&&warningTimer<=0)redLight.intensity+=(1.4-redLight.intensity)*Math.min(1,3*dt);
+  updateMusic(dt);
   if(cinematic){updateCutscene(dt);return}
 
   const l=keys.has('KeyA')||keys.has('ArrowLeft'),r=keys.has('KeyD')||keys.has('ArrowRight'),u=keys.has('KeyW')||keys.has('ArrowUp'),d=keys.has('KeyS')||keys.has('ArrowDown');
@@ -597,7 +1104,7 @@ function update(dt){
   const sx=(Math.random()-.5)*shake,sy=(Math.random()-.5)*shake;camera.position.x+=sx;camera.position.y+=sy;
   camera.lookAt(player.position.x+state.vx*.075,player.position.y+state.vy*.045,-62);
   cyanLight.position.x=player.position.x-18;cyanLight.position.y=player.position.y+10;
-  if(engineOsc){engineOsc.frequency.value=58+state.speed*.072;engineGain.gain.value=audioEnabled?(.017+state.speed/30000):0;if(engineSub){engineSub.frequency.value=29+state.speed*.035;engineSubGain.gain.value=audioEnabled?(.025+state.speed/42000):0}if(windGain)windGain.gain.value=audioEnabled?clamp((state.speed-430)/12000,.006,.025):0}
+  if(engineOsc){engineOsc.frequency.value=58+state.speed*.072;engineGain.gain.value=audioEnabled?(.010+state.speed/48000):0;if(engineSub){engineSub.frequency.value=29+state.speed*.035;engineSubGain.gain.value=audioEnabled?(.016+state.speed/62000):0}if(windGain)windGain.gain.value=audioEnabled?clamp((state.speed-430)/16000,.004,.018):0}
   shake=Math.max(0,shake-dt*5.2);fovKick=Math.max(0,fovKick-dt*10);camera.fov=67+fovKick;camera.updateProjectionMatrix();
   if(pointer.firing)fireGun();
 
@@ -669,11 +1176,13 @@ function loop(){if(!running)return;const rawDt=Math.min(clock.getDelta(),.033),d
 
 function setAudio(on){
   audioEnabled=on;audioBtn.textContent='Audio: '+(on?'On':'Off');coverAudio.textContent='AUDIO: '+(on?'ON':'OFF');
-  if(master)master.gain.value=on?.3:0;if(on)ensureAudio();
+  if(master)master.gain.value=on?.34:0;if(on)ensureAudio();
 }
 audioBtn.addEventListener('click',()=>setAudio(!audioEnabled));
 coverAudio.addEventListener('click',()=>setAudio(!audioEnabled));
-launchBtn.addEventListener('click',()=>{ensureAudio();startGame()});
+musicBtn.addEventListener('click',()=>setMusic(!musicEnabled));
+coverMusic.addEventListener('click',()=>setMusic(!musicEnabled));
+launchBtn.addEventListener('click',()=>{ensureAudio();if(audioCtx&&musicStarted)resetMusicTransport();startGame()});
 restartBtn.addEventListener('click',restart);
 
 init3D();

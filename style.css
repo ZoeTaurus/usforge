@@ -695,3 +695,4 @@ body.playing .site-banner { display: none; }
 .panel select { font: 15px var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .initial.emoji, .mini.emoji { background: var(--tint-20) !important; font-size: 1.15em; }
 .maker-bio { margin: 10px 0 0; max-width: 52ch; font-size: 16px; }
+.board-list li.empty-board { display: block; color: var(--dim); font-size: 14px; text-align: center; padding: 14px; }

@@ -324,6 +324,7 @@ async function upload(req, env) {
   const cover = COVERS.find(c => all.has(`games/${slug}/${c}`));
   const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null,
     genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now,
+    ...((replacing ? files.some(f => f.text !== undefined && /usforge['"]?\s*:\s*['"]score/.test(f.text)) : (list || []).find(g => g.slug === slug)?.leaderboard) ? { leaderboard: true } : {}),
     ...((before && (replacing || coverPath)) ? { updated: now } : (list || []).find(g => g.slug === slug)?.updated ? { updated: (list || []).find(g => g.slug === slug).updated } : {}) };
   // updates to games already on the site, and anything the admin (Taurus) uploads, go live straight away
   if (who.admin || before) {

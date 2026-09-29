@@ -3,7 +3,7 @@
 Runs automatically on GitHub before each deploy, so nobody has to edit a shared list.
 Run it yourself to preview locally:  python3 scripts/build_list.py
 """
-import json, pathlib, subprocess, sys, time
+import json, pathlib, re, subprocess, sys, time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GAMES = ROOT / 'games'
@@ -42,6 +42,19 @@ def updated_at(folder, added):
         return None
 
 
+LB = re.compile(r'''usforge['"]?\s*:\s*['"]score''')
+def has_leaderboard(folder):
+    """True if any of the game's code sends a score to UsForge."""
+    for p in folder.rglob('*'):
+        if p.suffix.lower() in ('.html', '.htm', '.js', '.mjs') and p.stat().st_size < 5_000_000:
+            try:
+                if LB.search(p.read_text(encoding='utf-8', errors='ignore')):
+                    return True
+            except Exception:
+                pass
+    return False
+
+
 games, problems = [], []
 for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.startswith(('_', '.'))):
     info_file = folder / 'game.json'
@@ -76,6 +89,8 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         'build': playable or bool(url),   # False = a teaser for a game with nothing to play yet
         'added': added_at(folder),
     })
+    if playable and has_leaderboard(folder):
+        games[-1]['leaderboard'] = True   # the game sends scores (see "Add a leaderboard" on the Share page)
     up = updated_at(folder, games[-1]['added'])
     if up:
         games[-1]['updated'] = up   # new files since it was first added (the site shows "Updated")

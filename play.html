@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=37">
+<link rel="stylesheet" href="style.css?v=38">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="site.js?v=30"></script>
 </head>
@@ -199,7 +199,12 @@
   async function loadBoard(highlight) {
     try {
       const b = await (await fetch('/api/scores?g=' + encodeURIComponent(game.slug), { cache: 'no-store' })).json();
-      if (!b.list?.length) return;
+      if (!b.list?.length) {
+        if (!game.leaderboard) return;
+        $('board').hidden = false; $('boardNote').textContent = '';
+        $('boardList').innerHTML = `<li class="empty-board">No scores yet. Finish a game to be the first on the board!</li>`;
+        return;
+      }
       $('board').hidden = false;
       $('boardNote').textContent = b.order === 'low' ? 'lowest wins' : 'top 10';
       $('boardList').innerHTML = b.list.map((e, i) => `<li class="${e.id === highlight ? 'me' : ''}"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span><b>${esc(e.name)}</b><span class="score">${fmt(e.score, b.unit)}</span></li>`).join('');

@@ -76,7 +76,8 @@
     "next": "",
     "build": true,
     "added": 1790617626,
-    "updated": 1790703478
+    "leaderboard": true,
+    "updated": 1790703481
   },
   {
     "slug": "pirate-madness",
@@ -219,7 +220,8 @@
     "next": "",
     "build": true,
     "added": 1790437918,
-    "updated": 1790521950
+    "leaderboard": true,
+    "updated": 1790703125
   },
   {
     "slug": "reel-deep",
@@ -303,6 +305,7 @@
     "next": "",
     "build": true,
     "added": 1790427753,
-    "updated": 1790436496
+    "leaderboard": true,
+    "updated": 1790703125
   }
 ]

@@ -92,3 +92,9 @@ Object.assign(SFX, {
 
 SFX.rewind = () => { tone(900, .5, 'sawtooth', .04, -700); tone(1200, .45, 'square', .02, -900, .05); noise(.4, .05, 2000, 'highpass'); };
 SFX.saved = () => tone(1046, .06, 'triangle', .025);
+
+SFX.scan = () => { tone(600, .6, 'sine', .05, 900); tone(1200, .5, 'sine', .02, 600, .08); };
+
+SFX.splash = () => { noise(.25, .09, 1200, 'bandpass'); tone(300, .12, 'sine', .03, -150); };
+
+SFX.thunder = (v = 1) => { noise(2.2, .28*v, 140); noise(1.2, .16*v, 420); tone(42, 1.8, 'sine', .08*v, -12); };

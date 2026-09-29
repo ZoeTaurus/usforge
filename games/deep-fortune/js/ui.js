@@ -50,7 +50,10 @@ function refreshHome(){
 }
 const TIPS = [
   'Digging straight down is safe from cave-ins. Tunnels sideways need supports.',
-  'One support protects about 3 tiles in every direction.',
+  'Supports only work when they reach the roof. Stack them in tall rooms!',
+  'Water poured onto lava turns it into obsidian. Flood a lava lake to make it safe!',
+  'Underwater? Watch the bubbles above your head - hold jump to swim up for air.',
+  'Press Q to fire an ore scanner pulse and reveal gems hidden in the dark.',
   'Cracks and falling dust mean the ceiling is about to go. Move or build a support!',
   'Place a ladder behind you as you dig down so you can climb back up.',
   'Falls of more than 5 tiles hurt. Ladders cancel your fall.',

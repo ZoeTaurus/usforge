@@ -5,7 +5,7 @@
 // ============================================================
 
 // ---------- contracts & market ----------
-const ORE_MIN_DEPTH = { [T.COAL]:2, [T.COPPER]:8, [T.QUARTZ]:10, [T.IRON]:25, [T.SILVER]:55, [T.AMETHYST]:60, [T.GOLD]:85,
+const ORE_MIN_DEPTH = { [T.COAL]:2, [T.COPPER]:8, [T.QUARTZ]:10, [T.IRON]:25, [T.SILVER]:55, [T.FOSSIL]:30, [T.AMETHYST]:60, [T.GOLD]:85,
   [T.EMERALD]:100, [T.RUBY]:130, [T.SAPPHIRE]:150, [T.DIAMOND]:170, [T.PLATINUM]:190, [T.MYTHRIL]:205, [T.VOIDSTONE]:226 };
 const oreValue = id => Math.round(DEF[id].value * (game.hot && game.hot.id === id ? game.hot.mult : 1));
 
@@ -164,7 +164,8 @@ function pollGamepad(){
     if (pressed(3)){ if (nearShop()) openShop(); else useMedkit(); }
     if (pressed(9)) handleBack();
     if (pressed(8)) toggleMap();
-    if (pressed(10) || pressed(11)) startRecall();
+    if (pressed(10)) startRecall();
+    if (pressed(11)) useScanner();
   }
   pad.prev = gp.buttons.map((_, i) => b(i));
 }
@@ -197,4 +198,147 @@ function stepAmbience(dt){
     }
   }
   if (!game.opts.invincible && !game.over && P.hp/maxHp() < .3){ heartT -= dt; if (heartT <= 0){ heartT = .85; SFX.heart(); } }
+}
+
+// ---------- ore scanner: a sonar pulse that lights up nearby ore ----------
+function useScanner(){
+  if (game.scan) return;
+  if (!game.opts.infinite && game.scanner <= 0){ SFX.deny(); msg('No ore scanners! Buy some at the shop.', '#e0533d'); return; }
+  if (!game.opts.infinite) game.scanner--;
+  game.scan = { x:pcx(), y:pcy(), t:0, found:0 };
+  SFX.scan();
+}
+function stepScan(dt){
+  const s = game.scan; if (!s) return;
+  const prevR = s.t * 9, R = (s.t + dt) * 9;                    // radius in tiles grows 9 tiles/s
+  s.t += dt;
+  if (prevR < 14){
+    const cx = Math.floor(s.x/TS), cy = Math.floor(s.y/TS);
+    for (let y=cy-15;y<=cy+15;y++) for (let x=cx-15;x<=cx+15;x++){
+      if (!inb(x,y)) continue;
+      const d = Math.hypot(x - cx, y - cy);
+      if (d >= prevR && d < Math.min(R, 14)){
+        const t = tiles[I(x,y)];
+        if (DEF[t].ore || t === T.CHEST){ seen[I(x,y)] = 1; s.found++; if (DEF[t].value >= 70 || t === T.CHEST) tone(1200 + d*40, .05, 'sine', .02); }
+      }
+    }
+    if (R >= 14 && prevR < 14) msg(s.found ? `Scanner found ${s.found} deposit${s.found > 1 ? 's' : ''}!` : 'Scanner found nothing nearby.', '#8fe3ff', 2);
+  }
+  if (s.t > 8) game.scan = null;
+}
+function drawScan(now){
+  const s = game && game.scan; if (!s) return;
+  const R = s.t * 9 * TS, cx = s.x - cam.x, cy = s.y - cam.y;
+  if (R < 14*TS + 20){
+    ctx.strokeStyle = `rgba(143,227,255,${Math.max(0, .8 - R/(14*TS))})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke(); ctx.lineWidth = 1;
+  }
+  // highlight ore inside the pulse for a few seconds
+  const fade = clamp((8 - s.t)/2, 0, 1), tx = Math.floor(s.x/TS), ty = Math.floor(s.y/TS), rT = Math.min(14, s.t*9);
+  for (let y=ty-14;y<=ty+14;y++) for (let x=tx-14;x<=tx+14;x++){
+    if (!inb(x,y) || Math.hypot(x-tx, y-ty) > rT) continue;
+    const t = tiles[I(x,y)], d = DEF[t];
+    if (!d.ore && t !== T.CHEST) continue;
+    const X = x*TS - cam.x|0, Y = y*TS - cam.y|0, pulse = .5 + Math.sin(now*6 + x + y)*.3;
+    ctx.strokeStyle = t === T.CHEST ? `rgba(255,210,74,${fade*pulse})` : rgb(d.c2, 1, fade*pulse);
+    ctx.strokeRect(X + .5, Y + .5, TS - 1, TS - 1);
+  }
+}
+
+// ---------- rain showers on the surface ----------
+let rainLevel = 0, rainNode = null, rainGain = null;
+function stepWeather(dt){
+  if (!game.weather) game.weather = { rain:false, t: 120 + Math.random()*120 };
+  const w = game.weather;
+  w.t -= dt;
+  if (w.t <= 0){
+    w.rain = !w.rain; w.t = w.rain ? 50 + Math.random()*70 : 150 + Math.random()*180;
+    if (depthOf(Math.floor(pcy()/TS)) < 6) msg(w.rain ? 'It\'s starting to rain...' : 'The rain stops.', '#9ab0ff', 2.5);
+  }
+  // each shower has its own strength: some drizzle, some storm
+  if (w.rain && w.strength === undefined) w.strength = .45 + Math.random()*.55;
+  if (!w.rain) w.strength = undefined;
+  rainLevel += ((w.rain ? w.strength : 0) - rainLevel) * Math.min(1, dt*.4);
+  stepRainFx(dt);
+  // rain sound: louder near the surface, muffled underground
+  const a = actx; if (!a || !master) return;
+  if (!rainNode && rainLevel > .02){
+    const len = a.sampleRate*2, buf = a.createBuffer(1, len, a.sampleRate), d = buf.getChannelData(0);
+    for (let i=0;i<len;i++) d[i] = Math.random()*2 - 1;
+    rainNode = a.createBufferSource(); rainNode.buffer = buf; rainNode.loop = true;
+    const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+    rainGain = a.createGain(); rainGain.gain.value = 0;
+    rainNode.connect(f); f.connect(rainGain); rainGain.connect(master); rainNode.start();
+  }
+  if (rainGain){
+    const dep = depthOf(Math.floor(pcy()/TS)), near = clamp(1 - dep/12, .08, 1);
+    rainGain.gain.setTargetAtTime(scene === 'game' && !game.paused ? rainLevel * .07 * near : 0, a.currentTime, .3);
+  }
+}
+// wind that gusts and eases
+const windNow = now => Math.sin(now*.13)*.18 + Math.sin(now*.71)*.06 + .22;
+let lightning = null;
+function stepRainFx(dt){
+  if (rainLevel < .05 || scene !== 'game') return;
+  const horizonY = SURF*TS, now = performance.now()/1000;
+  // splash droplets where rain hits the ground (only when the surface is on screen)
+  if (horizonY > cam.y - 10 && horizonY < cam.y + VH + 10){
+    const n = rainLevel*dt*70;
+    for (let i=0;i<n || (i === 0 && Math.random() < n); i++){
+      const wx = cam.x + Math.random()*VW, tx = Math.floor(wx/TS);
+      let gy = SURF; while (gy < SURF + 3 && !isSolid(tx, gy)) gy++;           // falls into holes a little way
+      if (gy >= SURF + 3) continue;
+      for (let k=0;k<2;k++) particles.push({ x:wx, y:gy*TS - 1, vx:(Math.random()-.5)*40 + windNow(now)*30, vy:-30 - Math.random()*50, g:420, life:.22 + Math.random()*.1, col:'rgba(210,228,255,.85)', sz:1 });
+    }
+  }
+  // rain dripping down any open shafts
+  for (let tx=Math.floor(cam.x/TS); tx<=Math.floor((cam.x+VW)/TS); tx++){
+    if (inb(tx, SURF) && !isSolid(tx, SURF) && Math.random() < dt*rainLevel*6)
+      particles.push({ x:tx*TS + 2 + Math.random()*12, y:SURF*TS, vx:0, vy:80, g:500, life:1.4, col:'rgba(160,200,255,.75)', sz:1 });
+  }
+  // storms: lightning and thunder
+  if (lightning){ lightning.t -= dt; if (lightning.t <= 0) lightning = null; }
+  if (!lightning && rainLevel > .75 && Math.random() < dt*.035){
+    const pts = [], x0 = cam.x + VW*(.15 + Math.random()*.7);
+    let x = x0, y = SURF*TS - 260;
+    while (y < SURF*TS - 20){ pts.push([x, y]); x += (Math.random()-.5)*26; y += 10 + Math.random()*14; }
+    lightning = { t:.3, pts };
+    const near = depthOf(Math.floor(pcy()/TS)) < 8;
+    setTimeout(() => { if (scene === 'game') SFX.thunder(near ? 1 : .35); }, 400 + Math.random()*1400);
+  }
+}
+function drawRain(now){
+  if (scene !== 'game') return;
+  const horizon = SURF*TS - cam.y;
+  // wet, darker ground while it rains
+  if (rainLevel > .02 && horizon > -20 && horizon < VH){
+    ctx.fillStyle = `rgba(20,30,55,${rainLevel*.22})`; ctx.fillRect(0, horizon, VW, TS*2);
+    ctx.fillStyle = `rgba(200,220,255,${rainLevel*.25})`;
+    for (let i=0;i<14;i++){ const x = ((i*83.7 - cam.x) % VW + VW) % VW; ctx.fillRect(x|0, horizon, 6 + (i%3)*3, 1); }   // puddle glints
+  }
+  if (rainLevel < .02 || horizon < 0) return;
+  // a grey veil over the sky
+  ctx.fillStyle = `rgba(40,50,70,${rainLevel*.3})`; ctx.fillRect(0, 0, VW, Math.min(VH, horizon));
+  const wind = windNow(now);
+  // three layers of drops: far (faint, short), mid, near (bright, long)
+  const layers = [[.22, 3, 230, 90], [.38, 5, 320, 70], [.6, 8, 430, 40]];
+  for (const [a, len, speed, count] of layers){
+    ctx.fillStyle = `rgba(185,205,240,${a})`;
+    const n = Math.floor(count*rainLevel), dx = wind*len*.9;
+    for (let i=0;i<n;i++){
+      const fall = (now*speed + i*61.3*(len)) % (horizon + 40) - 30;
+      const x = (((i*97.31*len + now*speed*wind - fall*wind) % (VW + 60)) + VW + 60) % (VW + 60) - 30;
+      if (fall > horizon - 1) continue;
+      for (let k=0;k<len;k++) ctx.fillRect((x + dx*k/len)|0, (fall + k)|0, 1, 1);
+    }
+  }
+  // lightning
+  if (lightning){
+    ctx.fillStyle = `rgba(230,236,255,${lightning.t*.9})`; ctx.fillRect(0, 0, VW, Math.min(VH, horizon));
+    ctx.fillStyle = '#f4f8ff';
+    for (let i=1;i<lightning.pts.length;i++){
+      const [x0, y0] = lightning.pts[i-1], [x1, y1] = lightning.pts[i], n = Math.ceil(Math.hypot(x1-x0, y1-y0));
+      for (let k=0;k<n;k++) ctx.fillRect((x0 + (x1-x0)*k/n - cam.x)|0, (y0 + (y1-y0)*k/n - cam.y)|0, 2, 1);
+    }
+  }
 }

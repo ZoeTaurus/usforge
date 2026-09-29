@@ -5,17 +5,17 @@
 const DEMO_DEPTH = 30;          // how deep the showcase mineshaft behind the title screen goes
 let scene = 'home';          // 'home' | 'game'
 let game = null;
-let autosaveT = 0, fadeA = 0, savedFx = 0;
+let autosaveT = 0, fadeA = 0, savedFx = 0, hitStop = 0;
 const look = { x:0, y:0, downT:0 };
 
 function makeGame(mode, opts){
   return { mode, opts, money:0, earned:0, maxDepth:0, bag:{}, pick:0, bagLv:0, lampLv:0, armorLv:0, bootsLv:0, jetLv:0,
            contracts:[], hot:null, hint:null, wasNight:false, diff:'normal', runAch:[],
-           ladder:15, support:6, torch:6, medkit:1, dynamite:2, beacon:1, platform:12, post:6, bossDefeated:false, sel:0, over:false, won:false, paused:false, shopOpen:false,
+           ladder:15, support:6, torch:6, medkit:1, dynamite:2, beacon:1, platform:12, post:6, scanner:2, scan:null, bossDefeated:false, sel:0, over:false, won:false, paused:false, shopOpen:false,
            time:0, lastLayer:T.DIRT, banner:null, recall:null, stats:{ ores:0, kills:0, chests:0, contracts:0 } };
 }
 function careerOpts(){ return { invincible:false, infinite:false, maxGear:false, caveins:true, hazards:true, enemies:true }; }
-function clearEntities(){ particles = []; floaters = []; messages = []; enemies = []; pickups = []; bombs = []; flashes = []; boss = null; fireballs = []; spawnT = 3; mapOpen = false; fadeA = 1; look.x = look.y = 0; resetRewind(); }
+function clearEntities(){ particles = []; floaters = []; messages = []; enemies = []; pickups = []; bombs = []; flashes = []; boss = null; fireballs = []; spawnT = 3; mapOpen = false; fadeA = 1; look.x = look.y = 0; resetRewind(); rainLevel = 0; if (rainGain && actx) rainGain.gain.setTargetAtTime(0, actx.currentTime, .2); }
 
 function startGame(mode, freeOpts, diffKey){
   const opts = mode === 'free' ? Object.assign({}, freeDefaults, freeOpts) : careerOpts();
@@ -45,10 +45,10 @@ function goHome(){
 // ---------- save / load (career only) ----------
 function saveGame(){
   if (!game || game.mode !== 'career' || game.over) return;
-  const g = Object.assign({}, game); delete g.banner; delete g.recall; delete g.hint; delete g.runAch;
+  const g = Object.assign({}, game); delete g.banner; delete g.recall; delete g.hint; delete g.runAch; delete g.scan;
   const ok = store.set(SAVE_KEY, {
     v:2, arena:1, seed:worldSeed, game:g, player:{ x:P.x, y:P.y, hp:P.hp, face:P.face },
-    tiles:b64enc(tiles), deco:b64enc(deco), seen:b64enc(seen),
+    tiles:b64enc(tiles), deco:b64enc(deco), seen:b64enc(seen), decor:b64enc(decor),
   });
   if (!ok) msg('Could not save (storage full or blocked).', '#e0533d'); else savedFx = 1.6;
 }
@@ -58,7 +58,8 @@ function loadGame(){
   try {
     genWorld(s.seed, {});
     tiles = b64dec(s.tiles, WW*WH); deco = b64dec(s.deco, WW*WH); seen = b64dec(s.seen, WW*WH);
-    if (!s.arena) carveArena();                                  // saves from before the boss existed
+    if (!s.arena) carveArena();
+    if (s.decor) decor = b64dec(s.decor, WW*WH);                                  // saves from before the boss existed
     const base = makeGame('career', careerOpts());
     game = Object.assign(base, s.game, { opts:careerOpts(), paused:false, shopOpen:false, over:false, banner:null, recall:null, runAch:[], stats:Object.assign(base.stats, s.game.stats || {}) });
     P = Object.assign(makePlayer(), s.player);
@@ -90,6 +91,7 @@ function update(dt){
   refreshInput();
   document.body.classList.toggle('nearshop', !!(P && nearShop()));
   if (game.paused) return;
+  if (hitStop > 0){ hitStop -= dt; dt *= .2; }          // a split-second of slow-mo when a block shatters
   game.time += dt;
   stepRewind(dt);
   stepPlayer(dt);
@@ -103,6 +105,8 @@ function update(dt){
   stepPickups(dt);
   stepBombs(dt);
   stepRecall(dt);
+  stepScan(dt);
+  stepWeather(dt);
   stepHints(dt);
   stepAchievements(dt);
   stepAmbience(dt);
@@ -121,8 +125,8 @@ function update(dt){
   look.x += ((P.vx ? Math.sign(P.vx) : 0)*30 - look.x) * Math.min(1, dt*2);
   look.downT = (input.down && P.onGround && !P.onLadder && !input.digKey) ? look.downT + dt : 0;
   look.y += ((look.downT > .35 ? 70 : 0) - look.y) * Math.min(1, dt*4);
-  const t = camTarget(), k = Math.min(1, dt*8);
-  cam.x += (t.x - cam.x) * k; cam.y += (t.y - cam.y) * k;
+  const t = camTarget(), kx = Math.min(1, dt*12), ky = Math.min(1, dt*10);
+  cam.x += (t.x - cam.x) * kx; cam.y += (t.y - cam.y) * ky;
   // autosave
   autosaveT += dt; if (autosaveT > 20){ autosaveT = 0; saveGame(); }
 }
@@ -165,7 +169,7 @@ function decorateDemo(){
   const g1 = top + 8;
   for (let a=x+1; a<x+16; a++){ air(a, g1); air(a, g1+1); }
   floor(x+1, x+15, g1+2);
-  for (let a=x+3; a<x+16; a+=5) deco[I(a, g1+1)] = D.SUPPORT;
+  for (let a=x+3; a<x+16; a+=5){ deco[I(a, g1+1)] = D.SUPPORT; deco[I(a, g1)] = D.SUPPORT; }
   for (let a=x+1; a<x+16; a+=5) deco[I(a, g1)] = D.TORCH;
   [[x+5,g1-1,T.GOLD],[x+6,g1-1,T.GOLD],[x+9,g1+2,T.RUBY],[x+13,g1-1,T.DIAMOND],[x+2,g1+2,T.EMERALD],[x+15,g1+2,T.AMETHYST],[x+11,g1-1,T.SAPPHIRE]].forEach(([a,b,t]) => put(a,b,t));
 
@@ -182,7 +186,7 @@ function decorateDemo(){
   const g3 = top + 21;
   for (let a=x-18; a<x; a++){ air(a, g3); air(a, g3+1); }
   floor(x-18, x-1, g3+2);
-  for (let a=x-3; a>x-19; a-=4) deco[I(a, g3+1)] = D.SUPPORT;
+  for (let a=x-3; a>x-19; a-=4){ deco[I(a, g3+1)] = D.SUPPORT; deco[I(a, g3)] = D.SUPPORT; }
   for (let a=x-1; a>x-19; a-=4) deco[I(a, g3)] = D.TORCH;
   [[x-5,g3-1,T.IRON],[x-6,g3-1,T.IRON],[x-6,g3-2,T.IRON],[x-10,g3+2,T.SILVER],[x-11,g3+2,T.SILVER],[x-14,g3-1,T.GOLD],[x-15,g3-1,T.GOLD],[x-15,g3-2,T.GOLD],[x-17,g3+2,T.COPPER]].forEach(([a,b,t]) => put(a,b,t));
 

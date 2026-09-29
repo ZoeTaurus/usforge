@@ -12,7 +12,9 @@ const SETTINGS_KEY = 'deepfortune.settings';
 
 const T = { AIR:0, GRASS:1, DIRT:2, STONE:3, GRANITE:4, BASALT:5, BEDROCK:6, GRAVEL:7, RUBBLE:8,
   COAL:9, COPPER:10, IRON:11, SILVER:12, GOLD:13, RUBY:14, DIAMOND:15, MYTHRIL:16, LAVA:17, GAS:18,
-  QUARTZ:19, AMETHYST:20, EMERALD:21, SAPPHIRE:22, PLATINUM:23, VOIDSTONE:24, CHEST:25 };
+  QUARTZ:19, AMETHYST:20, EMERALD:21, SAPPHIRE:22, PLATINUM:23, VOIDSTONE:24, CHEST:25, WATER:26, OBSIDIAN:27, FOSSIL:28 };
+// natural cave decorations (a separate layer from things the player builds)
+const DECOR = { NONE:0, STALACTITE:1, STALAGMITE:2, MUSHROOM:3, CRYSTAL:4, WEB:5, BONES:6, ROOTS:7, CART:8, CRYSTAL_UP:9 };
 const D = { NONE:0, LADDER:1, SUPPORT:2, TORCH:3, PLATFORM:5, POST:6 };   // deco id = hotbar slot + 1 (slot 4 is dynamite, not a deco)
 const DECO_KEY = ['', 'ladder', 'support', 'torch', '', 'platform', 'post'];
 
@@ -28,6 +30,8 @@ DEF[T.GRAVEL]  = { name:'Gravel',  solid:true, hard:1,  time:.22, col:[146,136,1
 DEF[T.RUBBLE]  = { name:'Rubble',  solid:true, hard:1,  time:.3,  col:[104,96,92] };
 DEF[T.LAVA]    = { name:'Lava',    solid:false, liquid:true, col:[240,90,20] };
 DEF[T.GAS]     = { name:'Gas',     solid:false, col:[120,220,80] };
+DEF[T.WATER]   = { name:'Water',   solid:false, liquid:true, col:[60,120,220] };
+DEF[T.OBSIDIAN]= { name:'Obsidian', solid:true, hard:4, time:1.6, col:[46,30,66] };
 DEF[T.CHEST]   = { name:'Chest',   solid:true, hard:1,  time:.35, col:[170,120,56], chest:true, glow:[255,200,90] };
 
 //          id         name       $    hard time  main color       highlight        glow
@@ -37,6 +41,7 @@ const ORES = [
   [T.QUARTZ,   'Quartz',    12,   2, .6,  [226,226,236], [255,255,255], null],
   [T.IRON,     'Iron',      18,   2, .75, [200,160,130], [245,225,205], null],
   [T.SILVER,   'Silver',    35,   3, .9,  [196,208,222], [255,255,255], null],
+  [T.FOSSIL,   'Fossil',    45,   2, .8,  [222,208,176], [250,244,224], null],
   [T.AMETHYST, 'Amethyst',  55,   3, .9,  [160,86,214],  [226,180,255], [170,100,230]],
   [T.GOLD,     'Gold',      70,   3, .9,  [246,196,40],  [255,246,160], [255,210,80]],
   [T.EMERALD,  'Emerald',   110,  3, 1.0, [40,196,100],  [160,255,190], [60,230,120]],
@@ -71,6 +76,7 @@ const SUPPLIES = [
   { key:'medkit',  name:'Medkit',   cost:30, pack:1,  desc:'Heals 60 HP (H)' },
   { key:'dynamite', name:'Dynamite', cost:25, pack:3, desc:'Blasts a big hole (4). RUN!' },
   { key:'beacon',   name:'Recall beacon', cost:60, pack:1, desc:'Warps you to the surface (R)' },
+  { key:'scanner',  name:'Ore scanner', cost:20, pack:2, desc:'Sonar pulse reveals ore within 14 tiles (Q)' },
 ];
 const HARD_NAMES = ['', 'dirt', 'stone', 'granite', 'basalt', 'anything'];
 
@@ -78,7 +84,7 @@ const HARD_NAMES = ['', 'dirt', 'stone', 'granite', 'basalt', 'anything'];
 const MINI_COL = [];
 MINI_COL[T.AIR]=[30,24,36]; MINI_COL[T.GRASS]=[80,170,60]; MINI_COL[T.DIRT]=[110,74,44]; MINI_COL[T.STONE]=[96,94,102];
 MINI_COL[T.GRANITE]=[124,84,78]; MINI_COL[T.BASALT]=[54,54,72]; MINI_COL[T.BEDROCK]=[20,18,24]; MINI_COL[T.GRAVEL]=[130,122,110];
-MINI_COL[T.RUBBLE]=[90,84,80]; MINI_COL[T.LAVA]=[255,110,20]; MINI_COL[T.GAS]=[110,210,70]; MINI_COL[T.CHEST]=[255,200,80];
+MINI_COL[T.RUBBLE]=[90,84,80]; MINI_COL[T.LAVA]=[255,110,20]; MINI_COL[T.GAS]=[110,210,70]; MINI_COL[T.CHEST]=[255,200,80]; MINI_COL[T.WATER]=[60,120,230]; MINI_COL[T.OBSIDIAN]=[70,46,100];
 for (const [id] of ORES) MINI_COL[id] = DEF[id].c1.map(v=>Math.min(255, v*1.15));
 
 // hotbar items that can be placed (keys 1-4)

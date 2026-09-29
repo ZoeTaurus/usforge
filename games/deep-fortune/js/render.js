@@ -14,6 +14,7 @@ const MM = mkCanvas(64,48); let mmTimer = 0;     // minimap
 // ---------- responsive sizing ----------
 function resize(){
   const w = window.innerWidth, h = window.innerHeight;
+  if (!w || !h) return;                           // hidden / minimised window: keep the last size
   // ~480 game px across wide screens, never fewer than ~18 tiles on the short side
   let s = Math.max(1, Math.min(w, h*1.78) / 480, Math.min(w, h) / 300) * (settings.zoom || 1);
   s = Math.max(.75, s);
@@ -42,7 +43,10 @@ function shake(a){ if (settings.shake) shakeAmt = Math.max(shakeAmt, a); }
 function stepEffects(dt){
   for (const m of messages) m.life -= dt;
   messages = messages.filter(m => m.life > 0);
-  for (const p of particles){ p.vy += p.g*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt; }
+  for (const p of particles){
+    p.vy += p.g*dt; p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt;
+    if (p.bounce && tiles && isSolid(Math.floor(p.x/TS), Math.floor(p.y/TS))){ p.y -= p.vy*dt; p.vy *= -.35; p.vx *= .55; if (Math.abs(p.vy) < 20) p.vy = 0; }
+  }
   particles = particles.filter(p => p.life > 0);
   if (particles.length > 700) particles.splice(0, particles.length-700);
   for (const f of floaters){ f.y -= 22*dt; f.life -= dt; }
@@ -59,61 +63,81 @@ function text(s, x, y, col='#f1e9d2', size=8, align='left'){
 }
 
 // ---------- sky & surface ----------
-const CLOUDS = [0,1,2,3,4].map(i => {
-  const r = mulberry32(50+i), w = 40 + (r()*30|0), [c, x] = mkCanvas(w, 18);
-  for (let k=0;k<6;k++){ const bx = r()*(w-16)|0, bw = 12 + (r()*14|0), by = 4 + (r()*6|0); x.fillStyle = '#ffffff'; x.fillRect(bx, by, bw, 18-by-2); x.fillRect(bx+2, by-2, bw-4, 2); }
-  x.fillStyle = '#d6e6f5'; x.fillRect(2, 14, w-4, 2);
-  return c;
-});
+// ---------- sky, clouds & parallax scenery ----------
+const hillH = (wx, base, amp, f, seed) => base + Math.sin(wx*f + seed)*amp + Math.sin(wx*f*2.3 + seed*2 + 1)*amp*.35 + Math.sin(wx*f*5.1 + seed)*amp*.08;
 function drawSky(now){
   const horizon = SURF*TS - cam.y;
-  const g = ctx.createLinearGradient(0, horizon - 260, 0, horizon);
-  g.addColorStop(0, '#2c5cc4'); g.addColorStop(.7, '#78b8ec'); g.addColorStop(1, '#bfe6f7');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, VW, Math.max(0, horizon+2));
+  // banded pixel sky
+  const sk = BACKDROP.sky, skyTop = horizon - sk.height;
+  ctx.fillStyle = '#224aac'; if (skyTop > 0) ctx.fillRect(0, 0, VW, skyTop);
+  if (!BACKDROP.skyPat) BACKDROP.skyPat = ctx.createPattern(sk, 'repeat-x');
+  ctx.save(); ctx.translate(0, skyTop|0); ctx.fillStyle = BACKDROP.skyPat; ctx.fillRect(0, 0, VW, sk.height); ctx.restore();
   if (horizon < -40) return;
-  // sun
-  const dp = dayPhase(), th = dp.p*Math.PI*2;
-  const sx = (VW/2 + Math.cos(th)*VW*.38 - 12)|0, sy = (horizon - 82 - Math.sin(th)*140)|0;
-  if (sy < horizon - 60){
-    ctx.fillStyle = 'rgba(255,245,190,.18)'; ctx.fillRect(sx-10, sy-10, 44, 44);
-    ctx.fillStyle = 'rgba(255,245,190,.25)'; ctx.fillRect(sx-5, sy-5, 34, 34);
-    ctx.fillStyle = dp.dusk > .5 ? '#ffb070' : '#fff6b0'; ctx.fillRect(sx, sy, 24, 24); ctx.fillStyle = dp.dusk > .5 ? '#ff8a4a' : '#ffe36a'; ctx.fillRect(sx+3, sy+3, 18, 18);
+  // sun (hidden by storm clouds)
+  const dp = dayPhase(), th = dp.p*Math.PI*2, storm = typeof rainLevel === 'number' ? rainLevel : 0;
+  const sx = (VW/2 + Math.cos(th)*VW*.38 - 12)|0, sy = (horizon - 82 - Math.sin(th)*140)|0, sunA = 1 - storm*.9;
+  if (sy < horizon - 60 && sunA > .05){
+    ctx.globalAlpha = sunA;
+    for (let r=3;r>=1;r--){ ctx.fillStyle = `rgba(255,245,200,${.07*r})`; const e = (4 - r)*7; ctx.fillRect(sx - e, sy - e, 24 + e*2, 24 + e*2); }
+    ctx.fillStyle = dp.dusk > .5 ? '#ffb070' : '#fff8c8'; ctx.fillRect(sx, sy, 24, 24);
+    ctx.fillStyle = dp.dusk > .5 ? '#ff8a4a' : '#ffe680'; ctx.fillRect(sx+3, sy+3, 18, 18);
+    ctx.fillStyle = dp.dusk > .5 ? '#ffc890' : '#fffbe8'; ctx.fillRect(sx+4, sy+4, 6, 4);
+    ctx.globalAlpha = 1;
   }
-  // clouds
-  for (let i=0;i<7;i++){
-    const c = CLOUDS[i%5], span = VW + 200;
-    const cx = (((i*173 + now*(4+i%3) - cam.x*.12) % span) + span) % span - 100;
-    ctx.drawImage(c, cx|0, (horizon - 240 + (i*41)%120)|0);
+  // drifting clouds (more and darker in storms)
+  const nClouds = 6 + Math.round(storm*6);
+  for (let i=0;i<nClouds;i++){
+    const c = CLOUD_ART[i % CLOUD_ART.length], span = VW + 260, speed = 3 + (i%3)*1.5 + storm*6;
+    const cx = (((i*197 + now*speed - cam.x*(.05 + (i%3)*.02)) % span) + span) % span - 130;
+    const cy = horizon - 270 + ((i*53) % 120) + (i >= 6 ? 40 : 0);
+    ctx.drawImage(c, cx|0, cy|0);
+    if (storm > .05){ ctx.globalAlpha = storm; ctx.drawImage(CLOUD_DARK[i % CLOUD_ART.length], cx|0, cy|0); ctx.globalAlpha = 1; }
   }
-  // mountains & hills (parallax)
-  const layers = [ { par:.15, base:70, amp:38, f:.009, col:'#8fb3cf', cap:'#dfeaf4' }, { par:.3, base:44, amp:22, f:.017, col:'#6d9e8c' }, { par:.55, base:22, amp:12, f:.03, col:'#4e8a52' } ];
-  for (const L of layers){
-    for (let x=0;x<VW;x+=2){
-      const wx = x + cam.x*L.par;
-      const h = L.base + Math.sin(wx*L.f)*L.amp + Math.sin(wx*L.f*2.3+1)*L.amp*.35;
-      ctx.fillStyle = L.col; ctx.fillRect(x, (horizon - h)|0, 2, (h+2)|0);
-      if (L.cap && h > L.base + L.amp*.6){ ctx.fillStyle = L.cap; ctx.fillRect(x, (horizon - h)|0, 2, 3); }
+  // the panorama layers, far to near
+  for (const L of BACKDROP.layers){
+    const W = L.c.width, H = L.c.height, y = (horizon - H + 2)|0;
+    let src = ((cam.x*L.par) % W + W) % W;
+    for (let dx=0; dx<VW; ){
+      const w = Math.min(W - src, VW - dx);
+      ctx.drawImage(L.c, src|0, 0, w, H, dx, y, w, H);
+      dx += w; src = 0;
     }
   }
+  hazeBand(horizon - 18, horizon, .18);
+  // sunset glow
   if (dp.dusk > 0){
-    const g2 = ctx.createLinearGradient(0, horizon - 160, 0, horizon);
+    const g2 = ctx.createLinearGradient(0, horizon - 180, 0, horizon);
     g2.addColorStop(0, 'rgba(255,120,60,0)'); g2.addColorStop(1, `rgba(255,120,60,${dp.dusk*.4})`);
-    ctx.fillStyle = g2; ctx.fillRect(0, horizon - 160, VW, 160);
+    ctx.fillStyle = g2; ctx.fillRect(0, horizon - 180, VW, 180);
+  }
+  // birds on clear days
+  if (dp.light > .6 && storm < .2){
+    ctx.fillStyle = '#2a3440';
+    for (let i=0;i<4;i++){
+      const bx = ((now*(14 + i*3) + i*230) % (VW + 80)) - 40, by = horizon - 190 + i*18 + Math.sin(now*1.5 + i)*4, flap = (now*6 + i) % 2 < 1 ? 1 : 0;
+      ctx.fillRect(bx|0, by|0, 1, 1); ctx.fillRect(bx-2|0, by - flap|0, 2, 1); ctx.fillRect(bx+1|0, by - flap|0, 2, 1);
+    }
   }
 }
-function drawTree(t, base){
-  const x = t.x*TS - cam.x|0;
-  if (x < -40 || x > VW+40) return;
-  const h = t.h*9 + 8;
-  ctx.fillStyle = '#4a2e18'; ctx.fillRect(x+6, base-h, 5, h); ctx.fillStyle = '#6b4423'; ctx.fillRect(x+6, base-h, 2, h);
-  if (t.kind){ // pine
-    for (let k=0;k<4;k++){ const w = 26 - k*6, y = base - h + 8 - k*9; ctx.fillStyle = '#1f5a34'; ctx.fillRect(x+8-w/2, y, w, 10); ctx.fillStyle = '#2d7a44'; ctx.fillRect(x+8-w/2, y, w-4, 3); }
-  } else {
-    const blobs = [[-8,-10,26,18],[-4,-20,20,14],[4,-14,18,16],[-12,-4,34,12]];
-    for (const [bx,by,bw,bh] of blobs){ ctx.fillStyle = '#2a6e2e'; ctx.fillRect(x+bx, base-h+by, bw, bh); }
-    for (const [bx,by,bw] of blobs){ ctx.fillStyle = '#3f9443'; ctx.fillRect(x+bx+2, base-h+by, bw-6, 3); }
-    ctx.fillStyle = '#c0392b'; ctx.fillRect(x+2, base-h-8, 2, 2); ctx.fillRect(x+14, base-h-2, 2, 2);
-  }
+function hazeBand(y0, y1, a){
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, 'rgba(210,230,245,0)'); g.addColorStop(1, `rgba(210,230,245,${a})`);
+  ctx.fillStyle = g; ctx.fillRect(0, y0, VW, y1 - y0);
+}
+// trees sway: the canopy is drawn a pixel or two off from the trunk
+function drawTree(t, base, now){
+  const art = (t.back ? TREES_BACK : TREES)[t.kind][t.v], w = art.width, h = art.height;
+  const x = t.x - w/2 - cam.x|0;
+  if (x < -w || x > VW + w) return;
+  const wind = .6 + (typeof rainLevel === 'number' ? rainLevel*1.6 : 0);
+  const sway = Math.round(Math.sin(now*1.3 + t.x*.05)*wind);
+  const split = h - (t.kind === 'pine' ? 14 : 30);
+  const y = base - h + 1;
+  ctx.save();
+  if (t.flip){ ctx.translate(x*2 + w, 0); ctx.scale(-1, 1); }
+  ctx.drawImage(art, 0, 0, w, split, x + (t.flip ? -sway : sway), y, w, split);
+  ctx.drawImage(art, 0, split, w, h - split, x, y + split, w, h - split);
+  ctx.restore();
 }
 // The storefront is drawn once into an offscreen canvas; only the sign text, lantern and smoke are live.
 const SHOP_ART_W = 160, SHOP_ART_H = 104, SHOP_ART_L = 16, SHOP_ART_B = 100;
@@ -256,14 +280,16 @@ function drawSurface(now){
   const base = SURF*TS - cam.y|0;
   if (base < -10 || base > VH + 120) return;
   for (const r of surfaceDecor.rocks){ const x = r.x - cam.x|0; if (x<-10||x>VW) continue; ctx.fillStyle = '#7d7a80'; ctx.fillRect(x, base-r.s, r.s*2, r.s); ctx.fillStyle = '#a3a0a8'; ctx.fillRect(x+1, base-r.s, r.s*2-3, 1); }
-  for (const t of surfaceDecor.trees) drawTree(t, base);
+  for (const t of surfaceDecor.trees) if (t.back) drawTree(t, base, now);
+  for (const t of surfaceDecor.trees) if (!t.back) drawTree(t, base, now);
+  for (const b of surfaceDecor.bushes || []){ const art = TREES.bush[b.v], x = b.x - cam.x|0; if (x < -30 || x > VW) continue; ctx.save(); if (b.flip){ ctx.translate(x*2 + art.width, 0); ctx.scale(-1, 1); } ctx.drawImage(art, x, base - art.height + 2); ctx.restore(); }
   drawShop(base, now);
   drawHeadframe(base, now);
 }
 
 // ---------- tiles ----------
 // ---------- world-space texturing helpers ----------
-const LAYER_MATS = new Set([T.DIRT, T.STONE, T.GRANITE, T.BASALT, T.BEDROCK, T.GRAVEL, T.RUBBLE]);
+const LAYER_MATS = new Set([T.DIRT, T.STONE, T.GRANITE, T.BASALT, T.BEDROCK, T.GRAVEL, T.RUBBLE, T.OBSIDIAN]);
 // the rock "material" a solid tile is made of (ores and grass sit in their layer's rock)
 function matOf(x, y){
   if (!inb(x,y)) return -1;
@@ -314,6 +340,87 @@ function drawVeinLinks(x, y, t, sx, sy){
   if (get(x, y+1) === t) gem(sx + 4 + (hash2(y, x)*8|0), sy + TS - 2);
 }
 
+// ---------- water: deeper is darker, a continuous rippling surface, caustics, falling streams ----------
+function drawWater(x, y, sx, sy, now){
+  // depth of the pool above this tile (a thin stream pouring in doesn't count)
+  let depth = 0;
+  while (depth < 6){
+    const yy = y - depth - 1; if (get(x, yy) !== T.WATER) break;
+    const inPool = get(x-1, yy) === T.WATER || get(x+1, yy) === T.WATER || isSolid(x-1, yy) || isSolid(x+1, yy);
+    if (!inPool) break;
+    depth++;
+  }
+  const below = get(x, y+1), falling = !isSolid(x, y+1) && below !== T.WATER;
+  const surface = get(x, y-1) !== T.WATER && !isSolid(x, y-1);
+  const openL = get(x-1, y) !== T.WATER && !isSolid(x-1, y), openR = get(x+1, y) !== T.WATER && !isSolid(x+1, y);
+  const a = .42 + depth*.07, wx = x*TS;
+  const body = `rgba(${34 - depth*3},${104 - depth*9},${210 - depth*12},${a})`;
+
+  // a stream pouring down through open air: draw it narrow, not as a block
+  const stream = openL && openR && (falling || get(x, y-1) === T.WATER);   // a one-wide column in open air
+  if (stream){
+    const w = surface ? 6 : 8, x0 = sx + (TS - w)/2|0;
+    ctx.fillStyle = 'rgba(60,130,225,.55)'; ctx.fillRect(x0, sy, w, TS);
+    ctx.fillStyle = 'rgba(200,232,255,.6)';
+    for (let c=0;c<w;c+=2){ const o = (now*90 + c*11 + wx) % 16; ctx.fillRect(x0 + c, sy + o|0, 1, 4); }
+    return;
+  }
+  if (surface){
+    for (let c=0;c<TS;c++){
+      // a rolling wave that lines up across tiles...
+      let h = 1.6 + Math.sin((wx + c)*.33 + now*2.4)*1.1 + Math.sin((wx + c)*.11 - now*1.3)*.8;
+      // ...with rounded shoulders where the water meets open air, so bumps read as swells
+      if (openL) h += Math.pow(Math.max(0, 7 - c), 2)*.22;          // soft, curved shoulders
+      if (openR) h += Math.pow(Math.max(0, c - 8), 2)*.22;
+      if (openL && openR) h += 1.5;
+      h = Math.round(clamp(h, 0, TS - 1));
+      ctx.fillStyle = body; ctx.fillRect(sx + c, sy + h, 1, TS - h);
+      ctx.fillStyle = 'rgba(210,238,255,.75)'; ctx.fillRect(sx + c, sy + h, 1, 1);
+      ctx.fillStyle = 'rgba(140,200,255,.3)'; ctx.fillRect(sx + c, sy + h + 1, 1, 2);
+    }
+  } else {
+    ctx.fillStyle = body; ctx.fillRect(sx, sy, TS, TS);
+  }
+  // caustics: slow wandering light lines
+  if (depth < 4){
+    ctx.fillStyle = `rgba(150,215,255,${.22 - depth*.05})`;
+    for (let k=0;k<3;k++){
+      const cx = (Math.sin(now*.9 + k*2.1 + wx*.05) + 1)/2*10 + 3, cy = (Math.sin(now*.7 + k*1.7 + y*.9) + 1)/2*9 + 5;
+      ctx.fillRect(sx + cx|0, sy + cy|0, 3 + (k%2), 1);
+    }
+  }
+  // water spilling off the bottom of a ledge
+  if (falling){
+    ctx.fillStyle = 'rgba(200,232,255,.5)';
+    for (let c=3;c<TS-2;c+=4){ const o = (now*70 + c*9 + wx) % 16; ctx.fillRect(sx + c, sy + o|0, 1, 5); }
+  }
+}
+
+// ---------- natural cave decorations ----------
+function drawDecor(d, x, y, sx, sy, now){
+  if (!decorAnchored(x, y, d)) return;
+  const h = hash2(x, y), v = (h*3)|0, L = LAYER_MATS.has(layer[I(x,y)]) && DECOR_SPR.stalac[layer[I(x,y)]] ? layer[I(x,y)] : T.STONE;
+  const flip = h > .5;
+  const draw = (img, dy = 0) => {
+    if (!flip){ ctx.drawImage(img, sx, sy + dy); return; }
+    ctx.save(); ctx.translate(sx*2 + TS, 0); ctx.scale(-1, 1); ctx.drawImage(img, sx, sy + dy); ctx.restore();
+  };
+  switch (d){
+    case DECOR.STALACTITE: draw(DECOR_SPR.stalac[L][v]); break;
+    case DECOR.STALAGMITE: draw(DECOR_SPR.stalag[L][v]); break;
+    case DECOR.ROOTS: draw(DECOR_SPR.roots[v], Math.round(Math.sin(now*1.2 + x)*.6)); break;
+    case DECOR.WEB: {
+      const right = !isSolid(x-1, y) && isSolid(x+1, y);
+      ctx.save(); if (right){ ctx.translate(sx*2 + TS, 0); ctx.scale(-1, 1); } ctx.drawImage(DECOR_SPR.web, sx, sy); ctx.restore(); break;
+    }
+    case DECOR.MUSHROOM: draw(DECOR_SPR.mush[v]); break;
+    case DECOR.CRYSTAL: draw(DECOR_SPR.crystalDown[v & 1]); break;
+    case DECOR.CRYSTAL_UP: draw(DECOR_SPR.crystalUp[v & 1]); break;
+    case DECOR.BONES: draw(DECOR_SPR.bones); break;
+    case DECOR.CART: ctx.drawImage(DECOR_SPR.cart, sx, sy); break;
+  }
+}
+
 // ---------- tiles ----------
 function drawTiles(tx0, ty0, tx1, ty1, now){
   const mining = scene === 'game' && P && P.mining && !P.mining.deny && P.mineT > 0 ? P.mining : null;
@@ -330,9 +437,12 @@ function drawTiles(tx0, ty0, tx1, ty1, now){
       if (isSolid(x+1,y)){ ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(sx+TS-2, sy, 2, TS); ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(sx+TS-3, sy, 1, TS); }
       if (isSolid(x,y+1)){ ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(sx, sy+TS-1, TS, 1); }
     }
+    if (!solid && t === T.AIR && decor[i]) drawDecor(decor[i], x, y, sx, sy, now);
     // the block you're digging trembles
     if (mining && mining.x === x && mining.y === y){ sx += (Math.random()*3|0) - 1; sy += (Math.random()*2|0); }
-    if (t === T.LAVA){
+    if (t === T.WATER){
+      drawWater(x, y, sx, sy, now);
+    } else if (t === T.LAVA){
       const top = !isSolid(x,y-1) && get(x,y-1) !== T.LAVA;
       ctx.fillStyle = '#c8321a'; ctx.fillRect(sx, sy, TS, TS);
       ctx.fillStyle = '#ee5a1c';
@@ -346,7 +456,7 @@ function drawTiles(tx0, ty0, tx1, ty1, now){
       const ph = (now*1.5 + x*.73 + y*.37) % 3;
       if (ph < .15){ ctx.fillStyle = '#fff'; const gx = sx+3+(x*5%9), gy = sy+3+(y*3%9); ctx.fillRect(gx, gy-1, 1, 3); ctx.fillRect(gx-1, gy, 3, 1); }
     } else if (t === T.CHEST){
-      sheetPart(DSHEET[layer[i]] || DSHEET[T.STONE], x*TS, y*TS, TS, TS, sx, sy); ctx.drawImage(PROP.chest, sx, sy);
+      sheetPart(DSHEET[layer[i]] || DSHEET[T.STONE], x*TS, y*TS, TS, TS, sx, sy); ctx.drawImage(PROP.chests[chestTier(y)], sx, sy);
       if (((now*1.2 + x) % 3) < .12){ ctx.fillStyle = '#fff'; ctx.fillRect(sx+4, sy+6, 1, 1); }
     } else if (solid){
       drawGround(x, y, t, sx, sy);
@@ -357,16 +467,24 @@ function drawTiles(tx0, ty0, tx1, ty1, now){
     if (solid && y === SURF){ ctx.fillStyle = 'rgba(0,0,0,.35)'; if (!isSolid(x-1,y)) ctx.fillRect(sx, sy+2, 2, TS-2); if (!isSolid(x+1,y)) ctx.fillRect(sx+TS-2, sy+2, 2, TS-2); }
     const dc = deco[i];
     if (dc === D.LADDER) ctx.drawImage(PROP.ladder, sx, sy);
-    else if (dc === D.SUPPORT) ctx.drawImage(PROP.support, sx, sy);
+    else if (dc === D.SUPPORT){
+      const up = isSupport(x, y-1), down = isSupport(x, y+1);
+      ctx.drawImage(!up && !down ? PROP.supSingle : !up ? PROP.supTop : !down ? PROP.supBase : PROP.supMid, sx, sy);
+      // a column that doesn't reach the roof can't hold anything up
+      if (!up && scene === 'game' && !isSolid(x, y-1) && (now*3|0) % 2){ ctx.fillStyle = '#ffb040'; ctx.fillRect(sx+7, sy-9, 2, 5); ctx.fillRect(sx+7, sy-3, 2, 2); }
+    }
     else if (dc === D.PLATFORM) ctx.drawImage(PROP.platform, sx, sy);
     else if (dc === D.POST) ctx.drawImage(PROP.post, sx, sy);
     else if (dc === D.TORCH){
       ctx.drawImage(PROP.torch, sx, sy);
-      const f = (now*10 + x*3) % 3 | 0;
-      ctx.fillStyle = '#ff5a1a'; ctx.fillRect(sx+6, sy+2+(f===1?1:0), 4, 5);
-      ctx.fillStyle = '#ffb030'; ctx.fillRect(sx+7, sy+3+(f===2?1:0), 2, 3);
-      ctx.fillStyle = '#fff3b0'; ctx.fillRect(sx+7, sy+5, 1, 1);
-      if (Math.random() < .02) particles.push({ x:x*TS+8, y:y*TS+3, vx:(Math.random()-.5)*8, vy:-18, g:-10, life:.8, col:'#ffb030', sz:1, glow:true });
+      // layered, flickering flame: outer red, orange body, yellow core, white-hot centre
+      const t2 = now*9 + x*3.1, lean = Math.round(Math.sin(t2*.7)*.8), tall = (Math.sin(t2) + Math.sin(t2*2.3)) > .4 ? 1 : 0;
+      ctx.fillStyle = '#d8401a'; ctx.fillRect(sx+6, sy+1-tall, 4, 5+tall); ctx.fillRect(sx+7+lean, sy-tall, 2, 1);
+      ctx.fillStyle = '#ff8a1e'; ctx.fillRect(sx+6, sy+2-tall, 4, 4+tall);
+      ctx.fillStyle = '#ffd35a'; ctx.fillRect(sx+7, sy+3-tall, 2, 3+tall);
+      ctx.fillStyle = '#fff6d0'; ctx.fillRect(sx+7, sy+4, 1, 1);
+      if (Math.random() < .03) particles.push({ x:x*TS+8, y:y*TS+1, vx:(Math.random()-.5)*10, vy:-22, g:-10, life:.7, col:'#ffb030', sz:1, glow:true });
+      if (Math.random() < .015) particles.push({ x:x*TS+8, y:y*TS, vx:(Math.random()-.5)*6, vy:-12, g:-4, life:1.4, col:'rgba(90,86,96,.45)', sz:2 });
     }
     if (t === T.GAS){
       ctx.fillStyle = `rgba(120,220,80,${.26 + Math.sin(now*3+x+y)*.08})`; ctx.fillRect(sx, sy, TS, TS);
@@ -411,9 +529,10 @@ function drawEntities(now){
   for (const p of pickups){
     const x = p.x - cam.x|0, y = p.y - cam.y|0;
     if (p.kind === 'coin'){
-      const w = [5,3,1,3][(now*10 + p.x)|0 & 3], ox = (5-w)/2|0;
-      ctx.fillStyle = '#8a5a00'; ctx.fillRect(x+ox, y, w, 6); ctx.fillStyle = '#ffd24a'; ctx.fillRect(x+ox, y, w, 5);
-      if (w > 1){ ctx.fillStyle = '#fff6b0'; ctx.fillRect(x+ox, y, 1, 2); }
+      const f = ((now*12 + p.x*.3)|0) % 6, w = [6,5,3,1,3,5][f], ox = (6 - w)/2|0;
+      ctx.fillStyle = '#5a3a00'; ctx.fillRect(x+ox, y, w, 6);
+      ctx.fillStyle = f === 3 ? '#b8871a' : '#e8b020'; ctx.fillRect(x+ox, y, w, 5);
+      if (w > 2){ ctx.fillStyle = '#ffe680'; ctx.fillRect(x+ox+1, y+1, w-2, 3); ctx.fillStyle = '#b8871a'; ctx.fillRect(x+ox + (w>>1), y+1, 1, 3); ctx.fillStyle = '#fffbe0'; ctx.fillRect(x+ox+1, y+1, 1, 1); }
     } else {
       const d = DEF[p.id];
       ctx.fillStyle = rgb(d.c1,.5); ctx.fillRect(x+1, y+2, 6, 5); ctx.fillStyle = rgb(d.c1); ctx.fillRect(x+1, y+1, 5, 5); ctx.fillRect(x, y+2, 7, 3);
@@ -496,6 +615,11 @@ function lightSources(tx0, ty0, tx1, ty1, now){
     if (!inb(x,y)) continue;
     const i = I(x,y), t = tiles[i];
     if (deco[i] === D.TORCH) src.push({ x:x+.5, y:y+.4, r:6.5 + Math.sin(now*9+x)*.25, c:[255,176,96], k:1.35 });
+    else if (decor[i] && x>=tx0-3 && x<=tx1+3 && y>=ty0-3 && y<=ty1+3 && tiles[i] === T.AIR){
+      const dd = decor[i];
+      if (dd === DECOR.MUSHROOM){ const v = (hash2(x, y)*3)|0; src.push({ x:x+.5, y:y+.8, r:2.8 + Math.sin(now*2 + x)*.2, c:[[90,230,255],[255,110,220],[140,255,150]][v], k:.75 }); }
+      else if (dd === DECOR.CRYSTAL || dd === DECOR.CRYSTAL_UP){ const v = ((hash2(x, y)*3)|0) & 1; src.push({ x:x+.5, y:y+.5, r:3.4, c: v ? [100,230,255] : [200,130,255], k:.85 }); }
+    }
     else if (t === T.LAVA && lava < 90 && ((x+y)&1) && x>=tx0-4 && x<=tx1+4 && y>=ty0-4 && y<=ty1+4){ lava++; src.push({ x:x+.5, y:y+.5, r:3.8, c:[255,110,40], k:.9 }); }
     else if (DEF[t].glow && seen[i] && x>=tx0-2 && x<=tx1+2 && y>=ty0-2 && y<=ty1+2) src.push({ x:x+.5, y:y+.5, r:1.8, c:DEF[t].glow, k:.5 });
   }
@@ -510,7 +634,7 @@ function drawLighting(tx0, ty0, tx1, ty1, now){
   const skyC = [255*(.2 + .8*L) + 50*dp.dusk, 248*(.24 + .76*L) + 8*dp.dusk, 240*(.4 + .6*L)];
   for (let j=0;j<h;j++) for (let i=0;i<w;i++){
     const x = x0+i, y = y0+j;
-    const sky = y <= SURF ? 1 : Math.max(0, 1 - (y-SURF)/(scene === 'home' ? 30 : 5.5));
+    const sky = (y <= SURF ? 1 : Math.max(0, 1 - (y-SURF)/(scene === 'home' ? 30 : 5.5))) * (1 - rainLevel*.3);
     let r = sky*skyC[0], g = sky*skyC[1], b = sky*skyC[2];
     if (sky < 1 || L < .98) for (const s of src){
       const dx = x+.5-s.x, dy = y+.5-s.y, d2 = dx*dx + dy*dy;
@@ -592,8 +716,8 @@ function drawHUD(now){
   if (settings.minimap) drawMinimap(VW-70, ry, now);
   drawBossBar();
   // hotbar
-  const items = [['ladder','1'], ['support','2'], ['torch','3'], ['dynamite','4'], ['platform','5'], ['post','6'], ['medkit','H'], ['beacon','R']];
-  const slot = VW < 320 ? 22 : VW < 400 ? 26 : 30, gap = VW < 400 ? 2 : 4, bw = items.length*(slot+gap) - gap + 6;
+  const items = [['ladder','1'], ['support','2'], ['torch','3'], ['dynamite','4'], ['platform','5'], ['post','6'], ['medkit','H'], ['beacon','R'], ['scanner','Q']];
+  const slot = VW < 320 ? 21 : VW < 420 ? 25 : 30, gap = VW < 420 ? 2 : 4, bw = items.length*(slot+gap) - gap + 6;
   const bx = (VW - bw)/2 | 0, by = VH - slot - 6 - (isTouch ? 64 : 0);
   items.forEach(([k, key], n) => {
     const x = bx + n*(slot+gap) + (n >= ITEMS.length ? 6 : 0), sel = n === game.sel;
@@ -603,7 +727,7 @@ function drawHUD(now){
     const count = game.opts.infinite ? 'INF' : String(game[k]);
     text(count, x+slot-2, by+slot-3, (game.opts.infinite || game[k]) ? '#f1e9d2' : '#e0533d', 6, 'right');
     if (!isTouch) text(key, x+2, by+8, '#9a8fa8', 6);
-    hudRects.push({ x, y:by, w:slot, h:slot, action: n === ITEMS.length ? 'medkit' : n === ITEMS.length+1 ? 'beacon' : 'sel', n });
+    hudRects.push({ x, y:by, w:slot, h:slot, action: n === ITEMS.length ? 'medkit' : n === ITEMS.length+1 ? 'beacon' : n === ITEMS.length+2 ? 'scanner' : 'sel', n });
   });
   // jetpack fuel above the miner
   const jmax = JETPACKS[game.jetLv||0].fuel;
@@ -613,6 +737,13 @@ function drawHUD(now){
     const X = (SHOP_X0 + SHOP_X1 + 1)/2*TS - cam.x|0, Y = SURF*TS - 116 - cam.y + Math.sin(now*5)*3|0;
     if (Y > -10 && Y < VH){ ctx.fillStyle = '#000'; ctx.fillRect(X-4, Y-1, 8, 16); ctx.fillStyle = '#ffd24a'; ctx.fillRect(X-3, Y, 6, 9); ctx.fillRect(X-3, Y+11, 6, 3); }
   }
+  // looking out from under the water
+  if (get(Math.floor(pcx()/TS), Math.floor((P.y+2)/TS)) === T.WATER){
+    ctx.fillStyle = 'rgba(30,90,170,.2)'; ctx.fillRect(0, 0, VW, VH);
+    ctx.fillStyle = 'rgba(120,190,255,.05)'; for (let y=(now*20|0)%6; y<VH; y+=6) ctx.fillRect(Math.sin(now*2 + y*.1)*3|0, y, VW, 2);
+  }
+  // breath bubbles while underwater
+  if (P.breath < 8){ const n = Math.ceil(P.breath), X = pcx() - cam.x - 12|0, Y = P.y - cam.y - 16|0; for (let k=0;k<8;k++){ ctx.fillStyle = k < n ? '#bfe6ff' : 'rgba(40,40,60,.7)'; ctx.fillRect(X + k*3, Y, 2, 2); } }
   // recall charge
   if (game.recall){
     const p = game.recall.t / game.recall.dur;
@@ -623,12 +754,33 @@ function drawHUD(now){
     const d = DEF[get(P.mining.x,P.mining.y)], p = clamp(P.mineT / (d.time/PICKS[game.pick].speed), 0, 1);
     ctx.drawImage(CRACK[clamp(Math.floor(p*4),0,3)], P.mining.x*TS - cam.x|0, P.mining.y*TS - cam.y|0);
   }
+  // hover info: what is that ore / chest / monster / support?
+  if (input.pointerType === 'mouse' && input.aimPx && !game.paused && !mapOpen){
+    let label = null, col = '#f1e9d2';
+    const foeH = enemyAt(input.aimPx.x, input.aimPx.y);
+    if (foeH){ label = foeH.boss ? 'The Deep Wyrm' : `${foeH.def.name}  ${Math.max(0, Math.ceil(foeH.hp))}/${foeH.maxHp}`; col = foeH.boss ? '#ff8a5a' : '#ff9a8a'; }
+    else if (input.aim && inb(input.aim.x, input.aim.y) && seen[I(input.aim.x, input.aim.y)]){
+      const ax = input.aim.x, ay = input.aim.y, t = tiles[I(ax, ay)], d = DEF[t], dc = deco[I(ax, ay)];
+      if (d.ore){ label = `${d.name}  $${oreValue(t)}${game.hot && game.hot.id === t ? ' HOT' : ''}${d.hard > PICKS[game.pick].hard ? '  (pick too weak)' : ''}`; col = rgb(d.c2); }
+      else if (t === T.CHEST){ label = 'Treasure chest'; col = '#ffd24a'; }
+      else if (d.solid && t !== T.BEDROCK && d.hard > PICKS[game.pick].hard){ label = `${d.name} - needs a better pick`; col = '#e0533d'; }
+      else if (dc === D.SUPPORT){ const c = supportColumn(ax, ay); label = c.braced ? `Support column (${c.bot - c.top + 1} tall) - braced` : `Support - stack ${c.gap} more to reach the roof`; col = c.braced ? '#6fd26a' : '#ffb040'; }
+      else if (decor[I(ax, ay)] && DECOR_NAMES[decor[I(ax, ay)]] && decorAnchored(ax, ay, decor[I(ax, ay)])){ label = DECOR_NAMES[decor[I(ax, ay)]]; col = '#bfe6ff'; }
+      else if (dc === D.PLATFORM){ const dd = bridgeDist(ax, ay); label = dd === 0 ? 'Bridge - anchored' : `Bridge - ${dd}/${BRIDGE_REACH} from support`; col = '#c9a36a'; }
+    }
+    if (label){
+      const w = label.length*6 + 8, lx = clamp(pointer.x - w/2, 2, VW - w - 2)|0, ly = clamp(pointer.y - 26, 2, VH - 14)|0;
+      ctx.fillStyle = 'rgba(14,11,20,.88)'; ctx.fillRect(lx, ly, w, 12); ctx.fillStyle = '#4a3f5c'; ctx.fillRect(lx, ly+11, w, 1);
+      text(label, lx + 4, ly + 9, col, 6);
+    }
+  }
   // cursor
   const aim = input.aim || (input.digKey ? mineTarget() : null);
   if (aim && !game.paused && input.pointerType === 'mouse' && inReach(aim.x, aim.y) && !isSolid(aim.x, aim.y) && inb(aim.x, aim.y) && !deco[I(aim.x, aim.y)] && get(aim.x, aim.y) !== T.LAVA){
     const k = ITEMS[game.sel], X = aim.x*TS - cam.x|0, Y = aim.y*TS - cam.y|0;
-    const bad = (k === 'platform' && bridgeDist(aim.x, aim.y) > BRIDGE_REACH) || (k === 'post' && (!postStands(aim.x, aim.y) || postHeight(aim.x, aim.y) >= 8));
-    ctx.globalAlpha = .45; ctx.drawImage(k === 'platform' || k === 'post' ? PROP[k] : ICON[k], X, Y); ctx.globalAlpha = 1;
+    const bad = (k === 'platform' && bridgeDist(aim.x, aim.y) > BRIDGE_REACH) || (k === 'post' && (!postStands(aim.x, aim.y) || postHeight(aim.x, aim.y) >= 8)) || (k === 'support' && !supportStands(aim.x, aim.y));
+    ctx.globalAlpha = .45; ctx.drawImage(k === 'platform' || k === 'post' ? PROP[k] : k === 'support' ? PROP.supSingle : ICON[k], X, Y); ctx.globalAlpha = 1;
+    if (k === 'support' && !bad && !isSolid(aim.x, aim.y-1)){ const g = gapAbove(aim.x, aim.y); text(`+${g}`, X + 8, Y - 3, '#ffb040', 6, 'center'); }
     if (bad){ ctx.fillStyle = 'rgba(224,83,61,.35)'; ctx.fillRect(X, Y, TS, TS); }
     else if (k === 'platform'){ const dist = bridgeDist(aim.x, aim.y); if (dist > 0) text(`${dist}/${BRIDGE_REACH}`, X + 8, Y - 3, dist >= BRIDGE_REACH ? '#ffb040' : '#9a8fa8', 6, 'center'); }
   }
@@ -724,10 +876,27 @@ function render(now){
   for (const r of rocks) ctx.drawImage(r.type === 'plank' ? PROP[r.prop] : TEX[r.type==='gravel' ? T.GRAVEL : T.RUBBLE][0], r.x - cam.x|0, r.y - cam.y|0);
   if (scene === 'game') drawEntities(now);
   if (scene === 'home') drawHomeMiner(now); else drawPlayer(now);
+  // dust motes drifting through the air underground (only visible where there's light)
+  if (scene === 'game' && P && depthOf(Math.floor(pcy()/TS)) > 2){
+    ctx.fillStyle = 'rgba(255,240,210,.55)';
+    for (let i=0;i<28;i++){
+      const ox = (Math.sin(i*12.9898)*43758.5453 % 1 + 1) % 1, oy = (Math.sin(i*78.233)*12543.13 % 1 + 1) % 1;
+      const mx = ((ox*VW*1.4 + now*(4 + i%5) + Math.sin(now*.7 + i)*6) % (VW*1.4)) + cam.x - VW*.2;
+      const my = ((oy*VH*1.2 - now*(2 + i%3)) % (VH*1.2) + VH*1.2) % (VH*1.2) + cam.y - VH*.1;
+      const tx = Math.floor(mx/TS), ty = Math.floor(my/TS);
+      if (!isSolid(tx, ty) && get(tx, ty) !== T.WATER) ctx.fillRect(mx - cam.x|0, my - cam.y|0, 1, 1);
+    }
+  }
   for (const p of particles){ if (p.glow) continue; ctx.fillStyle = p.col; ctx.fillRect(p.x - cam.x|0, p.y - cam.y|0, p.sz, p.sz); }
   drawLighting(tx0, ty0, tx1, ty1, now);
   drawNightSky(now);
-  if (scene === 'game'){ drawEnemyOverlay(now); drawBossGlow(now); }
+  drawRain(now);
+  if (scene === 'game'){ drawEnemyOverlay(now); drawBossGlow(now); drawScan(now); }
+  // a soft vignette underground for a sense of depth
+  if (scene === 'game' && P && depthOf(Math.floor(pcy()/TS)) > 3){
+    const v = ctx.createRadialGradient(VW/2, VH/2, Math.min(VW, VH)*.35, VW/2, VH/2, Math.max(VW, VH)*.75);
+    v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.4)'); ctx.fillStyle = v; ctx.fillRect(0, 0, VW, VH);
+  }
   for (const p of particles){ if (!p.glow) continue; ctx.fillStyle = p.col; ctx.fillRect(p.x - cam.x|0, p.y - cam.y|0, p.sz, p.sz); }
   for (const f of floaters){ ctx.globalAlpha = clamp(f.life*1.5, 0, 1); text(f.text, f.x - cam.x|0, f.y - cam.y|0, f.col, 6, 'center'); }
   ctx.globalAlpha = 1;

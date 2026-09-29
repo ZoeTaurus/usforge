@@ -3,7 +3,7 @@
 //  World: generation, tile queries, cave-ins, falling rock,
 //  lava & gas simulation
 // ============================================================
-let tiles, layer, deco, seen, stamp;
+let tiles, layer, deco, seen, stamp, decor;
 let caveins = [], rocks = [], tickId = 0, worldSeed = 0;
 let surfaceDecor = { trees:[], rocks:[] };
 let ARENA = null;                    // the boss chamber at the bottom
@@ -34,7 +34,7 @@ function genWorld(seed, opts = {}){
   worldSeed = seed;
   R = mulberry32(seed);
   const N = WW*WH;
-  tiles = new Uint8Array(N); layer = new Uint8Array(N); deco = new Uint8Array(N); seen = new Uint8Array(N); stamp = new Uint32Array(N);
+  tiles = new Uint8Array(N); layer = new Uint8Array(N); deco = new Uint8Array(N); seen = new Uint8Array(N); stamp = new Uint32Array(N); decor = new Uint8Array(N);
   caveins = []; rocks = [];
   const b1 = wavy(SURF+10, 2), b2 = wavy(SURF+62, 4), b3 = wavy(SURF+140, 5);
   for (let y=0;y<WH;y++) for (let x=0;x<WW;x++){
@@ -61,10 +61,11 @@ function genWorld(seed, opts = {}){
   const d2y = d => SURF + d;
   for (let i=0;i<55;i++) blob(ri(0,WW-1), d2y(ri(6,150)), ri(5,14), T.GRAVEL, isRock);
   if (opts.gas !== false)  for (let i=0;i<26;i++) blob(ri(0,WW-1), d2y(ri(45,WH-SURF-6)), ri(4,10), T.GAS, isRock);
+  for (let i=0;i<30;i++) blob(ri(0,WW-1), d2y(ri(18,190)), ri(8,20), T.WATER, isRock);     // underground pools
   if (opts.lava !== false) for (let i=0;i<34;i++) blob(ri(0,WW-1), d2y(ri(105,WH-SURF-6)), ri(6,16), T.LAVA, isRock);
   //            ore        min  max count size
   const table = [ [T.COAL,     2, 100, 95, 3,8], [T.COPPER,   8, 120, 72, 3,7], [T.QUARTZ,  10, 110, 60, 2,6],
-                  [T.IRON,    25, 170, 66, 2,6], [T.SILVER,  55, 210, 52, 2,5], [T.AMETHYST,60, 200, 42, 2,5],
+                  [T.IRON,    25, 170, 66, 2,6], [T.SILVER,  55, 210, 52, 2,5], [T.FOSSIL, 30, 170, 34, 1,2], [T.AMETHYST,60, 200, 42, 2,5],
                   [T.GOLD,    85, 260, 46, 2,5], [T.EMERALD, 100, 230, 32, 2,4], [T.RUBY,   130, 260, 32, 2,4],
                   [T.SAPPHIRE,150,260, 26, 1,4], [T.DIAMOND, 170, 260, 24, 1,3], [T.PLATINUM,190,260, 17, 1,3],
                   [T.MYTHRIL, 205,260, 14, 1,3], [T.VOIDSTONE,226,260, 9, 1,2] ];
@@ -77,19 +78,36 @@ function genWorld(seed, opts = {}){
     if (tiles[I(x,y)] === T.AIR && isRock(tiles[I(x,y+1)]) && tiles[I(x,y-1)] === T.AIR){ tiles[I(x,y)] = T.CHEST; chests++; }
   }
   carveArena();
+  decorateCaves();
   // solid shop foundation
   for (let x=SHOP_X0-1;x<=SHOP_X1+1;x++) for (let y=SURF+1;y<=SURF+2;y++) tiles[I(x,y)] = T.DIRT;
   // surface decoration
-  surfaceDecor = { trees:[], rocks:[] };
-  for (let x=24; x<WW-2; x+= 4 + (R()*7|0)) surfaceDecor.trees.push({ x, h: 3 + (R()*3|0), kind: R()<.3 ? 1 : 0 });
+  surfaceDecor = { trees:[], rocks:[], bushes:[] };
+  for (let x=24; x<WW-2; x+= 3 + (R()*6|0)){
+    const roll = R(), kind = roll < .45 ? 'oak' : roll < .75 ? 'pine' : 'birch';
+    surfaceDecor.trees.push({ x: x*TS + (R()*10|0) - 5, kind, v: R()*4|0, flip: R() < .5, back: R() < .35 });
+  }
   for (let i=0;i<10;i++) surfaceDecor.rocks.push({ x: 12 + R()*(WW-14)*TS|0, s: 3 + (R()*4|0) });
+  for (let i=0;i<22;i++) surfaceDecor.bushes.push({ x: (12 + R()*(WW-14))*TS|0, v: R()*4|0, flip: R() < .5 });
 }
 
 // ---------- supports & cave-ins ----------
+// ---------- support columns: stack supports from the floor up to the roof ----------
+const isSupport = (x,y) => inb(x,y) && deco[I(x,y)] === D.SUPPORT;
+function supportColumn(x,y){                         // the stack of supports containing (x,y)
+  let top = y, bot = y;
+  while (isSupport(x, top-1)) top--;
+  while (isSupport(x, bot+1)) bot++;
+  return { top, bot, braced: isSolid(x, top-1) && isSolid(x, bot+1), gap: gapAbove(x, top) };
+}
+function gapAbove(x, y){ let n = 0; while (n < 40 && !isSolid(x, y-1-n) && y-1-n > 0) n++; return n; }   // open tiles above a column
+const supportStands = (x,y) => isSolid(x, y+1) || isSupport(x, y+1);
 function supported(x,y){
-  for (let dy=-2;dy<=3;dy++) for (let dx=-3;dx<=3;dx++){
-    const cx=x+dx, cy=y+dy;
-    if (inb(cx,cy) && deco[I(cx,cy)]===D.SUPPORT) return true;
+  for (let dx=-3;dx<=3;dx++) for (let dy=-8;dy<=8;dy++){
+    const cx = x+dx, cy = y+dy;
+    if (!isSupport(cx,cy) || isSupport(cx,cy+1)) continue;          // look at each column once, from its bottom
+    const c = supportColumn(cx,cy);
+    if (c.braced && y >= c.top - 1 && y <= c.bot + 1) return true;  // a braced column holds up everything along its height
   }
   return false;
 }
@@ -105,7 +123,8 @@ function maybeScheduleCavein(x,y){
 function breakTile(x,y){
   const t = get(x,y), d = DEF[t];
   tiles[I(x,y)] = T.AIR;
-  burst(x*TS+8, y*TS+8, rgb(d.col), 12, 70);
+  debris(x*TS+8, y*TS+8, d.col, 10);
+  hitStop = .05; shake(1.4);
   if (d.chest){ openChest(x,y); return; }
   if (d.ore){
     if (game.opts.infinite || bagCount() < bagCap()){
@@ -198,6 +217,37 @@ function simWorld(){
           continue;
         }
         if (R()<.5){ const sd = R()<.5 ? 1 : -1; for (const s of [sd,-sd]){ const nx=x+s; if (nx>=0 && nx<WW && isEmpty(tiles[I(nx,y)])){ moveLiquid(x,y,nx,y); break; } } }
+      } else if (t===T.WATER){
+        // water + lava = obsidian (and a puff of steam)
+        let quenched = false;
+        for (const [dx,dy] of [[0,1],[1,0],[-1,0],[0,-1]]){
+          const nx = x+dx, ny = y+dy;
+          if (get(nx,ny) === T.LAVA){ tiles[I(nx,ny)] = T.OBSIDIAN; tiles[i] = T.AIR; stamp[I(nx,ny)] = tickId; quenched = true;
+            burst(nx*TS+8, ny*TS+4, '#dfe8f0', 14, 50, -40, 1.2); if (Math.abs(nx*TS-pcx()) < 260 && Math.abs(ny*TS-pcy()) < 200){ SFX.sizzle(); track('obsidian'); } break; }
+        }
+        if (quenched) continue;
+        if (tiles[I(x,y+1)] === T.AIR || tiles[I(x,y+1)] === T.GAS){ moveWater(x,y,x,y+1); continue; }
+        { const sd0 = R() < .5 ? 1 : -1; let slid = false;           // slide diagonally down slopes
+          for (const s of [sd0, -sd0]){ const nx = x+s; if (nx>=0 && nx<WW && tiles[I(nx,y)] === T.AIR && tiles[I(nx,y+1)] === T.AIR){ moveWater(x,y,nx,y+1); slid = true; break; } }
+          if (slid) continue; }
+        // a lone droplet on a flat floor slowly dries up instead of jiggling forever
+        const lone = get(x-1,y) !== T.WATER && get(x+1,y) !== T.WATER && get(x,y-1) !== T.WATER;
+        // a stray bump sitting on top of a pool sinks back in quickly; a lone puddle on rock dries slowly
+        if (lone && R() < (get(x, y+1) === T.WATER ? .07 : .02)){ tiles[i] = T.AIR; continue; }
+        // spread sideways up to 4 tiles in one go so pools level out quickly (and pour off ledges)
+        if (get(x, y-1) !== T.WATER || R() < .5){
+          const sd = R()<.5 ? 1 : -1;
+          for (const s of [sd,-sd]){
+            let target = -1;
+            for (let k=1;k<=4;k++){
+              const nx = x + s*k; if (nx < 0 || nx >= WW) break;
+              const nt = tiles[I(nx,y)]; if (nt !== T.AIR && nt !== T.GAS) break;
+              target = nx;
+              if (tiles[I(nx,y+1)] === T.AIR) break;                   // found a drop: pour over the edge
+            }
+            if (target >= 0 && !(get(x, y-1) === T.WATER && Math.abs(target - x) === 1 && tiles[I(target, y+1)] !== T.AIR && R() < .5)){ moveWater(x,y,target,y); break; }
+          }
+        }
       } else if (t===T.GRAVEL && game.opts.caveins !== false){
         const bi = I(x,y+1);
         if (isEmpty(tiles[bi]) && deco[bi]!==D.SUPPORT && R()<.35) spawnRock(x,y,'gravel');
@@ -223,21 +273,24 @@ function moveLiquid(x,y,nx,ny){
   tiles[b] = T.LAVA; tiles[a] = other===T.GAS ? T.GAS : T.AIR; stamp[b] = tickId;
   if (deco[b]){ burst(nx*TS+8, ny*TS+8, '#ff9a2a', 10, 50, 200, .6, true); deco[b] = 0; checkStructures(nx,ny); }
 }
+function moveWater(x,y,nx,ny){ const a = I(x,y), b = I(nx,ny), other = tiles[b]; tiles[b] = T.WATER; tiles[a] = other === T.GAS ? T.GAS : T.AIR; stamp[b] = tickId; }
 function swapGas(x,y,nx,ny){ const a=I(x,y), b=I(nx,ny); tiles[a]=T.AIR; tiles[b]=T.GAS; stamp[b]=tickId; }
 
 // ---------- treasure chests ----------
+const chestTier = y => { const d = depthOf(y); return d < 90 ? 0 : d < 180 ? 1 : 2; };
 function openChest(x,y){
-  const dep = depthOf(y);
+  const dep = depthOf(y), tier = chestTier(y);
   game.stats.chests++; track('chest');
-  SFX.chest(); shake(2);
-  burst(x*TS+8, y*TS+8, '#ffd24a', 24, 90, 150, 1, true);
-  const cash = Math.round((25 + Math.random()*40) * (1 + dep/45));
+  SFX.chest(); shake(2 + tier);
+  burst(x*TS+8, y*TS+8, ['#ffd24a','#c8d4e0','#fff3a0'][tier], 24 + tier*12, 90, 150, 1, true);
+  const cash = Math.round((25 + Math.random()*40) * (1 + dep/45) * [1, 1.6, 2.6][tier]);
   for (let k=0;k<5;k++) dropCoin(x*TS+8, y*TS+6, Math.round(cash/5));
   const loot = [['ladder',8],['torch',4],['support',3],['dynamite',2],['medkit',1],['beacon',1]][Math.random()*6|0];
   if (!game.opts.infinite) game[loot[0]] += loot[1];
   msg(`Treasure chest! ${fmtMoney(cash)} + ${loot[0]} x${loot[1]}`, '#ffd24a', 3);
   // a deep chest may hold a gem
-  if (dep > 60 && Math.random() < .6){ const pool = ORES.filter(o => o[2] >= 35 && o[2] <= 30 + dep*2.2); if (pool.length) dropOre(x*TS+8, y*TS+6, pool[Math.random()*pool.length|0][0]); }
+  const gems = tier === 2 ? 3 : tier === 1 ? 2 : (dep > 60 && Math.random() < .6 ? 1 : 0);
+  for (let k=0;k<gems;k++){ const pool = ORES.filter(o => o[2] >= 35 && o[2] <= 30 + dep*2.2); if (pool.length) dropOre(x*TS+8, y*TS+6, pool[Math.random()*pool.length|0][0]); }
 }
 
 // ---------- the boss arena ----------
@@ -279,18 +332,19 @@ function bridgeDist(x,y){
 }
 function collapsePiece(x,y){
   const kind = deco[I(x,y)]; deco[I(x,y)] = 0;
-  rocks.push({ x:x*TS, y:y*TS, vy:0, type:'plank', prop: kind === D.POST ? 'post' : 'platform', hit:false });
+  rocks.push({ x:x*TS, y:y*TS, vy:0, type:'plank', prop: kind === D.POST ? 'post' : kind === D.SUPPORT ? 'support' : 'platform', hit:false });
   burst(x*TS+8, y*TS+4, '#a0703c', 8, 50);
 }
 // re-check posts and bridges near a change; unsupported pieces fall
 function checkStructures(cx, cy){
   let fell = 0;
-  for (let pass=0; pass<3; pass++){
+  for (let pass=0; pass<12; pass++){                  // repeat until nothing else is left hanging
     const drop = [];
     for (let y=cy+12; y>=cy-12; y--) for (let x=cx-14; x<=cx+14; x++){
       if (!inb(x,y)) continue;
       const d = deco[I(x,y)];
       if (d === D.POST && !postStands(x,y)) drop.push([x,y]);
+      else if (d === D.SUPPORT && !supportStands(x,y)) drop.push([x,y]);
       else if (d === D.PLATFORM && bridgeDist(x,y) > BRIDGE_REACH) drop.push([x,y]);
     }
     if (!drop.length) break;
@@ -298,4 +352,55 @@ function checkStructures(cx, cy){
     fell += drop.length;
   }
   if (fell){ SFX.crash(); msg(fell > 1 ? 'The bridge collapsed!' : 'A plank fell - it had no support.', '#e0533d', 2); }
+}
+
+// chunks of rock that tumble and bounce off the floor
+function debris(cx, cy, col, n){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, s = 30 + Math.random()*80;
+    particles.push({ x:cx + (Math.random()-.5)*8, y:cy + (Math.random()-.5)*8, vx:Math.cos(a)*s, vy:Math.sin(a)*s - 60, g:520, life:.7 + Math.random()*.5,
+                     col: rgb(col, .7 + Math.random()*.6), sz: Math.random() < .5 ? 2 : 1, bounce:true });
+  }
+}
+
+// ---------- natural cave decorations ----------
+function decorateCaves(){
+  for (let y=SURF+4; y<WH-5; y++) for (let x=1; x<WW-1; x++){
+    const i = I(x,y);
+    if (tiles[i] !== T.AIR) continue;
+    const dep = y - SURF, L = layer[i], above = DEF[tiles[I(x,y-1)]].solid && tiles[I(x,y-1)] !== T.BEDROCK, below = DEF[tiles[I(x,y+1)]].solid;
+    const r = R();
+    if (above){
+      if ((isSolid(x-1,y) || isSolid(x+1,y)) && r < .16) decor[i] = DECOR.WEB;
+      else if (L === T.DIRT && dep < 30 && r < .45) decor[i] = DECOR.ROOTS;
+      else if (dep > 140 && r < .12) decor[i] = DECOR.CRYSTAL;
+      else if (r < .32) decor[i] = DECOR.STALACTITE;
+    } else if (below){
+      if (dep > 30 && dep < 170 && r < .1) decor[i] = DECOR.MUSHROOM;
+      else if (dep > 130 && r < .2) decor[i] = DECOR.CRYSTAL_UP;
+      else if (r < .23) decor[i] = DECOR.STALAGMITE;
+      else if (r < .245) decor[i] = DECOR.BONES;
+      else if (r < .252 && isSolid(x-1,y+1) && isSolid(x+1,y+1)) decor[i] = DECOR.CART;
+    }
+  }
+}
+const decorAnchored = (x, y, d) => (d === DECOR.STALACTITE || d === DECOR.ROOTS || d === DECOR.WEB || d === DECOR.CRYSTAL) ? isSolid(x, y-1) : isSolid(x, y+1);
+const DECOR_NAMES = { [DECOR.MUSHROOM]:'Glowcap mushroom - pick to heal', [DECOR.CRYSTAL]:'Crystal cluster - harvest for gems', [DECOR.CRYSTAL_UP]:'Crystal cluster - harvest for gems',
+                      [DECOR.BONES]:"A lost miner's bones - search them", [DECOR.CART]:'Abandoned minecart - search it' };
+// pick / harvest / search a decoration (returns true if something happened)
+function harvestDecor(x, y){
+  const i = I(x,y), d = decor[i], cx = x*TS + 8, cy = y*TS + 8;
+  if (!d || !DECOR_NAMES[d] || !decorAnchored(x, y, d)) return false;
+  decor[i] = 0;
+  if (d === DECOR.MUSHROOM){ const heal = 8; if (!game.opts.invincible) P.hp = Math.min(maxHp(), P.hp + heal); floater(cx, cy - 6, `+${heal} HP`, '#8fffa0'); SFX.heal(); burst(cx, cy, '#90f0ff', 10, 40, 0, .8, true); }
+  else if (d === DECOR.CRYSTAL || d === DECOR.CRYSTAL_UP){ const n = 1 + (Math.random() < .4 ? 1 : 0); for (let k=0;k<n;k++) dropOre(cx, cy, Math.random() < .6 ? T.AMETHYST : T.SAPPHIRE); SFX.gem(); burst(cx, cy, '#d0a0ff', 14, 60, 200, .8, true); track('crystal'); }
+  else if (d === DECOR.BONES){ for (let k=0;k<3;k++) dropCoin(cx, cy, 5 + Math.round(depthOf(y)/10)); SFX.coin(); msg('You find a few coins... rest in peace, miner.', '#c9c0ae', 2.5); track('bones'); }
+  else if (d === DECOR.CART){
+    for (let k=0;k<4;k++) dropCoin(cx, cy, 8 + Math.round(depthOf(y)/6));
+    const loot = [['ladder',6],['torch',3],['support',2],['dynamite',1],['scanner',1]][Math.random()*5|0];
+    if (!game.opts.infinite) game[loot[0]] += loot[1];
+    { const pool = ORES.filter(o => ORE_MIN_DEPTH[o[0]] <= depthOf(y) + 10); dropOre(cx, cy, pool[Math.random()*pool.length|0][0]); }
+    SFX.chest(); msg(`Abandoned minecart! Coins + ${loot[0]} x${loot[1]}`, '#ffd24a', 2.5); track('cart');
+  }
+  return true;
 }

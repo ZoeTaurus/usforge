@@ -56,6 +56,11 @@ const ACHIEVEMENTS = [
   ['rip',         'Occupational Hazard', 'Die for the first time',                   'skull'],
   ['wyrm',        'Wyrm Slayer',         'Defeat the Deep Wyrm at the bottom of the mine', 'boss'],
   ['bridge',      'Bridge Builder',      'Build a 12-plank bridge',                  'icon:platform'],
+  ['cathedral',   'Cathedral Ceilings',  'Brace a roof with a support column 4 tall', 'icon:support'],
+  ['obsidian',    'Cooling Off',         'Let water pour onto lava and make obsidian', 'moon'],
+  ['fossil',      'Paleontologist',      'Dig up a fossil',                          'ore:'+T.FOSSIL],
+  ['scavenger',   'Scavenger',           'Search an abandoned minecart',             'chest'],
+  ['crystal',     'Crystal Gardener',    'Harvest a glowing crystal cluster',        'ore:'+T.AMETHYST],
 ];
 const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a => [a[0], a]));
 const achCount = () => Object.keys(UNLOCKED).filter(id => ACH_BY_ID[id]).length;
@@ -74,7 +79,7 @@ function track(ev, data){
   switch (ev){
     case 'ore':
       life('ores'); if (!LIFE.oreTypes[data]){ LIFE.oreTypes[data] = 1; lifeDirty = true; }
-      unlock('first_ore'); if (data === T.DIAMOND) unlock('gem_diamond'); if (data === T.VOIDSTONE) unlock('gem_void');
+      unlock('first_ore'); if (data === T.DIAMOND) unlock('gem_diamond'); if (data === T.VOIDSTONE) unlock('gem_void'); if (data === T.FOSSIL) unlock('fossil');
       break;
     case 'sell': unlock('first_sale'); if (dayPhase().night) unlock('night_shift'); life('earned', data); break;
     case 'earn': life('earned', data); break;
@@ -91,6 +96,10 @@ function track(ev, data){
     case 'boss': unlock('wyrm'); break;
     case 'rewind': life('rewinds'); break;
     case 'bridge': unlock('bridge'); break;
+    case 'tallSupport': unlock('cathedral'); break;
+    case 'obsidian': unlock('obsidian'); break;
+    case 'cart': unlock('scavenger'); break;
+    case 'crystal': unlock('crystal'); break;
   }
   checkAchievements();
 }

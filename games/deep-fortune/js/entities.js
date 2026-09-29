@@ -168,6 +168,7 @@ function stepEnemies(dt){
     // hazards
     const cx = Math.floor((e.x + d.w/2)/TS), cy = Math.floor((e.y + d.h/2)/TS);
     if (!d.fireproof && !d.ghost && get(cx,cy) === T.LAVA) damageEnemy(e, 40*dt, 0, true);
+    if (e.type === 'wisp' && get(cx,cy) === T.WATER){ damageEnemy(e, 60*dt, 0, true); if (Math.random() < dt*20) burst(cx*TS+8, cy*TS+8, '#dfe8f0', 2, 30, -40, .6); }
     if (!d.ghost && e.state !== 'hang' && isSolid(cx,cy)) e.y -= 30*dt;   // buried by rubble
     // contact damage
     if (!game.over && e.hp > 0 && d.dmg > 0 && overlapsPlayer(e.x, e.y, d.w, d.h) && P.iframes <= 0){

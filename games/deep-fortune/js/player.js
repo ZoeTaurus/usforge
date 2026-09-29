@@ -6,7 +6,7 @@ let P = null;
 function makePlayer(){
   return { x: 15*TS+3, y: (SURF-1)*TS+2, vx:0, vy:0, w:10, h:14, face:1, onGround:false, onLadder:false,
            hp:100, walk:0, swing:0, mining:null, mineT:0, hurtT:0, gasT:0, lavaT:0, stepT:0, idleT:0,
-           iframes:0, kbx:0, attackT:0, fuel:0, airT:0, jetting:false, dropT:0 };
+           iframes:0, kbx:0, attackT:0, fuel:0, airT:0, jetting:false, dropT:0, inWater:false, breath:8, drownT:0 };
 }
 const pcx = () => P.x + P.w/2, pcy = () => P.y + P.h/2;
 const maxHp = () => ARMOR[game.armorLv].hp;
@@ -55,16 +55,33 @@ function stepPlayer(dt){
   if (down && !P.onLadder && P.onGround && P.dropT <= 0){ const fl = Math.floor(P.x/TS), fr = Math.floor((P.x+P.w-.01)/TS), fty = Math.floor((P.y+P.h+1)/TS); for (let tx=fl;tx<=fr;tx++) if (isPlatform(tx,fty) && !isSolid(tx,fty)){ P.dropT = .22; P.onGround = false; P.y += 1; break; } }
   const dir = (right?1:0) - (left?1:0);
   if (dir && !input.mining) P.face = dir;
-  P.vx = dir * 74 + P.kbx;
+  // are we swimming?
+  const wasWet = P.inWater;
+  P.inWater = get(cx, cy) === T.WATER || get(cx, Math.floor((P.y+P.h-2)/TS)) === T.WATER;
+  if (P.inWater !== wasWet && Math.abs(P.vy) > 40){ SFX.splash(); burst(pcx(), P.y + (P.inWater ? P.h : 0), '#9ad0ff', 12, 60, 300, .6); }
+  P.vx = dir * (P.inWater ? 52 : 74) + P.kbx;
   P.kbx -= P.kbx * Math.min(1, dt*7);
   if (P.onLadder){
     P.vy = up ? -66 : down ? 66 : 0;
     if (input.jumpOnly && !up) P.vy = -190;
     // centre on the ladder while climbing
     if ((up || down) && !dir) P.x += ((cx*TS + 3) - P.x) * Math.min(1, dt*10);
+  } else if (P.inWater){
+    // gentle sinking; hold jump/up to swim up, down to dive
+    P.vy += (jump ? -520 : down ? 260 : 170) * dt;
+    P.vy = clamp(P.vy, -95, down ? 110 : 70);
+    if (jump && get(cx, Math.floor((P.y-2)/TS)) !== T.WATER && P.vy < 0) P.vy = -210;   // hop out at the surface
+    if (Math.random() < dt*3) particles.push({ x:pcx() + P.face*3, y:P.y + 2, vx:0, vy:-20, g:-30, life:.8, col:'#bfe6ff', sz:1 });
+    // ripples when swimming at the surface
+    if ((P.vx || P.vy) && get(cx, Math.floor((P.y-4)/TS)) !== T.WATER && Math.random() < dt*10){ const ry = Math.floor(P.y/TS)*TS + 2; for (const s of [-1, 1]) particles.push({ x:pcx() + s*4, y:ry, vx:s*25, vy:0, g:0, life:.4, col:'rgba(220,240,255,.8)', sz:1 }); }
   } else {
     P.vy = Math.min(P.vy + 640*dt, 720);
-    if (jump && P.onGround){ P.vy = -BOOTS[game.bootsLv||0].jump; P.onGround = false; SFX.jump(); }
+    // coyote time: you can still jump for a moment after running off a ledge
+    P.coyoteT = P.onGround ? .1 : (P.coyoteT || 0) - dt;
+    if (jump && P.coyoteT > 0 && P.vy >= -20){ P.vy = -BOOTS[game.bootsLv||0].jump; P.onGround = false; P.coyoteT = 0; P.jumpCut = true; SFX.jump(); burst(pcx(), P.y + P.h, '#9a8f86', 4, 30, 200, .3); }
+    // let go early for a shorter hop
+    if (!jump && P.jumpCut && P.vy < -60){ P.vy *= .5; P.jumpCut = false; }
+    if (P.vy >= 0) P.jumpCut = false;
     // jetpack: hold jump while airborne
     const jet = JETPACKS[game.jetLv||0];
     P.jetting = false;
@@ -114,7 +131,10 @@ function stepMining(dt){
   const same = P.mining && P.mining.x===tx && P.mining.y===ty;
   if (!d.solid){
     const dc = inb(tx,ty) ? deco[I(tx,ty)] : 0;
-    if (!dc){ P.mining = null; return; }
+    if (!dc){
+      if (inb(tx,ty) && decor[I(tx,ty)] && DECOR_NAMES[decor[I(tx,ty)]]){ if (!same){ P.mining = { x:tx, y:ty }; P.mineT = 0; } P.swing += dt*14; P.mineT += dt; if (P.mineT > .35){ harvestDecor(tx,ty); P.mining = null; P.mineT = 0; } return; }
+      P.mining = null; return;
+    }
     if (!same){ P.mining = { x:tx, y:ty }; P.mineT = 0; }
     P.swing += dt*14; P.mineT += dt;
     if (P.mineT > .3){ deco[I(tx,ty)] = 0; if (!game.opts.infinite) game[DECO_KEY[dc]]++; SFX.pickup(); P.mining = null; P.mineT = 0; checkStructures(tx,ty); }
@@ -139,6 +159,11 @@ function placeItem(tx,ty){
   if (isSolid(tx,ty) || get(tx,ty)===T.LAVA || deco[I(tx,ty)] || bombs.some(b => b.x===tx && b.y===ty)){ SFX.deny(); return false; }
   if (!game.opts.infinite && game[k] <= 0){ SFX.deny(); msg(`No ${k === 'dynamite' ? 'dynamite' : k+'s'} left! Buy more at the shop.`, '#e0533d'); return false; }
   if (k === 'platform' && bridgeDist(tx,ty) > BRIDGE_REACH){ SFX.deny(); msg(`Too far! Bridges reach ${BRIDGE_REACH} tiles from a wall or a bridge post (6).`, '#e0533d', 2.5); return false; }
+  if (k === 'support'){
+    if (!supportStands(tx,ty)){ SFX.deny(); msg('Supports must stand on the ground or on another support.', '#e0533d', 2.5); return false; }
+    let h = 0; for (let yy=ty+1; isSupport(tx,yy); yy++) h++;
+    if (h >= 8){ SFX.deny(); msg('Supports can only be stacked 8 high.', '#e0533d', 2); return false; }
+  }
   if (k === 'post'){
     if (!postStands(tx,ty)){ SFX.deny(); msg('Bridge posts must stand on the ground or on another post.', '#e0533d', 2.5); return false; }
     if (postHeight(tx,ty) >= 8){ SFX.deny(); msg('Posts can only be stacked 8 high.', '#e0533d', 2); return false; }
@@ -149,9 +174,12 @@ function placeItem(tx,ty){
   if (k === 'platform'){ let n = 1, xx = tx-1; while (isPlatform(xx,ty)){ n++; xx--; } xx = tx+1; while (isPlatform(xx,ty)){ n++; xx++; } if (n >= 12) track('bridge'); }
   SFX.place(); burst(tx*TS+8, ty*TS+14, '#a0703c', 5, 30);
   if (k === 'support'){
-    const before = caveins.length;
+    const col = supportColumn(tx,ty), before = caveins.length;
     caveins = caveins.filter(c => !supported(c.x,c.y));
-    if (caveins.length < before) msg('Tunnel secured.', '#6fd26a', 1.5);
+    if (!col.braced) msg(`Stack ${col.gap} more support${col.gap > 1 ? 's' : ''} to reach the roof!`, '#ffb040', 2.2);
+    else if (caveins.length < before) msg('Tunnel secured.', '#6fd26a', 1.5);
+    else if (col.bot - col.top >= 1) msg(`Support column braced (${col.bot - col.top + 1} tall).`, '#6fd26a', 1.5);
+    if (col.braced && col.bot - col.top >= 3) track('tallSupport');
   }
   return true;
 }
@@ -178,6 +206,12 @@ function stepHazards(dt){
   for (let y=t;y<=b;y++) for (let x=l;x<=r;x++){ const tt = get(x,y); if (tt===T.LAVA) lava = true; if (tt===T.GAS) gas = true; }
   if (lava){ hurt(55*dt, 'Melted in lava.'); P.lavaT -= dt; if (P.lavaT <= 0){ SFX.sizzle(); P.lavaT = .2; burst(pcx(), P.y+P.h, '#ffb030', 6, 50, 200, .6, true); } }
   if (gas){ hurt(14*dt, 'Choked on poison gas.'); P.gasT -= dt; if (P.gasT <= 0){ SFX.cough(); P.gasT = .6; msg('Poison gas! Get out!', '#8fe36b', .8); } }
+  // breath: your head underwater uses it up
+  const headWet = get(Math.floor(pcx()/TS), Math.floor((P.y+2)/TS)) === T.WATER;
+  if (headWet){
+    P.breath = Math.max(0, P.breath - dt);
+    if (P.breath <= 0){ P.drownT -= dt; hurt(12*dt, 'Drowned in an underground pool.'); if (P.drownT <= 0){ P.drownT = .7; SFX.cough(); msg('Out of air! Swim up!', '#9ad0ff', .8); } }
+  } else P.breath = Math.min(8, P.breath + dt*3);
   if (P.y < SURF*TS && P.hp < maxHp()) P.hp = Math.min(maxHp(), P.hp + 4*dt);
   P.hurtT -= dt; P.iframes -= dt;
 }

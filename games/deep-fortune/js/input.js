@@ -41,7 +41,7 @@ canvas.addEventListener('pointerdown', e => {
   const p = toGame(e); pointer.x = p.x; pointer.y = p.y; pointer.inside = true;
   input.pointerType = e.pointerType || 'mouse';
   const hit = hudHit(p);
-  if (hit){ if (hit.action === 'medkit') useMedkit(); else if (hit.action === 'beacon') startRecall(); else { game.sel = hit.n; SFX.click(); } return; }
+  if (hit){ if (hit.action === 'medkit') useMedkit(); else if (hit.action === 'beacon') startRecall(); else if (hit.action === 'scanner') useScanner(); else { game.sel = hit.n; SFX.click(); } return; }
   if (pointer.down) return;                         // ignore extra fingers
   pointer.down = true; pointer.id = e.pointerId; pointer.placing = false;
   try { canvas.setPointerCapture(e.pointerId); } catch(_){}
@@ -86,6 +86,7 @@ function onKey(k){
   if (game.paused) return;
   if (k.length === 1 && k >= '1' && k <= String(ITEMS.length)){ game.sel = +k - 1; SFX.click(); }
   if (k === 'r') startRecall();
+  if (k === 'q') useScanner();
   if (k === 'b') buildKeyLast = null;
   if (k === 'm'){ muted = !muted; if (master) master.gain.value = muted ? 0 : settings.volume; msg(muted ? 'Sound off' : 'Sound on'); }
   if (k === 'h') useMedkit();

@@ -13,7 +13,7 @@ function takeSnapshot(){
   const g = Object.assign({}, game); delete g.hint; delete g.banner;
   snaps.push({
     time: game.time,
-    tiles: tiles.slice(), deco: deco.slice(),
+    tiles: tiles.slice(), deco: deco.slice(), decor: decor.slice(),
     game: clone(g),
     P: Object.assign({}, P, { mining:null }),
     enemies: enemies.map(e => Object.assign({}, e)),       // def objects are shared on purpose
@@ -44,7 +44,7 @@ function doRewind(){
   const s = snaps[i];
   snaps = snaps.slice(0, i);                                    // rewinding again goes further back
   const keep = { stats: game.stats, runAch: game.runAch, won: game.won };
-  tiles.set(s.tiles); deco.set(s.deco);
+  tiles.set(s.tiles); deco.set(s.deco); decor.set(s.decor);
   game = Object.assign(clone(s.game), { over:false, paused:false, shopOpen:false, hint:null, banner:null, recall:null });
   game.stats = keep.stats; game.runAch = keep.runAch; game.won = keep.won;
   game.stats.rewinds = (game.stats.rewinds || 0) + 1;

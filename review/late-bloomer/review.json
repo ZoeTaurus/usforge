@@ -1,0 +1,42 @@
+{
+  "slug": "late-bloomer",
+  "title": "Late Bloomer",
+  "owner": "Alex",
+  "author": "Alex",
+  "submittedBy": "Alex",
+  "founder": true,
+  "submitted": 1790684974,
+  "kind": "new",
+  "status": "pending",
+  "info": {
+    "title": "Late Bloomer",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "grow your own, beautiful garden!",
+    "genres": [
+      "Casual",
+      "Open world",
+      "Simulation"
+    ]
+  },
+  "entry": {
+    "slug": "late-bloomer",
+    "title": "Late Bloomer",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "grow your own, beautiful garden!",
+    "cover": "games/late-bloomer/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Casual",
+      "Open world",
+      "Simulation"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790684974
+  }
+}

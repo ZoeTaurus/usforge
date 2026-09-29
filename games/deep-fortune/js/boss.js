@@ -3,7 +3,7 @@
 //  THE DEEP WYRM - boss of the arena at the bottom of the mine
 // ============================================================
 let boss = null, fireballs = [];
-const WYRM = { hp:3200, segs:16, gap:9, headR:13 };
+const WYRM = { hp:3200, segs:18, gap:9, headR:16 };
 const segR = i => i === 0 ? WYRM.headR : Math.max(5, 11 - i*.4);    // 0 = head, 1.. = body
 const inArena = (tx, ty) => ARENA && tx >= ARENA.x0 && tx <= ARENA.x1 && ty >= ARENA.y0 && ty <= ARENA.y1;
 
@@ -15,7 +15,8 @@ function spawnBoss(){
            segs:[], spitN:0, spitT:0, alpha:1, dying:0, popT:0, mouth:0, emergeX:cx };
   for (let i=0;i<WYRM.segs;i++) boss.segs.push({ x:cx, y:fy + 30 + (i+1)*WYRM.gap, alive:true });
   game.banner = { text:'THE DEEP WYRM', sub:'has awoken beneath the mine!', t:3.5 };
-  SFX.roar(); shake(12);
+  boss.introFx = 1.2;
+  SFX.roar(); shake(14); setTimeout(() => { if (boss) SFX.roar(); }, 700);
   hint('bossfight', 'Hit the Wyrm’s HEAD for extra damage. Dodge its fireballs, and watch the floor when it burrows!');
 }
 
@@ -165,53 +166,133 @@ function octo(x, y, r, col){
   ctx.fillRect(x - r*.55|0, y - r|0, r*1.1|0, r*2|0);
   ctx.fillRect(x - r*.82|0, y - r*.82|0, r*1.64|0, r*1.64|0);
 }
+// ---------- the Wyrm's art: a big pixel-art head, a separate hinged jaw ----------
+let WYRM_ART = null;
+const HEAD_W = 56, HEAD_H = 36, NECK_X = 14, NECK_Y = 20, JAW_X = 24, JAW_Y = 24;   // pivots inside the head sprite
+function buildWyrmArt(){
+  const ell = (x, cx, cy, rx, ry, col) => { for (let y=Math.floor(cy-ry); y<=cy+ry; y++) for (let X=Math.floor(cx-rx); X<=cx+rx; X++){ const nx = (X-cx)/rx, ny = (y-cy)/ry; if (nx*nx + ny*ny <= 1) px(x, col, X, y); } };
+  const r = mulberry32(666);
+  const OUT = [14,6,8], BASE = [46,24,32], PLATE = [74,40,50], HI = [112,64,70], CRACK = [255,110,40], BONE = [226,206,166], BONE_DK = [150,126,92];
+  // --- head, facing right ---
+  const [h, x] = mkCanvas(HEAD_W, HEAD_H);
+  // horns sweep back and up
+  for (const [x0, y0, x1, y1, w] of [[26, 10, 4, 0, 4], [22, 13, 2, 8, 3]]){
+    const n = 22;
+    for (let k=0;k<=n;k++){ const t = k/n, X = x0 + (x1-x0)*t, Y = y0 + (y1-y0)*t - Math.sin(t*Math.PI)*4, ww = Math.max(1, Math.round(w*(1-t)));
+      px(x, OUT, X-1|0, Y-1|0, ww+2, ww+2); }
+    for (let k=0;k<=n;k++){ const t = k/n, X = x0 + (x1-x0)*t, Y = y0 + (y1-y0)*t - Math.sin(t*Math.PI)*4, ww = Math.max(1, Math.round(w*(1-t)));
+      px(x, t > .75 ? BONE_DK : BONE, X|0, Y|0, ww, ww); if (ww > 1) px(x, [250,236,200], X|0, Y|0, ww, 1); }
+  }
+  // skull and long snout
+  ell(x, 26, 19, 16, 12, OUT); ell(x, 42, 20, 13, 7.5, OUT);
+  ell(x, 26, 19, 15, 11, BASE); ell(x, 42, 20, 12, 6.5, BASE);
+  // armour plates with highlights
+  for (let i=0;i<5;i++){ ell(x, 16 + i*6, 11 + (i%2), 4, 3, PLATE); px(x, HI, 14 + i*6, 9 + (i%2), 3, 1); }
+  ell(x, 44, 16, 7, 2.5, PLATE); px(x, HI, 40, 15, 8, 1);
+  // spiked frill along the back of the skull
+  for (let i=0;i<4;i++){ const bx = 12 + i*4, by = 10 - i; for (let k=0;k<6;k++){ px(x, OUT, bx - 1 - k, by + k - 1, 2, 1); px(x, BONE_DK, bx - k, by + k - 1, 1, 1); } }
+  // heavy brow ridge over the eyes
+  px(x, OUT, 29, 13, 16, 2); px(x, [30,14,20], 29, 14, 16, 1);
+  // four eyes: two big, two small, all glaring
+  const eye = (ex, ey, w) => { px(x, OUT, ex-1, ey-1, w+2, 4); px(x, [255,190,50], ex, ey, w, 2); px(x, [255,245,160], ex, ey, 1, 1); px(x, [120,10,10], ex + (w>>1), ey, 1, 2); };
+  eye(38, 15, 5); eye(31, 16, 4); eye(26, 17, 2); eye(22, 18, 2);
+  // glowing magma cracks across the skull
+  for (let c=0;c<5;c++){ let X = 12 + (r()*26|0), Y = 16 + (r()*10|0); for (let k=0;k<7;k++){ px(x, CRACK, X, Y); X += r() < .6 ? 1 : 0; Y += r() < .5 ? 1 : -1; } }
+  // nostrils
+  px(x, [10,4,6], 50, 17, 2, 1); px(x, [10,4,6], 47, 18, 2, 1);
+  // upper fangs hanging from the snout
+  for (let X=30; X<52; X+=3){ const len = X > 45 ? 3 : 5; px(x, OUT, X-1, 25, 3, len+1); px(x, BONE, X, 25, 1, len); px(x, [255,255,240], X, 25, 1, 1); }
+  // --- lower jaw, hinged at its left end ---
+  const [j, jx] = mkCanvas(34, 12);
+  for (let X=0; X<32; X++){ const top = 2 + Math.floor(X/10), bot = 9 - Math.floor(X/9); if (bot <= top) continue; px(jx, OUT, X, top-1, 1, bot-top+2); px(jx, [40,20,26], X, top, 1, bot-top); px(jx, [66,34,42], X, bot-1, 1, 1); }
+  for (let X=8; X<30; X+=3){ px(jx, OUT, X-1, 0, 3, 4); px(jx, BONE, X, 0, 1, 3); }
+  WYRM_ART = { head:h, jaw:j };
+}
+// body segments: darker armour, dorsal bone spikes, pulsing magma veins
+function drawSegment(s, i, prev, now, hit){
+  const r = segR(i+1), x = s.x - cam.x, y = s.y - cam.y;
+  if (x < -40 || x > VW+40 || y < -40 || y > VH+40) return;
+  const dx = prev.x - s.x, dy = prev.y - s.y, d = Math.hypot(dx, dy) || 1, ux = dx/d, uy = dy/d;
+  let nx = -uy, ny = ux; if (ny > 0){ nx = -nx; ny = -ny; }                      // the "back" of the body faces upward
+  // dorsal spike
+  const sl = r*.9 + 3, bx = x + nx*r*.8, by = y + ny*r*.8;
+  ctx.fillStyle = '#0e0608'; ctx.beginPath(); ctx.moveTo(bx - ux*4, by - uy*4); ctx.lineTo(bx + nx*sl, by + ny*sl); ctx.lineTo(bx + ux*4, by + uy*4); ctx.fill();
+  ctx.fillStyle = hit ? '#fff' : '#d8c090'; ctx.beginPath(); ctx.moveTo(bx - ux*2.5, by - uy*2.5); ctx.lineTo(bx + nx*(sl-1.5), by + ny*(sl-1.5)); ctx.lineTo(bx + ux*2.5, by + uy*2.5); ctx.fill();
+  octo(x, y, r + 1.5, '#0e0608');
+  octo(x, y, r, hit ? '#ffffff' : '#2e1a22');
+  octo(x - ux*1.5, y - uy*1.5 - 1, r*.72, hit ? '#ffffff' : '#4a2a34');
+  // magma veins that pulse down the body like a heartbeat
+  const beat = (Math.sin(now*5 - i*.45) + 1)/2;
+  ctx.fillStyle = `rgba(255,${90 + beat*110|0},30,${.45 + beat*.55})`;
+  ctx.fillRect(x - r*.5|0, y|0, r|0 || 1, 1); ctx.fillRect(x - 1|0, y - r*.4|0, 1, r*.8|0 || 1);
+  // spiked tail tip
+  if (i === boss.segs.length - 1){
+    ctx.fillStyle = '#d8c090'; ctx.beginPath(); ctx.moveTo(x + ny*3, y - nx*3); ctx.lineTo(x - ux*16, y - uy*16); ctx.lineTo(x - ny*3, y + nx*3); ctx.fill();
+  }
+}
 function drawBoss(now){
   const b = boss; if (!b || b.alpha <= 0) return;
+  if (!WYRM_ART) buildWyrmArt();
   ctx.globalAlpha = b.alpha;
   const hit = b.flash > 0;
-  for (let i=b.segs.length-1;i>=0;i--){
-    const s = b.segs[i]; if (!s.alive) continue;
-    const r = segR(i+1), x = s.x - cam.x, y = s.y - cam.y;
-    if (x < -30 || x > VW+30 || y < -30 || y > VH+30) continue;
-    octo(x, y, r+1.5, '#120a10');
-    octo(x, y, r, hit ? '#ffffff' : '#4a2e3e');
-    octo(x, y - 1, r*.72, hit ? '#ffffff' : '#6e4250');
-    const glow = (Math.sin(now*4 + i*.6) + 1)/2;
-    ctx.fillStyle = `rgba(255,${120 + glow*80|0},40,${.6 + glow*.4})`; ctx.fillRect(x - r*.25|0, y - 1|0, r*.5|0 || 1, 2);
-    ctx.fillStyle = '#c9a36a'; ctx.fillRect(x - 1|0, y - r - 3|0, 2, 3);
+  // body, tail first
+  for (let i=b.segs.length-1;i>=0;i--){ const s = b.segs[i]; if (!s.alive) continue; drawSegment(s, i, i === 0 ? b : b.segs[i-1], now, hit); }
+  // head: faces where it's going (or the player when it's slow), never upside down
+  const sp = Math.hypot(b.vx, b.vy);
+  const ang = sp > 30 ? Math.atan2(b.vy, b.vx) : Math.atan2(pcy() - b.y, pcx() - b.x);
+  b.ang = b.ang === undefined ? ang : b.ang + Math.atan2(Math.sin(ang - b.ang), Math.cos(ang - b.ang))*.2;
+  const jawOpen = b.mouth > 0 || b.state === 'spit' || b.state === 'intro' || b.state === 'erupt' ? .55 + Math.sin(now*20)*.08 : .12 + Math.sin(now*3)*.05;
+  ctx.save();
+  ctx.translate(b.x - cam.x, b.y - cam.y); ctx.rotate(b.ang);
+  if (Math.cos(b.ang) < 0) ctx.scale(1, -1);
+  ctx.translate(-NECK_X - 6, -NECK_Y);
+  // fiery maw behind the jaw
+  if (jawOpen > .2){
+    ctx.fillStyle = '#ff5a1a'; ctx.beginPath(); ctx.moveTo(JAW_X, JAW_Y); ctx.lineTo(JAW_X + 30, JAW_Y); ctx.lineTo(JAW_X + 28, JAW_Y + 11); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffd35a'; ctx.beginPath(); ctx.moveTo(JAW_X + 4, JAW_Y + 1); ctx.lineTo(JAW_X + 22, JAW_Y + 1); ctx.lineTo(JAW_X + 18, JAW_Y + 5); ctx.closePath(); ctx.fill();
   }
-  // head
-  const x = b.x - cam.x, y = b.y - cam.y, r = WYRM.headR;
-  const a = Math.atan2(pcy() - b.y, pcx() - b.x), fx = Math.cos(a), fy = Math.sin(a);
-  octo(x, y, r+2, '#120a10');
-  octo(x, y, r, hit ? '#ffffff' : '#5a3448');
-  octo(x - fx*2, y - fy*2 - 1, r*.7, hit ? '#ffffff' : '#74465a');
-  // horns
-  ctx.fillStyle = '#d8c090';
-  ctx.fillRect(x - 10|0, y - r - 5|0, 3, 7); ctx.fillRect(x + 7|0, y - r - 5|0, 3, 7);
-  ctx.fillRect(x - 12|0, y - r - 7|0, 2, 3); ctx.fillRect(x + 10|0, y - r - 7|0, 2, 3);
-  // mouth
-  const mx = x + fx*9, my = y + fy*9, open = b.mouth > 0 || b.state === 'spit' ? 5 : 2;
-  ctx.fillStyle = '#1a0608'; ctx.fillRect(mx - 5|0, my - open/2|0, 10, open);
-  if (open > 2){ ctx.fillStyle = '#ff8a2a'; ctx.fillRect(mx - 3|0, my - 1|0, 6, 2); }
-  ctx.fillStyle = '#f1e9d2'; ctx.fillRect(mx - 4|0, my - open/2|0, 1, 2); ctx.fillRect(mx + 3|0, my - open/2|0, 1, 2);
+  ctx.save(); ctx.translate(JAW_X, JAW_Y); ctx.rotate(jawOpen*.7); ctx.drawImage(WYRM_ART.jaw, -2, -1); ctx.restore();
+  if (hit){ ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'brightness(3)'; }
+  ctx.drawImage(WYRM_ART.head, 0, 0);
+  ctx.filter = 'none';
+  ctx.restore();
   ctx.globalAlpha = 1;
+  // lava drool and nostril smoke
+  if (b.alpha > .5){
+    const c = Math.cos(b.ang), sn = Math.sin(b.ang), flip = c < 0 ? -1 : 1;
+    const wx = (lx, ly) => [b.x + (lx*c - ly*flip*sn), b.y + (lx*sn + ly*flip*c)];
+    if (Math.random() < .35){ const [mx, my] = wx(24, 10); particles.push({ x:mx, y:my, vx:(Math.random()-.5)*10, vy:20, g:300, life:.8, col: Math.random() < .5 ? '#ff7a1a' : '#ffd35a', sz: Math.random() < .3 ? 2 : 1, glow:true }); }
+    if (Math.random() < .15){ const [nx2, ny2] = wx(30, -3); particles.push({ x:nx2, y:ny2, vx:(Math.random()-.5)*8, vy:-14, g:-6, life:1.3, col:'rgba(70,64,72,.5)', sz:2 }); }
+  }
 }
 function drawBossGlow(now){
   const b = boss;
-  if (b && b.alpha > 0){
-    const x = b.x - cam.x, y = b.y - cam.y, a = Math.atan2(pcy() - b.y, pcx() - b.x);
-    const px = -Math.sin(a), py = Math.cos(a), ex = x + Math.cos(a)*3, ey = y + Math.sin(a)*3 - 3;
-    ctx.globalAlpha = b.alpha;
-    ctx.fillStyle = b.hp < b.maxHp*.5 ? '#ff3a2a' : '#ffd24a';
-    ctx.fillRect(ex + px*5 - 1|0, ey + py*5 - 1|0, 3, 2); ctx.fillRect(ex - px*5 - 1|0, ey - py*5 - 1|0, 3, 2);
-    ctx.globalAlpha = 1;
+  if (b && b.alpha > 0 && b.ang !== undefined){
+    // the four eyes glow through the dark
+    const c = Math.cos(b.ang), sn = Math.sin(b.ang), flip = c < 0 ? -1 : 1;
+    const toScreen = (hx, hy) => { const lx = hx - NECK_X - 6, ly = hy - NECK_Y; return [b.x - cam.x + (lx*c - ly*flip*sn), b.y - cam.y + (lx*sn + ly*flip*c)]; };
+    const rage = b.hp < b.maxHp*.5, pulse = .75 + Math.sin(now*8)*.25;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = b.alpha*pulse;
+    for (const [ex, ey, w] of [[40, 15, 5], [33, 16, 4], [27, 17, 2], [23, 18, 2]]){
+      const [X, Y] = toScreen(ex, ey + 1);
+      ctx.fillStyle = rage ? 'rgba(255,40,30,.9)' : 'rgba(255,200,60,.9)'; ctx.fillRect(X - 1|0, Y - 1|0, w|0, 2);
+      const g = ctx.createRadialGradient(X, Y, 0, X, Y, 7); g.addColorStop(0, rage ? 'rgba(255,40,30,.35)' : 'rgba(255,180,60,.3)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(X - 7, Y - 7, 14, 14);
+    }
+    ctx.restore();
   }
   for (const f of fireballs){
     const x = f.x - cam.x|0, y = f.y - cam.y|0;
     ctx.fillStyle = '#ff5a1a'; ctx.fillRect(x-3, y-3, 7, 7);
     ctx.fillStyle = '#ffb030'; ctx.fillRect(x-2, y-2, 5, 5);
     ctx.fillStyle = '#fff3b0'; ctx.fillRect(x-1, y-1, 2, 2);
+  }
+  // dread: a pulsing red vignette while the Wyrm is awake
+  if (b && !b.dying){
+    const a = .18 + Math.sin(now*2.2)*.08 + (b.introFx > 0 ? b.introFx*.5 : 0);
+    const v = ctx.createRadialGradient(VW/2, VH/2, Math.min(VW, VH)*.3, VW/2, VH/2, Math.max(VW, VH)*.7);
+    v.addColorStop(0, 'rgba(120,0,0,0)'); v.addColorStop(1, `rgba(120,0,0,${a})`); ctx.fillStyle = v; ctx.fillRect(0, 0, VW, VH);
+    if (b.introFx > 0){ ctx.fillStyle = `rgba(255,40,20,${b.introFx*.25})`; ctx.fillRect(0, 0, VW, VH); b.introFx -= 1/60; }
   }
 }
 function drawBossBar(){

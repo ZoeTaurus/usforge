@@ -69,6 +69,9 @@ function stepPlayer(dt){
   } else if (P.inWater){
     // gentle sinking; hold jump/up to swim up, down to dive
     P.vy += (jump ? -520 : down ? 260 : 170) * dt;
+    // a waterfall pouring down on you pushes you under
+    const hx = Math.floor(pcx()/TS), hy = Math.floor((P.y-2)/TS);
+    if (get(hx, hy) === T.WATER && !isSolid(hx-1, hy) && get(hx-1, hy) !== T.WATER && !isSolid(hx+1, hy) && get(hx+1, hy) !== T.WATER) P.vy += 420*dt;
     P.vy = clamp(P.vy, -95, down ? 110 : 70);
     if (jump && get(cx, Math.floor((P.y-2)/TS)) !== T.WATER && P.vy < 0) P.vy = -210;   // hop out at the surface
     if (Math.random() < dt*3) particles.push({ x:pcx() + P.face*3, y:P.y + 2, vx:0, vy:-20, g:-30, life:.8, col:'#bfe6ff', sz:1 });
@@ -157,6 +160,7 @@ function placeItem(tx,ty){
   const k = ITEMS[game.sel];
   if (!inb(tx,ty) || ty < 0) return false;
   if (isSolid(tx,ty) || get(tx,ty)===T.LAVA || deco[I(tx,ty)] || bombs.some(b => b.x===tx && b.y===ty)){ SFX.deny(); return false; }
+  if (k === 'torch' && get(tx,ty) === T.WATER){ SFX.deny(); msg("Torches won't burn underwater.", '#9ad0ff', 1.5); return false; }
   if (!game.opts.infinite && game[k] <= 0){ SFX.deny(); msg(`No ${k === 'dynamite' ? 'dynamite' : k+'s'} left! Buy more at the shop.`, '#e0533d'); return false; }
   if (k === 'platform' && bridgeDist(tx,ty) > BRIDGE_REACH){ SFX.deny(); msg(`Too far! Bridges reach ${BRIDGE_REACH} tiles from a wall or a bridge post (6).`, '#e0533d', 2.5); return false; }
   if (k === 'support'){

@@ -254,7 +254,9 @@ function stepPickups(dt){
     if (p.t > .35 && d < 2.4*TS && !game.over){
       p.x += dx*Math.min(1, dt*7); p.y += dy*Math.min(1, dt*7);
     } else {
-      p.vy = Math.min(p.vy + 520*dt, 500);
+      const wet = get(Math.floor((p.x+3)/TS), Math.floor((p.y+3)/TS)) === T.WATER;
+      p.vy = wet ? Math.min(p.vy + 120*dt, 28) : Math.min(p.vy + 520*dt, 500);   // coins and gems drift down through water
+      if (wet) p.vx *= Math.max(0, 1 - dt*3);
       entMove(p, dt, 6, 6);
       if (p.onGround) p.vx *= Math.max(0, 1 - dt*8);
     }

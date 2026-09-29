@@ -211,12 +211,25 @@ function simWorld(){
       if (stamp[i]===tickId) continue;
       const t = tiles[i];
       if (t===T.LAVA){
+        // wooden things next to lava catch fire
+        for (const [dx,dy] of [[1,0],[-1,0],[0,-1],[0,1]]){
+          const nx = x+dx, ny = y+dy, ni = I(nx,ny);
+          if (inb(nx,ny) && deco[ni] && deco[ni] !== D.TORCH && R() < .08){ deco[ni] = 0; burst(nx*TS+8, ny*TS+8, '#ff9a2a', 12, 50, -60, .8, true); checkStructures(nx,ny); }
+        }
+        // lava is thick: it falls a little slower than water and oozes sideways reluctantly
         if (isEmpty(tiles[I(x,y+1)])){
-          moveLiquid(x,y,x,y+1);
+          if (R() < .7) moveLiquid(x,y,x,y+1);
           if (!sizzled && Math.abs(x*TS-pcx())<220 && Math.abs(y*TS-pcy())<160 && R()<.05){ SFX.sizzle(); sizzled = true; }
           continue;
         }
-        if (R()<.5){ const sd = R()<.5 ? 1 : -1; for (const s of [sd,-sd]){ const nx=x+s; if (nx>=0 && nx<WW && isEmpty(tiles[I(nx,y)])){ moveLiquid(x,y,nx,y); break; } } }
+        // a lone blob spread thin on the floor slowly cools into rock
+        const loneLava = get(x-1,y) !== T.LAVA && get(x+1,y) !== T.LAVA && get(x,y-1) !== T.LAVA && get(x,y+1) !== T.LAVA;
+        if (loneLava && R() < .02){ tiles[i] = T.BASALT; burst(x*TS+8, y*TS+6, '#6a625c', 8, 30, -30, 1); continue; }
+        if (R() < .25){ const sd = R()<.5 ? 1 : -1;
+          for (const s of [sd,-sd]){ const nx = x+s; if (nx>=0 && nx<WW && isEmpty(tiles[I(nx,y)])){
+            // it slumps diagonally over edges rather than stepping out into thin air
+            if (isEmpty(tiles[I(nx,y+1)])) moveLiquid(x,y,nx,y+1); else moveLiquid(x,y,nx,y);
+            break; } } }
       } else if (t===T.WATER){
         // water + lava = obsidian (and a puff of steam)
         let quenched = false;
@@ -273,7 +286,10 @@ function moveLiquid(x,y,nx,ny){
   tiles[b] = T.LAVA; tiles[a] = other===T.GAS ? T.GAS : T.AIR; stamp[b] = tickId;
   if (deco[b]){ burst(nx*TS+8, ny*TS+8, '#ff9a2a', 10, 50, 200, .6, true); deco[b] = 0; checkStructures(nx,ny); }
 }
-function moveWater(x,y,nx,ny){ const a = I(x,y), b = I(nx,ny), other = tiles[b]; tiles[b] = T.WATER; tiles[a] = other === T.GAS ? T.GAS : T.AIR; stamp[b] = tickId; }
+function moveWater(x,y,nx,ny){
+  const a = I(x,y), b = I(nx,ny), other = tiles[b]; tiles[b] = T.WATER; tiles[a] = other === T.GAS ? T.GAS : T.AIR; stamp[b] = tickId;
+  if (deco[b] === D.TORCH){ deco[b] = 0; burst(nx*TS+8, ny*TS+4, '#cfd8e0', 10, 30, -40, 1); }            // torches go out underwater
+}
 function swapGas(x,y,nx,ny){ const a=I(x,y), b=I(nx,ny); tiles[a]=T.AIR; tiles[b]=T.GAS; stamp[b]=tickId; }
 
 // ---------- treasure chests ----------

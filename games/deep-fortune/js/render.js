@@ -442,13 +442,36 @@ function drawTiles(tx0, ty0, tx1, ty1, now){
     if (mining && mining.x === x && mining.y === y){ sx += (Math.random()*3|0) - 1; sy += (Math.random()*2|0); }
     if (t === T.WATER){
       drawWater(x, y, sx, sy, now);
+    } else if (t === T.LAVA && !isSolid(x, y+1) && get(x, y+1) !== T.LAVA && get(x-1, y) !== T.LAVA && get(x+1, y) !== T.LAVA && !isSolid(x-1,y) && !isSolid(x+1,y)){
+      // a thick glowing lava-fall
+      ctx.fillStyle = '#b02a14'; ctx.fillRect(sx + 3, sy, 10, TS);
+      ctx.fillStyle = '#ff7a1a'; ctx.fillRect(sx + 4, sy, 8, TS);
+      ctx.fillStyle = '#ffd35a'; for (let c=5; c<11; c+=3){ const o = (now*30 + c*7 + x*5) % 16; ctx.fillRect(sx + c, sy + o|0, 1, 4); }
     } else if (t === T.LAVA){
-      const top = !isSolid(x,y-1) && get(x,y-1) !== T.LAVA;
-      ctx.fillStyle = '#c8321a'; ctx.fillRect(sx, sy, TS, TS);
+      const top = !isSolid(x,y-1) && get(x,y-1) !== T.LAVA, wx = x*TS;
+      // body (on the surface tile it starts below a slowly heaving wave line)
+      for (let c=0;c<TS;c++){
+        const h = top ? Math.round(1.5 + Math.sin((wx + c)*.21 + now*1.1)*.9 + Math.sin((wx + c)*.07 - now*.6)*.6) : 0;
+        ctx.fillStyle = '#c8321a'; ctx.fillRect(sx + c, sy + h, 1, TS - h);
+        if (top){
+          ctx.fillStyle = '#ffd35a'; ctx.fillRect(sx + c, sy + h, 1, 1);
+          ctx.fillStyle = '#ff8a1e'; ctx.fillRect(sx + c, sy + h + 1, 1, 2);
+          if (Math.sin((wx + c)*.9 + now*.4) > .82){ ctx.fillStyle = '#5a1a0c'; ctx.fillRect(sx + c, sy + h + 1, 1, 1); }   // cooling crust
+        }
+      }
+      // slow churning hot spots
       ctx.fillStyle = '#ee5a1c';
-      for (let k=0;k<3;k++){ const ox = (x*5 + k*6 + (now*4|0)) % 14, oy = (y*3 + k*5 + (now*2|0)) % 13; ctx.fillRect(sx+ox, sy+oy, 4, 3); }
-      ctx.fillStyle = '#ffb040'; ctx.fillRect(sx + ((x*3 + (now*5|0)) % 14), sy + ((y*7 + (now*3|0)) % 14), 2, 1);
-      if (top){ const wave = Math.sin(now*3 + x) > 0 ? 1 : 0; ctx.fillStyle = '#ffd35a'; ctx.fillRect(sx, sy+wave, TS, 2); ctx.fillStyle = '#ff8a1e'; ctx.fillRect(sx, sy+2+wave, TS, 2); }
+      for (let k=0;k<3;k++){ const ox = (x*5 + k*6 + (now*2|0)) % 13, oy = 4 + (y*3 + k*5 + (now*1.3|0)) % 10; ctx.fillRect(sx+ox, sy+oy, 4, 3); }
+      ctx.fillStyle = '#ffb040'; ctx.fillRect(sx + ((x*3 + (now*3|0)) % 14), sy + 4 + ((y*7 + (now*2|0)) % 10), 2, 1);
+      // bubbles swell and pop, spitting embers
+      if (top){
+        const bp = (now*.8 + hash2(x, y)*7) % 3;
+        if (bp < .5){
+          const bx = sx + 3 + (hash2(y, x)*10|0), r = bp < .35 ? 1 + (bp*6|0) : 0;
+          if (r){ ctx.fillStyle = '#ffb040'; ctx.fillRect(bx - r, sy + 3 - r, r*2, r); ctx.fillStyle = '#fff0a0'; ctx.fillRect(bx - r + 1, sy + 3 - r, 1, 1); }
+          else if (Math.random() < .3) particles.push({ x:wx + 3 + hash2(y, x)*10, y:y*TS + 1, vx:(Math.random()-.5)*30, vy:-40 - Math.random()*40, g:300, life:.6, col: Math.random() < .5 ? '#ffd35a' : '#ff7a1a', sz:1, glow:true });
+        }
+      }
     } else if (DEF[t].ore){
       drawGround(x, y, t, sx, sy);
       ctx.drawImage(ORE_TEX[t][(hash2(x, y)*3)|0], sx, sy);

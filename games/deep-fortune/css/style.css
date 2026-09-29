@@ -174,3 +174,31 @@ h2.sub { margin-top:18px; padding-top:12px; border-top:2px dashed var(--edge2); 
   .ach-btn small { display:inline; }
   .menu-row { grid-column:1 / -1; }
 }
+
+/* ---------- rewind & zoom ---------- */
+.actions.wrap .rewind-btn { flex-basis:100%; font-size:12px; padding:14px; }
+.seg { display:flex; gap:6px; }
+.seg .btn { flex:1; font-size:8px; padding:9px 4px; }
+.seg .btn.on { background:#c98a1a; box-shadow:inset -3px -3px 0 #7a4f08, inset 3px 3px 0 #ffd46a, 0 3px 0 #000; color:#2a1600; }
+
+/* ---------- centering & home v4 ---------- */
+.panel .menu-buttons { margin-left:auto; margin-right:auto; }
+.menu-buttons .btn { display:flex; align-items:center; justify-content:center; gap:10px; }
+.menu-row .btn { gap:6px; }
+.btn .rw { font-size:1.2em; letter-spacing:-3px; margin-right:4px; }
+.ico { width:16px; height:16px; image-rendering:pixelated; flex:0 0 auto; filter:drop-shadow(1px 1px 0 rgba(0,0,0,.6)); }
+.btn.big .ico { width:20px; height:20px; }
+.menu-row .ico { width:14px; height:14px; }
+#btnContinue { flex-direction:column; gap:4px; }
+#btnContinue small { margin:0; font-size:8px; opacity:.85; }
+.logo-pick { position:absolute; width:clamp(34px, 7vw, 64px); height:auto; image-rendering:pixelated; right:-4%; top:-6%;
+  transform-origin:20% 85%; animation:pickSwing 2.4s ease-in-out infinite; filter:drop-shadow(3px 3px 0 rgba(0,0,0,.45)); }
+@keyframes pickSwing { 0%,100% { transform:rotate(-8deg); } 45% { transform:rotate(-38deg); } 55% { transform:rotate(12deg); } 62% { transform:rotate(4deg); } }
+.logo-bot { background:none; animation:glint 5s ease-in-out infinite; }
+@keyframes glint { 0%,86%,100% { filter:brightness(1); } 91% { filter:brightness(1.35); } }
+.home-info { display:flex; flex-direction:column; gap:8px; align-items:center; background:rgba(8,6,14,.55); border:2px solid rgba(74,63,92,.7); padding:10px 14px; max-width:min(560px, 100%); }
+.home-info .stats:empty, .home-info .tip:empty { display:none; }
+.home-footer { position:absolute; left:0; right:0; bottom:max(8px, env(safe-area-inset-bottom)); display:flex; justify-content:space-between; padding:0 max(14px, env(safe-area-inset-left)); font-size:7px; color:rgba(241,233,210,.55); text-shadow:1px 1px 0 #000; pointer-events:none; }
+body.touch .keys-hint { visibility:hidden; }
+.menu-buttons .btn:focus-visible { outline:3px solid #fff; outline-offset:3px; }
+@media (max-height: 620px){ .home-info { padding:6px 10px; } .home-footer { display:none; } }

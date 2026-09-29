@@ -54,6 +54,8 @@ const ACHIEVEMENTS = [
   ['night_shift', 'Night Shift',         'Sell ore in the middle of the night',      'moon'],
   ['packed',      'Packed Tight',        'Fill the biggest backpack to the brim',    'bag'],
   ['rip',         'Occupational Hazard', 'Die for the first time',                   'skull'],
+  ['wyrm',        'Wyrm Slayer',         'Defeat the Deep Wyrm at the bottom of the mine', 'boss'],
+  ['bridge',      'Bridge Builder',      'Build a 12-plank bridge',                  'icon:platform'],
 ];
 const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map(a => [a[0], a]));
 const achCount = () => Object.keys(UNLOCKED).filter(id => ACH_BY_ID[id]).length;
@@ -86,6 +88,9 @@ function track(ev, data){
     case 'win': life('wins'); unlock('retire'); if (game.time < 2400) unlock('retire_fast'); if (game.diff === 'hardcore') unlock('retire_hard'); break;
     case 'death': life('deaths'); unlock('rip'); break;
     case 'start': life('runs'); break;
+    case 'boss': unlock('wyrm'); break;
+    case 'rewind': life('rewinds'); break;
+    case 'bridge': unlock('bridge'); break;
   }
   checkAchievements();
 }
@@ -127,6 +132,7 @@ function achIcon(kind){
   else if (type === 'heart'){ P('#e0533d',3,4,4,3); P('#e0533d',9,4,4,3); P('#e0533d',2,6,12,3); P('#e0533d',4,9,8,2); P('#e0533d',6,11,4,2); P('#ff9a8a',4,5,2,1); }
   else if (type === 'moon'){ P('#f4f1dc',5,2,6,12); P('#f4f1dc',3,4,4,8); P('#0e0b14',8,3,5,9); P('#cfcab0',5,6,1,1); }
   else if (type === 'bag'){ P('#6b4423',3,5,10,9); P('#8a5a30',3,5,10,2); P('#4a2a12',6,2,4,3); P('#ffd24a',7,8,2,2); }
+  else if (type === 'boss'){ P('#120a10',1,2,14,12); P('#5a3448',2,3,12,10); P('#74465a',3,4,9,6); P('#d8c090',3,0,2,3); P('#d8c090',11,0,2,3); P('#ffd24a',4,6,2,2); P('#ffd24a',10,6,2,2); P('#1a0608',5,10,6,2); P('#ff8a2a',6,10,4,1); }
   else if (type === 'skull'){ P('#e8e4dc',4,2,8,8); P('#e8e4dc',5,10,6,3); P('#1a1020',5,5,2,2); P('#1a1020',9,5,2,2); P('#1a1020',7,8,2,1); P('#1a1020',6,11,1,2); P('#1a1020',9,11,1,2); }
   ACH_ICON_CACHE[kind] = c;
   return c;
@@ -163,7 +169,7 @@ function openAchievements(back){
   const L = LIFE;
   const rows = [['Careers started', L.runs], ['Careers won', L.wins], ['Deaths', L.deaths], ['Deepest dig', (L.deepest||0) + 'm'], ['Money earned', fmtMoney(L.earned||0)],
     ['Ore mined', L.ores], ['Ore types found', `${Object.keys(L.oreTypes).length}/${ORES.length}`], ['Monsters defeated', L.kills], ['Chests opened', L.chests],
-    ['Contracts done', L.contracts], ['Dynamite used', L.dynamite], ['Time underground', fmtTime(L.playTime||0)]];
+    ['Contracts done', L.contracts], ['Dynamite used', L.dynamite], ['Rewinds used', L.rewinds || 0], ['Time underground', fmtTime(L.playTime||0)]];
   $('lifeStats').innerHTML = rows.map(([k, v]) => `<div class="row"><span class="muted">${k}</span><span>${v}</span></div>`).join('');
   showScreen('achScreen');
 }

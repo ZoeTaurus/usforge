@@ -9,6 +9,7 @@ function audio(){
       actx = new (window.AudioContext || window.webkitAudioContext)();
       master = actx.createGain(); master.connect(actx.destination);
     } catch(e){ return null; }
+    if (typeof startMusic === 'function') startMusic();
   }
   if (actx.state === 'suspended') actx.resume();
   master.gain.value = muted ? 0 : settings.volume;
@@ -56,27 +57,7 @@ const SFX = {
   die:    () => { tone(220,.3,'sawtooth',.07,-150); tone(110,.7,'sawtooth',.07,-70,.25); },
 };
 
-// ------------------------------------------------------------
-//  Gentle generative background music (pentatonic plucks + pads)
-// ------------------------------------------------------------
-const MUSIC_SCALE = [220, 261.63, 293.66, 329.63, 392, 440, 523.25, 587.33, 659.25];
-let musicTimer = null, musicBeat = 0;
-function musicTick(){
-  if (!settings.music || !actx || actx.state !== 'running' || muted) return;
-  musicBeat++;
-  // deeper = lower and sparser
-  const deep = (typeof P !== 'undefined' && P && typeof game !== 'undefined' && game) ? clamp((P.y/TS - SURF) / 200, 0, 1) : 0;
-  const oct = deep > .5 ? .5 : 1;
-  if (musicBeat % 16 === 1){
-    const root = [110, 98, 87.31, 82.41][(musicBeat/16|0) % 4] * (deep > .5 ? .75 : 1);
-    tone(root, 3.8, 'sine', .035); tone(root*1.5, 3.8, 'sine', .02);
-  }
-  if (Math.random() < .5 - deep*.2){
-    const f = MUSIC_SCALE[Math.random()*MUSIC_SCALE.length|0] * oct;
-    tone(f, .9, 'triangle', .022);
-  }
-}
-function startMusic(){ if (!musicTimer) musicTimer = setInterval(musicTick, 380); }
+// (background music lives in music.js)
 
 Object.assign(SFX, {
   swing:    () => noise(.07,.05,2400,'highpass'),
@@ -101,3 +82,13 @@ Object.assign(SFX, {
 });
 
 SFX.achievement = () => [659,784,988,1318].forEach((f,i) => tone(f, .16, 'triangle', .06, 0, i*.09));
+
+Object.assign(SFX, {
+  roar:     () => { noise(1.2, .22, 160); tone(55, 1.1, 'sawtooth', .09, -25); tone(82, .9, 'square', .04, -40, .1); },
+  rumble:   () => noise(1.2, .16, 120),
+  fireball: () => { noise(.25, .1, 900, 'bandpass'); tone(200, .2, 'sawtooth', .04, -120); },
+  moan:     () => { tone(220, 1.1, 'sine', .025, -60); tone(233, 1.1, 'sine', .018, -70, .05); },
+});
+
+SFX.rewind = () => { tone(900, .5, 'sawtooth', .04, -700); tone(1200, .45, 'square', .02, -900, .05); noise(.4, .05, 2000, 'highpass'); };
+SFX.saved = () => tone(1046, .06, 'triangle', .025);

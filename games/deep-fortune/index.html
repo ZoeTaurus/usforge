@@ -18,6 +18,7 @@
 <div id="home" class="screen">
   <div class="home-inner">
     <div class="logo">
+      <img class="logo-pick" id="logoPick" alt="">
       <i class="spark" style="left:6%;top:18%"></i><i class="spark" style="left:92%;top:8%;animation-delay:.7s"></i>
       <i class="spark" style="left:84%;top:62%;animation-delay:1.3s"></i><i class="spark" style="left:14%;top:70%;animation-delay:2s"></i>
       <div class="logo-top">DEEP</div>
@@ -26,16 +27,20 @@
     </div>
     <div class="menu-buttons">
       <button class="btn big gold" id="btnContinue">CONTINUE</button>
-      <button class="btn big" id="btnCareer">NEW CAREER</button>
-      <button class="btn big blue" id="btnFree">FREE PLAY</button>
+      <button class="btn big" id="btnCareer"><img class="ico" data-ico="career" alt="">NEW CAREER</button>
+      <button class="btn big blue" id="btnFree"><img class="ico" data-ico="free" alt="">FREE PLAY</button>
       <button class="btn ach-btn" id="btnAch">ACHIEVEMENTS</button>
       <div class="menu-row">
-        <button class="btn" id="btnHow">HOW TO PLAY</button>
-        <button class="btn" id="btnSettings">SETTINGS</button>
+        <button class="btn" id="btnHow"><img class="ico" data-ico="how" alt="">HOW TO PLAY</button>
+        <button class="btn" id="btnSettings"><img class="ico" data-ico="settings" alt="">SETTINGS</button>
       </div>
     </div>
-    <p class="stats" id="homeStats"></p>
-    <p class="tip" id="homeTip"></p>
+    <div class="home-info">
+      <p class="stats" id="homeStats"></p>
+      <p class="tip" id="homeTip"></p>
+    </div>
+  </div>
+  <div class="home-footer"><span class="keys-hint">&uarr; &darr; to choose &nbsp;&bull;&nbsp; ENTER to select</span><span class="version">v2.4</span></div>
   </div>
 </div>
 
@@ -86,7 +91,7 @@
       </div>
       <div class="card">
         <h2>BUILD YOUR MINESHAFT</h2>
-        <p><b>Ladders</b> are how you get back up. <b>Supports</b> hold up the roof for about 3 tiles around them. <b>Torches</b> light your tunnels.</p>
+        <p><b>Ladders</b> are how you get back up. <b>Supports</b> hold up the roof for about 3 tiles around them. <b>Torches</b> light your tunnels. <b>Platforms</b> are planks you can stand on: jump up through them from below and hold <b>S</b> to drop back down. Great for bridges over lava and ledges in big caves. A bridge can only reach <b>5 tiles</b> from a wall or the ground. For longer spans, stack <b>bridge posts</b> up from the floor under it. Knock out the support and the bridge falls!</p>
         <p>Digging straight down is safe. Sideways tunnels without supports will <span class="bad">crack and cave in</span>.</p>
       </div>
       <div class="card">
@@ -96,14 +101,20 @@
       <div class="card">
         <h2>MONSTERS &amp; LOOT</h2>
         <p><b>Bats</b>, <b>slimes</b>, <b>cave crawlers</b> and <span class="bad">fire wisps</span> lurk in the dark, and get tougher the deeper you go. Click one to hit it with your pick. They drop coins and sometimes gems.</p>
+        <p>Deeper down: <b>cave spiders</b> drop from the ceiling, <b>lost miners</b> drift through solid rock, and <span class="bad">blast beetles</span> explode when they reach you.</p>
         <p>Monsters won't spawn near <b>torches</b>. Crack open <b>treasure chests</b> in caves for cash and supplies.</p>
+      </div>
+      <div class="card">
+        <h2>THE DEEP WYRM</h2>
+        <p>At the very bottom of the mine, around 230m, lies a huge chamber. Something lives there. Hit its <b>head</b> for extra damage, dodge the fireballs, and watch the floor when it burrows. Beat it for a fortune in treasure.</p>
       </div>
       <div class="card keys">
         <h2>KEYBOARD &amp; MOUSE</h2>
         <p><b>A/D</b> walk &nbsp; <b>W/Space</b> jump &nbsp; <b>W/S</b> climb<br>
         <b>Hold left click</b> mine / attack &nbsp; <b>Right click</b> or <b>B</b> build<br>
         <b>Hold B</b> and sweep to build a row &nbsp; <b>F</b> build at feet<br>
-        <b>1-4</b> / wheel choose item (4 = dynamite)<br>
+        <b>1-6</b> / wheel choose item (4 dynamite, 5 platform, 6 bridge post)<br>
+        <b>S</b> on a platform drops through it<br>
         <b>J</b> dig / attack (+W/S up/down) &nbsp; <b>H</b> medkit &nbsp; <b>R</b> recall beacon<br>
         <b>E</b> shop &nbsp; <b>TAB</b> world map &nbsp; <b>N</b> minimap<br>
         <b>M</b> mute &nbsp; <b>Esc</b> pause</p>
@@ -135,11 +146,14 @@
     <h1>SETTINGS</h1>
     <div class="opts">
       <label class="slider"><span>Volume <b id="volLabel"></b></span><input type="range" id="setVolume" min="0" max="100"></label>
-      <label class="toggle"><input type="checkbox" id="set_music"><span class="box"></span><span><b>Music</b></span></label>
+      <label class="toggle"><input type="checkbox" id="set_music"><span class="box"></span><span><b>Music</b><br><small>Adaptive soundtrack: changes with day, night, depth, danger and bosses</small></span></label>
+      <label class="slider"><span>Music volume <b id="musLabel"></b></span><input type="range" id="setMusicVol" min="0" max="100"></label>
       <label class="toggle"><input type="checkbox" id="set_shake"><span class="box"></span><span><b>Screen shake</b></span></label>
       <label class="toggle"><input type="checkbox" id="set_softLight"><span class="box"></span><span><b>Smooth lighting</b><br><small>Off = chunky retro light</small></span></label>
       <label class="toggle"><input type="checkbox" id="set_minimap"><span class="box"></span><span><b>Minimap</b></span></label>
       <label class="toggle"><input type="checkbox" id="set_hints"><span class="box"></span><span><b>Tutorial tips</b><br><small>Helpful pop-ups the first time things happen</small></span></label>
+      <label class="toggle"><input type="checkbox" id="set_rewind"><span class="box"></span><span><b>Rewind</b><br><small>Undo the last 10 seconds after you die (or from the pause menu). Turn off for a true roguelike.</small></span></label>
+      <div class="slider"><span>Zoom</span><div class="seg"><button class="btn" data-zoom="0.8">FAR</button><button class="btn" data-zoom="1">NORMAL</button><button class="btn" data-zoom="1.25">NEAR</button></div></div>
       <button class="btn" id="resetHints">SHOW ALL TIPS AGAIN</button>
     </div>
     <div class="actions"><button class="btn" id="settingsBack">BACK</button></div>
@@ -154,6 +168,7 @@
     <div class="menu-buttons">
       <button class="btn big gold" id="pauseResume">RESUME</button>
       <button class="btn" id="pauseHow">HOW TO PLAY</button>
+      <button class="btn blue" id="pauseRewind"><span class="rw">&laquo;&laquo;</span> REWIND 10 SECONDS</button>
       <button class="btn" id="pauseAch">ACHIEVEMENTS</button>
       <button class="btn" id="pauseSettings">SETTINGS</button>
       <button class="btn red" id="pauseQuit">SAVE &amp; QUIT</button>
@@ -180,6 +195,7 @@
     <h1 id="endTitle">YOU DIED</h1>
     <p id="endText"></p>
     <div class="actions wrap">
+      <button class="btn gold rewind-btn" id="rewindBtn" style="display:none"><span class="rw">&laquo;&laquo;</span> REWIND 10 SECONDS</button>
       <button class="btn gold" id="continueBtn" style="display:none">KEEP DIGGING</button>
       <button class="btn" id="restartBtn">PLAY AGAIN</button>
       <button class="btn" id="homeBtn">MAIN MENU</button>
@@ -217,15 +233,20 @@
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
 <script src="js/audio.js"></script>
+<script src="js/music.js"></script>
 <script src="js/textures.js"></script>
 <script src="js/world.js"></script>
 <script src="js/player.js"></script>
 <script src="js/entities.js"></script>
 <script src="js/features.js"></script>
 <script src="js/achievements.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/rewind.js"></script>
 <script src="js/render.js"></script>
 <script src="js/input.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/main.js"></script>
+<!-- TEMPORARY: title art generator - delete this line and js/titleart.js to remove it -->
+<script src="js/titleart.js"></script>
 </body>
 </html>

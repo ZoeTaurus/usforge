@@ -153,6 +153,25 @@ function supportTex(){
   px(x,[60,60,66],2,1); px(x,[60,60,66],13,1);
   return c;
 }
+function platformTex(){
+  const [c, x] = mkCanvas(TS, TS);
+  px(x,[46,28,12],0,0,TS,6);                                   // outline
+  px(x,[150,98,48],0,1,TS,4); px(x,[196,140,76],0,1,TS,1); px(x,[104,66,30],0,4,TS,1);
+  px(x,[84,52,22],5,1,1,4); px(x,[84,52,22],11,1,1,4);          // plank joints
+  px(x,[70,70,78],2,2); px(x,[70,70,78],13,2); px(x,[70,70,78],8,2);   // nails
+  // little diagonal brackets underneath
+  for (let k=0;k<4;k++){ px(x,[84,52,22],1+k*0,6+k,2,1); px(x,[84,52,22],13,6+k,2,1); }
+  px(x,[84,52,22],1,6,1,4); px(x,[84,52,22],14,6,1,4);
+  return c;
+}
+function postTex(){
+  const [c, x] = mkCanvas(TS, TS);
+  px(x,[46,28,12],5,0,6,TS);
+  px(x,[150,98,48],6,0,4,TS); px(x,[196,140,76],6,0,1,TS); px(x,[104,66,30],9,0,1,TS);
+  px(x,[84,52,22],6,4,4,1); px(x,[84,52,22],6,11,4,1);           // grain bands
+  px(x,[70,70,78],7,1); px(x,[70,70,78],7,14);                    // bolts
+  return c;
+}
 function torchTex(){
   const [c, x] = mkCanvas(TS, TS);
   px(x,[90,58,28],7,7,2,7); px(x,[130,88,46],7,7,1,7); px(x,[60,60,66],6,6,4,2);
@@ -226,13 +245,15 @@ function buildArt(){
   for (const [id] of ORES) ORE_TEX[id] = [0,1,2].map(() => oreTex(id));
   CRACK = [0,1,2,3].map(crackTex);
   TUFTS = [0,1,2,3,4,5].map(tuftTex);
-  PROP.ladder = ladderTex(); PROP.support = supportTex(); PROP.torch = torchTex();
+  PROP.ladder = ladderTex(); PROP.support = supportTex(); PROP.torch = torchTex(); PROP.platform = platformTex(); PROP.post = postTex(); ICON.post = PROP.post;
   ICON.ladder = PROP.ladder; ICON.support = PROP.support; ICON.medkit = medkitTex();
+  { const [c, x] = mkCanvas(TS, TS); x.drawImage(PROP.platform, 0, 5); ICON.platform = c; }
   { const [c, x] = mkCanvas(TS, TS); x.drawImage(PROP.torch, 0, 0); px(x,[255,122,26],6,2,4,4); px(x,[255,224,102],7,3,2,2); ICON.torch = c; }
   const frames = ['stand','a','stand','b','jump'].map(k => spriteFrom([...M_TOP, ...M_LEGS[k]]));
   MINER = frames.map(f => [f, flipped(f)]);
   PICK_SPR = PICKS.map((_, i) => makePick(i));
   buildEnemyArt();
+  buildSheets();
   PROP.chest = chestTex(); ICON.dynamite = dynamiteTex(); ICON.beacon = beaconTex(); PROP.dynamite = ICON.dynamite;
 }
 
@@ -310,7 +331,61 @@ const GOLEM_LEGS = [
   ["....dgd..dgd....", "...ddgd..dgdd...", "...dddd..dddd..."],
   ["...dgd....dgd...", "..ddgd....dgdd..", "..dddd....dddd.."],
 ];
+const SPIDER = [[
+  "l.l......l.l",
+  ".l.l.kk.l.l.",
+  "..lkkKKkkl..",
+  "llkkKkkkkkll",
+  "..kkrkkrkk..",
+  ".lkkkkkkkkl.",
+  "l.l.kkkk.l.l",
+  "l..l....l..l",
+],[
+  "..l......l..",
+  ".l.l.kk.l.l.",
+  "..lkkKKkkl..",
+  "llkkKkkkkkll",
+  "..kkrkkrkk..",
+  ".lkkkkkkkkl.",
+  ".l.l.kkkk.l.",
+  ".l...ll...l.",
+]];
+const GHOST_TOP = [
+  "....YYYY....",
+  "...YYYYYY...",
+  "..yyyyyyyy..",
+  "..gggggggg..",
+  ".ggeggggegg.",
+  ".gggggggggg.",
+  ".ggggmmgggg.",
+  ".gggggggggg.",
+  "gggggggggggg",
+  "gggggggggggg",
+  "ggGggggggGgg",
+  "gggggggggggg",
+];
+const GHOST_TAIL = [["g.gg.gg.gg.g", "...g..g..g.."], ["gg.gg.gg.gg.", "..g..g..g..."]];
+const BEETLE = [[
+  "...rrrrrr...",
+  "..rRRrrrrr..",
+  ".rRrrrrrrrr.",
+  "rrrrrrrrrryr",
+  "rrrrrrrrrrrr",
+  ".dddddddddd.",
+  ".l.l.l..l.l.",
+],[
+  "...rrrrrr...",
+  "..rRRrrrrr..",
+  ".rRrrrrrrrr.",
+  "rrrrrrrrrryr",
+  "rrrrrrrrrrrr",
+  ".dddddddddd.",
+  "l.l.l..l.l..",
+]];
 function buildEnemyArt(){
+  ESPR.spider = SPIDER.map(f => withFx(spriteFrom(f, { k:[40,30,52], K:[96,76,120], r:[255,60,60], l:[70,56,84] })));
+  ESPR.ghost = GHOST_TAIL.map(t => withFx(spriteFrom([...GHOST_TOP, ...t], { Y:[200,220,255], y:[150,170,215], g:[190,220,255], G:[140,170,225], e:[20,20,60], m:[60,70,120] }, '#3a4a78')));
+  ESPR.beetle = BEETLE.map(f => withFx(spriteFrom(f, { r:[190,50,40], R:[245,130,100], d:[60,20,20], y:[255,220,80], l:[50,30,30] })));
   const gPal = { d:[58,54,52], g:[118,112,106], G:[160,154,146], e:[255,150,50], m:[86,140,64] };
   ESPR.golem = GOLEM_LEGS.map(l => withFx(spriteFrom([...GOLEM_TOP, ...l], gPal, '#100c0c')));
   const batPal = { k:[74,52,96], K:[120,92,150], r:[255,70,60], f:[240,240,240] };
@@ -342,4 +417,97 @@ function beaconTex(){
   px(x,[80,200,255],6,4,4,7); px(x,[200,245,255],6,4,1,7); px(x,[40,120,200],9,4,1,7);
   px(x,[255,255,255],7,2,2,2);
   return c;
+}
+
+// ============================================================
+//  World-space texture sheets: one big seamless texture per
+//  material, sampled by world position, so rock flows across
+//  tile edges instead of repeating 16x16 stamps.
+// ============================================================
+const SHEET_SIZE = 384;                         // 24 x 24 tiles before anything repeats
+const SHEET = {}, DSHEET = {};
+let GRASS_STRIP = null;
+
+function tileNoise(size, cell, rng){
+  const g = Math.round(size/cell), grid = new Float32Array(g*g);
+  for (let i=0;i<grid.length;i++) grid[i] = rng();
+  return (x, y) => {
+    const fx = x/cell, fy = y/cell, ix = Math.floor(fx), iy = Math.floor(fy), tx = fx - ix, ty = fy - iy;
+    const sx = tx*tx*(3-2*tx), sy = ty*ty*(3-2*ty);
+    const x0 = ((ix % g) + g) % g, x1 = (x0 + 1) % g, y0 = ((iy % g) + g) % g, y1 = (y0 + 1) % g;
+    return lerp(lerp(grid[y0*g+x0], grid[y0*g+x1], sx), lerp(grid[y1*g+x0], grid[y1*g+x1], sx), sy);
+  };
+}
+function makeSheet(id){
+  const S = SHEET_SIZE, col = DEF[id].col, pal = pal5(col), r = mulberry32(4000 + id*17);
+  const [c, x] = mkCanvas(S, S);
+  const n1 = tileNoise(S, 48, r), n2 = tileNoise(S, 16, r), n3 = tileNoise(S, 4, r);
+  const img = x.createImageData(S, S), d = img.data;
+  for (let y=0;y<S;y++) for (let X=0;X<S;X++){
+    const n = n1(X,y)*.42 + n2(X,y)*.36 + n3(X,y)*.22 + (r()-.5)*.08;
+    const k = n < .33 ? 0 : n < .47 ? 1 : n < .63 ? 2 : 3, cc = pal[k], o = (y*S + X)*4;
+    d[o] = cc[0]; d[o+1] = cc[1]; d[o+2] = cc[2]; d[o+3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  // draw a feature and its wrapped copies so the sheet stays seamless
+  const wrap = (X, Y, w, h, fn) => { for (const ox of [0, -S, S]) for (const oy of [0, -S, S]){ const a = X+ox, b = Y+oy; if (a+w > 0 && b+h > 0 && a < S && b < S) fn(a, b); } };
+  const R = () => r()*S|0;
+  const peb = (p, w, h) => { const X = R(), Y = R(); wrap(X, Y, w, h+1, (a, b) => pebble(x, p, a, b, w, h)); };
+  const crack = (len, cpal) => { let X = R(), Y = R(), dx = r() < .5 ? 1 : -1; for (let k=0;k<len;k++){ wrap(X, Y, 1, 1, (a, b) => px(x, cpal, a, b)); if (r() < .6) Y++; else X += dx; if (r() < .1) dx = -dx; } };
+  switch (id){
+    case T.DIRT:
+      for (let i=0;i<700;i++) peb(pal5([140,120,100]), 3, 2);
+      for (let i=0;i<1400;i++){ const X = R(), Y = R(); wrap(X, Y, 2, 1, (a, b) => px(x, pal[0], a, b, 1 + (r()*2|0), 1)); }
+      for (let i=0;i<160;i++){ let X = R(), Y = R(); const len = 4 + (r()*8|0); for (let k=0;k<len;k++){ wrap(X, Y, 1, 1, (a, b) => px(x, [90,60,36], a, b)); Y++; if (r() < .4) X += r() < .5 ? 1 : -1; } }
+      break;
+    case T.STONE:
+      for (let i=0;i<900;i++) peb(pal, 4 + (r()*3|0), 3 + (r()*2|0));
+      for (let i=0;i<260;i++) crack(6 + (r()*14|0), pal[0]);
+      break;
+    case T.GRANITE:
+      for (let i=0;i<7000;i++){ const X = R(), Y = R(); px(x, [[236,214,204],[58,40,40],[196,140,130],[250,236,230]][i%4], X, Y); }
+      for (let i=0;i<450;i++) peb(pal, 4, 3);
+      for (let i=0;i<120;i++) crack(8 + (r()*10|0), pal[0]);
+      break;
+    case T.BASALT: {
+      // irregular vertical columns instead of a grid of seams
+      let X = 0;
+      while (X < S){
+        const w = 6 + (r()*8|0);
+        let Y = r()*S|0;
+        for (let k=0;k<S;k++){ if (r() < .9){ px(x, pal[0], (X + S) % S, (Y + k) % S); px(x, pal[3], (X + 1) % S, (Y + k) % S); } }
+        for (let j=0;j<S/20;j++){ const yy = r()*S|0; px(x, pal[0], X % S, yy, w, 1); px(x, pal[3], X % S, (yy+1) % S, w, 1); }   // horizontal joints
+        X += w;
+      }
+      for (let i=0;i<1600;i++) px(x, [120,110,160], R(), R());
+      break;
+    }
+    case T.BEDROCK:
+      for (let i=0;i<900;i++){ let X = R(), Y = R(); for (let k=0;k<4;k++){ wrap(X, Y, 2, 1, (a, b) => px(x, pal[4], a, b, 2, 1)); X += 2; Y += r() < .5 ? 1 : -1; } }
+      break;
+    case T.GRAVEL: case T.RUBBLE:
+      for (let i=0;i<4200;i++) peb(pal5(shade(col, .8 + r()*.5)), 3 + (r()*2|0), 3);
+      break;
+  }
+  return c;
+}
+function buildSheets(){
+  for (const id of [T.DIRT, T.STONE, T.GRANITE, T.BASALT, T.BEDROCK, T.GRAVEL, T.RUBBLE]){
+    SHEET[id] = makeSheet(id);
+    const [c, x] = mkCanvas(SHEET_SIZE, SHEET_SIZE);
+    x.drawImage(SHEET[id], 0, 0); x.fillStyle = 'rgba(10,7,18,.74)'; x.fillRect(0, 0, SHEET_SIZE, SHEET_SIZE);
+    DSHEET[id] = c;
+  }
+  SHEET[T.GRASS] = SHEET[T.DIRT]; DSHEET[T.GRASS] = DSHEET[T.DIRT];
+  // one continuous grass cap along the whole surface
+  const [g, gx] = mkCanvas(SHEET_SIZE, 8), r = mulberry32(777);
+  for (let X=0;X<SHEET_SIZE;X++){
+    const h = clamp(Math.round(4 + Math.sin(X*.21)*1.2 + Math.sin(X*.047 + 1)*1 + (r()-.5)*1.6), 2, 7);
+    gx.fillStyle = '#4a9a32'; gx.fillRect(X, 0, 1, h);
+    gx.fillStyle = '#5fb83e'; gx.fillRect(X, 0, 1, h-1);
+    gx.fillStyle = '#2f6e22'; gx.fillRect(X, h, 1, 1);
+    if (r() < .15){ gx.fillStyle = '#8ee05e'; gx.fillRect(X, 0, 1, 1); }
+    if (r() < .06){ gx.fillStyle = '#3d7a2a'; gx.fillRect(X, h, 1, 2); }             // roots poking into the dirt
+  }
+  GRASS_STRIP = g;
 }

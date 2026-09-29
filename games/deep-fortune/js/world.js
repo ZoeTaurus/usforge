@@ -6,6 +6,7 @@
 let tiles, layer, deco, seen, stamp;
 let caveins = [], rocks = [], tickId = 0, worldSeed = 0;
 let surfaceDecor = { trees:[], rocks:[] };
+let ARENA = null;                    // the boss chamber at the bottom
 
 const SHOP_X0 = 3, SHOP_X1 = 10;     // shop building footprint (tiles)
 const HEADFRAME_X = 17;              // decorative mine headframe
@@ -75,6 +76,7 @@ function genWorld(seed, opts = {}){
     const x = ri(1,WW-2), y = ri(SURF+22, WH-6);
     if (tiles[I(x,y)] === T.AIR && isRock(tiles[I(x,y+1)]) && tiles[I(x,y-1)] === T.AIR){ tiles[I(x,y)] = T.CHEST; chests++; }
   }
+  carveArena();
   // solid shop foundation
   for (let x=SHOP_X0-1;x<=SHOP_X1+1;x++) for (let y=SURF+1;y<=SURF+2;y++) tiles[I(x,y)] = T.DIRT;
   // surface decoration
@@ -114,8 +116,9 @@ function breakTile(x,y){
     } else { SFX.deny(); msg('Backpack full! Ore lost - sell at the surface.', '#e0533d', 2.5); }
   } else SFX.break();
   maybeScheduleCavein(x,y);
+  checkStructures(x,y);
 }
-function spawnRock(x,y,type){ tiles[I(x,y)] = T.AIR; rocks.push({ x:x*TS, y:y*TS, vy:0, type, hit:false }); }
+function spawnRock(x,y,type){ tiles[I(x,y)] = T.AIR; rocks.push({ x:x*TS, y:y*TS, vy:0, type, hit:false }); checkStructures(x,y); }
 function collapse(c){
   const { x, y } = c;
   if (supported(x,y)) return;
@@ -145,16 +148,17 @@ function stepRocks(dt){
     r.vy = Math.min(r.vy + 700*dt, 600); r.y += r.vy*dt;
     const tx = Math.floor((r.x+8)/TS), tyBelow = Math.floor((r.y+TS)/TS);
     if (!r.hit && !game.over && r.x < P.x+P.w && r.x+TS > P.x && r.y < P.y+P.h && r.y+TS > P.y && r.vy > 60){
-      r.hit = true; const dmg = r.type==='gravel' ? 14 : 24;
-      hurt(dmg, r.type==='gravel' ? 'Crushed by falling gravel.' : 'Buried in a cave-in. Should have built supports...');
-      burst(r.x+8, r.y+8, r.type==='gravel' ? '#8c8478' : '#60584f', 16, 70);
+      r.hit = true; const plank = r.type === 'plank', dmg = plank ? 6 : r.type==='gravel' ? 14 : 24;
+      hurt(dmg, plank ? 'Flattened by a collapsing bridge.' : r.type==='gravel' ? 'Crushed by falling gravel.' : 'Buried in a cave-in. Should have built supports...');
+      burst(r.x+8, r.y+8, plank ? '#a0703c' : r.type==='gravel' ? '#8c8478' : '#60584f', 16, 70);
       rocks.splice(i,1); continue;
     }
     if (isSolid(tx,tyBelow) || get(tx,tyBelow)===T.LAVA || tyBelow>=WH-1){
       const ty = tyBelow-1;
       const onPlayer = tx*TS < P.x+P.w && tx*TS+TS > P.x && ty*TS < P.y+P.h && ty*TS+TS > P.y;
       if (get(tx,tyBelow)===T.LAVA){ burst(r.x+8, r.y+8, '#ff9a2a', 10, 50); SFX.sizzle(); }
-      else if (!onPlayer && inb(tx,ty) && isEmpty(get(tx,ty))){ tiles[I(tx,ty)] = r.type==='gravel' ? T.GRAVEL : T.RUBBLE; deco[I(tx,ty)] = 0; }
+      else if (r.type === 'plank'){ burst(r.x+8, ty*TS+12, '#a0703c', 10, 60); }
+      else if (!onPlayer && inb(tx,ty) && isEmpty(get(tx,ty))){ tiles[I(tx,ty)] = r.type==='gravel' ? T.GRAVEL : T.RUBBLE; if (deco[I(tx,ty)]){ deco[I(tx,ty)] = 0; checkStructures(tx,ty); } }
       burst(r.x+8, ty*TS+14, r.type==='gravel' ? '#8c8478' : '#60584f', 8, 50);
       if (Math.abs(r.x-P.x) < 300 && Math.abs(r.y-P.y) < 200) SFX.land();
       rocks.splice(i,1);
@@ -217,7 +221,7 @@ function simWorld(){
 function moveLiquid(x,y,nx,ny){
   const a = I(x,y), b = I(nx,ny), other = tiles[b];
   tiles[b] = T.LAVA; tiles[a] = other===T.GAS ? T.GAS : T.AIR; stamp[b] = tickId;
-  if (deco[b]){ burst(nx*TS+8, ny*TS+8, '#ff9a2a', 10, 50, 200, .6, true); deco[b] = 0; }
+  if (deco[b]){ burst(nx*TS+8, ny*TS+8, '#ff9a2a', 10, 50, 200, .6, true); deco[b] = 0; checkStructures(nx,ny); }
 }
 function swapGas(x,y,nx,ny){ const a=I(x,y), b=I(nx,ny); tiles[a]=T.AIR; tiles[b]=T.GAS; stamp[b]=tickId; }
 
@@ -234,4 +238,64 @@ function openChest(x,y){
   msg(`Treasure chest! ${fmtMoney(cash)} + ${loot[0]} x${loot[1]}`, '#ffd24a', 3);
   // a deep chest may hold a gem
   if (dep > 60 && Math.random() < .6){ const pool = ORES.filter(o => o[2] >= 35 && o[2] <= 30 + dep*2.2); if (pool.length) dropOre(x*TS+8, y*TS+6, pool[Math.random()*pool.length|0][0]); }
+}
+
+// ---------- the boss arena ----------
+function carveArena(){
+  const acx = WW/2|0, acy = WH - 11, arx = 17, ary = 6;
+  ARENA = { x0: acx - arx, x1: acx + arx, y0: acy - ary, y1: acy + ary - 1 };
+  // keep lava and gas from flooding in
+  for (let y=acy-ary-3; y<=acy+ary+2; y++) for (let x=acx-arx-3; x<=acx+arx+3; x++)
+    if (inb(x,y) && (tiles[I(x,y)] === T.LAVA || tiles[I(x,y)] === T.GAS)) tiles[I(x,y)] = T.BASALT;
+  for (let y=acy-ary; y<=acy+ary; y++) for (let x=acx-arx; x<=acx+arx; x++){
+    const nx = (x - acx)/arx, ny = (y - acy)/ary;
+    if (nx**4 + ny**4 <= 1 && inb(x,y)){ tiles[I(x,y)] = T.AIR; deco[I(x,y)] = 0; }
+  }
+  for (let x=acx-arx; x<=acx+arx; x++){                              // solid floor under the chamber
+    let y = acy + ary; while (y > acy && tiles[I(x,y)] !== T.AIR) y--;
+    if (inb(x,y+1) && !DEF[tiles[I(x,y+1)]].solid) tiles[I(x,y+1)] = T.BASALT;
+  }
+  for (let i=0;i<16;i++){                                           // a ring of treasure crystals in the walls
+    const a = Math.random()*Math.PI*2, x = Math.round(acx + Math.cos(a)*(arx+1)), y = Math.round(acy + Math.sin(a)*(ary+1));
+    if (inb(x,y) && isRock(tiles[I(x,y)])) tiles[I(x,y)] = Math.random() < .5 ? T.VOIDSTONE : T.MYTHRIL;
+  }
+}
+
+// ---------- bridges: platforms need a wall, the ground or a bridge post within reach ----------
+const BRIDGE_REACH = 5;
+const isPost = (x,y) => inb(x,y) && deco[I(x,y)] === D.POST;
+function postStands(x,y){ let yy = y+1, n = 0; while (isPost(x,yy) && n < 20){ yy++; n++; } return isSolid(x,yy); }
+function postHeight(x,y){ let n = 0, yy = y+1; while (isPost(x,yy)){ yy++; n++; } return n; }
+const platformAnchored = (x,y) => isSolid(x-1,y) || isSolid(x+1,y) || isSolid(x,y+1) || (isPost(x,y+1) && postStands(x,y+1));
+// tiles along the bridge from (x,y) to the nearest anchored plank (0 = anchored itself); `extra` pretends a plank is at (x,y)
+function bridgeDist(x,y){
+  if (platformAnchored(x,y)) return 0;
+  let best = Infinity;
+  for (const dir of [-1,1]){
+    let xx = x + dir, d = 1;
+    while (isPlatform(xx,y) && d <= 30){ if (platformAnchored(xx,y)){ best = Math.min(best, d); break; } xx += dir; d++; }
+  }
+  return best;
+}
+function collapsePiece(x,y){
+  const kind = deco[I(x,y)]; deco[I(x,y)] = 0;
+  rocks.push({ x:x*TS, y:y*TS, vy:0, type:'plank', prop: kind === D.POST ? 'post' : 'platform', hit:false });
+  burst(x*TS+8, y*TS+4, '#a0703c', 8, 50);
+}
+// re-check posts and bridges near a change; unsupported pieces fall
+function checkStructures(cx, cy){
+  let fell = 0;
+  for (let pass=0; pass<3; pass++){
+    const drop = [];
+    for (let y=cy+12; y>=cy-12; y--) for (let x=cx-14; x<=cx+14; x++){
+      if (!inb(x,y)) continue;
+      const d = deco[I(x,y)];
+      if (d === D.POST && !postStands(x,y)) drop.push([x,y]);
+      else if (d === D.PLATFORM && bridgeDist(x,y) > BRIDGE_REACH) drop.push([x,y]);
+    }
+    if (!drop.length) break;
+    for (const [x,y] of drop) collapsePiece(x,y);
+    fell += drop.length;
+  }
+  if (fell){ SFX.crash(); msg(fell > 1 ? 'The bridge collapsed!' : 'A plank fell - it had no support.', '#e0533d', 2); }
 }

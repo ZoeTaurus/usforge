@@ -10,6 +10,8 @@ function showScreen(id){
   for (const s of SCREENS) $(s).classList.toggle('show', s === id);
   currentScreen = id;
   document.body.classList.toggle('menu', !!id);
+  // keyboard/gamepad friendly: put focus on the first button of the new screen
+  if (id && !isTouch) requestAnimationFrame(() => { const b = $(id).querySelector('button:not([disabled])'); if (b && b.offsetParent !== null) b.focus({ preventScroll:true }); else { const n = [...$(id).querySelectorAll('button:not([disabled])')].find(x => x.offsetParent !== null); n && n.focus({ preventScroll:true }); } });
 }
 function hideScreens(){ showScreen(null); }
 
@@ -24,11 +26,20 @@ function handleBack(){
 }
 
 // ---------- home ----------
+function homeArt(){
+  if (homeArt.done) return; homeArt.done = true;
+  const gear = (() => { const [c, x] = mkCanvas(16, 16); const P = (col,X,Y,w=1,h=1) => { x.fillStyle = col; x.fillRect(X,Y,w,h); };
+    P('#6a6a78',6,1,4,14); P('#6a6a78',1,6,14,4); P('#6a6a78',3,3,10,10); P('#9a9aa8',4,4,8,8); P('#6a6a78',6,6,4,4); P('#1a1020',7,7,2,2); P('#c8c8d4',4,4,3,1); return c; })();
+  const art = { career: PICK_SPR[1], free: ICON.dynamite, how: achIcon('scroll'), settings: gear };
+  document.querySelectorAll('[data-ico]').forEach(img => { const a = art[img.dataset.ico]; if (a) img.src = a.toDataURL(); });
+  const big = mkCanvas(30, 30); big[1].drawImage(PICK_SPR[3], 0, 0, 30, 30); $('logoPick').src = big[0].toDataURL();
+}
 function refreshHome(){
+  homeArt();
   const save = store.get(SAVE_KEY, null), best = store.get(BEST_KEY, {});
   $('btnContinue').style.display = save ? '' : 'none';
   if (save) $('btnContinue').innerHTML = `CONTINUE <small>${fmtMoney(save.game.money)} &bull; ${save.game.maxDepth}m &bull; ${DIFFICULTY[save.game.diff || 'normal'].name}</small>`;
-  $('btnAch').innerHTML = `ACHIEVEMENTS <small>${achCount()}/${ACHIEVEMENTS.length}</small>`;
+  $('btnAch').innerHTML = `<img class="ico" src="${achIcon('trophy').toDataURL()}" alt="">ACHIEVEMENTS <small>${achCount()}/${ACHIEVEMENTS.length}</small>`;
   const bits = [];
   if (best.earned) bits.push(`Best earnings ${fmtMoney(best.earned)}`);
   if (best.depth) bits.push(`Deepest ${best.depth}m`);
@@ -50,6 +61,7 @@ const TIPS = [
   'Hold J to dig with the keyboard: add W or S to dig up or down.',
   'Press B to build at your cursor. Hold B and sweep to build a whole row.',
   'Hold B while climbing down to lay ladders as you go.',
+  'Platforms (5) make bridges across caves. Jump up through them, hold S to drop down.',
   'Monsters never spawn near torches. Light up your base!',
   'Click a monster to whack it with your pick. Better picks hit harder.',
   'Treasure chests hide in natural caves. Crack them open for loot.',
@@ -109,18 +121,22 @@ $('freeBack').onclick = () => { SFX.click(); showScreen('home'); };
 function openSettings(){
   $('setVolume').value = Math.round(settings.volume*100);
   $('volLabel').textContent = Math.round(settings.volume*100) + '%';
-  for (const k of ['music','shake','softLight','minimap','hints']) $('set_'+k).checked = !!settings[k];
+  $('setMusicVol').value = Math.round(settings.musicVol*100); $('musLabel').textContent = Math.round(settings.musicVol*100) + '%';
+  for (const k of ['music','shake','softLight','minimap','hints','rewind']) $('set_'+k).checked = !!settings[k];
+  document.querySelectorAll('[data-zoom]').forEach(b => b.classList.toggle('on', +b.dataset.zoom === settings.zoom));
   showScreen('settingsScreen');
 }
 $('setVolume').oninput = e => { settings.volume = e.target.value/100; $('volLabel').textContent = e.target.value + '%'; audio(); if (master) master.gain.value = muted ? 0 : settings.volume; saveSettings(); };
 $('setVolume').onchange = () => SFX.ore();
+$('setMusicVol').oninput = e => { settings.musicVol = e.target.value/100; $('musLabel').textContent = e.target.value + '%'; audio(); saveSettings(); };
 $('resetHints').onclick = () => { resetHints(); SFX.hint(); $('resetHints').textContent = 'TIPS RESET!'; setTimeout(() => $('resetHints').textContent = 'SHOW ALL TIPS AGAIN', 1200); };
-for (const k of ['music','shake','softLight','minimap','hints']) $('set_'+k).onchange = e => { settings[k] = e.target.checked; saveSettings(); SFX.click(); };
+document.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => { settings.zoom = +b.dataset.zoom; saveSettings(); resize(); SFX.click(); document.querySelectorAll('[data-zoom]').forEach(x => x.classList.toggle('on', x === b)); });
+for (const k of ['music','shake','softLight','minimap','hints','rewind']) $('set_'+k).onchange = e => { settings[k] = e.target.checked; saveSettings(); SFX.click(); };
 $('settingsBack').onclick = () => { SFX.click(); showScreen(returnTo); };
 $('howBack').onclick = () => { SFX.click(); showScreen(returnTo); };
 
 // ---------- pause ----------
-function pauseGame(){ if (game.over) return; game.paused = true; showScreen('pause'); $('pauseInfo').innerHTML = (game.mode === 'free' ? 'Free play - progress is not saved.' : 'Your career is saved automatically.') + `<br><br>Ore mined: ${game.stats.ores} &bull; Monsters: ${game.stats.kills} &bull; Chests: ${game.stats.chests} &bull; Contracts: ${game.stats.contracts||0}`; $('pauseQuit').textContent = game.mode === 'free' ? 'QUIT TO MENU' : 'SAVE & QUIT'; }
+function pauseGame(){ if (game.over) return; game.paused = true; showScreen('pause'); $('pauseInfo').innerHTML = (game.mode === 'free' ? 'Free play - progress is not saved.' : 'Your career is saved automatically.') + `<br><br>Ore mined: ${game.stats.ores} &bull; Monsters: ${game.stats.kills} &bull; Chests: ${game.stats.chests} &bull; Contracts: ${game.stats.contracts||0}`; $('pauseQuit').textContent = game.mode === 'free' ? 'QUIT TO MENU' : 'SAVE & QUIT'; $('pauseRewind').style.display = canRewind() ? '' : 'none'; }
 function resumeGame(){ SFX.click(); hideScreens(); game.paused = false; }
 $('pauseResume').onclick = resumeGame;
 $('pauseHow').onclick = () => { SFX.click(); returnTo = 'pause'; showScreen('howto'); };
@@ -219,17 +235,23 @@ function die(cause){
   SFX.die(); shake(8);
   burst(pcx(), pcy(), '#c0392b', 36, 90);
   track('death'); saveLife();
-  if (game.mode === 'career'){ recordBest(); store.del(SAVE_KEY); }
+  // with rewind on, keep the save until the player decides not to rewind
+  if (game.mode === 'career'){ recordBest(); if (!settings.rewind) store.del(SAVE_KEY); }
   setTimeout(() => {
     $('endTitle').textContent = 'YOU DIED'; $('endTitle').className = 'lose';
     $('endText').innerHTML = `${cause}<br><br>Cash: <span class="money">${fmtMoney(game.money)}</span><br>Total earned: ${fmtMoney(game.earned)}<br>Deepest dig: ${game.maxDepth}m &nbsp; Time: ${fmtTime(game.time)}` + `<br>Ore mined: ${game.stats.ores} &nbsp; Monsters: ${game.stats.kills}<br>Chests: ${game.stats.chests} &nbsp; Contracts: ${game.stats.contracts||0}` + runAchHTML();
     $('continueBtn').style.display = 'none';
+    $('rewindBtn').style.display = canRewind() ? '' : 'none';
     showScreen('endScreen');
+    if (canRewind()) $('rewindBtn').focus();
   }, 1100);
 }
 $('continueBtn').onclick = () => { SFX.click(); hideScreens(); game.paused = false; };
-$('restartBtn').onclick = () => { SFX.click(); startGame(game.mode, game.mode === 'free' ? game.opts : undefined); };
-$('homeBtn').onclick = () => { SFX.click(); goHome(); };
+$('rewindBtn').onclick = () => { doRewind(); };
+$('pauseRewind').onclick = () => { if (doRewind()) SFX.click(); };
+const giveUp = () => { if (game.over && game.mode === 'career') store.del(SAVE_KEY); };
+$('restartBtn').onclick = () => { SFX.click(); giveUp(); startGame(game.mode, game.mode === 'free' ? game.opts : undefined); };
+$('homeBtn').onclick = () => { SFX.click(); giveUp(); goHome(); };
 
 function runAchHTML(){
   if (!game.runAch || !game.runAch.length) return '';

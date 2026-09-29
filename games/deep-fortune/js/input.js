@@ -78,12 +78,13 @@ window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; p
 
 function onKey(k){
   if (k === 'escape' || k === 'p'){ handleBack(); return; }
+  if (currentScreen && (k === 'arrowdown' || k === 'arrowup')){ menuNav(k === 'arrowdown' ? 1 : -1, false, false); return; }
   if (scene !== 'game' || game.over) return;
   if (k === 'tab'){ if (!currentScreen) toggleMap(); return; }
   if (mapOpen) return;
   if (k === 'e'){ if (game.shopOpen) closeShop(); else if (nearShop() && !game.paused) openShop(); return; }
   if (game.paused) return;
-  if (k >= '1' && k <= '4' && k.length === 1){ game.sel = +k - 1; SFX.click(); }
+  if (k.length === 1 && k >= '1' && k <= String(ITEMS.length)){ game.sel = +k - 1; SFX.click(); }
   if (k === 'r') startRecall();
   if (k === 'b') buildKeyLast = null;
   if (k === 'm'){ muted = !muted; if (master) master.gain.value = muted ? 0 : settings.volume; msg(muted ? 'Sound off' : 'Sound on'); }

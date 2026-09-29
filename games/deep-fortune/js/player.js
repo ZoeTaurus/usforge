@@ -6,7 +6,7 @@ let P = null;
 function makePlayer(){
   return { x: 15*TS+3, y: (SURF-1)*TS+2, vx:0, vy:0, w:10, h:14, face:1, onGround:false, onLadder:false,
            hp:100, walk:0, swing:0, mining:null, mineT:0, hurtT:0, gasT:0, lavaT:0, stepT:0, idleT:0,
-           iframes:0, kbx:0, attackT:0, fuel:0, airT:0, jetting:false };
+           iframes:0, kbx:0, attackT:0, fuel:0, airT:0, jetting:false, dropT:0 };
 }
 const pcx = () => P.x + P.w/2, pcy = () => P.y + P.h/2;
 const maxHp = () => ARMOR[game.armorLv].hp;
@@ -20,9 +20,19 @@ function collideX(){
   if (P.vx > 0){ const tx = Math.floor((P.x+P.w-.01)/TS); for (let ty=top;ty<=bot;ty++) if (isSolid(tx,ty)){ P.x = tx*TS - P.w; P.vx = 0; return; } }
   else if (P.vx < 0){ const tx = Math.floor(P.x/TS); for (let ty=top;ty<=bot;ty++) if (isSolid(tx,ty)){ P.x = (tx+1)*TS; P.vx = 0; return; } }
 }
-function collideY(){
+const isPlatform = (x,y) => inb(x,y) && deco[I(x,y)] === D.PLATFORM;
+// one-way platforms: only solid when you come down onto them from above (and aren't dropping through)
+function platformUnder(prevBottom, bottom){
+  if (P.dropT > 0) return -1;
+  const l = Math.floor(P.x/TS), r = Math.floor((P.x+P.w-.01)/TS), ty = Math.floor((bottom-.01)/TS);
+  if (prevBottom > ty*TS + .01) return -1;
+  for (let tx=l;tx<=r;tx++) if (isPlatform(tx,ty)) return ty;
+  return -1;
+}
+function collideY(prevBottom){
   const l = Math.floor(P.x/TS), r = Math.floor((P.x+P.w-.01)/TS);
-  if (P.vy > 0){ const ty = Math.floor((P.y+P.h-.01)/TS); for (let tx=l;tx<=r;tx++) if (isSolid(tx,ty)){ P.y = ty*TS - P.h; landed(P.vy); P.vy = 0; P.onGround = true; return; } }
+  if (P.vy > 0){ const ty = Math.floor((P.y+P.h-.01)/TS); for (let tx=l;tx<=r;tx++) if (isSolid(tx,ty)){ P.y = ty*TS - P.h; landed(P.vy); P.vy = 0; P.onGround = true; return; }
+    const pt = platformUnder(prevBottom, P.y+P.h); if (pt >= 0){ P.y = pt*TS - P.h; landed(P.vy); P.vy = 0; P.onGround = true; return; } }
   else if (P.vy < 0){ const ty = Math.floor(P.y/TS); for (let tx=l;tx<=r;tx++) if (isSolid(tx,ty)){ P.y = (ty+1)*TS; P.vy = 0; return; } }
 }
 function landed(v){
@@ -41,6 +51,8 @@ function stepPlayer(dt){
   const ladderHere = inb(cx,cy) && deco[I(cx,cy)]===D.LADDER;
   const ladderBelow = inb(cx,fy) && deco[I(cx,fy)]===D.LADDER;
   P.onLadder = ladderHere || (ladderBelow && down);
+  // hold S while standing on a platform to drop through it
+  if (down && !P.onLadder && P.onGround && P.dropT <= 0){ const fl = Math.floor(P.x/TS), fr = Math.floor((P.x+P.w-.01)/TS), fty = Math.floor((P.y+P.h+1)/TS); for (let tx=fl;tx<=fr;tx++) if (isPlatform(tx,fty) && !isSolid(tx,fty)){ P.dropT = .22; P.onGround = false; P.y += 1; break; } }
   const dir = (right?1:0) - (left?1:0);
   if (dir && !input.mining) P.face = dir;
   P.vx = dir * 74 + P.kbx;
@@ -67,13 +79,14 @@ function stepPlayer(dt){
   if (P.onGround || P.onLadder){ P.airT = 0; P.fuel = Math.min(jmax, P.fuel + dt*1.6); } else P.airT += dt;
   const steps = Math.ceil(Math.max(Math.abs(P.vx*dt), Math.abs(P.vy*dt)) / 6) || 1;
   P.onGround = false;
-  for (let s=0;s<steps;s++){ P.x += P.vx*dt/steps; collideX(); P.y += P.vy*dt/steps; collideY(); }
+  for (let s=0;s<steps;s++){ P.x += P.vx*dt/steps; collideX(); const pb = P.y + P.h; P.y += P.vy*dt/steps; collideY(pb); }
   if (!P.onGround && P.vy >= 0){
     const l = Math.floor(P.x/TS), r = Math.floor((P.x+P.w-.01)/TS), ty = Math.floor((P.y+P.h+.5)/TS);
-    for (let tx=l;tx<=r;tx++) if (isSolid(tx,ty)) P.onGround = true;
+    for (let tx=l;tx<=r;tx++) if (isSolid(tx,ty) || (P.dropT <= 0 && isPlatform(tx,ty) && Math.abs(P.y+P.h - ty*TS) < .6)) P.onGround = true;
   }
+  P.dropT -= dt;
   P.walk = (P.vx && P.onGround) ? P.walk + dt*10 : 0;
-  if (P.vx && P.onGround){ P.stepT -= dt; if (P.stepT <= 0){ SFX.step(); P.stepT = .28; } }
+  if (P.vx && P.onGround){ P.stepT -= dt; if (P.stepT <= 0){ SFX.step(); P.stepT = .28; burst(pcx() - Math.sign(P.vx)*4, P.y + P.h - 1, '#9a8f86', 2, 14, 60, .35); } }
   P.idleT = (P.vx || P.vy) ? 0 : P.idleT + dt;
   if (isSolid(Math.floor(pcx()/TS), Math.floor(pcy()/TS))) P.y -= 40*dt;   // squeezed by rubble
 }
@@ -104,7 +117,7 @@ function stepMining(dt){
     if (!dc){ P.mining = null; return; }
     if (!same){ P.mining = { x:tx, y:ty }; P.mineT = 0; }
     P.swing += dt*14; P.mineT += dt;
-    if (P.mineT > .3){ deco[I(tx,ty)] = 0; if (!game.opts.infinite) game[DECO_KEY[dc]]++; SFX.pickup(); P.mining = null; P.mineT = 0; }
+    if (P.mineT > .3){ deco[I(tx,ty)] = 0; if (!game.opts.infinite) game[DECO_KEY[dc]]++; SFX.pickup(); P.mining = null; P.mineT = 0; checkStructures(tx,ty); }
     return;
   }
   const pick = PICKS[game.pick];
@@ -125,9 +138,15 @@ function placeItem(tx,ty){
   if (!inb(tx,ty) || ty < 0) return false;
   if (isSolid(tx,ty) || get(tx,ty)===T.LAVA || deco[I(tx,ty)] || bombs.some(b => b.x===tx && b.y===ty)){ SFX.deny(); return false; }
   if (!game.opts.infinite && game[k] <= 0){ SFX.deny(); msg(`No ${k === 'dynamite' ? 'dynamite' : k+'s'} left! Buy more at the shop.`, '#e0533d'); return false; }
+  if (k === 'platform' && bridgeDist(tx,ty) > BRIDGE_REACH){ SFX.deny(); msg(`Too far! Bridges reach ${BRIDGE_REACH} tiles from a wall or a bridge post (6).`, '#e0533d', 2.5); return false; }
+  if (k === 'post'){
+    if (!postStands(tx,ty)){ SFX.deny(); msg('Bridge posts must stand on the ground or on another post.', '#e0533d', 2.5); return false; }
+    if (postHeight(tx,ty) >= 8){ SFX.deny(); msg('Posts can only be stacked 8 high.', '#e0533d', 2); return false; }
+  }
   if (!game.opts.infinite) game[k]--;
   if (k === 'dynamite'){ placeBomb(tx,ty); SFX.place(); msg('Fuse lit - RUN!', '#ff8a1e', 1.5); return true; }
   deco[I(tx,ty)] = game.sel + 1; track('place', k);
+  if (k === 'platform'){ let n = 1, xx = tx-1; while (isPlatform(xx,ty)){ n++; xx--; } xx = tx+1; while (isPlatform(xx,ty)){ n++; xx++; } if (n >= 12) track('bridge'); }
   SFX.place(); burst(tx*TS+8, ty*TS+14, '#a0703c', 5, 30);
   if (k === 'support'){
     const before = caveins.length;

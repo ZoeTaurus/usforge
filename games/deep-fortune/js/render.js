@@ -15,7 +15,8 @@ const MM = mkCanvas(64,48); let mmTimer = 0;     // minimap
 function resize(){
   const w = window.innerWidth, h = window.innerHeight;
   // ~480 game px across wide screens, never fewer than ~18 tiles on the short side
-  let s = Math.max(1, Math.min(w, h*1.78) / 480, Math.min(w, h) / 300);
+  let s = Math.max(1, Math.min(w, h*1.78) / 480, Math.min(w, h) / 300) * (settings.zoom || 1);
+  s = Math.max(.75, s);
   if (s >= 2) s = Math.floor(s*2) / 2;            // crisp half-step scales on big screens
   PXS = s;
   VW = Math.ceil(w / s); VH = Math.ceil(h / s);
@@ -261,19 +262,76 @@ function drawSurface(now){
 }
 
 // ---------- tiles ----------
+// ---------- world-space texturing helpers ----------
+const LAYER_MATS = new Set([T.DIRT, T.STONE, T.GRANITE, T.BASALT, T.BEDROCK, T.GRAVEL, T.RUBBLE]);
+// the rock "material" a solid tile is made of (ores and grass sit in their layer's rock)
+function matOf(x, y){
+  if (!inb(x,y)) return -1;
+  const t = tiles[I(x,y)];
+  if (t === T.GRASS) return T.DIRT;
+  if (DEF[t].ore) return layer[I(x,y)];
+  return LAYER_MATS.has(t) ? t : -1;
+}
+const hash2 = (a, b) => { const h = Math.sin(a*127.1 + b*311.7)*43758.5453; return h - Math.floor(h); };
+// smooth-ish jagged edge height (0..5 px) along a world coordinate
+const jag = (w, seed) => clamp(Math.round(2.4 + Math.sin(w*.41 + seed)*1.4 + Math.sin(w*.13 + seed*3)*1.2 + (hash2(w, seed) - .5)*1.6), 0, 5);
+// draw part of a material sheet at the matching world position (keeps texture continuous)
+function sheetPart(sheet, wx, wy, w, h, dx, dy){
+  const S = SHEET_SIZE, sx = ((wx % S) + S) % S, sy = ((wy % S) + S) % S;
+  ctx.drawImage(sheet, sx, sy, w, h, dx, dy, w, h);
+}
+function drawGround(x, y, t, sx, sy){
+  const wx = x*TS, wy = y*TS, m = matOf(x,y);
+  sheetPart(SHEET[m >= 0 ? m : t], wx, wy, TS, TS, sx, sy);
+  if (m < 0) return;
+  // blend jaggedly into neighbouring rock layers instead of hard tile seams
+  const mb = matOf(x, y+1), mt = matOf(x, y-1), mr = matOf(x+1, y);
+  if (mb >= 0 && mb !== m) for (let c=0;c<TS;c++){ const h = jag(wx + c, 1); if (h) sheetPart(SHEET[mb], wx + c, wy + TS - h, 1, h, sx + c, sy + TS - h); }
+  if (mt >= 0 && mt !== m && y > SURF+1) for (let c=0;c<TS;c++){ const h = jag(wx + c, 7) >> 1; if (h) sheetPart(SHEET[mt], wx + c, wy, 1, h, sx + c, sy); }
+  if (mr >= 0 && mr !== m) for (let r=0;r<TS;r++){ const w = jag(wy + r, 3); if (w) sheetPart(SHEET[mr], wx + TS - w, wy + r, w, 1, sx + TS - w, sy + r); }
+}
+// bevels, soft shadows and rounded corners where rock meets open space
+function drawRockEdges(x, y, sx, sy){
+  const oT = !isSolid(x,y-1), oB = !isSolid(x,y+1), oL = !isSolid(x-1,y), oR = !isSolid(x+1,y);
+  if (!(oT || oB || oL || oR)) return;
+  if (oT){ ctx.fillStyle = 'rgba(255,255,255,.17)'; ctx.fillRect(sx, sy, TS, 1); ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(sx, sy+1, TS, 1); }
+  if (oB){ ctx.fillStyle = 'rgba(0,0,0,.42)'; ctx.fillRect(sx, sy+TS-2, TS, 2); ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(sx, sy+TS-3, TS, 1); }
+  if (oL){ ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(sx, sy, 1, TS); ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(sx+1, sy, 1, TS); }
+  if (oR){ ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(sx+TS-1, sy, 1, TS); ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(sx+TS-2, sy, 1, TS); }
+  // round off outside corners by painting the cave wall back in
+  if (y <= SURF) return;
+  const bg = DSHEET[layer[I(x,y)]] || DSHEET[T.STONE], wx = x*TS, wy = y*TS;
+  const corner = (cx, cy, dx, dy) => { sheetPart(bg, wx+cx, wy+cy, 2, 1, sx+cx, sy+cy); sheetPart(bg, wx+cx+(dx<0?1:0), wy+cy+dy, 1, 1, sx+cx+(dx<0?1:0), sy+cy+dy); };
+  if (oT && oL) corner(0, 0, 1, 1);
+  if (oT && oR) corner(TS-2, 0, -1, 1);
+  if (oB && oL) corner(0, TS-1, 1, -1);
+  if (oB && oR) corner(TS-2, TS-1, -1, -1);
+}
+// small bits of ore bridging into neighbouring ore tiles so veins read as one
+function drawVeinLinks(x, y, t, sx, sy){
+  const d = DEF[t], gem = (gx, gy) => { ctx.fillStyle = 'rgba(10,6,14,.5)'; ctx.fillRect(gx, gy+1, 4, 3); ctx.fillStyle = rgb(d.c1); ctx.fillRect(gx, gy, 3, 3); ctx.fillStyle = rgb(d.c2); ctx.fillRect(gx, gy, 1, 1); };
+  if (get(x+1, y) === t) gem(sx + TS - 2, sy + 4 + (hash2(x, y)*8|0));
+  if (get(x, y+1) === t) gem(sx + 4 + (hash2(y, x)*8|0), sy + TS - 2);
+}
+
+// ---------- tiles ----------
 function drawTiles(tx0, ty0, tx1, ty1, now){
+  const mining = scene === 'game' && P && P.mining && !P.mining.deny && P.mineT > 0 ? P.mining : null;
   for (let y=ty0;y<=ty1;y++) for (let x=tx0;x<=tx1;x++){
     if (!inb(x,y)) continue;
-    const i = I(x,y), t = tiles[i], sx = x*TS - cam.x|0, sy = y*TS - cam.y|0, v = (x*7 + y*13) & 3;
+    const i = I(x,y), t = tiles[i];
+    let sx = x*TS - cam.x|0, sy = y*TS - cam.y|0;
     const solid = DEF[t].solid;
     if (y >= SURF && !solid){
-      ctx.drawImage(DARK[layer[i]][v], sx, sy);
-      // ambient occlusion from neighbouring rock
-      ctx.fillStyle = 'rgba(0,0,0,.32)';
-      if (isSolid(x,y-1)) ctx.fillRect(sx, sy, TS, 3);
-      if (isSolid(x-1,y)) ctx.fillRect(sx, sy, 2, TS);
-      if (isSolid(x+1,y)) ctx.fillRect(sx+TS-2, sy, 2, TS);
+      sheetPart(DSHEET[layer[i]] || DSHEET[T.STONE], x*TS, y*TS, TS, TS, sx, sy);
+      // soft ambient occlusion from neighbouring rock
+      if (isSolid(x,y-1)){ ctx.fillStyle = 'rgba(0,0,0,.34)'; ctx.fillRect(sx, sy, TS, 2); ctx.fillStyle = 'rgba(0,0,0,.14)'; ctx.fillRect(sx, sy+2, TS, 2); }
+      if (isSolid(x-1,y)){ ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(sx, sy, 2, TS); ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(sx+2, sy, 1, TS); }
+      if (isSolid(x+1,y)){ ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.fillRect(sx+TS-2, sy, 2, TS); ctx.fillStyle = 'rgba(0,0,0,.1)'; ctx.fillRect(sx+TS-3, sy, 1, TS); }
+      if (isSolid(x,y+1)){ ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(sx, sy+TS-1, TS, 1); }
     }
+    // the block you're digging trembles
+    if (mining && mining.x === x && mining.y === y){ sx += (Math.random()*3|0) - 1; sy += (Math.random()*2|0); }
     if (t === T.LAVA){
       const top = !isSolid(x,y-1) && get(x,y-1) !== T.LAVA;
       ctx.fillStyle = '#c8321a'; ctx.fillRect(sx, sy, TS, TS);
@@ -282,27 +340,26 @@ function drawTiles(tx0, ty0, tx1, ty1, now){
       ctx.fillStyle = '#ffb040'; ctx.fillRect(sx + ((x*3 + (now*5|0)) % 14), sy + ((y*7 + (now*3|0)) % 14), 2, 1);
       if (top){ const wave = Math.sin(now*3 + x) > 0 ? 1 : 0; ctx.fillStyle = '#ffd35a'; ctx.fillRect(sx, sy+wave, TS, 2); ctx.fillStyle = '#ff8a1e'; ctx.fillRect(sx, sy+2+wave, TS, 2); }
     } else if (DEF[t].ore){
-      ctx.drawImage(TEX[layer[i]][v], sx, sy); ctx.drawImage(ORE_TEX[t][v%3], sx, sy);
+      drawGround(x, y, t, sx, sy);
+      ctx.drawImage(ORE_TEX[t][(hash2(x, y)*3)|0], sx, sy);
+      drawVeinLinks(x, y, t, sx, sy);
       const ph = (now*1.5 + x*.73 + y*.37) % 3;
       if (ph < .15){ ctx.fillStyle = '#fff'; const gx = sx+3+(x*5%9), gy = sy+3+(y*3%9); ctx.fillRect(gx, gy-1, 1, 3); ctx.fillRect(gx-1, gy, 3, 1); }
     } else if (t === T.CHEST){
-      ctx.drawImage(DARK[layer[i]][v], sx, sy); ctx.drawImage(PROP.chest, sx, sy);
+      sheetPart(DSHEET[layer[i]] || DSHEET[T.STONE], x*TS, y*TS, TS, TS, sx, sy); ctx.drawImage(PROP.chest, sx, sy);
       if (((now*1.2 + x) % 3) < .12){ ctx.fillStyle = '#fff'; ctx.fillRect(sx+4, sy+6, 1, 1); }
     } else if (solid){
-      ctx.drawImage(TEX[t][v], sx, sy);
+      drawGround(x, y, t, sx, sy);
+      if (t === T.GRASS) sheetPart(GRASS_STRIP, x*TS, 0, TS, 8, sx, sy);
     }
-    if (solid && y > SURF && t !== T.CHEST){
-      if (!isSolid(x,y+1)){ ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(sx, sy+TS-2, TS, 2); }
-      if (!isSolid(x,y-1)){ ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(sx, sy, TS, 1); }
-      ctx.fillStyle = 'rgba(0,0,0,.28)';
-      if (!isSolid(x-1,y)) ctx.fillRect(sx, sy, 1, TS);
-      if (!isSolid(x+1,y)) ctx.fillRect(sx+TS-1, sy, 1, TS);
-    }
+    if (solid && y > SURF && t !== T.CHEST) drawRockEdges(x, y, sx, sy);
     if (t === T.GRASS && !isSolid(x,y-1)) ctx.drawImage(TUFTS[(x*5+3)%6], sx, sy-6);
     if (solid && y === SURF){ ctx.fillStyle = 'rgba(0,0,0,.35)'; if (!isSolid(x-1,y)) ctx.fillRect(sx, sy+2, 2, TS-2); if (!isSolid(x+1,y)) ctx.fillRect(sx+TS-2, sy+2, 2, TS-2); }
     const dc = deco[i];
     if (dc === D.LADDER) ctx.drawImage(PROP.ladder, sx, sy);
     else if (dc === D.SUPPORT) ctx.drawImage(PROP.support, sx, sy);
+    else if (dc === D.PLATFORM) ctx.drawImage(PROP.platform, sx, sy);
+    else if (dc === D.POST) ctx.drawImage(PROP.post, sx, sy);
     else if (dc === D.TORCH){
       ctx.drawImage(PROP.torch, sx, sy);
       const f = (now*10 + x*3) % 3 | 0;
@@ -344,6 +401,7 @@ function drawPlayer(now){
     ctx.fillStyle = '#3a3a42'; ctx.fillRect(jx+1, jy+7, 2, 1);
   }
   ctx.drawImage(spr, sx, sy);
+  if ((now % 3.7) < .13 && f !== 4){ ctx.fillStyle = '#f0b48a'; ctx.fillRect(sx + (P.face > 0 ? 8 : 5), sy + 5, 1, 1); }
   if (swinging) drawPick();
   ctx.globalAlpha = 1;
 }
@@ -378,17 +436,25 @@ function drawEntities(now){
       ctx.fillStyle = '#3a1000'; ctx.fillRect(X-3 + (e.face > 0 ? 1 : 0), Y-1, 1, 2); ctx.fillRect(X + (e.face > 0 ? 1 : 0), Y-1, 1, 2);
       continue;
     }
+    if (e.type === 'spider' && e.state === 'hang'){ ctx.fillStyle = 'rgba(220,220,230,.6)'; ctx.fillRect(cx|0, e.anchorY - cam.y|0, 1, (e.y - e.anchorY + 1)|0); }
     let set;
-    if (e.type === 'bat') set = ESPR.bat[(e.t*10|0) % 2];
+    if (e.type === 'spider') set = ESPR.spider[e.state === 'hang' || Math.abs(e.vx) < 5 ? 0 : (e.t*12|0) % 2];
+    else if (e.type === 'ghost') set = ESPR.ghost[(e.t*4|0) % 2];
+    else if (e.type === 'beetle') set = ESPR.beetle[Math.abs(e.vx) > 5 ? (e.t*10|0) % 2 : 0];
+    else if (e.type === 'bat') set = ESPR.bat[(e.t*10|0) % 2];
     else if (e.type === 'crawler') set = ESPR.crawler[Math.abs(e.vx) > 5 ? (e.t*9|0) % 2 : 0];
     else if (e.type === 'golem') set = ESPR.golem[Math.abs(e.vx) > 5 ? (e.t*5|0) % 2 : 0];
     else set = ESPR.slime[e.variant];
-    const img = e.flash > 0 ? set.w : (e.face > 0 ? set.r : set.l);
+    const fuseFlash = e.fuse !== undefined && (e.fuse*12|0) % 2;
+    const img = (e.flash > 0 || fuseFlash) ? set.w : (e.face > 0 ? set.r : set.l);
+    if (e.type === 'ghost') ctx.globalAlpha = .55 + Math.sin(e.t*3)*.15;
     let sxs = 1, sys = 1;
     if (e.type === 'slime'){ if (e.squash > 0){ sxs = 1.25; sys = .75; } else if (!e.onGround){ sxs = .9; sys = 1.12; } }
     const w = img.width*sxs, h = img.height*sys;
     ctx.drawImage(img, Math.round(cx - w/2), Math.round(by - h + (e.type === 'bat' ? img.height - d.h - 1 : 1)), Math.round(w), Math.round(h));
+    ctx.globalAlpha = 1;
   }
+  drawBoss(performance.now()/1000);
 }
 function drawEnemyOverlay(now){
   for (const e of enemies){
@@ -399,6 +465,8 @@ function drawEnemyOverlay(now){
     if (e.type === 'bat'){ const fy = (e.t*10|0) % 2 ? top+2 : top+3; ctx.fillRect(cx-2, fy, 1, 1); ctx.fillRect(cx+1, fy, 1, 1); }
     else if (e.type === 'crawler'){ ctx.fillRect(cx + (e.face > 0 ? 4 : -5), top+3, 1, 1); }
     else if (e.type === 'golem'){ ctx.fillStyle = '#ffa040'; ctx.fillRect(cx-3, top+3, 1, 1); ctx.fillRect(cx+2, top+3, 1, 1); }
+    else if (e.type === 'spider'){ ctx.fillRect(cx-2, top+4, 1, 1); ctx.fillRect(cx+1, top+4, 1, 1); }
+    else if (e.type === 'ghost'){ ctx.fillStyle = '#9ad0ff'; ctx.fillRect(cx-3, top+5, 1, 1); ctx.fillRect(cx+2, top+5, 1, 1); }
     if (e.hp < e.maxHp){
       ctx.fillStyle = '#000'; ctx.fillRect(cx-7, top-6, 14, 3);
       ctx.fillStyle = '#e0533d'; ctx.fillRect(cx-6, top-5, Math.max(1, 12*e.hp/e.maxHp)|0, 1);
@@ -422,6 +490,7 @@ function lightSources(tx0, ty0, tx1, ty1, now){
   }
   for (const b of bombs) src.push({ x:b.x+.5, y:b.y+.2, r:2.2 + Math.random()*.4, c:[255,180,80], k:.8 });
   for (const e of enemies) if (e.type === 'wisp') src.push({ x:(e.x+5)/TS, y:(e.y+5)/TS, r:4 + Math.sin(e.t*12)*.3, c:[255,130,40], k:1 });
+  bossLights(src);
   let lava = 0;
   for (let y=ty0-10;y<=ty1+10;y++) for (let x=tx0-10;x<=tx1+10;x++){
     if (!inb(x,y)) continue;
@@ -521,19 +590,20 @@ function drawHUD(now){
     ry += ph + 4;
   }
   if (settings.minimap) drawMinimap(VW-70, ry, now);
+  drawBossBar();
   // hotbar
-  const items = [['ladder','1'], ['support','2'], ['torch','3'], ['dynamite','4'], ['medkit','H'], ['beacon','R']];
-  const slot = VW < 330 ? 26 : 30, gap = VW < 330 ? 3 : 4, bw = items.length*(slot+gap) - gap + 6;
+  const items = [['ladder','1'], ['support','2'], ['torch','3'], ['dynamite','4'], ['platform','5'], ['post','6'], ['medkit','H'], ['beacon','R']];
+  const slot = VW < 320 ? 22 : VW < 400 ? 26 : 30, gap = VW < 400 ? 2 : 4, bw = items.length*(slot+gap) - gap + 6;
   const bx = (VW - bw)/2 | 0, by = VH - slot - 6 - (isTouch ? 64 : 0);
   items.forEach(([k, key], n) => {
-    const x = bx + n*(slot+gap) + (n >= 4 ? 6 : 0), sel = n === game.sel;
+    const x = bx + n*(slot+gap) + (n >= ITEMS.length ? 6 : 0), sel = n === game.sel;
     ctx.fillStyle = sel ? '#ffd24a' : '#000'; ctx.fillRect(x-1, by-1, slot+2, slot+2);
     ctx.fillStyle = sel ? 'rgba(60,48,20,.92)' : 'rgba(22,18,30,.9)'; ctx.fillRect(x, by, slot, slot);
     ctx.drawImage(ICON[k], x + (slot-16)/2|0, by + (slot > 26 ? 4 : 2));
     const count = game.opts.infinite ? 'INF' : String(game[k]);
     text(count, x+slot-2, by+slot-3, (game.opts.infinite || game[k]) ? '#f1e9d2' : '#e0533d', 6, 'right');
     if (!isTouch) text(key, x+2, by+8, '#9a8fa8', 6);
-    hudRects.push({ x, y:by, w:slot, h:slot, action: n === 4 ? 'medkit' : n === 5 ? 'beacon' : 'sel', n });
+    hudRects.push({ x, y:by, w:slot, h:slot, action: n === ITEMS.length ? 'medkit' : n === ITEMS.length+1 ? 'beacon' : 'sel', n });
   });
   // jetpack fuel above the miner
   const jmax = JETPACKS[game.jetLv||0].fuel;
@@ -555,6 +625,13 @@ function drawHUD(now){
   }
   // cursor
   const aim = input.aim || (input.digKey ? mineTarget() : null);
+  if (aim && !game.paused && input.pointerType === 'mouse' && inReach(aim.x, aim.y) && !isSolid(aim.x, aim.y) && inb(aim.x, aim.y) && !deco[I(aim.x, aim.y)] && get(aim.x, aim.y) !== T.LAVA){
+    const k = ITEMS[game.sel], X = aim.x*TS - cam.x|0, Y = aim.y*TS - cam.y|0;
+    const bad = (k === 'platform' && bridgeDist(aim.x, aim.y) > BRIDGE_REACH) || (k === 'post' && (!postStands(aim.x, aim.y) || postHeight(aim.x, aim.y) >= 8));
+    ctx.globalAlpha = .45; ctx.drawImage(k === 'platform' || k === 'post' ? PROP[k] : ICON[k], X, Y); ctx.globalAlpha = 1;
+    if (bad){ ctx.fillStyle = 'rgba(224,83,61,.35)'; ctx.fillRect(X, Y, TS, TS); }
+    else if (k === 'platform'){ const dist = bridgeDist(aim.x, aim.y); if (dist > 0) text(`${dist}/${BRIDGE_REACH}`, X + 8, Y - 3, dist >= BRIDGE_REACH ? '#ffb040' : '#9a8fa8', 6, 'center'); }
+  }
   const foe = input.aimPx && input.pointerType === 'mouse' ? enemyAt(input.aimPx.x, input.aimPx.y) : null;
   if (foe && !game.paused){ const X = foe.x - cam.x - 3|0, Y = foe.y - cam.y - 3|0, W = foe.def.w + 6, H = foe.def.h + 6; ctx.strokeStyle = 'rgba(255,90,70,.9)'; ctx.lineWidth = 1; ctx.strokeRect(X+.5, Y+.5, W, H); }
   else if (aim && !game.paused && (input.pointerType === 'mouse' || input.mining || input.digKey)){
@@ -581,6 +658,24 @@ function drawHUD(now){
     g.addColorStop(0, 'rgba(160,0,0,0)'); g.addColorStop(1, `rgba(160,0,0,${a+.1})`); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH);
   }
   if (muted) text('MUTED', VW-6, VH-6, '#9a8fa8', 6, 'right');
+  // autosave indicator
+  if (savedFx > 0){
+    savedFx -= 1/60; ctx.globalAlpha = clamp(savedFx, 0, 1);
+    const X = VW - 44, Y = VH - (isTouch ? 110 : 16);
+    ctx.fillStyle = '#5aa2ff'; ctx.fillRect(X, Y-7, 8, 8); ctx.fillStyle = '#e8e4dc'; ctx.fillRect(X+2, Y-7, 4, 3); ctx.fillStyle = '#1a1020'; ctx.fillRect(X+2, Y-2, 4, 2);
+    text('SAVED', X + 11, Y, '#9fd3f5', 6); ctx.globalAlpha = 1;
+  }
+  // backpack full: point the way home
+  if (full && dep > 2){
+    const sx = (SHOP_X0 + SHOP_X1 + 1)/2*TS - cam.x, sy = SURF*TS - cam.y;
+    const cx = VW/2, cy = VH/2, a = Math.atan2(sy - cy, sx - cx), r = Math.min(VW, VH)/2 - 34;
+    const ax = cx + Math.cos(a)*r, ay = cy + Math.sin(a)*r, pulse = 1 + Math.sin(now*6)*.12;
+    ctx.save(); ctx.translate(ax, ay); ctx.rotate(a); ctx.scale(pulse, pulse);
+    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-6, -8); ctx.lineTo(-2, 0); ctx.lineTo(-6, 8); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(-5, -6); ctx.lineTo(-2, 0); ctx.lineTo(-5, 6); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    text('SHOP', ax, ay + 18, '#ffd24a', 6, 'center');
+  }
   // tutorial hint
   if (game.hint && !game.paused){
     const w = Math.min(VW - 16, 330), per = Math.floor((w - 16)/6), words = game.hint.text.split(' '), lines = [''];
@@ -605,7 +700,7 @@ function drawMinimap(x, y, now){
       const tx = cx+i, ty = cy+j, o = (j*w+i)*4;
       let c = [8,6,12];
       if (ty < SURF && ty >= 0 && tx >= 0 && tx < WW) c = [110,170,230];
-      else if (inb(tx,ty) && (seen[I(tx,ty)] || ty <= SURF+1)){ c = MINI_COL[tiles[I(tx,ty)]]; const dc = deco[I(tx,ty)]; if (dc === D.LADDER) c = [170,120,60]; else if (dc === D.SUPPORT) c = [200,150,80]; else if (dc === D.TORCH) c = [255,210,90]; }
+      else if (inb(tx,ty) && (seen[I(tx,ty)] || ty <= SURF+1)){ c = MINI_COL[tiles[I(tx,ty)]]; const dc = deco[I(tx,ty)]; if (dc === D.LADDER) c = [170,120,60]; else if (dc === D.SUPPORT) c = [200,150,80]; else if (dc === D.TORCH) c = [255,210,90]; else if (dc === D.PLATFORM || dc === D.POST) c = [196,140,76]; }
       d[o] = c[0]; d[o+1] = c[1]; d[o+2] = c[2]; d[o+3] = 255;
     }
     mx.putImageData(img, 0, 0);
@@ -626,29 +721,31 @@ function render(now){
   const tx0 = Math.floor(cam.x/TS), ty0 = Math.floor(cam.y/TS), tx1 = tx0 + Math.ceil(VW/TS), ty1 = ty0 + Math.ceil(VH/TS);
   drawTiles(tx0, ty0, tx1, ty1, now);
   for (const c of caveins){ if (c.t > 2.5) continue; const st = clamp(3 - Math.floor(c.t/2.5*4), 0, 3); ctx.drawImage(CRACK[st], c.x*TS - cam.x + ((now*30|0)%2)|0, (c.y-1)*TS - cam.y|0); }
-  for (const r of rocks) ctx.drawImage(TEX[r.type==='gravel' ? T.GRAVEL : T.RUBBLE][0], r.x - cam.x|0, r.y - cam.y|0);
+  for (const r of rocks) ctx.drawImage(r.type === 'plank' ? PROP[r.prop] : TEX[r.type==='gravel' ? T.GRAVEL : T.RUBBLE][0], r.x - cam.x|0, r.y - cam.y|0);
   if (scene === 'game') drawEntities(now);
   if (scene === 'home') drawHomeMiner(now); else drawPlayer(now);
   for (const p of particles){ if (p.glow) continue; ctx.fillStyle = p.col; ctx.fillRect(p.x - cam.x|0, p.y - cam.y|0, p.sz, p.sz); }
   drawLighting(tx0, ty0, tx1, ty1, now);
-  if (scene === 'game'){ drawNightSky(now); drawEnemyOverlay(now); }
+  drawNightSky(now);
+  if (scene === 'game'){ drawEnemyOverlay(now); drawBossGlow(now); }
   for (const p of particles){ if (!p.glow) continue; ctx.fillStyle = p.col; ctx.fillRect(p.x - cam.x|0, p.y - cam.y|0, p.sz, p.sz); }
   for (const f of floaters){ ctx.globalAlpha = clamp(f.life*1.5, 0, 1); text(f.text, f.x - cam.x|0, f.y - cam.y|0, f.col, 6, 'center'); }
   ctx.globalAlpha = 1;
   if (scene === 'game' && P) drawHUD(now);
-  if (scene === 'game') drawAchToasts(now);
+  if (scene === 'game'){ drawAchToasts(now); drawRewindFx(); }
   if (scene === 'game' && mapOpen) drawMap(now);
   if (fadeA > 0){ ctx.fillStyle = `rgba(7,5,11,${fadeA})`; ctx.fillRect(0, 0, VW, VH); }
   cam.x = saved.x; cam.y = saved.y;
 }
 
 // ---------- the miner who wanders around behind the home screen ----------
-const homeMiner = { x: 34*TS, dir: 1, state: 'walk', stateT: 3, walk: 0 };
+const homeMiner = { x: 26*TS, dir: 1, state: 'walk', stateT: 3, walk: 0 };
 function stepHomeMiner(dt){
   const m = homeMiner; m.stateT -= dt;
   if (m.state === 'walk'){
     m.x += m.dir*30*dt; m.walk += dt*10;
-    if (m.x < 22*TS){ m.dir = 1; } if (m.x > (WW-8)*TS){ m.dir = -1; }
+    const lo = Math.max(20*TS, cam.x + 20), hi = Math.min(cam.x + VW - 20, (WW-4)*TS);   // stay on screen, clear of the shaft
+    if (m.x < lo){ m.dir = 1; } if (m.x > hi){ m.dir = -1; }
     if (m.stateT <= 0){ m.state = 'dig'; m.stateT = 1.6 + Math.random()*1.6; }
   } else {
     if (Math.random() < dt*9){ burst(m.x + m.dir*12, SURF*TS + 1, Math.random() < .5 ? '#8a5a30' : '#5fb83e', 2, 45, 300, .5); if (Math.random() < .5) SFX.hit(); }

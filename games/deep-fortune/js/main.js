@@ -2,19 +2,20 @@
 // ============================================================
 //  Game state, modes, save/load, camera and the main loop
 // ============================================================
+const DEMO_DEPTH = 30;          // how deep the showcase mineshaft behind the title screen goes
 let scene = 'home';          // 'home' | 'game'
 let game = null;
-let autosaveT = 0, fadeA = 0;
+let autosaveT = 0, fadeA = 0, savedFx = 0;
 const look = { x:0, y:0, downT:0 };
 
 function makeGame(mode, opts){
   return { mode, opts, money:0, earned:0, maxDepth:0, bag:{}, pick:0, bagLv:0, lampLv:0, armorLv:0, bootsLv:0, jetLv:0,
            contracts:[], hot:null, hint:null, wasNight:false, diff:'normal', runAch:[],
-           ladder:15, support:6, torch:6, medkit:1, dynamite:2, beacon:1, sel:0, over:false, won:false, paused:false, shopOpen:false,
+           ladder:15, support:6, torch:6, medkit:1, dynamite:2, beacon:1, platform:12, post:6, bossDefeated:false, sel:0, over:false, won:false, paused:false, shopOpen:false,
            time:0, lastLayer:T.DIRT, banner:null, recall:null, stats:{ ores:0, kills:0, chests:0, contracts:0 } };
 }
 function careerOpts(){ return { invincible:false, infinite:false, maxGear:false, caveins:true, hazards:true, enemies:true }; }
-function clearEntities(){ particles = []; floaters = []; messages = []; enemies = []; pickups = []; bombs = []; flashes = []; spawnT = 3; mapOpen = false; fadeA = 1; look.x = look.y = 0; }
+function clearEntities(){ particles = []; floaters = []; messages = []; enemies = []; pickups = []; bombs = []; flashes = []; boss = null; fireballs = []; spawnT = 3; mapOpen = false; fadeA = 1; look.x = look.y = 0; resetRewind(); }
 
 function startGame(mode, freeOpts, diffKey){
   const opts = mode === 'free' ? Object.assign({}, freeDefaults, freeOpts) : careerOpts();
@@ -35,8 +36,9 @@ function startGame(mode, freeOpts, diffKey){
 function goHome(){
   scene = 'home'; if (game){ game.paused = true; }
   genWorld(12345, {});                  // pretty demo world behind the menu
+  decorateDemo();
   clearEntities();
-  homeCam.t = 0; cam.x = clamp(homeMiner.x - VW*.3, 0, WW*TS - VW);
+  homeCam.t = 0;
   refreshHome(); showScreen('home');
 }
 
@@ -45,10 +47,10 @@ function saveGame(){
   if (!game || game.mode !== 'career' || game.over) return;
   const g = Object.assign({}, game); delete g.banner; delete g.recall; delete g.hint; delete g.runAch;
   const ok = store.set(SAVE_KEY, {
-    v:2, seed:worldSeed, game:g, player:{ x:P.x, y:P.y, hp:P.hp, face:P.face },
+    v:2, arena:1, seed:worldSeed, game:g, player:{ x:P.x, y:P.y, hp:P.hp, face:P.face },
     tiles:b64enc(tiles), deco:b64enc(deco), seen:b64enc(seen),
   });
-  if (!ok) msg('Could not save (storage full or blocked).', '#e0533d');
+  if (!ok) msg('Could not save (storage full or blocked).', '#e0533d'); else savedFx = 1.6;
 }
 function loadGame(){
   const s = store.get(SAVE_KEY, null);
@@ -56,6 +58,7 @@ function loadGame(){
   try {
     genWorld(s.seed, {});
     tiles = b64dec(s.tiles, WW*WH); deco = b64dec(s.deco, WW*WH); seen = b64dec(s.seen, WW*WH);
+    if (!s.arena) carveArena();                                  // saves from before the boss existed
     const base = makeGame('career', careerOpts());
     game = Object.assign(base, s.game, { opts:careerOpts(), paused:false, shopOpen:false, over:false, banner:null, recall:null, runAch:[], stats:Object.assign(base.stats, s.game.stats || {}) });
     P = Object.assign(makePlayer(), s.player);
@@ -78,8 +81,9 @@ function update(dt){
   if (scene === 'home'){
     homeCam.t += dt;
     stepHomeMiner(dt);
-    cam.x += (clamp(homeMiner.x - VW*.3, 0, WW*TS - VW) - cam.x) * Math.min(1, dt*1.2);
-    cam.y = clamp(SURF*TS - Math.min(VH*.55, 190), 0, WH*TS - VH);
+    cam.x = clamp((HEADFRAME_X + 8)*TS - VW/2 + Math.sin(homeCam.t*.05)*30, 0, WW*TS - VW);   // frame the mineshaft
+    const pan = (1 - Math.cos(homeCam.t*.045))/2 * Math.max(0, (DEMO_DEPTH + 3)*TS - VH*.66);   // slowly look down the shaft and back
+    cam.y = clamp(SURF*TS - Math.min(VH*.34, 130) + pan, 0, WH*TS - VH);
     pollGamepad();
     return;
   }
@@ -87,6 +91,7 @@ function update(dt){
   document.body.classList.toggle('nearshop', !!(P && nearShop()));
   if (game.paused) return;
   game.time += dt;
+  stepRewind(dt);
   stepPlayer(dt);
   stepMining(dt);
   stepHazards(dt);
@@ -94,6 +99,7 @@ function update(dt){
   stepCaveins(dt);
   stepBuildKey();
   stepEnemies(dt);
+  stepBoss(dt);
   stepPickups(dt);
   stepBombs(dt);
   stepRecall(dt);
@@ -144,3 +150,55 @@ game = makeGame('career', careerOpts()); game.paused = true;
 P = makePlayer();
 goHome();
 requestAnimationFrame(loop);
+
+// a deep mineshaft under the MINE tower so the title screen shows off the game
+function decorateDemo(){
+  const x = HEADFRAME_X + 1, top = SURF, bot = top + DEMO_DEPTH;
+  const air = (a, b) => { if (inb(a,b)) { tiles[I(a,b)] = T.AIR; deco[I(a,b)] = 0; } };
+  const put = (a, b, t) => { if (inb(a,b)) tiles[I(a,b)] = t; };
+  const floor = (a0, a1, b) => { for (let a=a0; a<=a1; a++) if (inb(a,b) && !DEF[tiles[I(a,b)]].solid) tiles[I(a,b)] = T.STONE; };
+  // main shaft, with torch niches every few metres
+  for (let y=top; y<bot; y++){ air(x,y); deco[I(x,y)] = D.LADDER; }
+  for (let y=top+4; y<bot-2; y+=6){ air(x-1,y); deco[I(x-1,y)] = D.TORCH; put(x-1, y+1, T.STONE); }
+
+  // level 1: gem gallery (right)
+  const g1 = top + 8;
+  for (let a=x+1; a<x+16; a++){ air(a, g1); air(a, g1+1); }
+  floor(x+1, x+15, g1+2);
+  for (let a=x+3; a<x+16; a+=5) deco[I(a, g1+1)] = D.SUPPORT;
+  for (let a=x+1; a<x+16; a+=5) deco[I(a, g1)] = D.TORCH;
+  [[x+5,g1-1,T.GOLD],[x+6,g1-1,T.GOLD],[x+9,g1+2,T.RUBY],[x+13,g1-1,T.DIAMOND],[x+2,g1+2,T.EMERALD],[x+15,g1+2,T.AMETHYST],[x+11,g1-1,T.SAPPHIRE]].forEach(([a,b,t]) => put(a,b,t));
+
+  // level 2: chamber with a plank bridge on posts and a chest (right)
+  const c2 = top + 15;
+  for (let b=c2-2; b<=c2+1; b++) for (let a=x+1; a<x+14; a++) air(a, b);
+  floor(x+1, x+13, c2+2);
+  for (let a=x+1; a<x+14; a++) deco[I(a, c2-1)] = D.PLATFORM;
+  deco[I(x+7, c2)] = D.POST; deco[I(x+7, c2+1)] = D.POST;
+  put(x+11, c2+1, T.CHEST);
+  deco[I(x+3, c2+1)] = D.TORCH; deco[I(x+12, c2-2)] = D.TORCH;
+
+  // level 3: long timbered gallery into the stone (left), with ore veins
+  const g3 = top + 21;
+  for (let a=x-18; a<x; a++){ air(a, g3); air(a, g3+1); }
+  floor(x-18, x-1, g3+2);
+  for (let a=x-3; a>x-19; a-=4) deco[I(a, g3+1)] = D.SUPPORT;
+  for (let a=x-1; a>x-19; a-=4) deco[I(a, g3)] = D.TORCH;
+  [[x-5,g3-1,T.IRON],[x-6,g3-1,T.IRON],[x-6,g3-2,T.IRON],[x-10,g3+2,T.SILVER],[x-11,g3+2,T.SILVER],[x-14,g3-1,T.GOLD],[x-15,g3-1,T.GOLD],[x-15,g3-2,T.GOLD],[x-17,g3+2,T.COPPER]].forEach(([a,b,t]) => put(a,b,t));
+
+  // level 4: deep cavern with a lava pool, a bridge on posts, crystals and treasure
+  const c4 = bot - 3;
+  for (let b=c4-3; b<=c4+2; b++) for (let a=x-7; a<=x+14; a++){
+    const nx = (a - (x+3.5))/11.5, ny = (b - (c4-0.5))/3.4;
+    if (nx*nx + ny*ny <= 1.05) air(a, b);
+  }
+  floor(x-7, x+14, c4+3);
+  for (let a=x+4; a<=x+10; a++){ put(a, c4+2, T.LAVA); put(a, c4+3, T.STONE); }          // lava pool in the floor
+  put(x+3, c4+2, T.STONE); put(x+11, c4+2, T.STONE);
+  for (let a=x+2; a<=x+12; a++) deco[I(a, c4)] = D.PLATFORM;                           // bridge over the lava
+  deco[I(x+3, c4+1)] = D.POST; deco[I(x+11, c4+1)] = D.POST;
+  put(x-5, c4+2, T.CHEST);
+  deco[I(x-3, c4+2)] = D.TORCH; deco[I(x+13, c4)] = D.TORCH;
+  [[x-7,c4-2,T.RUBY],[x-6,c4-3,T.DIAMOND],[x+13,c4-3,T.AMETHYST],[x+14,c4-1,T.EMERALD],[x+8,c4-4,T.DIAMOND],[x+1,c4-4,T.MYTHRIL],[x+12,c4+1,T.SAPPHIRE]].forEach(([a,b,t]) => put(a,b,t));
+  for (let y=top; y<=c4+2; y++) if (inb(x,y) && !DEF[tiles[I(x,y)]].solid) deco[I(x,y)] = D.LADDER;   // the ladder runs all the way down
+}

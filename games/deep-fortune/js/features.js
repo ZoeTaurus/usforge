@@ -59,6 +59,9 @@ function stepHints(dt){
   if (!game.opts.infinite && bagCount() >= bagCap()) hint('full', 'Backpack full! Head back up to sell, or buy a bigger backpack.');
   if (P.mining && P.mining.deny) hint('hard', 'Too hard for your pick. Earn money and upgrade it at the shop.');
   if (!game.opts.invincible && P.hp < maxHp()*.5) hint('heal', 'Hurt! Press H to use a medkit, or rest on the surface to heal.');
+  if (dep >= 215 && !game.bossDefeated) hint('boss', 'The ground trembles... Something enormous lives at the very bottom of the mine.');
+  if (enemies.some(e => e.type === 'beetle' && Math.hypot(e.x - P.x, e.y - P.y) < 8*TS)) hint('beetle', 'A BLAST BEETLE! It explodes when it gets close. Hit it from range or back off fast.');
+  if (game.sel === 4 && dep > 3) hint('bridge', 'Bridges can only reach 5 tiles from a wall. Stack BRIDGE POSTS (6) up from the floor to support longer ones.');
   if (dep >= 45) hint('beacon', 'Deep down and in trouble? A RECALL BEACON (R) warps you home.');
   if (nearShop() && game.time > 20 && game.mode === 'career') hint('contracts', 'The shop has CONTRACTS: deliver the ore they ask for to earn bonus cash.');
   if (dayPhase().night && dep < 2 && game.time > 30) hint('night', 'Night has fallen. Your helmet lamp still works, and monsters live underground anyway.');
@@ -67,8 +70,10 @@ function stepHints(dt){
 // ---------- day / night ----------
 const DAY_LEN = 480;                           // seconds for a full day
 function dayPhase(){
-  if (scene !== 'game' || !game) return { p:.3, light:1, night:false, dusk:0 };
-  const p = (game.time/DAY_LEN + .3) % 1, s = Math.sin(p*Math.PI*2);
+  if (scene === 'home'){ var p = (homeCam.t/150 + .3) % 1; }                // the title screen has its own quicker day
+  else if (scene !== 'game' || !game) return { p:.3, light:1, night:false, dusk:0 };
+  else var p = (game.time/DAY_LEN + .3) % 1;
+  const s = Math.sin(p*Math.PI*2);
   const light = clamp(.5 + s*1.3, 0, 1);
   return { p, light, night: light < .25, dusk: clamp(1 - Math.abs(light - .5)*2.2, 0, 1) };
 }
@@ -108,7 +113,7 @@ function buildMap(){
   for (let y=0;y<WH;y++) for (let x=0;x<WW;x++){
     const i = I(x,y), o = i*4;
     let c = y < SURF ? [70,110,170] : (seen[i] || y <= SURF+1) ? MINI_COL[tiles[i]] : [14,11,18];
-    if (seen[i] && deco[i] === D.LADDER) c = [190,140,70]; else if (seen[i] && deco[i] === D.SUPPORT) c = [220,170,90]; else if (seen[i] && deco[i] === D.TORCH) c = [255,220,100];
+    if (seen[i] && deco[i] === D.LADDER) c = [190,140,70]; else if (seen[i] && deco[i] === D.SUPPORT) c = [220,170,90]; else if (seen[i] && deco[i] === D.TORCH) c = [255,220,100]; else if (seen[i] && (deco[i] === D.PLATFORM || deco[i] === D.POST)) c = [196,140,76];
     d[o] = c[0]; d[o+1] = c[1]; d[o+2] = c[2]; d[o+3] = 255;
   }
   mx.putImageData(img, 0, 0);

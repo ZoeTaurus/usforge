@@ -13,8 +13,8 @@ const SETTINGS_KEY = 'deepfortune.settings';
 const T = { AIR:0, GRASS:1, DIRT:2, STONE:3, GRANITE:4, BASALT:5, BEDROCK:6, GRAVEL:7, RUBBLE:8,
   COAL:9, COPPER:10, IRON:11, SILVER:12, GOLD:13, RUBY:14, DIAMOND:15, MYTHRIL:16, LAVA:17, GAS:18,
   QUARTZ:19, AMETHYST:20, EMERALD:21, SAPPHIRE:22, PLATINUM:23, VOIDSTONE:24, CHEST:25 };
-const D = { NONE:0, LADDER:1, SUPPORT:2, TORCH:3 };
-const DECO_KEY = ['', 'ladder', 'support', 'torch'];
+const D = { NONE:0, LADDER:1, SUPPORT:2, TORCH:3, PLATFORM:5, POST:6 };   // deco id = hotbar slot + 1 (slot 4 is dynamite, not a deco)
+const DECO_KEY = ['', 'ladder', 'support', 'torch', '', 'platform', 'post'];
 
 const DEF = [];
 DEF[T.AIR]     = { name:'Air',     solid:false };
@@ -64,6 +64,8 @@ const LAMPS = [ {r:4.5,cost:0}, {r:6,cost:120}, {r:8,cost:500}, {r:11,cost:1600}
 const ARMOR = [ {hp:100,cost:0}, {hp:130,cost:250}, {hp:170,cost:900}, {hp:230,cost:3000} ];
 const SUPPLIES = [
   { key:'ladder',  name:'Ladders',  cost:1,  pack:10, desc:'Climb back out' },
+  { key:'platform', name:'Platforms', cost:1, pack:10, desc:'Bridges reach 5 tiles from a wall or post (5)' },
+  { key:'post',     name:'Bridge posts', cost:2, pack:5, desc:'Stack from the floor to hold up long bridges (6)' },
   { key:'support', name:'Supports', cost:4,  pack:5,  desc:'Stop cave-ins (3 tile radius)' },
   { key:'torch',   name:'Torches',  cost:2,  pack:5,  desc:'Light tunnels. Monsters avoid the light' },
   { key:'medkit',  name:'Medkit',   cost:30, pack:1,  desc:'Heals 60 HP (H)' },
@@ -80,7 +82,7 @@ MINI_COL[T.RUBBLE]=[90,84,80]; MINI_COL[T.LAVA]=[255,110,20]; MINI_COL[T.GAS]=[1
 for (const [id] of ORES) MINI_COL[id] = DEF[id].c1.map(v=>Math.min(255, v*1.15));
 
 // hotbar items that can be placed (keys 1-4)
-const ITEMS = ['ladder', 'support', 'torch', 'dynamite'];
+const ITEMS = ['ladder', 'support', 'torch', 'dynamite', 'platform', 'post'];
 
 const BOOTS = [
   { name:'Work boots',    jump:205, fall:1,   cost:0 },

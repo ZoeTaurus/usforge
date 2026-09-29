@@ -222,14 +222,15 @@ function recordBest(extra = {}){
   if (extra.retired) best.retired = best.retired ? Math.min(best.retired, extra.retired) : extra.retired;
   store.set(BEST_KEY, best);
 }
-// The leaderboard only takes Career runs on Normal difficulty (the default), once per run:
-// the score is the total money earned during that run.
+// The leaderboard is "fastest retirement": only Career runs on Normal difficulty (the default) that actually
+// retire count, once per run, and the score is how long it took (seconds; lowest wins). Runs that end any
+// other way don't go on the board, so it never fills up with the same $25,000.
 function reportRunScore(){
-  if (!game || game.mode !== 'career' || (game.diff || 'normal') !== 'normal' || game.scoreSent) return;
-  const score = Math.round(game.earned);
-  if (!Number.isFinite(score) || score < 0 || score >= 1e12) return;
+  if (!game || game.mode !== 'career' || (game.diff || 'normal') !== 'normal' || game.scoreSent || !game.won) return;
+  const secs = Math.round(game.time);
+  if (!Number.isFinite(secs) || secs <= 0 || secs >= 1e9) return;
   game.scoreSent = true;
-  sendScoreToUsForge(score);
+  sendScoreToUsForge(secs);
 }
 function checkWin(){
   if (game.mode !== 'career' || game.won || game.money < goalOf()) return;

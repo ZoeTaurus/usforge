@@ -34,10 +34,11 @@ const shade = (c,m) => c.map(v => clamp(v*m|0, 0, 255));
 const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
 // ---------- UsForge leaderboard ----------
-function sendScoreToUsForge(score) {
-  // only when running inside UsForge's page; does nothing when the game is opened on its own
+function sendScoreToUsForge(seconds) {
+  // only when running inside UsForge's page; does nothing when the game is opened on its own.
+  // The board is "fastest retirement": a time in seconds, lowest wins (UsForge shows it as mm:ss).
   if (window.parent === window) return;
   try {
-    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'dollars' }, '*');
+    window.parent.postMessage({ usforge: 'score', score: Math.round(seconds), order: 'low', unit: 'time' }, '*');
   } catch (e) {}
 }

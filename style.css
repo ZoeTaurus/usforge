@@ -657,3 +657,4 @@ body.playing .site-banner { display: none; }
 .fb-note { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: start; padding: 8px; border-radius: 8px; background: var(--bg); font-size: 14px; }
 .fb-note time { font: 11px var(--mono); color: var(--dim); display: block; }
 .fb-note .ghost { padding: 3px 8px; font-size: 12px; }
+.stats { align-items: baseline; }   /* (keeps every number on one line — "12 games" sat a little high) */

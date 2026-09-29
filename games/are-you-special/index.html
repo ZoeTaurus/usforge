@@ -1,0 +1,505 @@
+<title>Are You Special</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: one centred column. A "crowd" panel (live count, real-world comparison, 10-step log meter) sits above each question card. */
+:root {
+  --bg: #eceef6;
+  --paper: #ffffff;
+  --ink: #1a1d3a;
+  --muted: #5d6286;
+  --line: #d5d8ea;
+  --accent: #d6336c;
+  --accent-soft: #fbe3ec;
+  --gold: #b27a00;
+  --gold-soft: #fff1cf;
+  --panel: #1a1d3a;
+  --panel-ink: #f3f4ff;
+  --panel-muted: #a9addb;
+  --panel-line: #33375e;
+  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12142a; --paper: #1c1f3c; --ink: #eef0ff; --muted: #a2a6cc; --line: #33375e;
+    --accent: #ff6b9a; --accent-soft: #3d1f37; --gold: #f5b83d; --gold-soft: #3a3020;
+    --panel: #262a52; --panel-ink: #f3f4ff; --panel-muted: #a9addb; --panel-line: #3d4270; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12142a; --paper: #1c1f3c; --ink: #eef0ff; --muted: #a2a6cc; --line: #33375e;
+  --accent: #ff6b9a; --accent-soft: #3d1f37; --gold: #f5b83d; --gold-soft: #3a3020;
+  --panel: #262a52; --panel-ink: #f3f4ff; --panel-muted: #a9addb; --panel-line: #3d4270; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 17px/1.5 var(--body); }
+.wrap { max-width: 680px; margin: 0 auto; padding-inline: 16px; padding-block: 24px 56px; display: grid; gap: 18px; }
+
+header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { font: 800 1.3rem/1 var(--display); letter-spacing: -0.02em; background: none; border: 0; color: var(--ink); padding: 0; cursor: pointer; }
+.brand span { color: var(--accent); }
+.hdr-right { display: flex; align-items: center; gap: 12px; }
+.qcount { font: 500 0.78rem var(--mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.link { background: none; border: 0; color: var(--muted); font: 500 0.78rem var(--mono); text-transform: uppercase; letter-spacing: .04em; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
+.link:hover { color: var(--accent); }
+
+/* crowd panel */
+.crowd { background: var(--panel); color: var(--panel-ink); border-radius: 18px; padding: 20px 20px 18px; display: grid; gap: 14px; position: relative; overflow: hidden; }
+.crowd .label { font: 600 0.7rem var(--mono); text-transform: uppercase; letter-spacing: 0.1em; color: var(--panel-muted); }
+.big { font: 800 clamp(2.3rem, 10vw, 4.2rem)/0.95 var(--display); letter-spacing: -0.035em; font-variant-numeric: tabular-nums; word-break: break-word; }
+.sub { display: flex; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; align-items: baseline; }
+.compare { color: var(--panel-muted); font-size: 0.95rem; min-width: 0; }
+.compare b { color: var(--panel-ink); }
+.odds { font: 600 0.95rem var(--mono); color: var(--accent); white-space: nowrap; }
+.rank { justify-self: start; font: 600 0.72rem var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--panel-line); color: var(--panel-ink); }
+
+.meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.seg { height: 10px; border-radius: 3px; background: var(--panel-line); position: relative; overflow: hidden; }
+.seg i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--accent); transition: width .7s cubic-bezier(.2,.8,.2,1); }
+.seg:last-child i { background: var(--gold); }
+.ticks { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; font: 500 0.62rem var(--mono); color: var(--panel-muted); text-align: right; margin-top: 4px; }
+.ticks span:last-child { color: var(--gold); font-weight: 600; }
+
+/* question card */
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 22px 20px; display: grid; gap: 16px; }
+.cat { justify-self: start; font: 600 0.7rem var(--mono); text-transform: uppercase; letter-spacing: .1em; color: var(--accent); }
+.q { font: 800 clamp(1.4rem, 5.5vw, 1.9rem)/1.12 var(--display); letter-spacing: -0.02em; text-wrap: balance; margin: -8px 0 0; }
+.hint { color: var(--muted); font-size: 0.92rem; margin: -8px 0 0; }
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.opt { font: 700 1rem var(--body); color: var(--ink); background: var(--bg); border: 2px solid transparent; border-radius: 11px; padding: 11px 12px; text-align: left; cursor: pointer; display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 6px; transition: border-color .15s, transform .1s, opacity .2s; }
+.opt .key { font: 600 0.72rem var(--mono); color: var(--muted); border: 1px solid var(--line); border-radius: 5px; width: 22px; height: 22px; display: grid; place-items: center; }
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt:active:not(:disabled) { transform: scale(.98); }
+.opt:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.opt:disabled { cursor: default; opacity: .5; }
+.opt.picked { opacity: 1; border-color: var(--accent); background: var(--accent-soft); }
+.bar { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font: 500 0.75rem var(--mono); color: var(--muted); }
+.bar s { flex: 1; height: 5px; border-radius: 3px; background: var(--line); position: relative; overflow: hidden; text-decoration: none; }
+.bar s i { position: absolute; inset: 0 auto 0 0; background: var(--muted); border-radius: 3px; }
+.picked .bar s i { background: var(--accent); }
+
+.feedback { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; border-top: 1px dashed var(--line); padding-top: 14px; }
+.feedback p { margin: 0; min-width: 0; flex: 1 1 260px; }
+.tag { display: inline-block; font: 600 0.68rem var(--mono); text-transform: uppercase; letter-spacing: .08em; padding: 2px 8px; border-radius: 999px; margin-right: 6px; vertical-align: 2px; background: var(--bg); color: var(--muted); }
+.tag.rare { background: var(--accent-soft); color: var(--accent); }
+.tag.ultra { background: var(--gold-soft); color: var(--gold); }
+
+.btn { font: 700 1rem var(--body); background: var(--ink); color: var(--paper); border: 0; border-radius: 999px; padding: 12px 22px; cursor: pointer; }
+.btn:hover { background: var(--accent); color: #fff; }
+.btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn.ghost { background: transparent; color: var(--ink); border: 2px solid var(--line); }
+.btn.ghost:hover { border-color: var(--accent); }
+.kbd { font: 500 0.75rem var(--mono); color: var(--muted); }
+
+.progress { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--muted); transition: width .3s; }
+
+/* intro */
+.hero { display: grid; gap: 18px; }
+.hero h1 { font: 800 clamp(2.8rem, 14vw, 5.4rem)/0.88 var(--display); letter-spacing: -0.045em; margin: 0; text-wrap: balance; }
+.hero h1 em { font-style: normal; color: var(--accent); }
+.hero p { max-width: 54ch; margin: 0; }
+.goal { display: flex; gap: 16px; align-items: center; background: var(--gold-soft); border-radius: 14px; padding: 16px; flex-wrap: wrap; }
+.goal strong { font: 800 1.7rem/1 var(--display); color: var(--gold); white-space: nowrap; }
+.goal span { min-width: 0; flex: 1 1 260px; font-size: 0.95rem; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.best { font: 500 0.85rem var(--mono); color: var(--muted); }
+.ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.ladder li { display: grid; grid-template-columns: 7.5em 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+.ladder li:last-child { border-bottom: 0; }
+.ladder .lo { font: 600 0.85rem var(--mono); color: var(--accent); }
+.ladder li:last-child .lo { color: var(--gold); }
+h3 { margin: 0; font: 800 1.2rem var(--display); letter-spacing: -.01em; }
+
+/* end */
+.verdict { font: 800 clamp(1.8rem, 8vw, 3rem)/1 var(--display); letter-spacing: -0.03em; margin: 0; text-wrap: balance; }
+.verdict.win { color: var(--gold); }
+.list { list-style: none; margin: 0; padding: 0; display: grid; }
+.list li { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.list li:last-child { border-bottom: 0; }
+.list .lq { color: var(--muted); font-size: 0.85rem; grid-column: 1 / -1; }
+.list .la { font-weight: 700; min-width: 0; }
+.list .lp { font: 600 0.85rem var(--mono); color: var(--accent); white-space: nowrap; }
+.note { font-size: 0.82rem; color: var(--muted); margin: 0; }
+.share { width: 100%; font: 500 0.85rem var(--mono); padding: 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: none; }
+.toast { font: 500 0.8rem var(--mono); color: var(--accent); }
+
+#confetti { position: fixed; inset: 0; pointer-events: none; width: 100%; height: 100%; z-index: 10; }
+
+.pop { animation: pop .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes pop { from { transform: scale(.94); } to { transform: none; } }
+.slide { animation: slide .35s ease-out; }
+@keyframes slide { from { opacity: .3; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pop, .slide { animation: none; } .seg i, .progress i { transition: none; } }
+</style>
+
+<div class="wrap" id="app"></div>
+<canvas id="confetti" hidden></canvas>
+
+<script>
+const EARTH = 8.2e9, TARGET = 1e10;
+const NS = null; // "not sure" answers carry no rarity
+
+// Rough worldwide shares. Sources vary a lot; these are ballpark figures for a game.
+const BANK = [
+  // Body
+  { c: "Body", q: "Which hand do you write with?", o: [["Right", .89], ["Left", .10], ["Both equally", .01]] },
+  { c: "Body", q: "What colour are your eyes?", o: [["Brown", .79], ["Blue", .08], ["Hazel", .05], ["Amber", .04], ["Green", .02], ["Grey", .01], ["Two different colours", .006]] },
+  { c: "Body", q: "What's your blood type?", o: [["O+", .38], ["A+", .27], ["B+", .20], ["AB+", .05], ["O−", .04], ["A−", .03], ["B−", .015], ["AB−", .005], ["Don't know", NS]] },
+  { c: "Body", q: "Can you roll your tongue into a tube?", o: [["Yes", .70], ["No", .30]] },
+  { c: "Body", q: "What's your natural hair colour?", o: [["Black", .75], ["Brown", .12], ["Blonde", .03], ["Red", .015], ["Grey or white", .085]] },
+  { c: "Body", q: "Is your hair straight, wavy or curly?", o: [["Straight", .45], ["Wavy", .35], ["Curly or coily", .20]] },
+  { c: "Body", q: "Do you have dimples when you smile?", o: [["Yes", .20], ["No", .80]] },
+  { c: "Body", q: "Do you have freckles?", o: [["Yes", .25], ["No", .75]] },
+  { c: "Body", q: "Are you colourblind?", o: [["Yes", .045], ["No", .955], ["Not sure", NS]] },
+  { c: "Body", q: "Do you wear glasses or contact lenses?", o: [["Yes", .55], ["No", .45]] },
+  { c: "Body", q: "Can you wiggle your ears?", o: [["Yes", .15], ["No", .85]] },
+  { c: "Body", q: "Can your thumb bend backwards past 45°?", hint: "A \"hitchhiker's thumb\".", o: [["Yes", .25], ["No", .75]] },
+  { c: "Body", q: "Can you touch your nose with your tongue?", o: [["Yes", .10], ["No", .90]] },
+  { c: "Body", q: "Are your earlobes attached or free-hanging?", o: [["Free-hanging", .70], ["Attached", .30]] },
+  { c: "Body", q: "Can you raise just one eyebrow?", o: [["Yes", .35], ["No", .65]] },
+  { c: "Body", q: "Are you double-jointed anywhere?", o: [["Yes", .15], ["No", .85]] },
+  { c: "Body", q: "Is your second toe longer than your big toe?", hint: "Known as Morton's toe.", o: [["Yes", .20], ["No", .80]] },
+  { c: "Body", q: "Does your hairline dip to a point in the middle?", hint: "A widow's peak.", o: [["Yes", .30], ["No", .70]] },
+  { c: "Body", q: "Do you have a dimple in your chin?", o: [["Yes", .15], ["No", .85]] },
+  { c: "Body", q: "Were you born with an extra finger or toe?", o: [["Yes", .002], ["No", .998]] },
+  { c: "Body", q: "Do you have a visible birthmark?", o: [["Yes", .10], ["No", .90]] },
+  { c: "Body", q: "Which foot do you kick a ball with?", o: [["Right", .78], ["Left", .20], ["Either", .02]] },
+  { c: "Body", q: "Clasp your hands together. Which thumb is on top?", o: [["Left", .55], ["Right", .45]] },
+  { c: "Body", q: "Fold your arms. Which arm is on top?", o: [["Left", .50], ["Right", .50]] },
+  { c: "Body", q: "Does bright sunlight make you sneeze?", hint: "It's called the photic sneeze reflex.", o: [["Yes", .25], ["No", .75], ["Never noticed", NS]] },
+  { c: "Body", q: "How many times do you usually sneeze in a row?", o: [["Once", .50], ["Twice", .30], ["Three or more", .20]] },
+  { c: "Body", q: "Do you get motion sick in cars or boats?", o: [["Yes", .30], ["No", .70]] },
+  { c: "Body", q: "Do you snore?", o: [["Yes", .40], ["No", .60], ["Nobody's told me", NS]] },
+
+  // Origins
+  { c: "Origins", q: "Which month were you born in?", o: ["January","February","March","April","May","June","July","August","September","October","November","December"].map(m => [m, 1/12]) },
+  { c: "Origins", q: "Which day of the week were you born on?", o: [["Monday",1/7],["Tuesday",1/7],["Wednesday",1/7],["Thursday",1/7],["Friday",1/7],["Saturday",1/7],["Sunday",1/7],["No idea", NS]] },
+  { c: "Origins", q: "Were you born on 29 February?", o: [["Yes", 1/1461], ["No", 1460/1461]] },
+  { c: "Origins", q: "Were you born in a leap year?", o: [["Yes", .25], ["No", .75]] },
+  { c: "Origins", q: "How many siblings do you have?", o: [["None", .20], ["One", .35], ["Two", .24], ["Three", .11], ["Four or more", .10]] },
+  { c: "Origins", q: "Are you a twin?", o: [["No", .976], ["Identical twin", .006], ["Non-identical twin", .018]] },
+  { c: "Origins", q: "Were you born by caesarean section?", o: [["Yes", .21], ["No", .79], ["Don't know", NS]] },
+  { c: "Origins", q: "Which continent do you live on?", o: [["Asia", .59], ["Africa", .18], ["Europe", .09], ["North America", .075], ["South America", .055], ["Oceania", .006], ["Antarctica", .0000005]] },
+  { c: "Origins", q: "Do you live in a different country from where you were born?", o: [["Yes", .036], ["No", .964]] },
+
+  // Mind
+  { c: "Mind", q: "Are you a morning person or a night owl?", o: [["Morning person", .40], ["Night owl", .30], ["Neither really", .30]] },
+  { c: "Mind", q: "Can you name a musical note just by hearing it?", hint: "Perfect pitch. No reference note allowed.", o: [["Yes", .0001], ["No", .9999]] },
+  { c: "Mind", q: "Do letters or numbers have colours in your mind?", hint: "A form of synaesthesia.", o: [["Yes", .04], ["No", .96]] },
+  { c: "Mind", q: "Do you dream in colour?", o: [["Yes", .80], ["No, black and white", .12], ["I don't remember dreams", NS]] },
+  { c: "Mind", q: "Have you ever sleepwalked?", o: [["Yes", .07], ["No", .93], ["Not that I know of", NS]] },
+  { c: "Mind", q: "Can you picture an apple in your mind?", hint: "Some people see nothing at all. That's called aphantasia.", o: [["Clearly", .70], ["Vaguely", .27], ["Not at all", .03]] },
+  { c: "Mind", q: "What's your favourite number?", o: [["7", .10], ["3", .07], ["8", .06], ["4", .05], ["13", .02], ["Something else", .70]] },
+  { c: "Mind", q: "Which of these scares you most?", o: [["Spiders", .30], ["Heights", .25], ["Snakes", .20], ["The dark", .10], ["Something else", .15]] },
+  { c: "Mind", q: "Do you bite your nails?", o: [["Yes", .25], ["No", .75]] },
+  { c: "Mind", q: "How many hours do you usually sleep?", o: [["Under 6", .20], ["6 to 8", .60], ["More than 8", .20]] },
+
+  // Skills
+  { c: "Skills", q: "How many languages can you hold a conversation in?", o: [["One", .40], ["Two", .43], ["Three", .13], ["Four or more", .04]] },
+  { c: "Skills", q: "Do you play a musical instrument?", o: [["Yes", .30], ["No", .70]] },
+  { c: "Skills", q: "Can you whistle with your fingers?", o: [["Yes", .20], ["No", .80]] },
+  { c: "Skills", q: "Can you solve a Rubik's cube without help?", o: [["Yes", .01], ["No", .99]] },
+  { c: "Skills", q: "Can you juggle three balls?", o: [["Yes", .05], ["No", .95]] },
+  { c: "Skills", q: "Can you swim?", o: [["Yes", .45], ["No", .55]] },
+  { c: "Skills", q: "Can you do a cartwheel?", o: [["Yes", .45], ["No", .55]] },
+  { c: "Skills", q: "Have you ever ridden a horse?", o: [["Yes", .30], ["No", .70]] },
+
+  // Taste
+  { c: "Taste", q: "What's your favourite colour?", o: [["Blue", .35], ["Green", .14], ["Purple", .12], ["Red", .09], ["Black", .08], ["Pink", .05], ["Orange", .05], ["Yellow", .04], ["White", .03], ["Something else", .05]] },
+  { c: "Taste", q: "Does coriander (cilantro) taste like soap to you?", o: [["Yes, soap", .14], ["No, it's fine", .86], ["Never tried it", NS]] },
+  { c: "Taste", q: "Coffee or tea?", o: [["Coffee", .40], ["Tea", .35], ["Neither", .25]] },
+  { c: "Taste", q: "What's your favourite season?", o: [["Summer", .35], ["Autumn", .30], ["Spring", .20], ["Winter", .15]] },
+  { c: "Taste", q: "Pineapple on pizza?", o: [["Love it", .45], ["Absolutely not", .35], ["Never tried it", .20]] },
+  { c: "Taste", q: "What's your favourite ice cream?", o: [["Vanilla", .28], ["Chocolate", .20], ["Cookies & cream", .07], ["Strawberry", .07], ["Mint choc chip", .06], ["Something else", .32]] },
+  { c: "Taste", q: "Do you eat meat?", o: [["Yes", .82], ["Vegetarian", .15], ["Vegan", .03]] },
+  { c: "Taste", q: "How do you feel about spicy food?", o: [["Love it", .50], ["It's OK", .30], ["Can't handle it", .20]] },
+  { c: "Taste", q: "Dogs or cats?", o: [["Dogs", .52], ["Cats", .30], ["Neither", .18]] },
+  { c: "Taste", q: "Which way should toilet paper hang?", o: [["Over the top", .70], ["Underneath", .25], ["I don't care", .05]] },
+  { c: "Taste", q: "Are you allergic to peanuts?", o: [["Yes", .02], ["No", .98]] },
+
+  // Life
+  { c: "Life", q: "Have you ever broken a bone?", o: [["Yes", .50], ["No", .50]] },
+  { c: "Life", q: "Do you have any pets?", o: [["A dog", .33], ["A cat", .23], ["Both", .10], ["Something else", .09], ["No pets", .25]] },
+  { c: "Life", q: "Have you ever been struck by lightning?", o: [["Yes", .00003], ["No", .99997]] },
+  { c: "Life", q: "Have you ever been to space?", o: [["Yes", 7e-8], ["No", 1 - 7e-8]] },
+  { c: "Life", q: "Have you ever had braces on your teeth?", o: [["Yes", .15], ["No", .85]] },
+  { c: "Life", q: "Do you have a tattoo?", o: [["Yes", .18], ["No", .82]] },
+  { c: "Life", q: "Have you ever been in a helicopter?", o: [["Yes", .05], ["No", .95]] },
+  { c: "Life", q: "Have you ever touched real snow?", o: [["Yes", .60], ["No", .40]] },
+  { c: "Life", q: "How many countries have you visited?", hint: "Including your own.", o: [["Just one", .60], ["2 to 5", .28], ["6 to 20", .10], ["More than 20", .02]] },
+  { c: "Life", q: "Have you ever met a famous person in real life?", o: [["Yes", .25], ["No", .75]] },
+];
+
+const RANKS = [
+  // [min rarity (1 in N), title, comparison of how many people still match]
+  [1, "Totally ordinary"], [10, "Slightly unusual"], [100, "Uncommon"], [1e3, "Rare find"],
+  [1e4, "Very rare"], [1e5, "Collector's item"], [1e6, "One in a million"], [1e7, "Needle in a haystack"],
+  [1e8, "Almost mythical"], [1e9, "One in a billion"], [1e10, "Truly one of a kind"],
+];
+const COMPARE = [
+  [4e9, "about half the planet"], [1.4e9, "about the whole of India"], [3.3e8, "about the population of the USA"],
+  [6.5e7, "about the population of the UK"], [8e6, "about the population of New York City"],
+  [1e6, "a big city"], [8e4, "a packed football stadium"], [1e4, "a small town"], [1e3, "a big school"],
+  [50, "a school bus"], [11, "a football team"], [2, "a dinner party"], [1, "just you, maybe one other"], [0, "statistically, only you"],
+];
+
+let state, best = null, shown = EARTH;
+try { best = JSON.parse(localStorage.getItem("ays-best-10b")); } catch (e) {}
+
+const $ = s => document.querySelector(s);
+const app = $("#app");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+function words(n) {
+  const f = (x, u) => (x >= 10 ? Math.round(x) : x.toFixed(1).replace(/\.0$/, "")) + u;
+  if (n >= 1e12) return f(n / 1e12, " trillion");
+  if (n >= 1e9) return f(n / 1e9, " billion");
+  if (n >= 1e6) return f(n / 1e6, " million");
+  return Math.round(n).toLocaleString("en");
+}
+const oneIn = p => "1 in " + words(Math.max(1, 1 / p));
+const pctText = p => p >= .01 ? Math.round(p * 100) + "%" : p >= .0001 ? +(p * 100).toFixed(2) + "%" : "under 0.01%";
+function peopleText(n) {
+  if (n < 1) return "Just you";
+  if (n < 1.5) return "1 person";
+  return words(n) + " people";
+}
+const rankOf = p => RANKS.filter(r => 1 / p >= r[0]).pop()[1];
+const compareOf = n => COMPARE.find(c => n >= c[0])[1];
+function tagOf(p) {
+  if (p === NS) return `<span class="tag">No effect</span>`;
+  if (p < .01) return `<span class="tag ultra">Ultra rare</span>`;
+  if (p < .06) return `<span class="tag rare">Rare</span>`;
+  if (p < .2) return `<span class="tag rare">Uncommon</span>`;
+  return `<span class="tag">Common</span>`;
+}
+
+function newGame() {
+  state = { deck: shuffle(BANK), i: 0, p: 1, answers: [], phase: "q", picked: null };
+  shown = EARTH;
+  render();
+}
+
+function crowdHTML(p) {
+  const n = EARTH * p;
+  const lvl = Math.log10(1 / p);
+  const labels = ["10", "100", "1K", "10K", "100K", "1M", "10M", "100M", "1B", "10B"];
+  let segs = "", ticks = "";
+  for (let k = 0; k < 10; k++) {
+    segs += `<div class="seg"><i style="width:${Math.max(0, Math.min(1, lvl - k)) * 100}%"></i></div>`;
+    ticks += `<span>${labels[k]}</span>`;
+  }
+  return `<section class="crowd" aria-live="polite">
+    <div class="label">People on Earth who match every answer</div>
+    <div class="big" id="bigcount">${peopleText(shown)}</div>
+    <div class="sub"><span class="compare">That's <b>${compareOf(n)}</b></span><span class="odds">${p === 1 ? "Everyone, so far" : "You are " + oneIn(p)}</span></div>
+    <div>
+      <div class="meter" role="img" aria-label="Rarity ${oneIn(p)}, goal is 1 in 10 billion">${segs}</div>
+      <div class="ticks" aria-hidden="true">${ticks}</div>
+    </div>
+    <span class="rank">${rankOf(p)}</span>
+  </section>`;
+}
+
+// Count the big number down smoothly, on a log scale so big drops still feel readable.
+function animateCount(to) {
+  const el = $("#bigcount"); if (!el) return;
+  const from = shown; shown = to;
+  if (reduced || from === to) { el.textContent = peopleText(to); return; }
+  const a = Math.log(Math.max(from, .1)), b = Math.log(Math.max(to, .1)), t0 = performance.now(), dur = 900;
+  el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
+  (function step(t) {
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = peopleText(k === 1 ? to : Math.exp(a + (b - a) * e));
+    if (k < 1 && document.body.contains(el)) requestAnimationFrame(step);
+  })(t0);
+}
+
+function header(right) {
+  return `<header><button class="brand" id="home">Are you <span>special?</span></button><div class="hdr-right">${right}</div></header>`;
+}
+
+function renderIntro() {
+  const ladder = [[10, "820 million people match you, more than all of Europe"], [1e3, "8.2 million people, about New York City"], [1e6, "8,200 people, a small town"], [1e9, "8 people, a dinner party"], [1e10, "statistically, only you"]]
+    .map(([n, t]) => `<li><span class="lo">1 in ${words(n)}</span><span>${t}</span></li>`).join("");
+  app.innerHTML = `
+    <section class="hero slide">
+      <h1>Are you <em>special?</em></h1>
+      <p>About 8.2 billion people are alive right now. Answer questions about yourself, and each answer narrows down how many of them are exactly like you.</p>
+      <div class="goal"><strong>1 in 10B</strong><span>Your goal: get rarer than one in ten billion. That's rarer than the number of people on Earth, so statistically nobody else would match you. Do it in as few questions as you can.</span></div>
+      <div class="row">
+        <button class="btn" id="start">Start the quiz</button>
+        ${best ? `<span class="best">Your best: ${best} questions</span>` : ""}
+      </div>
+    </section>
+    <section class="card slide">
+      <h3>How rare is rare?</h3>
+      <ul class="ladder">${ladder}</ul>
+      <p class="note">${BANK.length} questions about your body, skills, tastes and life, in a new order every game. Answer honestly: rare answers get you there faster. Use the number keys to answer and Enter to move on.</p>
+    </section>`;
+  $("#start").onclick = newGame;
+  $("#home").onclick = () => {};
+  $("#start").focus();
+}
+
+function renderQuestion() {
+  const Q = state.deck[state.i];
+  const done = state.phase === "fb";
+  const opts = Q.o.map(([label, p], idx) => {
+    const cls = done && state.picked === idx ? "opt picked" : "opt";
+    const bar = done ? `<span class="bar"><s><i style="width:${p === NS ? 0 : Math.max(2, p * 100)}%"></i></s>${p === NS ? "–" : pctText(p)}</span>` : "";
+    return `<button class="${cls}" data-i="${idx}" ${done ? "disabled" : ""}><span class="key">${idx < 9 ? idx + 1 : idx === 9 ? 0 : ""}</span><span>${esc(label)}</span>${bar}</button>`;
+  }).join("");
+
+  let fb = "";
+  if (done) {
+    const [label, p] = Q.o[state.picked];
+    const reached = state.p <= 1 / TARGET;
+    const out = state.i + 1 >= state.deck.length;
+    const msg = p === NS
+      ? "No problem. That answer doesn't change your odds."
+      : p < .2 ? `Only about <b>${pctText(p)}</b> of people said “${esc(label)}”. Your crowd just shrank <b>${words(1 / p)}×</b>.`
+      : `About ${pctText(p)} of people said that too, so your crowd only shrank a little.`;
+    fb = `<div class="feedback"><p>${tagOf(p)}${msg}</p><button class="btn" id="next">${reached ? "See results" : out ? "Finish" : "Next question"}</button></div>`;
+  }
+
+  const n = state.deck.length;
+  app.innerHTML = `
+    ${header(`<span class="qcount">Q${state.i + 1} of ${n}</span><button class="link" id="quit">End game</button>`)}
+    ${crowdHTML(state.p)}
+    <section class="card ${done ? "" : "slide"}">
+      <div class="progress" aria-hidden="true"><i style="width:${(state.i / n) * 100}%"></i></div>
+      <span class="cat">${Q.c}</span>
+      <h2 class="q">${esc(Q.q)}</h2>
+      ${Q.hint ? `<p class="hint">${esc(Q.hint)}</p>` : ""}
+      <div class="opts">${opts}</div>
+      ${fb}
+    </section>`;
+
+  $("#home").onclick = () => { state = null; render(); };
+  $("#quit").onclick = () => { state.phase = "end"; render(); };
+  if (!done) {
+    app.querySelectorAll(".opt").forEach(b => b.onclick = () => answer(+b.dataset.i));
+  } else {
+    $("#next").onclick = next;
+    $("#next").focus({ preventScroll: true });
+    animateCount(EARTH * state.p);
+  }
+}
+
+function answer(idx) {
+  if (state.phase !== "q") return;
+  const Q = state.deck[state.i];
+  const [label, p] = Q.o[idx];
+  state.picked = idx;
+  if (p !== NS) state.p *= p;
+  state.answers.push({ q: Q.q, a: label, p });
+  state.phase = "fb";
+  render();
+}
+
+function next() {
+  if (state.p <= 1 / TARGET || state.i + 1 >= state.deck.length) { state.phase = "end"; return render(); }
+  state.i++; state.phase = "q"; state.picked = null;
+  render();
+}
+
+function renderEnd() {
+  const won = state.p <= 1 / TARGET;
+  const used = state.answers.length;
+  let newBest = false;
+  if (won && !state.scored) {
+    state.scored = true;
+    if (!best || used < best) {
+      best = used; newBest = state.newBest = true;
+      try { localStorage.setItem("ays-best-10b", JSON.stringify(best)); } catch (e) {}
+    }
+  }
+  newBest = newBest || state.newBest;
+  const n = EARTH * state.p;
+  shown = n;
+  const verdict = won
+    ? "Statistically, nobody else alive matches you."
+    : used === 0 ? "You didn't answer any questions." : `${peopleText(n)} still match you.`;
+  const counted = state.answers.filter(a => a.p !== NS).sort((a, b) => a.p - b.p);
+  const rows = counted.map(a => `<li><span class="lq">${esc(a.q)}</span><span class="la">${esc(a.a)}</span><span class="lp">${pctText(a.p)}</span></li>`).join("");
+  const shareText = won
+    ? `I'm ${oneIn(state.p)} on Are You Special. I got there in ${used} questions. Rarest answer: ${counted[0].a} (${pctText(counted[0].p)}).`
+    : `I'm ${oneIn(state.p)} on Are You Special. Can you beat that?`;
+
+  app.innerHTML = `
+    ${header(`<span class="qcount">${used} answered</span>`)}
+    ${crowdHTML(state.p)}
+    <section class="card slide">
+      <h2 class="verdict ${won ? "win" : ""}">${won ? "You're one in ten billion. " : ""}${verdict}</h2>
+      <p style="margin:0">${won
+        ? `You reached the goal in <b>${used}</b> questions.${newBest ? " That's your new best!" : best ? ` Your best is ${best}.` : ""}`
+        : `You stopped at ${oneIn(state.p)}, rank “${rankOf(state.p)}”. The questions come in a different order each time, so try again.`}</p>
+      <div class="row"><button class="btn" id="again">Play again</button><button class="btn ghost" id="copy">Copy my result</button><span class="toast" id="toast" aria-live="polite"></span></div>
+      <textarea class="share" id="sharetext" rows="2" readonly hidden>${esc(shareText)}</textarea>
+    </section>
+    <section class="card slide">
+      <h3>Your answers, rarest first</h3>
+      <ul class="list">${rows || "<li><span class='la'>No answers counted.</span></li>"}</ul>
+      <p class="note">Percentages are rough worldwide estimates, and the game treats every trait as independent of the others. Real life is messier, so enjoy the result, but don't put it on your CV.</p>
+    </section>`;
+  $("#home").onclick = () => { state = null; render(); };
+  $("#again").onclick = newGame;
+  $("#copy").onclick = () => {
+    const done = () => { $("#toast").textContent = "Copied"; };
+    const fallback = () => { const t = $("#sharetext"); t.hidden = false; t.select(); $("#toast").textContent = "Select and copy the text below"; };
+    try { navigator.clipboard.writeText(shareText).then(done, fallback); } catch (e) { fallback(); }
+  };
+  $("#again").focus({ preventScroll: true });
+  if (won && !state.celebrated) { state.celebrated = true; confetti(); }
+}
+
+function confetti() {
+  if (reduced) return;
+  const c = $("#confetti"), ctx = c.getContext("2d");
+  c.hidden = false;
+  const W = c.width = innerWidth * devicePixelRatio, H = c.height = innerHeight * devicePixelRatio;
+  const css = getComputedStyle(document.documentElement);
+  const cols = ["--accent", "--gold", "--ink", "--muted"].map(v => css.getPropertyValue(v).trim());
+  const bits = Array.from({ length: 160 }, () => ({
+    x: W / 2 + (Math.random() - .5) * W * .3, y: H * .35, vx: (Math.random() - .5) * 18 * devicePixelRatio, vy: (-Math.random() * 16 - 6) * devicePixelRatio,
+    r: Math.random() * Math.PI, vr: (Math.random() - .5) * .3, s: (5 + Math.random() * 6) * devicePixelRatio, col: cols[Math.floor(Math.random() * cols.length)],
+  }));
+  const t0 = performance.now();
+  (function frame(t) {
+    ctx.clearRect(0, 0, W, H);
+    for (const b of bits) {
+      b.vy += .45 * devicePixelRatio; b.vx *= .99; b.x += b.vx; b.y += b.vy; b.r += b.vr;
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.r); ctx.fillStyle = b.col; ctx.fillRect(-b.s / 2, -b.s / 4, b.s, b.s / 2); ctx.restore();
+    }
+    if (t - t0 < 3500) requestAnimationFrame(frame); else { ctx.clearRect(0, 0, W, H); c.hidden = true; }
+  })(t0);
+}
+
+document.addEventListener("keydown", e => {
+  if (!state || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (state.phase === "q" && /^[0-9]$/.test(e.key)) {
+    const idx = e.key === "0" ? 9 : +e.key - 1;
+    if (idx < state.deck[state.i].o.length) answer(idx);
+  } else if (state.phase === "fb" && e.key === "Enter" && document.activeElement?.id !== "next") {
+    next();
+  }
+});
+
+function render() {
+  if (!state) renderIntro();
+  else if (state.phase === "end") renderEnd();
+  else renderQuestion();
+  if (state && state.phase === "q") window.scrollTo({ top: 0 });
+}
+
+window.claude?.hot?.snapshot?.(() => ({ state, best }));
+const start = d => { if (d && d.state) { state = d.state; shown = EARTH * state.p; } render(); };
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>

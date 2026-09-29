@@ -1,5 +1,23 @@
 [
   {
+    "slug": "are-you-special",
+    "title": "Are You Special",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "This quiz game asks you a series of questions to see if you really are, statistically, special.",
+    "cover": "games/are-you-special/cover.jpeg",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Quiz"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790707403
+  },
+  {
     "slug": "the-last-city",
     "title": "The Last City",
     "author": "Igor",

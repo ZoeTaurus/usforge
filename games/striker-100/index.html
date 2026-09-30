@@ -22,7 +22,7 @@ canvas{width:100%;height:100%;display:block;touch-action:none;border-radius:10px
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
 const W=480,H=640,F=520,HOR=290,CH=1,D=2.2,GZ=11,GW=3.66,GH=2.44,BR=.11,T=.6;
-let stage=1,best=1,shots=3,state='menu',msg='',wait=0,time=0,scored=false,ball,sh,obs=[],gk,ptr=null;
+let stage=1,best=1,shots=3,state='menu',msg='',wait=0,time=0,scored=false,ball,sh,obs=[],gk,ptr=null,wells=[],pads=[],ramps=[],G=9.8,tags='',vel={x:0,y:0,z:0},aim=null,down=false;
 try{best=Math.min(100,+localStorage.getItem('striker100_best')||1)}catch(e){}
 function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const sc=z=>F/(z+D),X=(x,z)=>W/2+x*sc(z),Y=(y,z)=>HOR-(y-CH)*sc(z);
@@ -43,15 +43,27 @@ function setup(s){
     obs.push(o);
   }
   obs.sort((a,b)=>a.z-b.z);
+  G=9.8;const tg=[];
+  if(s>=15){const q=s==15?0:r();if(q<.15){G=4.5;tg.push('Low gravity')}else if(q<.3){G=15;tg.push('Heavy gravity')}}
+  wells=[];if(s>=8&&(s==8||r()<.4)){const n=1+(s>60)+(s>85);for(let i=0;i<n;i++)wells.push({x:(r()*2-1)*3.5,y:.5+r()*1.7,z:3+r()*6,k:(r()<.7?1:-1)*(12+r()*8)})}
+  pads=[];if(s>=6&&(s==6||r()<.4)){const n=1+(s>50);for(let i=0;i<n;i++)pads.push({x:(r()*2-1)*3,z:1.5+r()*6,used:0})}
+  ramps=[];if(s>=12&&(s==12||r()<.35)){const n=1+(s>70);for(let i=0;i<n;i++)ramps.push({x:(r()*2-1)*3,z:1.5+r()*6,used:0})}
+  if(wells.length)tg.push('Gravity wells');if(pads.length)tg.push('Boost pad');if(ramps.length)tg.push('Ramp');
+  tags=tg.join(' + ');
   resetBall();state='aim';
 }
 function resetBall(){ball={x:0,y:BR,z:0,spin:0}}
 function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
-cv.addEventListener('pointermove',e=>{ptr=pos(e)});
-cv.addEventListener('pointerdown',e=>{
-  ptr=pos(e);if(state!='aim'||ptr.y>500)return;
-  const s=sc(GZ);sh={tx:(ptr.x-W/2)/s,ty:Math.max(BR,CH-(ptr.y-HOR)/s),p:0};state='fly';
-});
+function tgt(p){const k=sc(GZ);return{x:(p.x-W/2)/k,y:Math.max(BR,CH-(p.y-HOR)/k)}}
+cv.addEventListener('pointermove',e=>{ptr=pos(e);if(down&&aim)aim.c=Math.max(-3.5,Math.min(3.5,(ptr.x-aim.px)*.03))});
+cv.addEventListener('pointerdown',e=>{ptr=pos(e);if(state!='aim'||ptr.y>500)return;down=true;try{cv.setPointerCapture(e.pointerId)}catch(_){}const t=tgt(ptr);aim={x:t.x,y:t.y,px:ptr.x,c:0}});
+cv.addEventListener('pointerup',()=>{if(down&&state=='aim'&&aim)fire();down=false;aim=null});
+cv.addEventListener('pointercancel',()=>{down=false;aim=null});
+function fire(){
+  pads.forEach(p=>p.used=0);ramps.forEach(p=>p.used=0);
+  const c=aim.c;vel={x:(aim.x+4*c)/T,y:(aim.y-BR+.5*G*T*T)/T,z:GZ/T};
+  sh={ax:-8*c/(T*T),t:0};state='fly';
+}
 function end(text,ok){msg=text;scored=ok;state='res';wait=1.1;if(!ok)shots--}
 function next(){
   if(scored){
@@ -65,7 +77,25 @@ function next(){
 function menu(){
   const b=[['Start at stage 1',()=>setup(1)]];
   if(best>1){b.unshift(['Continue at stage '+best,()=>setup(best)]);b[1][2]='alt'}
-  show('Striker 100','You are on the penalty spot. Tap the goal to shoot. Beat the keeper in 100 stages while he speeds up and defenders line up in your way.',b);
+  show('Striker 100','You are on the penalty spot. Press a spot on the goal, drag sideways to curve the ball, then release to shoot. Beat the keeper in 100 stages while he speeds up and defenders line up in your way.',b);
+}
+function step(h){
+  const px=ball.x,py=ball.y,pz=ball.z;
+  let ax=sh.ax,ay=-G,az=0;
+  for(const w of wells){const dx=w.x-px,dy=w.y-py,dz=w.z-pz,d2=dx*dx+dy*dy+dz*dz+.3,f=Math.min(40,Math.abs(w.k)/d2)*Math.sign(w.k)/Math.sqrt(d2);ax+=dx*f;ay+=dy*f;az+=dz*f}
+  vel.x+=ax*h;vel.y+=ay*h;vel.z+=az*h;
+  ball.x+=vel.x*h;ball.y+=vel.y*h;ball.z+=vel.z*h;ball.spin+=h*22;sh.t+=h;
+  if(ball.y<BR){ball.y=BR;vel.y=-vel.y*.55<.6?0:-vel.y*.55;vel.x*=.99;vel.z*=.99}
+  for(const p of pads)if(!p.used&&Math.abs(ball.x-p.x)<.7+BR&&ball.z>p.z&&ball.z<p.z+1.6&&ball.y<.5){p.used=1;vel.x*=1.4;vel.z*=1.4}
+  for(const r of ramps){const hh=.3*(ball.z-r.z)/1.2;if(!r.used&&Math.abs(ball.x-r.x)<.8+BR&&ball.z>r.z&&ball.z<r.z+1.2&&ball.y<hh+BR+.12){r.used=1;vel.y=Math.max(vel.y,0)+4.2}}
+  for(const o of obs)if(pz<o.z&&ball.z>=o.z){const f=(o.z-pz)/(ball.z-pz),bx=px+(ball.x-px)*f,by=py+(ball.y-py)*f;
+    if(Math.abs(bx-o.x)<o.w/2+BR&&by-BR<1.8){ball.x=bx;ball.y=by;ball.z=o.z;end('BLOCKED!',false);return}}
+  if(pz<GZ&&ball.z>=GZ){const f=(GZ-pz)/(ball.z-pz),bx=px+(ball.x-px)*f,by=py+(ball.y-py)*f;ball.x=bx;ball.y=by;ball.z=GZ;
+    if(Math.abs(bx)>=GW-BR*.5||by>=GH-BR*.5)end(by>=GH-BR*.5&&Math.abs(bx)<GW?'OVER THE BAR!':'WIDE!',false);
+    else if(Math.abs(bx-gk.x)<gk.w/2+BR&&by-BR<gk.h)end('SAVED!',false);
+    else end('GOAL!',true);
+    return}
+  if(sh.t>2.6||ball.y>14||Math.abs(ball.x)>25||ball.z<-3)end('MISS!',false);
 }
 function update(dt){
   time+=dt;
@@ -75,17 +105,8 @@ function update(dt){
   if(gk.x<-m){gk.x=-m;gk.dir=1}if(gk.x>m){gk.x=m;gk.dir=-1}
   for(const o of obs)if(o.vx){o.x+=o.dir*o.vx*dt;const l=4.6-o.w/2;if(o.x<-l){o.x=-l;o.dir=1}if(o.x>l){o.x=l;o.dir=-1}}
   if(state=='fly'){
-    const p0=sh.p;sh.p=Math.min(1,sh.p+dt/T);const p=sh.p;
-    ball.x=sh.tx*p;ball.y=BR+(sh.ty-BR)*p;ball.z=GZ*p;ball.spin+=dt*22;
-    for(const o of obs){const po=o.z/GZ;
-      if(p0<po&&po<=p){const bx=sh.tx*po,by=BR+(sh.ty-BR)*po;
-        if(Math.abs(bx-o.x)<o.w/2+BR&&by<1.85){ball.x=bx;ball.y=by;ball.z=o.z;end('BLOCKED!',false);return}}}
-    if(p>=1){
-      const inG=Math.abs(sh.tx)<GW-BR*.5&&sh.ty<GH-BR*.5;
-      if(!inG)end(sh.ty>=GH?'OVER THE BAR!':'WIDE!',false);
-      else if(Math.abs(sh.tx-gk.x)<gk.w/2+BR&&sh.ty-BR<gk.h)end('SAVED!',false);
-      else end('GOAL!',true);
-    }
+    const n=Math.ceil(dt/.008),h=dt/n;
+    for(let i=0;i<n&&state=='fly';i++)step(h);
   }else if(state=='res'){wait-=dt;if(scored)ball.z=Math.min(12.6,ball.z+dt*4);if(wait<=0)next()}
 }
 function poly(pts,fill){ctx.beginPath();pts.forEach((p,i)=>ctx[i?'lineTo':'moveTo'](X(p[0],p[2]),Y(p[1],p[2])));ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
@@ -121,6 +142,8 @@ function draw(){
   poly([[-GW,0,nb],[GW,0,nb],[GW,nt,nb],[-GW,nt,nb]],'rgba(15,30,20,.45)');
   for(let x=-GW;x<=GW+.01;x+=.61)seg([x,0,nb],[x,nt,nb],'rgba(255,255,255,.3)',1);
   for(let y=0;y<=nt+.01;y+=.5)seg([-GW,y,nb],[GW,y,nb],'rgba(255,255,255,.3)',1);
+  for(const p of pads){poly([[p.x-.7,0,p.z],[p.x+.7,0,p.z],[p.x+.7,0,p.z+1.6],[p.x-.7,0,p.z+1.6]],'rgba(0,229,255,.6)');
+    for(let k=0;k<3;k++){const z=p.z+.3+k*.5;seg([p.x-.5,0,z],[p.x,0,z+.3],'#fff',2);seg([p.x+.5,0,z],[p.x,0,z+.3],'#fff',2)}}
   // depth-sorted things
   const list=[{z:GZ+.05,f:()=>{const lw=.12*sc(GZ);seg([-GW,0,GZ],[-GW,GH,GZ],'#fff',lw);seg([GW,0,GZ],[GW,GH,GZ],'#fff',lw);seg([-GW-.06,GH,GZ],[GW+.06,GH,GZ],'#fff',lw)}},
     {z:GZ,f:()=>person(gk.x,GZ,gk.w,gk.h,'#f2b705','#f1c9a5')}];
@@ -128,21 +151,33 @@ function draw(){
     const c=o.type=='fast'?'#7b2fbf':o.type=='slide'?'#e4572e':'#c62f3a';
     if(o.type=='wall')for(let k=-1;k<=1;k++)person(o.x+k*.9,o.z,.7,1.8,c,'#e0b48c');
     else person(o.x,o.z,o.w,1.8,c,'#e0b48c')}});
+  for(const r of ramps)list.push({z:r.z+.6,f:()=>{const a=r.x-.8,b=r.x+.8,z0=r.z,z1=r.z+1.2;
+    poly([[a,0,z0],[b,0,z0],[b,.3,z1],[a,.3,z1]],'#f28c28');poly([[a,0,z1],[b,0,z1],[b,.3,z1],[a,.3,z1]],'#b3560f');
+    poly([[a,0,z0],[a,0,z1],[a,.3,z1]],'#c8691a');poly([[b,0,z0],[b,0,z1],[b,.3,z1]],'#c8691a')}});
+  for(const w of wells)list.push({z:w.z,f:()=>{const k=sc(w.z),x=X(w.x,w.z),y=Y(w.y,w.z),r=.4*k,c=w.k>0?'139,92,246':'255,107,157',R=r*2.6*(1+.08*Math.sin(time*5));
+    const g=ctx.createRadialGradient(x,y,r*.1,x,y,R);g.addColorStop(0,'rgba('+c+',1)');g.addColorStop(.35,'rgba('+c+',.5)');g.addColorStop(1,'rgba('+c+',0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,R,0,7);ctx.fill();
+    ctx.fillStyle=w.k>0?'#10061f':'#fff0f5';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();ctx.strokeStyle='rgb('+c+')';ctx.lineWidth=2;ctx.stroke()}});
   if(ball)list.push({z:ball.z,f:()=>drawBall(ball)});
   list.sort((a,b)=>b.z-a.z).forEach(d=>d.f());
-  // aim
-  if(state=='aim'&&ptr){const ay=Math.min(ptr.y,500);
-    ctx.setLineDash([8,8]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(X(0,0),Y(BR,0));ctx.lineTo(ptr.x,ay);ctx.stroke();ctx.setLineDash([]);
-    ctx.beginPath();ctx.arc(ptr.x,ay,10,0,7);ctx.moveTo(ptr.x-16,ay);ctx.lineTo(ptr.x+16,ay);ctx.moveTo(ptr.x,ay-16);ctx.lineTo(ptr.x,ay+16);ctx.stroke()}
+  if(state=='aim'){
+    let tx,ty,c=0;
+    if(aim){tx=aim.x;ty=aim.y;c=aim.c}else if(ptr&&ptr.y<=500){const t=tgt(ptr);tx=t.x;ty=t.y}
+    if(tx!==undefined){
+      ctx.fillStyle='rgba(255,255,255,.9)';
+      for(let i=1;i<=14;i++){const p=i/15,z=GZ*p;ctx.beginPath();ctx.arc(X(tx*p+4*c*p*(1-p),z),Y(BR+(ty-BR)*p+.5*G*T*T*p*(1-p),z),Math.max(2,.06*sc(z)),0,7);ctx.fill()}
+      const cx=X(tx,GZ),cy=Y(ty,GZ);ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(cx,cy,10,0,7);ctx.moveTo(cx-16,cy);ctx.lineTo(cx+16,cy);ctx.moveTo(cx,cy-16);ctx.lineTo(cx,cy+16);ctx.stroke()}
+  }
   // HUD
   ctx.fillStyle='rgba(6,20,10,.6)';ctx.fillRect(0,0,W,42);
   ctx.fillStyle='#fff';ctx.font='bold 20px "Trebuchet MS",sans-serif';ctx.textAlign='left';
   ctx.fillText('Stage '+stage+' / 100',14,28);
   const sl=Math.max(shots,0);ctx.textAlign='right';ctx.fillText('Shots '+'\u25CF'.repeat(sl)+'\u25CB'.repeat(3-sl),W-14,28);
+  if(tags){ctx.fillStyle='rgba(6,20,10,.5)';ctx.fillRect(0,42,W,22);ctx.fillStyle='#ffd23f';ctx.font='bold 14px "Trebuchet MS",sans-serif';ctx.textAlign='center';ctx.fillText(tags,W/2,58)}
   ctx.textAlign='center';
   if(state=='res'){ctx.font='900 54px "Trebuchet MS",sans-serif';ctx.lineWidth=8;ctx.strokeStyle='#0b1710';ctx.strokeText(msg,W/2,190);ctx.fillStyle=scored?'#ffd23f':'#fff';ctx.fillText(msg,W/2,190)}
-  if(state=='aim'&&shots==3){ctx.font='15px "Trebuchet MS",sans-serif';ctx.fillStyle='#fff';ctx.fillText('Tap where you want to shoot. One goal clears the stage.',W/2,H-14)}
+  if(state=='aim'&&shots==3){ctx.font='15px "Trebuchet MS",sans-serif';ctx.fillStyle='#fff';ctx.fillText('Press a spot, drag sideways to curve, release to shoot.',W/2,H-14)}
 }
 let last=performance.now();
 function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;update(dt);draw();requestAnimationFrame(loop)}

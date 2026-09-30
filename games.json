@@ -1,5 +1,21 @@
 [
   {
+    "slug": "cashino",
+    "title": "CASHINO!",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Get rich. do not gamble in real life tho.",
+    "cover": "games/cashino/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790770144
+  },
+  {
     "slug": "are-you-special",
     "title": "Are You Special",
     "author": "Taurus",

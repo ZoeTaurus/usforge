@@ -55,7 +55,7 @@
   const n = (v, one, many) => `${v.toLocaleString()} ${v === 1 ? one : many}`;
 
   const want = (new URLSearchParams(location.search).get('n') || '').toLowerCase();
-  let games = [], stats = null, profiles = {};
+  let games = [], stats = null, profiles = {}, members = [];
   const prof = name => profiles[Object.keys(profiles).find(k => k.toLowerCase() === String(name).toLowerCase())] || {};
   const avatar = (name, cls = 'initial', extra = '') => { const e = UsForgeIcon.avatars.includes(prof(name).icon) ? prof(name).icon : ''; return `<span class="${cls}${e ? ' emoji' : ''}"${extra} aria-hidden="true">${e ? UsForgeIcon(e) : esc(name[0])}</span>`; };
   const cover = g => g.cover ? `<img src="${esc(g.cover)}" alt="" loading="lazy">` : `<div class="blank" style="--h:${hue(g.title)}">${esc(g.title.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase())}</div>`;
@@ -70,7 +70,8 @@
   function paint() {
     const known = U.TEAM.find(p => p.name.toLowerCase() === want);
     const mine = games.filter(g => g.author.toLowerCase() === want);
-    const person = known || (mine.length ? { name: mine[0].author, roles: ['Maker'] } : null);
+    const member = members.find(m => m.toLowerCase() === want);
+    const person = known || (mine.length ? { name: mine[0].author, roles: ['Maker'] } : member ? { name: member, roles: ['Member'] } : null);
     if (!person) { $('hero').innerHTML = `<div><h1>Who’s that?</h1><p class="maker-quote">There’s no maker by that name. <a href="credits.html">See the crew</a>.</p></div>`; return; }
     document.title = `${person.name} · UsForge`;
     const done = mine.filter(g => !g.dev), dev = mine.filter(g => g.dev);
@@ -109,6 +110,7 @@
   gamesP.then(l => { games = l; paint(); });
   Promise.all([gamesP, U.stats()]).then(([, s]) => { if (s) { stats = s; paint(); } });
   Promise.all([gamesP, fetch('profiles.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({}))]).then(([, p]) => { profiles = p || {}; paint(); });
+  Promise.all([gamesP, fetch('/api/members').then(r => r.ok ? r.json() : []).catch(() => [])]).then(([, m]) => { members = Array.isArray(m) ? m : []; paint(); });
 })();
 </script>
 </body>

@@ -23,6 +23,7 @@ export default {
     try {
       if (['/api/plays', '/api/stats', '/api/stoke', '/api/here'].includes(url.pathname)) return await plays(req, env, url);
       if (url.pathname === '/api/scores') return fresh(await box(env).hsGet(await knownSlug(env, url)));   // (public: a game's top 10)
+      if (url.pathname === '/api/members') return fresh(Object.keys(ACCOUNTS));   // (public: member names only, for Credits)
       if (req.method !== 'POST') throw fail(405, 'Use POST.');
       if (url.pathname === '/api/login') return ok(await login(req));
       if (url.pathname === '/api/upload') return ok(await upload(req, env));

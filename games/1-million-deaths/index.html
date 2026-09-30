@@ -1388,6 +1388,12 @@ const Input = {
       e.preventDefault();
     });
     window.addEventListener('pointerup', () => { this.mouse.down = false; });
+    // Take keyboard focus on any click/tap. Inside an embedding frame the
+    // browser won't do it for us (pointerdown's preventDefault blocks it),
+    // and without focus the arrow keys go to the outer page.
+    const grabFocus = () => { try { window.focus(); cv.focus({ preventScroll: true }); } catch (err) { /* ignore */ } };
+    window.addEventListener('pointerdown', grabFocus, true);
+    grabFocus();
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
 
     // on-screen touch buttons

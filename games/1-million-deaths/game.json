@@ -1,12 +1,11 @@
 {
-  "title": "1 million deaths",
+  "title": "1 Million Deaths",
   "author": "Alex",
   "owner": "Alex",
-  "blurb": "misleading name, by the way. the deaths you can get are about 150. anyway, die all the ways possible to win!",
+  "blurb": "Misleading name, by the way. You can get about 150. Die all the ways possible to win!",
   "pixel": true,
   "genres": [
-    "Action",
-    "Adventure",
-    "Casual"
+    "Casual",
+    "Idle"
   ]
 }

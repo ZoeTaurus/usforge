@@ -1,5 +1,25 @@
 [
   {
+    "slug": "fish-life",
+    "title": "fish life",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "You are a fish. become so smart that you can potentially take over the whole world.",
+    "cover": "games/fish-life/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Adventure",
+      "Casual",
+      "Simulation"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790798389
+  },
+  {
     "slug": "downhill-madness",
     "title": "Downhill Madness",
     "author": "Taurus",

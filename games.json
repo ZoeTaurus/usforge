@@ -21,10 +21,10 @@
   },
   {
     "slug": "potato-chase",
-    "title": "Potato chase",
+    "title": "Potato Chase",
     "author": "Alex",
     "owner": "Alex",
-    "blurb": "Chase the potato and try to catch it. credits to: julia",
+    "blurb": "Chase the potato and try to catch it. Credits to: Julia",
     "cover": "games/potato-chase/cover.png",
     "pixel": true,
     "url": null,

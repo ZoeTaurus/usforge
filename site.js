@@ -136,10 +136,11 @@
   (() => { const d = new Date().toISOString().slice(0, 10), days = store.get('usforge-days', []); if (!days.includes(d)) store.set('usforge-days', [...days, d].slice(-400)); })();
   const flag = k => store.set('usforge-' + k, true);
   const stoked = slug => store.get('usforge-stoked', []).includes(slug);
+  // stoke, or (if this browser already stoked it) take the stoke back
   async function stoke(slug) {
-    if (stoked(slug)) return null;
-    store.set('usforge-stoked', [...store.get('usforge-stoked', []), slug]);
-    const r = await fetch('/api/stoke?g=' + encodeURIComponent(slug), { method: 'POST' }).then(r => r.ok ? r.json() : null).catch(() => null);
+    const undo = stoked(slug);
+    store.set('usforge-stoked', undo ? store.get('usforge-stoked', []).filter(s => s !== slug) : [...store.get('usforge-stoked', []), slug]);
+    const r = await fetch('/api/stoke?g=' + encodeURIComponent(slug) + (undo ? '&undo=1' : ''), { method: 'POST' }).then(r => r.ok ? r.json() : null).catch(() => null);
     if (r) statsP = Promise.resolve(r);
     return r;
   }

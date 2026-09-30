@@ -16,8 +16,7 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790770523,
-    "updated": 1790770638
+    "added": 1790770524
   },
   {
     "slug": "potato-chase",
@@ -37,24 +36,7 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790770442,
-    "updated": 1790770699
-  },
-  {
-    "slug": "cashino",
-    "title": "CASHINO!",
-    "author": "Alex",
-    "owner": "Alex",
-    "blurb": "Get rich. do not gamble in real life tho.",
-    "cover": "games/cashino/cover.png",
-    "pixel": true,
-    "url": null,
-    "genres": [],
-    "dev": false,
-    "progress": null,
-    "next": "",
-    "build": true,
-    "added": 1790770144
+    "added": 1790770443
   },
   {
     "slug": "are-you-special",
@@ -115,6 +97,23 @@
     "next": "",
     "build": true,
     "added": 1790685339
+  },
+  {
+    "slug": "cashino",
+    "title": "CASHINO!",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Get rich. do not gamble in real life tho.",
+    "cover": "games/cashino/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790674138,
+    "updated": 1790770146
   },
   {
     "slug": "rooftop-run",

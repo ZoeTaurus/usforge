@@ -9,10 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=42">
+<link rel="stylesheet" href="style.css?v=43">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=2"></script>
-<script src="site.js?v=31"></script>
+<script src="site.js?v=32"></script>
 </head>
 <body>
 
@@ -170,14 +170,22 @@
     const n = counts[game.slug] || 0, mine = UsForge.stoked(game.slug);
     $('stokeN').textContent = n ? n.toLocaleString() : '';
     $('stokeLbl').textContent = mine ? 'Stoked' : 'Stoke';
+    $('stokeBtn').title = mine ? 'Click to take your stoke back' : `Stoke the fire: tell ${game.author} you love this game`;
     $('stokeBtn').classList.toggle('done', mine); $('stokeBtn').setAttribute('aria-pressed', String(mine));
     $('stokes').textContent = `${n.toLocaleString()} stoke${n === 1 ? '' : 's'}`; $('stokes').hidden = false;
   }
   async function doStoke() {
-    if (!game || UsForge.stoked(game.slug)) { UsForge.toast(`You already stoked <b>${esc(game.title)}</b>.`); return; }
-    const b = $('stokeBtn'); b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    if (!game) return;
+    const b = $('stokeBtn'), was = +($('stokeN').textContent.replace(/\D/g, '') || 0);
+    if (UsForge.stoked(game.slug)) {   // unstoke
+      const pending = UsForge.stoke(game.slug);
+      showStokes({ [game.slug]: Math.max(0, was - 1) });
+      const res = await pending; if (res) showStokes(res.stokes);
+      UsForge.toast(`Stoke taken back from <b>${esc(game.title)}</b>.`);
+      return;
+    }
+    b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
     const r = b.getBoundingClientRect(); window.UsForgeEggs?.burst(r.left + 26, r.top + r.height / 2, 26, 260);
-    const was = +($('stokeN').textContent.replace(/\D/g, '') || 0);
     const pending = UsForge.stoke(game.slug);   // (remembers this browser stoked it right away)
     showStokes({ [game.slug]: was + 1 });   // straight away; the real number follows
     const res = await pending;

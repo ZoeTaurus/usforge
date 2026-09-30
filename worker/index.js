@@ -51,9 +51,9 @@ export default {
 //   GET  /api/stats → {plays, stokes}      POST /api/stoke?g=slug adds a stoke
 export class Plays extends DurableObject {
   async all(kind = 'counts') { return (await this.ctx.storage.get(kind)) || {}; }
-  async hit(slug, kind = 'counts') {
+  async hit(slug, kind = 'counts', by = 1) {
     const c = await this.all(kind);
-    c[slug] = (c[slug] || 0) + 1;
+    c[slug] = Math.max(0, (c[slug] || 0) + by);   // (an unstoke takes one away, never below zero)
     await this.ctx.storage.put(kind, c);
     return c;
   }
@@ -128,7 +128,7 @@ async function plays(req, env, url) {
   }
   if (url.pathname === '/api/stoke') {
     if (req.method !== 'POST') throw fail(405, 'Use POST.');
-    await box.hit(await knownSlug(env, url), 'stokes');
+    await box.hit(await knownSlug(env, url), 'stokes', url.searchParams.get('undo') === '1' ? -1 : 1);   // ?undo=1 = unstoke
     return ok(await box.stats());
   }
   if (req.method === 'POST') return ok(await box.hit(await knownSlug(env, url)));

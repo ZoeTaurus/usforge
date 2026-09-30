@@ -10,10 +10,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=42">
+<link rel="stylesheet" href="style.css?v=43">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=2"></script>
-<script src="site.js?v=31"></script>
+<script src="site.js?v=32"></script>
 </head>
 <body>
 <div class="wrap">
@@ -272,7 +272,7 @@
     try { picks = await (await fetch('picks.json', { cache: 'no-cache' })).json(); } catch (e) {}
     const on = new Set((picks || []).map(p => p.slug)), by = Object.fromEntries((picks || []).map(p => [p.slug, p.by]));
     $('pickList').innerHTML = games.filter(g => !g.dev).map(g => `<div class="pick-row" data-slug="${esc(g.slug)}"><span><b>${esc(g.title)}</b> <span class="dim">by ${esc(g.author)}${on.has(g.slug) ? ` · picked by ${esc(by[g.slug])}` : ''}</span></span>
-      <button class="star-btn" type="button" aria-pressed="${on.has(g.slug)}">${on.has(g.slug) ? UsForgeIcon('starFill') + ' Picked' : UsForgeIcon('star') + ' Pick'}</button></div>`).join('');
+      ${on.has(g.slug) ? `<span class="pick-on">${UsForgeIcon('starFill')} Picked</span><button class="star-btn" type="button" aria-pressed="true" title="Remove from Founder picks">Unpick</button>` : `<button class="star-btn" type="button" aria-pressed="false">${UsForgeIcon('star')} Pick</button>`}</div>`).join('');
     for (const b of $('pickList').querySelectorAll('.star-btn')) b.onclick = async () => {
       const slug = b.closest('.pick-row').dataset.slug, want = b.getAttribute('aria-pressed') !== 'true';
       b.disabled = true; b.textContent = want ? 'Picking…' : 'Removing…';

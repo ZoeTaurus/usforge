@@ -181,7 +181,7 @@
     "title": "Pirate Madness",
     "author": "Alex",
     "owner": "Alex",
-    "blurb": "You are a pirate. Make your own strong crew and become the strongest pirate!",
+    "blurb": "You are a pirate. Make your own strong crew and become the strongest pirate! Copyright: One piece",
     "cover": "games/pirate-madness/cover.png",
     "pixel": true,
     "url": null,
@@ -194,7 +194,7 @@
     "next": "",
     "build": true,
     "added": 1790598063,
-    "updated": 1790686126
+    "updated": 1790772182
   },
   {
     "slug": "obey-the-light",

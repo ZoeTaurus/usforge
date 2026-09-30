@@ -1,6 +1,8 @@
 {
   "Taurus": {
-    "icon": "gem"
+    "icon": "crown",
+    "bio": "I made UsForge, and I am a dedicated coder.",
+    "fav": "deep-fortune"
   },
   "Alex": {
     "icon": "potato",

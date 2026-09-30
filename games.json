@@ -1,5 +1,25 @@
 [
   {
+    "slug": "potato-chase",
+    "title": "Potato chase",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Chase the potato and try to catch it. credits to: julia",
+    "cover": "games/potato-chase/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [
+      "Action",
+      "Endless runner",
+      "Strategy"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790770442
+  },
+  {
     "slug": "cashino",
     "title": "CASHINO!",
     "author": "Alex",

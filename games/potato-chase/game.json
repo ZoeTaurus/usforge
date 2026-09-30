@@ -1,0 +1,12 @@
+{
+  "title": "Potato chase",
+  "author": "Alex",
+  "owner": "Alex",
+  "blurb": "Chase the potato and try to catch it. credits to: julia",
+  "pixel": true,
+  "genres": [
+    "Action",
+    "Endless runner",
+    "Strategy"
+  ]
+}

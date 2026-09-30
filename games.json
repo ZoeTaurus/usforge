@@ -1,5 +1,21 @@
 [
   {
+    "slug": "downhill-madness",
+    "title": "Downhill Madness",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "In development",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "dev": true,
+    "progress": 85,
+    "next": "Better graphics and gameplay.",
+    "build": true,
+    "added": 1790792706
+  },
+  {
     "slug": "striker-100",
     "title": "Striker 100",
     "author": "Igor",

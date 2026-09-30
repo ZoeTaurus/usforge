@@ -1,0 +1,133 @@
+<meta charset="utf-8">
+<title>Downhill Madness</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Luckiest+Guy&family=Nunito:wght@600;800&display=swap">
+<link rel="stylesheet" href="css/style.css">
+
+<canvas id="game" aria-label="Downhill Madness game view"></canvas>
+
+<section id="title-screen" class="screen">
+  <div class="card">
+    <h1 class="logo"><span class="l1">Downhill</span><span class="l2">Madness</span></h1>
+    <p class="tag">An endless mountain, one sled, and an avalanche that really wants a word with you. The faster you go, the weirder it gets.</p>
+    <div class="row">
+      <button id="play" class="btn" type="button">Start sledding</button>
+      <button id="open-garage" class="btn ghost" type="button">Garage</button>
+    </div>
+    <p id="profile" class="profile"></p>
+    <section class="panel">
+      <h2 class="panel-h">Missions</h2>
+      <ul id="title-missions" class="missions"></ul>
+    </section>
+    <details id="how" class="panel how">
+      <summary class="panel-h">How to play</summary>
+      <dl class="controls">
+        <div><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Steer</dd></div>
+        <div><dt><kbd>↑</kbd></dt><dd>Tuck for speed</dd></div>
+        <div><dt><kbd>↓</kbd></dt><dd>Brake</dd></div>
+        <div><dt><kbd>Space</kbd></dt><dd>Hop</dd></div>
+        <div class="air"><dt>In the air</dt><dd><kbd>↑</kbd> backflip · <kbd>↓</kbd> frontflip · <kbd>←</kbd><kbd>→</kbd> spin · hold <kbd>Space</kbd> superman</dd></div>
+        <div class="air"><dt>Landing</dt><dd>Land upright or wipe out. Land dead level for a <b>Perfect</b> and a speed boost.</dd></div>
+        <div class="air"><dt>Power-ups</dt><dd>Shield saves one wipeout · Magnet pulls coins · Rocket smashes everything · 2× doubles points</dd></div>
+        <div class="air"><dt>Rule one</dt><dd>Don't let the avalanche catch you. Crevasses need a ramp or a well-timed hop.</dd></div>
+        <div class="air"><dt>Keys</dt><dd><kbd>P</kbd> pause · <kbd>M</kbd> mute</dd></div>
+      </dl>
+    </details>
+    <div class="settings" role="group" aria-label="Settings">
+      <button type="button" class="chip" data-setting="music">Music</button>
+      <button type="button" class="chip" data-setting="sfx">Sound effects</button>
+      <button type="button" class="chip" data-setting="voice">Announcer</button>
+      <button type="button" class="chip voice-style" data-voice-style>Voice: Hype</button>
+      <button type="button" class="chip" data-setting="shake">Screen shake</button>
+    </div>
+    <p id="voice-tip" class="voice-tip" hidden>Announcer sounding robotic? On a Mac, open System Settings → Accessibility → Spoken Content → System voice → Manage Voices and download a Premium voice such as Ava or Zoe. The game picks it up automatically.</p>
+  </div>
+</section>
+
+<section id="garage-screen" class="screen" hidden>
+  <div class="card wide">
+    <h2 class="big">Garage</h2>
+    <p class="profile"><span><b id="garage-bank">0</b> coins</span></p>
+    <div class="tabs" role="tablist">
+      <button type="button" class="chip" role="tab" data-tab="sleds">Sleds</button>
+      <button type="button" class="chip" role="tab" data-tab="outfits">Riders</button>
+    </div>
+    <div id="garage-grid" class="grid"></div>
+    <button id="garage-back" class="btn" type="button">Done</button>
+  </div>
+</section>
+
+<section id="pause-screen" class="screen" hidden>
+  <div class="card">
+    <h2 class="big">Paused</h2>
+    <p class="tag">The avalanche is politely waiting.</p>
+    <div class="row">
+      <button id="resume" class="btn" type="button">Keep sledding</button>
+      <button id="quit" class="btn ghost" type="button">Main menu</button>
+    </div>
+    <section class="panel">
+      <h2 class="panel-h">Missions this run</h2>
+      <ul id="pause-missions" class="missions"></ul>
+    </section>
+    <div class="settings" role="group" aria-label="Settings">
+      <button type="button" class="chip" data-setting="music">Music</button>
+      <button type="button" class="chip" data-setting="sfx">Sound effects</button>
+      <button type="button" class="chip" data-setting="voice">Announcer</button>
+      <button type="button" class="chip voice-style" data-voice-style>Voice: Hype</button>
+      <button type="button" class="chip" data-setting="shake">Screen shake</button>
+    </div>
+  </div>
+</section>
+
+<section id="over-screen" class="screen" hidden>
+  <div class="card">
+    <h2 id="over-title" class="big">Buried!</h2>
+    <p id="over-cause" class="tag"></p>
+    <p id="new-best" class="new-best" hidden>New best score!</p>
+    <p id="over-coins" class="coins-line"></p>
+    <div class="row">
+      <button id="again" class="btn" type="button">Sled again</button>
+      <button id="over-garage" class="btn ghost" type="button">Garage</button>
+      <button id="menu" class="btn ghost" type="button">Main menu</button>
+    </div>
+    <dl id="stats" class="stats"></dl>
+    <section class="panel">
+      <h2 class="panel-h">Missions</h2>
+      <ul id="over-missions" class="missions"></ul>
+    </section>
+  </div>
+</section>
+
+<div id="touch" hidden>
+  <div class="pad">
+    <button type="button" data-key="left" aria-label="Steer left / spin">◀</button>
+    <button type="button" data-key="right" aria-label="Steer right / spin">▶</button>
+  </div>
+  <div class="pad">
+    <button type="button" data-key="up" aria-label="Tuck / backflip">▲</button>
+    <button type="button" data-key="down" aria-label="Brake / frontflip">▼</button>
+    <button type="button" data-key="jump" class="jump" aria-label="Hop / superman">HOP</button>
+  </div>
+</div>
+
+<button id="mute" class="mute" type="button" aria-pressed="true">Sound on</button>
+
+<script src="js/config.js"></script>
+<script src="js/util.js"></script>
+<script src="js/save.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/track.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/garage.js"></script>
+<script src="js/missions.js"></script>
+<script src="js/director.js"></script>
+<script src="js/player.js"></script>
+<script src="js/render.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>

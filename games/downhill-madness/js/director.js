@@ -1,0 +1,218 @@
+'use strict';
+// The Director drops a set piece ahead of you every few seconds.
+// Gaps shrink as speed and madness climb, and sillier events unlock with each level.
+
+function estSpeed(G) { return Math.max(G.player.speed, G.maxSpeed * 0.85, 3000); }
+
+// Place a lateral crosser so it is on the piste around when the player arrives.
+function crosser(G, type, z, speedX, extra) {
+  const dir = U.pick([-1, 1]);
+  const vx = dir * speedX;
+  const tArrive = (z - G.player.z) / estSpeed(G);
+  const target = U.rand(-0.7, 0.7);
+  const x = U.clamp(target - vx * tArrive, -3.5, 3.5);
+  return G.add(type, x, z, Object.assign({ vx }, extra));
+}
+
+function coinArc(G, x, z0, power) {
+  const v = estSpeed(G), vy = (900 + v * 0.26) * power, T = (2 * vy) / CFG.GRAVITY, n = 7;
+  for (let i = 1; i <= n; i++) {
+    const t = (T * i) / (n + 1);
+    G.add('coin', x, z0 + v * t, { y: Math.max(0, vy * t - 0.5 * CFG.GRAVITY * t * t - 40) });
+  }
+  return v * T;
+}
+
+const EVENTS = [
+  { id: 'ramp', lvl: 1, w: 6, spawn(G, z) {
+    const triple = G.level >= 3 && U.chance(0.4);
+    const xs = triple ? [-0.65, 0, 0.65] : [U.rand(-0.6, 0.6)];
+    for (const x of xs) G.add('ramp', x, z);
+    const arcX = U.pick(xs);
+    let len = 2000;
+    if (U.chance(0.75)) len = Math.max(len, coinArc(G, arcX, z, 1));
+    return len;
+  } },
+  { id: 'slalom', lvl: 1, w: 4, spawn(G, z) {
+    const rows = U.randInt(4, 6), step = Math.max(1800, estSpeed(G) * 0.42);
+    const pool = G.level >= 2 ? ['tree', 'rock', 'tree', 'snowman'] : ['tree', 'rock', 'tree'];
+    for (let r = 0; r < rows; r++) {
+      const gap = U.rand(-0.7, 0.7);
+      for (const x of [-0.92, -0.55, -0.18, 0.18, 0.55, 0.92]) {
+        if (Math.abs(x - gap) < 0.3 || !U.chance(0.6)) continue;
+        const t = U.pick(pool);
+        G.add(t, x + U.rand(-0.05, 0.05), z + r * step, t === 'tree' ? { v: U.randInt(0, 2), s: U.rand(0.8, 1.1) } : {});
+      }
+    }
+    return rows * step;
+  } },
+  { id: 'rocks', lvl: 1, w: 3, spawn(G, z) {
+    const n = U.randInt(6, 10);
+    for (let i = 0; i < n; i++) {
+      const t = U.chance(0.7) ? 'rock' : 'tree';
+      G.add(t, U.rand(-0.95, 0.95), z + U.rand(0, 7000), t === 'tree' ? { v: U.randInt(0, 2) } : {});
+    }
+    return 7000;
+  } },
+  { id: 'coins', lvl: 1, w: 3, spawn(G, z) {
+    const x0 = U.rand(-0.5, 0.5), n = 12;
+    for (let i = 0; i < n; i++) G.add('coin', x0 + Math.sin(i * 0.55) * 0.4, z + i * 500);
+    if (U.chance(0.5)) G.add('rock', x0 + U.pick([-0.5, 0.5]), z + 3000);
+    return n * 500;
+  } },
+  { id: 'moguls', lvl: 1, w: 2, spawn(G, z) {
+    for (let r = 0; r < 4; r++) for (let i = 0; i < 4; i++) G.add('mogul', -0.75 + i * 0.5 + (r % 2) * 0.25, z + r * 1000);
+    return 4000;
+  } },
+  { id: 'snowmen', lvl: 1, w: 2, spawn(G, z) {
+    const n = U.randInt(5, 9);
+    for (let i = 0; i < n; i++) G.add('snowman', U.rand(-0.9, 0.9), z + U.rand(0, 5000));
+    return 5000;
+  } },
+  { id: 'boost', lvl: 2, w: 3, spawn(G, z) {
+    const x = U.rand(-0.6, 0.6), n = U.randInt(1, 2);
+    for (let i = 0; i < n; i++) G.add('boost', x, z + i * 2200);
+    for (let i = 0; i < 6; i++) G.add('coin', x, z + n * 2200 + i * 600);
+    return n * 2200 + 3600;
+  } },
+  { id: 'yeti', lvl: 2, w: 2, spawn(G, z) {
+    const n = G.level >= 5 ? 2 : 1;
+    for (let i = 0; i < n; i++) crosser(G, 'yeti', z + i * 2500, U.rand(0.3, 0.45));
+    G.banner('YETI CROSSING', '#7b93b8');
+    return n * 2500;
+  } },
+  { id: 'surge', lvl: 2, w: 1.6, spawn(G) { G.startSurge(); return 1500; } },
+  { id: 'penguins', lvl: 3, w: 3, spawn(G, z) {
+    const n = U.randInt(8, 14), dir = U.pick([-1, 1]);
+    const tArrive = (z - G.player.z) / estSpeed(G);
+    for (let i = 0; i < n; i++) {
+      const vx = dir * U.rand(0.35, 0.55);
+      const x = U.clamp(U.rand(-0.9, 0.9) - vx * tArrive, -4, 4);
+      G.add('penguin', x, z + U.rand(0, 3000), { vx });
+    }
+    G.banner('PENGUIN STAMPEDE', '#ffa51f');
+    return 3000;
+  } },
+  { id: 'snowball', lvl: 3, w: 2, spawn(G, z) {
+    crosser(G, 'snowball', z, U.rand(0.45, 0.6));
+    return 1500;
+  } },
+  { id: 'lift', lvl: 3, w: 2, spawn(G, z) {
+    const x = U.pick([-0.45, 0.45]), step = 3200;
+    for (let i = 0; i < 4; i++) {
+      G.add('pylon', x, z + i * step);
+      if (U.chance(0.5)) G.add('rock', -x + U.rand(-0.2, 0.2), z + i * step + 1600);
+    }
+    return 4 * step;
+  } },
+  { id: 'megaramp', lvl: 4, w: 2.5, spawn(G, z) {
+    const x = U.rand(-0.3, 0.3);
+    G.add('megaramp', x, z);
+    G.add('rock', x - 0.62, z + 200); G.add('rock', x + 0.62, z + 200);
+    G.banner('MEGA RAMP AHEAD', '#ffd23f');
+    return Math.max(2500, coinArc(G, x, z, 1.75));
+  } },
+  { id: 'pianos', lvl: 4, w: 2, spawn(G, z) {
+    const n = U.randInt(3, 6);
+    for (let i = 0; i < n; i++) {
+      const y0 = 3800;
+      G.add('piano', U.rand(-0.85, 0.85), z + i * U.rand(1200, 2000), { y: y0, fallT: Math.sqrt((2 * y0) / CFG.GRAVITY) });
+    }
+    G.banner('PIANOS INCOMING', '#d8b25a');
+    return n * 1800;
+  } },
+  { id: 'cows', lvl: 4, w: 2, spawn(G, z) {
+    const n = U.randInt(3, 5);
+    for (let i = 0; i < n; i++) crosser(G, 'cow', z + i * 1600, U.rand(0.5, 0.75), { y: U.rand(120, 900) });
+    G.banner('COWS. FLYING. WHY.', '#fafafa');
+    return n * 1600;
+  } },
+  { id: 'ufo', lvl: 5, w: 2, spawn(G, z) {
+    const x = U.rand(-0.55, 0.55);
+    G.add('ufo', x, z, { bx: x, y: 1400 });
+    const v = estSpeed(G);
+    for (let i = 0; i < 8; i++) G.add('coin', x, z + 1200 + i * v * 0.3, { y: 1300 + Math.sin((i / 7) * Math.PI) * 1500 });
+    return 3000 + v * 2.4;
+  } },
+  { id: 'meteors', lvl: 6, w: 2, spawn(G, z) {
+    const n = U.randInt(3, 6);
+    for (let i = 0; i < n; i++) {
+      const y0 = 7000, tx = U.rand(-0.85, 0.85);
+      G.add('meteor', tx + 1.4, z + i * U.rand(1500, 2400), { y: y0, y0, tx, dir: U.pick([-1, 1]), fallT: Math.sqrt((2 * y0) / CFG.GRAVITY) });
+    }
+    G.banner('METEOR SHOWER', '#ff7a1f');
+    return n * 2000;
+  } },
+  { id: 'duck', lvl: 6, w: 1.5, spawn(G, z) {
+    const n = U.randInt(1, 3);
+    for (let i = 0; i < n; i++) G.add('duck', U.rand(-0.7, 0.7), z + i * 2600);
+    return n * 2600;
+  } },
+  { id: 'dino', lvl: 7, w: 1.6, spawn(G, z) {
+    crosser(G, 'dino', z, U.rand(0.3, 0.42));
+    G.banner('IS THAT A T-REX?', '#46b556');
+    return 2000;
+  } },
+  { id: 'power', lvl: 1, w: 2.2, spawn(G, z) {
+    const pool = [{ p: 'shield', w: 3 }, { p: 'magnet', w: 3 }, { p: 'double', w: 2 }];
+    if (G.level >= 2) pool.push({ p: 'rocket', w: 2 });
+    const x = U.rand(-0.7, 0.7);
+    for (let i = 0; i < 5; i++) G.add('coin', x, z - 2500 + i * 500);
+    G.add('power', x, z, { p: U.weighted(pool).p });
+    return 1000;
+  } },
+  { id: 'rivals', lvl: 1, w: 1.8, spawn(G) {
+    const n = U.randInt(2, 4), names = RIVAL_NAMES.slice().sort(() => Math.random() - 0.5);
+    for (let i = 0; i < n; i++) {
+      const bx = U.rand(-0.6, 0.6);
+      G.add('rival', bx, G.player.z + 11000 + i * 1800, {
+        bx, vz: G.maxSpeed * U.rand(0.55, 0.72), name: names[i],
+        sled: U.pick(SLEDS).id, outfit: U.pick(OUTFITS).id,
+      });
+    }
+    return 1500;
+  } },
+  { id: 'gates', lvl: 2, w: 2.2, spawn(G, z) {
+    const step = Math.max(2600, estSpeed(G) * 0.6), n = 5, series = Math.random();
+    const side = U.pick([-1, 1]);
+    for (let i = 0; i < n; i++) {
+      G.add('gate', side * (i % 2 ? 0.45 : -0.45) + U.rand(-0.1, 0.1), z + i * step, { series, idx: i, total: n, col: i % 2 ? '#3d6fd6' : '#e63946' });
+    }
+    G.gateSeries[series] = 0;
+    return n * step;
+  } },
+  { id: 'crevasse', lvl: 2, w: 1.6, spawn(G, z) {
+    for (const x of [-0.8, -0.4, 0, 0.4, 0.8]) G.add('ramp', x, z);
+    G.add('crevasse', 0, z + 800);
+    return 2400 + estSpeed(G) * 0.8;
+  } },
+  { id: 'snowcat', lvl: 3, w: 1.8, spawn(G, z) {
+    const n = G.level >= 6 ? 2 : 1;
+    for (let i = 0; i < n; i++) G.add('snowcat', U.rand(-0.55, 0.55), z + i * 4000, { vz: -1800 });
+    return n * 4000;
+  } },
+  { id: 'chaos', lvl: 8, w: 2.5, spawn(G, z) {
+    const pool = EVENTS.filter(e => e.lvl <= G.level && !['chaos', 'surge', 'crevasse', 'rivals', 'power'].includes(e.id));
+    const a = U.pick(pool).spawn(G, z) || 0;
+    const b = U.pick(pool).spawn(G, z + 800) || 0;
+    return Math.max(a, b + 800);
+  } },
+];
+
+const Director = {
+  cursor: 0,
+  lastSurgeZ: -1e9,
+  reset(G, firstGap = 9000) { this.cursor = G.player.z + firstGap; this.lastSurgeZ = -1e9; },
+  update(G) {
+    const P = G.player, horizon = P.z + 36000;
+    let guard = 0;
+    while (this.cursor < horizon && guard++ < 6) {
+      const pool = EVENTS.filter(e => e.lvl <= G.level && !(e.id === 'surge' && (G.attract || this.cursor - this.lastSurgeZ < 60000)));
+      const ev = U.weighted(pool);
+      if (ev.id === 'surge') this.lastSurgeZ = this.cursor;
+      const len = ev.spawn(G, this.cursor) || 0;
+      const gap = Math.max(2500, estSpeed(G) * U.rand(0.9, 1.6) * Math.max(0.5, 1 - G.level * 0.045));
+      this.cursor += len + gap;
+    }
+  },
+};

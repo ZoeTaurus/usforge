@@ -1,5 +1,25 @@
 [
   {
+    "slug": "1-million-deaths",
+    "title": "1 million deaths",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "misleading name, by the way. the deaths you can get are about 150. anyway, die all the ways possible to win!",
+    "cover": "games/1-million-deaths/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [
+      "Action",
+      "Adventure",
+      "Casual"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790770523
+  },
+  {
     "slug": "potato-chase",
     "title": "Potato chase",
     "author": "Alex",

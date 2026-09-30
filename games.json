@@ -77,10 +77,10 @@
   },
   {
     "slug": "rooftop-run",
-    "title": "Rooftop Run",
+    "title": "Skyline Dash",
     "author": "Milan",
     "owner": "Milan",
-    "blurb": "In development",
+    "blurb": "In development 70%",
     "cover": null,
     "pixel": false,
     "url": null,
@@ -88,7 +88,7 @@
       "Platformer"
     ],
     "dev": true,
-    "progress": 40,
+    "progress": 70,
     "next": "",
     "build": true,
     "added": 1790618657

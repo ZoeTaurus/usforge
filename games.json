@@ -1,5 +1,23 @@
 [
   {
+    "slug": "striker-100",
+    "title": "Striker 100",
+    "author": "Igor",
+    "owner": "Igor",
+    "blurb": "A goofy game where you take shots at a goal.",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Sports"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790771412
+  },
+  {
     "slug": "1-million-deaths",
     "title": "1 Million Deaths",
     "author": "Alex",

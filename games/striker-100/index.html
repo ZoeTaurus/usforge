@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Striker 100 FPV</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#e9efe6;--fg:#11301a;--card:#fffdf5;--acc:#e4572e}
+html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1710;--fg:#e8f3ea;--card:#15281b}}
+:root[data-theme="dark"]{--bg:#0b1710;--fg:#e8f3ea;--card:#15281b}
+body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;display:flex;justify-content:center;align-items:center}
+#wrap{position:relative;width:min(100vw,calc(100vh*0.75));aspect-ratio:3/4;max-height:100vh}
+canvas{width:100%;height:100%;display:block;touch-action:none;border-radius:10px;cursor:crosshair}
+#ov{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(6,20,10,.72);border-radius:10px;text-align:center;padding:16px}
+#ov div{background:var(--card);color:var(--fg);padding:22px 24px;border-radius:14px;max-width:320px}
+#ov h1{margin:0 0 8px;font-size:30px;letter-spacing:-.5px}
+#ov p{margin:0 0 16px;line-height:1.45;font-size:15px}
+#ov button{display:block;width:100%;margin:8px 0 0;padding:12px;border:0;border-radius:10px;background:var(--acc);color:#fff;font-size:16px;font-weight:700;cursor:pointer}
+#ov button.alt{background:transparent;color:var(--fg);border:2px solid var(--fg)}
+#ov button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+</style></head><body>
+<div id="wrap"><canvas id="c" width="480" height="640"></canvas><div id="ov"></div></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov');
+const W=480,H=640,F=520,HOR=290,CH=1,D=2.2,GZ=11,GW=3.66,GH=2.44,BR=.11,T=.6;
+let stage=1,best=1,shots=3,state='menu',msg='',wait=0,time=0,scored=false,ball,sh,obs=[],gk,ptr=null;
+try{best=Math.min(100,+localStorage.getItem('striker100_best')||1)}catch(e){}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const sc=z=>F/(z+D),X=(x,z)=>W/2+x*sc(z),Y=(y,z)=>HOR-(y-CH)*sc(z);
+const cr=rng(7),dots=[];for(let i=0;i<260;i++)dots.push([(cr()*2-1)*30,.4+cr()*5.8,['#e4572e','#f2b705','#fff','#3b82c4','#c62f3a'][cr()*5|0]]);
+function show(h,p,btns){ov.innerHTML='<div><h1>'+h+'</h1><p>'+p+'</p>'+btns.map((b,i)=>'<button class="'+(b[2]||'')+'" data-i="'+i+'">'+b[0]+'</button>').join('')+'</div>';ov.style.display='flex';ov.querySelectorAll('button').forEach(el=>el.onclick=()=>{ov.style.display='none';btns[+el.dataset.i][1]()})}
+function setup(s){
+  stage=s;shots=3;const r=rng(s*977+13);
+  gk={x:(r()*2-1)*2,dir:r()<.5?-1:1,w:1.3+s*.005,h:1.4+s*.007,v:2.68+s*.0927};
+  obs=[];
+  const n=s<10?0:Math.min(7,1+Math.floor((s-10)/14));
+  const types=['static'];if(s>=20)types.push('slide');if(s>=40)types.push('wall');if(s>=60)types.push('fast');
+  for(let i=0;i<n;i++){
+    const ty=types[Math.floor(r()*types.length)];
+    const o={type:ty,x:(r()*2-1)*4.2,z:3+r()*5.5,w:.7,vx:0,dir:r()<.5?-1:1};
+    if(ty=='slide')o.vx=.98+s*.022;
+    if(ty=='fast')o.vx=2.2+s*.0366;
+    if(ty=='wall'){o.w=2.5;o.x=(r()*2-1)*3}
+    obs.push(o);
+  }
+  obs.sort((a,b)=>a.z-b.z);
+  resetBall();state='aim';
+}
+function resetBall(){ball={x:0,y:BR,z:0,spin:0}}
+function pos(e){const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+cv.addEventListener('pointermove',e=>{ptr=pos(e)});
+cv.addEventListener('pointerdown',e=>{
+  ptr=pos(e);if(state!='aim'||ptr.y>500)return;
+  const s=sc(GZ);sh={tx:(ptr.x-W/2)/s,ty:Math.max(BR,CH-(ptr.y-HOR)/s),p:0};state='fly';
+});
+function end(text,ok){msg=text;scored=ok;state='res';wait=1.1;if(!ok)shots--}
+function next(){
+  if(scored){
+    if(stage>=100){state='menu';show('Champion!','You beat all 100 stages. The keeper needs a lie down.',[['Play again',()=>setup(1)]]);return}
+    best=Math.max(best,stage+1);try{localStorage.setItem('striker100_best',best)}catch(e){}
+    setup(stage+1);
+  }else if(shots<=0){
+    state='menu';show('Out of shots','Stage '+stage+' is still yours to beat.',[['Retry stage '+stage,()=>setup(stage)],['Back to menu',menu,'alt']]);
+  }else{resetBall();state='aim'}
+}
+function menu(){
+  const b=[['Start at stage 1',()=>setup(1)]];
+  if(best>1){b.unshift(['Continue at stage '+best,()=>setup(best)]);b[1][2]='alt'}
+  show('Striker 100','You are on the penalty spot. Tap the goal to shoot. Beat the keeper in 100 stages while he speeds up and defenders line up in your way.',b);
+}
+function update(dt){
+  time+=dt;
+  if(state=='menu')return;
+  const v=gk.v*(stage>=50?1+.25*Math.sin(time*2.7):1);
+  gk.x+=gk.dir*v*dt;const m=GW-gk.w/2;
+  if(gk.x<-m){gk.x=-m;gk.dir=1}if(gk.x>m){gk.x=m;gk.dir=-1}
+  for(const o of obs)if(o.vx){o.x+=o.dir*o.vx*dt;const l=4.6-o.w/2;if(o.x<-l){o.x=-l;o.dir=1}if(o.x>l){o.x=l;o.dir=-1}}
+  if(state=='fly'){
+    const p0=sh.p;sh.p=Math.min(1,sh.p+dt/T);const p=sh.p;
+    ball.x=sh.tx*p;ball.y=BR+(sh.ty-BR)*p;ball.z=GZ*p;ball.spin+=dt*22;
+    for(const o of obs){const po=o.z/GZ;
+      if(p0<po&&po<=p){const bx=sh.tx*po,by=BR+(sh.ty-BR)*po;
+        if(Math.abs(bx-o.x)<o.w/2+BR&&by<1.85){ball.x=bx;ball.y=by;ball.z=o.z;end('BLOCKED!',false);return}}}
+    if(p>=1){
+      const inG=Math.abs(sh.tx)<GW-BR*.5&&sh.ty<GH-BR*.5;
+      if(!inG)end(sh.ty>=GH?'OVER THE BAR!':'WIDE!',false);
+      else if(Math.abs(sh.tx-gk.x)<gk.w/2+BR&&sh.ty-BR<gk.h)end('SAVED!',false);
+      else end('GOAL!',true);
+    }
+  }else if(state=='res'){wait-=dt;if(scored)ball.z=Math.min(12.6,ball.z+dt*4);if(wait<=0)next()}
+}
+function poly(pts,fill){ctx.beginPath();pts.forEach((p,i)=>ctx[i?'lineTo':'moveTo'](X(p[0],p[2]),Y(p[1],p[2])));ctx.closePath();ctx.fillStyle=fill;ctx.fill()}
+function seg(a,b,col,lw){ctx.strokeStyle=col;ctx.lineWidth=lw;ctx.beginPath();ctx.moveTo(X(a[0],a[2]),Y(a[1],a[2]));ctx.lineTo(X(b[0],b[2]),Y(b[1],b[2]));ctx.stroke()}
+function person(x,z,w,h,col,skin){
+  const s=sc(z),bx=X(x,z),by=Y(0,z),lh=h*.48;
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(bx,by,w*s*.7,w*s*.18,0,0,7);ctx.fill();
+  ctx.fillStyle='#1b2a4a';ctx.fillRect(bx-w*s*.4,by-lh*s,w*s*.8,lh*s);
+  ctx.fillStyle=col;ctx.beginPath();ctx.roundRect(bx-w*s/2,by-(h-.22)*s,w*s,(h-.22-lh)*s,w*s*.2);ctx.fill();
+  ctx.fillStyle=skin;ctx.beginPath();ctx.arc(bx,by-(h-.11)*s,.11*s,0,7);ctx.fill();
+}
+function drawBall(b){
+  const s=sc(b.z),x=X(b.x,b.z),y=Y(b.y,b.z),r=BR*s;
+  ctx.fillStyle='rgba(0,0,0,.28)';ctx.beginPath();ctx.ellipse(x,Y(0,b.z),r*1.1,r*.35,0,0,7);ctx.fill();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();
+  ctx.strokeStyle='#222';ctx.lineWidth=Math.max(1,r*.1);ctx.stroke();
+  ctx.fillStyle='#222';ctx.beginPath();ctx.arc(x+Math.cos(b.spin)*r*.35,y+Math.sin(b.spin)*r*.35,r*.3,0,7);ctx.fill();
+}
+function draw(){
+  let g=ctx.createLinearGradient(0,0,0,HOR);g.addColorStop(0,'#1d3b6b');g.addColorStop(1,'#f0b97a');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#1f2536';ctx.fillRect(0,Y(7,22),W,Y(0,22)-Y(7,22)+1);
+  for(const d of dots){ctx.fillStyle=d[2];ctx.fillRect(X(d[0],22)-1.5,Y(d[1],22)-1.5,3,3)}
+  for(let z=-2;z<22;z+=2){const y1=Y(0,z+2),y0=Math.min(H,Y(0,z));ctx.fillStyle=(z/2)&1?'#2e8a3c':'#37a047';ctx.fillRect(0,y1,W,y0-y1+1)}
+  for(let x=-30,i=0;x<30;x+=5,i++){ctx.fillStyle=i&1?'#1d5fa8':'#e4572e';ctx.fillRect(X(x,19),Y(1,19),5*sc(19)+1,Y(0,19)-Y(1,19))}
+  const wl='rgba(255,255,255,.8)';
+  seg([-12,0,GZ],[12,0,GZ],wl,3);seg([-9.16,0,5.5],[9.16,0,5.5],wl,3);seg([-9.16,0,5.5],[-9.16,0,GZ],wl,3);seg([9.16,0,5.5],[9.16,0,GZ],wl,3);
+  ctx.fillStyle=wl;ctx.beginPath();ctx.ellipse(X(0,0),Y(0,0),8,3,0,0,7);ctx.fill();
+  // net
+  const nb=13,nt=2;
+  poly([[-GW,0,GZ],[-GW,GH,GZ],[-GW,nt,nb],[-GW,0,nb]],'rgba(15,30,20,.35)');
+  poly([[GW,0,GZ],[GW,GH,GZ],[GW,nt,nb],[GW,0,nb]],'rgba(15,30,20,.35)');
+  poly([[-GW,GH,GZ],[GW,GH,GZ],[GW,nt,nb],[-GW,nt,nb]],'rgba(15,30,20,.25)');
+  poly([[-GW,0,nb],[GW,0,nb],[GW,nt,nb],[-GW,nt,nb]],'rgba(15,30,20,.45)');
+  for(let x=-GW;x<=GW+.01;x+=.61)seg([x,0,nb],[x,nt,nb],'rgba(255,255,255,.3)',1);
+  for(let y=0;y<=nt+.01;y+=.5)seg([-GW,y,nb],[GW,y,nb],'rgba(255,255,255,.3)',1);
+  // depth-sorted things
+  const list=[{z:GZ+.05,f:()=>{const lw=.12*sc(GZ);seg([-GW,0,GZ],[-GW,GH,GZ],'#fff',lw);seg([GW,0,GZ],[GW,GH,GZ],'#fff',lw);seg([-GW-.06,GH,GZ],[GW+.06,GH,GZ],'#fff',lw)}},
+    {z:GZ,f:()=>person(gk.x,GZ,gk.w,gk.h,'#f2b705','#f1c9a5')}];
+  for(const o of obs)list.push({z:o.z,f:()=>{
+    const c=o.type=='fast'?'#7b2fbf':o.type=='slide'?'#e4572e':'#c62f3a';
+    if(o.type=='wall')for(let k=-1;k<=1;k++)person(o.x+k*.9,o.z,.7,1.8,c,'#e0b48c');
+    else person(o.x,o.z,o.w,1.8,c,'#e0b48c')}});
+  if(ball)list.push({z:ball.z,f:()=>drawBall(ball)});
+  list.sort((a,b)=>b.z-a.z).forEach(d=>d.f());
+  // aim
+  if(state=='aim'&&ptr){const ay=Math.min(ptr.y,500);
+    ctx.setLineDash([8,8]);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(X(0,0),Y(BR,0));ctx.lineTo(ptr.x,ay);ctx.stroke();ctx.setLineDash([]);
+    ctx.beginPath();ctx.arc(ptr.x,ay,10,0,7);ctx.moveTo(ptr.x-16,ay);ctx.lineTo(ptr.x+16,ay);ctx.moveTo(ptr.x,ay-16);ctx.lineTo(ptr.x,ay+16);ctx.stroke()}
+  // HUD
+  ctx.fillStyle='rgba(6,20,10,.6)';ctx.fillRect(0,0,W,42);
+  ctx.fillStyle='#fff';ctx.font='bold 20px "Trebuchet MS",sans-serif';ctx.textAlign='left';
+  ctx.fillText('Stage '+stage+' / 100',14,28);
+  const sl=Math.max(shots,0);ctx.textAlign='right';ctx.fillText('Shots '+'\u25CF'.repeat(sl)+'\u25CB'.repeat(3-sl),W-14,28);
+  ctx.textAlign='center';
+  if(state=='res'){ctx.font='900 54px "Trebuchet MS",sans-serif';ctx.lineWidth=8;ctx.strokeStyle='#0b1710';ctx.strokeText(msg,W/2,190);ctx.fillStyle=scored?'#ffd23f':'#fff';ctx.fillText(msg,W/2,190)}
+  if(state=='aim'&&shots==3){ctx.font='15px "Trebuchet MS",sans-serif';ctx.fillStyle='#fff';ctx.fillText('Tap where you want to shoot. One goal clears the stage.',W/2,H-14)}
+}
+let last=performance.now();
+function loop(n){const dt=Math.min(.05,(n-last)/1000);last=n;update(dt);draw();requestAnimationFrame(loop)}
+setup(1);state='menu';menu();requestAnimationFrame(loop);
+</script></body></html>

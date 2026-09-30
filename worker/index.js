@@ -328,8 +328,8 @@ async function upload(req, env) {
     genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now,
     ...((replacing ? files.some(f => f.text !== undefined && /usforge['"]?\s*:\s*['"]score/.test(f.text)) : (list || []).find(g => g.slug === slug)?.leaderboard) ? { leaderboard: true } : {}),
     ...((before && (replacing || coverPath)) ? { updated: now } : (list || []).find(g => g.slug === slug)?.updated ? { updated: (list || []).find(g => g.slug === slug).updated } : {}) };
-  // updates to games already on the site, and anything the admin (Taurus) uploads, go live straight away
-  if (who.admin || before) {
+  // updates to games already on the site, and anything a founder uploads, go live straight away
+  if (who.admin || who.founder || before) {
     const livePaths = new Set(liveTree.map(e => e.path));
     const fromWaiting = kept.filter(p => !livePaths.has(p) && shaOf.has(p)).map(p => ({ path: p, sha: shaOf.get(p) }));   // (files kept from a waiting version)
     const stale = [...livePaths].filter(p => !all.has(p) && !p.endsWith('/game.json')).map(path => ({ path, remove: true }));   // old files (and an old cover) that were replaced
@@ -339,7 +339,7 @@ async function upload(req, env) {
       `${before ? 'Update' : 'Add'} ${title} (by ${info.author}, via the upload page)`);
     return { ok: true, slug, updated: !!before, pending: false };
   }
-  // a brand-new game from anyone else waits in review/<slug>/ until a founder approves it
+  // a brand-new game from anyone who isn't a founder waits in review/<slug>/ until a founder approves it
   const toReview = p => p.replace(`games/${slug}/`, `review/${slug}/`);
   const staged = [...files.map(f => ({ ...f, path: toReview(f.path) })), ...kept.filter(p => shaOf.has(p)).map(p => ({ path: toReview(p), sha: shaOf.get(p) }))];
   const keep = new Set(staged.map(f => f.path));

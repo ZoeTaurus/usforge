@@ -24,7 +24,7 @@
 
   <main class="doc">
     <h1>Upload</h1>
-    <p class="dim" id="lead">Members can add and update their own games here. New games are checked by one of the founders before they go live. Updates go live straight away.</p>
+    <p class="dim" id="lead">Members can add and update their own games here. New games from members are checked by one of the founders before they go live. Updates, and the founders’ own games, go live straight away.</p>
 
     <!-- only the Cloudflare address can save uploads -->
     <div id="elsewhere" hidden>
@@ -44,7 +44,7 @@
       <!-- founders: games waiting for a yes -->
       <section id="reviewBox" hidden>
         <h2>Needs review <span class="review-count" id="reviewCount"></span></h2>
-        <p class="dim">New games wait here until a founder approves them. You can’t review your own; another founder does.</p>
+        <p class="dim">New games from members wait here until one of the founders approves them.</p>
         <div id="reviewList" class="review-list"></div>
       </section>
 
@@ -487,7 +487,7 @@
       say('upMsg', 'Saving your game…');
       const r = await api('upload', fd);
       say('upMsg', ''); $('upMsg').innerHTML = r.pending
-        ? `Sent for review! ${me.founder ? 'Another founder' : 'A founder'} will check it soon, and it goes live once they approve it.`
+        ? `Sent for review! A founder will check it soon, and it goes live once they approve it.`
         : `Updated! It’ll be on the site in about a minute — <a href="play.html?g=${encodeURIComponent(r.slug)}">see it</a>.`;
       endEdit(); listMine();
     } catch (err) { say('upMsg', err.message, true); }

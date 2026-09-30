@@ -9,10 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=43">
+<link rel="stylesheet" href="style.css?v=44">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
-<script src="icons.js?v=2"></script>
-<script src="site.js?v=32"></script>
+<script src="icons.js?v=3"></script>
+<script src="site.js?v=33"></script>
 </head>
 <body>
 
@@ -240,6 +240,7 @@
     const d = await r?.json().catch(() => ({}));
     $('scoreBar').hidden = true; pendingScore = null; frame?.focus();
     if (!r?.ok) { UsForge.toast(d?.error || 'Couldn’t save the score. Try again later.'); return; }
+    try { const mine = JSON.parse(localStorage.getItem('usforge-myscores') || '{}'); mine[game.slug] = { name, at: Math.floor(Date.now() / 1000) }; localStorage.setItem('usforge-myscores', JSON.stringify(mine)); } catch (err) {}
     if (d.rank) { UsForge.flag('hs'); UsForge.toast(d.improved ? `You’re <b>#${d.rank}</b> on the leaderboard!` : `Your best is still #${d.rank}. Keep trying!`); }
     else UsForge.toast('Saved! Not in the top 10 yet. Keep going!');
     loadBoard(d.board?.list?.[d.rank - 1]?.id);

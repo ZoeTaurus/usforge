@@ -67,6 +67,12 @@
       app.type = 'button'; app.className = 'app-btn'; app.hidden = true; app.innerHTML = `${window.UsForgeIcon?.('download') || ''} Get the app`;
       app.onclick = () => install();
       spot.insertBefore(app, b);
+      const bell = document.createElement('button');
+      bell.type = 'button'; bell.className = 'bell-btn'; bell.setAttribute('aria-label', 'Notifications'); bell.setAttribute('aria-expanded', 'false');
+      bell.innerHTML = `${window.UsForgeIcon?.('bell') || 'News'}<span class="bell-n" hidden></span>`;
+      bell.onclick = e => { e.stopPropagation(); toggleNews(bell); };
+      spot.insertBefore(bell, app);
+      loadNews();
       paintApp();   // (now that the button exists)
     }
     apply();
@@ -303,6 +309,56 @@
     bar.querySelector('.banner-x').onclick = () => { setPref(BANNER, 'closed'); bar.classList.add('closing'); setTimeout(() => bar.remove(), 250); };
     document.body.prepend(bar);
   });
+
+  // ---------- notifications: what happened since your last look (worked out in this browser) ----------
+  // new games · updates to your favorites · leaderboards where someone passed your score
+  let news = [], newsPanel = null;
+  const NEWS_SEEN = 'usforge-news-seen';
+  async function loadNews() {
+    const now = Math.floor(Date.now() / 1000);
+    let seen = store.get(NEWS_SEEN, 0);
+    if (!seen) { store.set(NEWS_SEEN, now); seen = now; }   // (first visit: start fresh instead of listing everything)
+    let games = [];
+    try { games = await (await fetch('/games.json', { cache: 'no-cache' })).json(); } catch (e) { return; }
+    const bySlug = Object.fromEntries(games.map(g => [g.slug, g])), items = [];
+    for (const g of games) if (!g.dev && g.added > seen) items.push({ at: g.added, icon: 'sparkles', text: `New game: <b>${esc(g.title)}</b> by ${esc(g.author)}`, href: `/play.html?g=${encodeURIComponent(g.slug)}` });
+    for (const slug of favs()) { const g = bySlug[slug]; if (g?.updated > seen) items.push({ at: g.updated, icon: 'heart', text: `Your favorite <b>${esc(g.title)}</b> was updated`, href: `/play.html?g=${encodeURIComponent(slug)}` }); }
+    // leaderboards: did anyone pass you?
+    const mine = store.get('usforge-myscores', {});
+    await Promise.all(Object.entries(mine).filter(([slug]) => bySlug[slug]).slice(0, 8).map(async ([slug, m]) => {
+      try {
+        const b = await (await fetch('/api/scores?g=' + encodeURIComponent(slug), { cache: 'no-store' })).json();
+        const idx = (b.list || []).findIndex(e => e.name.toLowerCase() === m.name.toLowerCase()), rank = idx + 1;
+        const passed = (b.list || []).slice(0, idx < 0 ? 10 : idx).filter(e => e.at > seen && e.name.toLowerCase() !== m.name.toLowerCase());
+        if (!passed.length) return;
+        const g = bySlug[slug], who = passed[passed.length - 1].name;
+        items.push({ at: Math.max(...passed.map(e => e.at)), icon: 'medal', text: rank ? `<b>${esc(who)}</b> passed you on <b>${esc(g.title)}</b>. You’re now #${rank}.` : `<b>${esc(who)}</b> knocked you out of the top 10 on <b>${esc(g.title)}</b>!`, href: `/play.html?g=${encodeURIComponent(slug)}` });
+      } catch (e) {}
+    }));
+    news = items.sort((a, b) => b.at - a.at).slice(0, 20);
+    for (const n of document.querySelectorAll('.bell-n')) { n.hidden = !news.length; n.textContent = news.length > 9 ? '9+' : news.length; }
+  }
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const agoShort = t => { const m = Math.max(1, Math.round((Date.now() / 1000 - t) / 60)); return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`; };
+  function toggleNews(bell) {
+    if (newsPanel) return closeNews();
+    newsPanel = document.createElement('div'); newsPanel.className = 'news-panel'; newsPanel.setAttribute('role', 'dialog'); newsPanel.setAttribute('aria-label', 'Notifications');
+    const I = n => window.UsForgeIcon?.(n) || '';
+    newsPanel.innerHTML = `<b class="news-title">Since your last visit</b>` + (news.length
+      ? `<ul>${news.map(n => `<li><a href="${n.href}"><span class="news-ico">${I(n.icon)}</span><span>${n.text}<time>${agoShort(n.at)}</time></span></a></li>`).join('')}</ul>`
+      : '<p>Nothing new right now. New games, updates to your favorites and leaderboard news show up here.</p>');
+    document.body.append(newsPanel);
+    const r = bell.getBoundingClientRect();
+    newsPanel.style.top = `${r.bottom + scrollY + 8}px`;
+    newsPanel.style.left = `${Math.max(12 + scrollX, Math.min(r.right + scrollX - newsPanel.offsetWidth, scrollX + innerWidth - newsPanel.offsetWidth - 12))}px`;
+    bell.setAttribute('aria-expanded', 'true');
+    // opening it marks everything as read
+    store.set(NEWS_SEEN, Math.floor(Date.now() / 1000));
+    for (const n of document.querySelectorAll('.bell-n')) n.hidden = true;
+  }
+  function closeNews() { newsPanel?.remove(); newsPanel = null; document.querySelector('.bell-btn')?.setAttribute('aria-expanded', 'false'); }
+  addEventListener('click', e => { if (newsPanel && !newsPanel.contains(e.target)) closeNews(); });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && newsPanel) closeNews(); });
 
   window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast, store, favs, isFav, toggleFav, addTime, flag };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();

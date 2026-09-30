@@ -6,5 +6,9 @@
     "icon": "potato",
     "bio": "i like potatoes :)",
     "fav": "pirate-madness"
+  },
+  "Milan": {
+    "icon": "crown",
+    "fav": "pirate-madness"
   }
 }

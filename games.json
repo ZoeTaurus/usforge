@@ -1,5 +1,23 @@
 [
   {
+    "slug": "skyline-dash",
+    "title": "Skyline Dash",
+    "author": "Milan",
+    "owner": "Milan",
+    "blurb": "Do parkour levels and minigames",
+    "cover": "games/skyline-dash/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Platformer"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790857977
+  },
+  {
     "slug": "fish-life",
     "title": "fish life",
     "author": "Alex",

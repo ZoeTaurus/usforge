@@ -1,4 +1,13 @@
 'use strict';
+// UsForge leaderboard: report a finished run's score to the page hosting the game.
+// Does nothing when the game is opened on its own.
+function sendScoreToUsForge(score) {
+  if (window.parent === window) return;
+  try {
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'points' }, '*');
+  } catch (e) {}
+}
+
 const U = {
   clamp: (v, a, b) => (v < a ? a : v > b ? b : v),
   lerp: (a, b, t) => a + (b - a) * t,

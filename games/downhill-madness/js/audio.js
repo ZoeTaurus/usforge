@@ -71,8 +71,11 @@ const Sfx = {
     this.rumble.g.gain.setTargetAtTime(rumble * 0.9, t, 0.25);
   },
 
+  // The title demo plays silently; menu clicks wrap their sounds in ui() to stay audible.
+  ui(fn) { this.uiSound = true; try { fn(); } finally { this.uiSound = false; } },
+
   tone(f, dur, type = 'square', vol = 0.2, f2 = null, delay = 0, lp = 0, dest = null) {
-    if (!this.ctx) return;
+    if (!this.ctx || (this.quiet && !this.uiSound && dest !== this.musicBus)) return;
     const c = this.ctx, t = c.currentTime + delay;
     const o = c.createOscillator();
     o.type = type;
@@ -95,7 +98,7 @@ const Sfx = {
   },
 
   noise(dur, vol, freq, type = 'lowpass', delay = 0, freq2 = null, dest = null) {
-    if (!this.ctx) return;
+    if (!this.ctx || (this.quiet && !this.uiSound && dest !== this.musicBus)) return;
     const c = this.ctx, t = c.currentTime + delay;
     const s = c.createBufferSource();
     s.buffer = this.noiseBuf;
@@ -162,6 +165,8 @@ const Sfx = {
     for (const f of [466, 587, 698]) this.tone(f, 0.28, 'sawtooth', 0.07, f * 0.97, 0, 2400);
     this.noise(0.5, 0.18, 1800, 'bandpass', 0.05);
   },
+  grind() { this.noise(0.09, 0.14, 3800, 'bandpass'); this.tone(1900 + Math.random() * 300, 0.05, 'square', 0.025); },
+  boing() { this.tone(180, 0.45, 'sine', 0.3, 720); this.tone(360, 0.3, 'triangle', 0.12, 1200, 0.05); },
   whoosh() { this.noise(0.5, 0.4, 600, 'bandpass', 0, 4000); },
   caught() { this.noise(2.4, 1, 900, 'lowpass', 0, 60); this.tone(60, 2, 'sawtooth', 0.25, 25, 0, 300); },
 
@@ -266,7 +271,7 @@ const Voice = {
     const st = Save.data.settings;
     st.voiceStyle = VOICE_ORDER[(VOICE_ORDER.indexOf(st.voiceStyle) + 1) % VOICE_ORDER.length];
     Save.write();
-    this.say('Ready to sled!', 0.9, true);
+    Sfx.ui(() => this.say('Ready to sled!', 0.9, true));
   },
   // Score every English voice: named favourites first, and for natural styles,
   // big bonuses for high-quality voices (macOS Premium/Enhanced, Edge "Natural").
@@ -319,6 +324,7 @@ const Voice = {
   say(text, hype = 0.6, force = false) {
     try {
       if (!Save.data.settings.voice || Sfx.muted || !Save.data.settings.sfx) return;
+      if (typeof G !== 'undefined' && G.attract && !Sfx.uiSound) return;
       if (!('speechSynthesis' in window)) return;
       const now = performance.now();
       if (!force && now - this.last < 2000) return;

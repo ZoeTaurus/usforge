@@ -413,3 +413,56 @@ kbd {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .item p { display: none; }
 }
+
+/* ---------- v3: title screen lets the demo run show through ---------- */
+#title-screen { background: radial-gradient(ellipse at 50% 35%, rgba(15, 24, 56, 0.05), rgba(15, 24, 56, 0.55)); }
+
+@media (min-width: 1100px) {
+  #title-screen {
+    place-items: start start;
+    padding-inline: 4vw;
+    background: linear-gradient(90deg, rgba(15, 24, 56, 0.82) 0%, rgba(15, 24, 56, 0.55) 34%, rgba(15, 24, 56, 0) 56%);
+  }
+  #title-screen .card { max-width: 560px; justify-items: start; text-align: left; }
+  #title-screen .row, #title-screen .settings, #title-screen .profile { justify-content: flex-start; }
+  #title-screen .logo span { font-size: clamp(56px, 6.4vw, 104px); }
+  #title-screen .logo .l2 { font-size: clamp(64px, 7.6vw, 128px); }
+  #title-screen .tag { max-width: 40ch; }
+}
+
+.demo-tag {
+  position: fixed;
+  z-index: 5;
+  right: 16px;
+  top: calc(16px + env(safe-area-inset-top, 0px));
+  font-family: var(--label);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ice);
+  background: var(--frost);
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 6px 12px;
+  pointer-events: none;
+}
+.demo-tag b { color: var(--sun); font-weight: 400; }
+
+/* ---------- v6: trophies ---------- */
+.trophy-grid { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.trophy {
+  display: flex; gap: 14px; align-items: center; text-align: left; min-width: 0;
+  background: var(--frost); border: 3px solid var(--ink); border-radius: 16px; padding: 12px 14px;
+  opacity: 0.6;
+}
+.trophy.got { opacity: 1; border-color: var(--sun); }
+.trophy .medal {
+  flex: none; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--display); font-size: 28px; color: var(--ink);
+  background: #9aa3b5; border: 3px solid var(--ink); box-shadow: 0 4px 0 var(--ink);
+}
+.trophy.got .medal { background: var(--sun); }
+.trophy h3 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 20px; letter-spacing: 0.02em; }
+.trophy p { margin: 2px 0 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
+.trophy .reward { font-family: var(--label); font-size: 11px; color: var(--sun); letter-spacing: 0.05em; text-transform: uppercase; }
+

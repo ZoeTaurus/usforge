@@ -6,7 +6,7 @@ const Player = {
     Object.assign(this, {
       x: 0, z: 0, speed: 0, air: 0, vy: 0, flip: 0, spin: 0, airTime: 0, grabTime: 0, grab: false,
       crash: 0, tumble: 0, invuln: 0, lean: 0, boost: 0, deep: false, launchKind: '', maxAir: 0, squash: 0,
-      pw: { shield: 0, magnet: 0, rocket: 0, double: 0 },
+      pw: { shield: 0, magnet: 0, rocket: 0, double: 0 }, grind: null, grindT: 0, icy: 0, nado: 0,
     });
     const d = Save.data;
     this.sled = sledById(d.sled);
@@ -25,8 +25,10 @@ const Player = {
     if (kind !== 'bump') Sfx.jump(kind);
   },
 
+  // `controls` is true for the keyboard/touch, or an input object from the AI pilot.
   update(dt, G, controls) {
-    const inp = Input.down;
+    const inp = controls === true ? Input.down : controls || {};
+    const jumpPressed = controls === true ? Input.pressed.jump : inp.jumpPressed;
     const maxBase = G.maxSpeed;
     let target = maxBase;
     const seg = G.track.get(Math.floor(this.z / CFG.SEG_LEN));
@@ -43,19 +45,30 @@ const Player = {
       return;
     }
 
-    if (!this.airborne) {
+    if (this.grind) {
+      // Locked onto a rail: slide along it until the end or a hop.
+      const r = this.grind;
+      this.x += (r.x - this.x) * Math.min(1, dt * 14);
+      this.air = r.h; this.vy = 0;
+      this.lean = Math.sin(G.time * 22) * 0.12;
+      this.grindT += dt;
+      if (jumpPressed || this.z > r.z + r.len) G.endGrind(!!jumpPressed);
+    } else if (!this.airborne) {
       const steer = controls ? (inp.right ? 1 : 0) - (inp.left ? 1 : 0) : 0;
-      this.x += steer * (1.1 + this.speed / 6500) * dt;
+      // On ice you barely steer and slowly slide.
+      this.x += steer * (1.1 + this.speed / 6500) * dt * (this.icy > 0 ? 0.3 : 1);
+      if (this.icy > 0) this.x += Math.sin(G.time * 2.3) * 0.18 * dt;
       this.lean = U.approach(this.lean, steer, dt * 6);
       if (controls) {
         if (inp.up) target *= 1.12;
         if (inp.down) target *= 0.5;
-        if (Input.pressed.jump) this.launch(900 + this.speed * 0.1, 'hop');
+        if (jumpPressed) this.launch(900 + this.speed * 0.1, 'hop');
       }
       this.x -= seg.curve * (this.speed / 10000) * dt * 0.28;
     } else {
       this.lean = U.approach(this.lean, 0, dt * 4);
-      if (controls) this.tricks(dt, inp);
+      if (this.nado > 0) { this.nado -= dt; this.spin += 16 * dt; } // the snownado spins you
+      else if (controls) this.tricks(dt, inp);
       this.airPhysics(dt, G);
     }
 
@@ -65,6 +78,8 @@ const Player = {
     target *= U.clamp(1 + (-G.track.grade(this.z) - 0.14) * 0.8, 0.8, 1.2);
     if (this.boost > 0) { this.boost -= dt; target = Math.max(target, maxBase * 1.45); }
     if (this.pw.rocket > 0) target = Math.max(target, maxBase * 1.85);
+    if (G.fever > 0) target *= 1.15;
+    if (this.icy > 0) { target *= 1.15; this.icy -= dt; }
     if (this.invuln > 0) this.invuln -= dt;
 
     if (this.speed < target) {

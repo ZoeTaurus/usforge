@@ -7,7 +7,12 @@ const Render = {
     this.cc = {};
     this.bgX = 0;
     this.segs = [];
-    this.mtns = [this.makeRange(14, 0.1, 0.21, 5, 0.25), this.makeRange(10, 0.04, 0.12, 4, 0.55)];
+    this.mtns = [this.makeRange(18, 0.16, 0.28, 6, 0.1, 0.55), this.makeRange(14, 0.1, 0.21, 5, 0.25, 0.25), this.makeRange(10, 0.04, 0.12, 4, 0.55, 0.05)];
+    this.clouds = Array.from({ length: 8 }, (_, i) => ({
+      x: i / 8 + Math.random() * 0.08, y: U.rand(0.03, 0.2), s: U.rand(0.6, 1.3), v: U.rand(0.5, 1.5),
+      puffs: Array.from({ length: U.randInt(4, 7) }, (_, j) => ({ dx: (j - 3) * U.rand(0.25, 0.4), dy: U.rand(-0.35, 0.1), r: U.rand(0.35, 0.65) })),
+    }));
+    this.viewShift = 0;
     this.stars = Array.from({ length: 150 }, () => ({ x: Math.random(), y: Math.random() * 0.42, r: Math.random() * 1.6 + 0.4, p: Math.random() * TAU }));
     this.flakes = Array.from({ length: 160 }, () => this.newFlake(true));
     this.playerScreen = { x: 0, y: 0, gy: 0, k: 1 };
@@ -16,10 +21,10 @@ const Render = {
     addEventListener('resize', () => this.resize());
   },
 
-  makeRange(n, hMin, hMax, period, par) {
+  makeRange(n, hMin, hMax, period, par, haze) {
     const peaks = [];
     for (let i = 0; i < n; i++) peaks.push({ x: (i + Math.random() * 0.6) / n, h: U.rand(hMin, hMax), w: U.rand(0.18, 0.34) });
-    return { peaks, period, par, near: par > 0.4 };
+    return { peaks, period, par, haze, near: par > 0.4 };
   },
 
   resize() {
@@ -36,10 +41,16 @@ const Render = {
     return { x: U.rand(-7000, 7000), y: U.rand(-900, 2600), z: init ? U.rand(200, 9000) : U.rand(7000, 9000) };
   },
 
-  col(name, f) {
-    const q = (f * 20) | 0, key = name + q;
+  // Palette colour, optionally lit (sh > 0) or shaded (sh < 0), then fogged.
+  col(name, f, sh = 0) {
+    const q = (f * 20) | 0, h = Math.round(sh * 6), key = name + q + '_' + h;
     let v = this.cc[key];
-    if (!v) v = this.cc[key] = U.rgb(U.mix(this.pal[name], this.pal.fog, q / 20));
+    if (!v) {
+      let c = this.pal[name];
+      if (h > 0) c = U.mix(c, [255, 255, 255], h / 12);
+      else if (h < 0) c = U.mix(c, U.mix(this.pal.bank, [40, 60, 110], 0.35), -h / 9);
+      v = this.cc[key] = U.rgb(U.mix(c, this.pal.fog, q / 20));
+    }
     return v;
   },
 
@@ -59,7 +70,11 @@ const Render = {
     const c = this.ctx, W = this.W, H = this.H;
     this.pal = Theme.pal;
     this.cc = {};
+    this.t = G.time;
+    const wantShift = G.state === 'title' && UI.current === 'title' && W / this.dpr >= 1100 ? W * 0.17 : 0;
+    this.viewShift += (wantShift - this.viewShift) * 0.08;
     c.save();
+    if (this.viewShift > 0.5) c.translate(this.viewShift, 0);
     if (G.shake > 0 && Save.data.settings.shake) {
       const m = Math.min(1, G.shake) * H * 0.018;
       c.translate(U.rand(-m, m), U.rand(-m, m));
@@ -73,9 +88,18 @@ const Render = {
     this.drawMountains(c);
     this.drawTerrain(c, G);
     this.drawFlakes(c, G.player.speed);
+    if (G.blizzI > 0.01) this.drawBlizzard(c, G);
     this.drawSpeedLines(c, G);
+    if (G.caveI > 0.01) {
+      c.fillStyle = `rgba(10,30,80,${0.32 * G.caveI})`;
+      c.fillRect(-W * 0.25, -H * 0.25, W * 1.5, H * 1.5);
+    }
     c.restore();
+    c.save();
+    if (this.viewShift > 0.5) c.translate(this.viewShift, 0);
     Particles.draw(c);
+    c.restore();
+    this.drawVignette(c);
     this.drawAvalanche(c, G);
     if (G.player.pw && G.player.pw.rocket > 0 && G.state === 'play') {
       const vg = c.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, Math.hypot(W, H) * 0.6);
@@ -134,6 +158,19 @@ const Render = {
     }
     const sx = W * 0.74, sy = HZ - H * 0.2, sr = H * 0.055;
     const glow = Math.max(p.sunOn || 0, p.moon || 0);
+    if ((p.sunOn || 0) > 0.01) {
+      c.save();
+      c.translate(sx, sy);
+      c.rotate(t * 0.05);
+      c.globalAlpha = 0.07 * p.sunOn;
+      c.fillStyle = U.rgb(p.sun);
+      for (let i = 0; i < 12; i++) {
+        c.rotate(TAU / 12);
+        c.beginPath(); c.moveTo(0, 0); c.lineTo(H * 0.9, -H * 0.05); c.lineTo(H * 0.9, H * 0.05); c.closePath(); c.fill();
+      }
+      c.restore();
+      c.globalAlpha = 1;
+    }
     if (glow > 0.01) {
       const rg = c.createRadialGradient(sx, sy, sr * 0.5, sx, sy, sr * 3.2);
       rg.addColorStop(0, U.rgb(p.sun, 0.55 * glow));
@@ -148,6 +185,7 @@ const Render = {
       }
       c.globalAlpha = 1;
     }
+    this.drawClouds(c, t, p);
     if (p.planet > 0.01) {
       const px = W * 0.22, py = HZ - H * 0.19, pr = H * 0.1;
       c.globalAlpha = p.planet;
@@ -161,20 +199,67 @@ const Render = {
     }
   },
 
+  drawClouds(c, t, p) {
+    const W = this.W, H = this.H;
+    const night = Math.max(p.stars || 0, p.aurora || 0);
+    const body = U.rgb(U.mix([255, 255, 255], p.skyBot, 0.25 + night * 0.5));
+    const shade = U.rgb(U.mix(U.mix([255, 255, 255], p.skyBot, 0.25 + night * 0.5), p.skyTop, 0.22));
+    c.globalAlpha = 0.85 - night * 0.55;
+    for (const cl of this.clouds) {
+      const span = W * 1.6;
+      const x = ((((cl.x * span + t * 12 * cl.v * this.dpr + this.bgX * H * 0.08) % span) + span) % span) - W * 0.3;
+      const y = cl.y * H, r = H * 0.06 * cl.s;
+      for (const pf of cl.puffs) Art.circ(c, x + pf.dx * r * 2, y + pf.dy * r + r * 0.25, pf.r * r * 1.05, shade);
+      for (const pf of cl.puffs) Art.circ(c, x + pf.dx * r * 2, y + pf.dy * r, pf.r * r, body);
+    }
+    c.globalAlpha = 1;
+  },
+
+  // Whiteout: thick snow haze over the distance plus sideways streaks.
+  drawBlizzard(c, G) {
+    const W = this.W, H = this.H, I = G.blizzI;
+    const g = c.createLinearGradient(0, this.HZ - H * 0.2, 0, H * 0.8);
+    g.addColorStop(0, `rgba(236,244,255,${0.95 * I})`);
+    g.addColorStop(0.55, `rgba(236,244,255,${0.75 * I})`);
+    g.addColorStop(1, `rgba(236,244,255,${0.12 * I})`);
+    c.fillStyle = g;
+    c.fillRect(-W * 0.25, this.HZ - H * 0.2, W * 1.5, H);
+    c.strokeStyle = `rgba(255,255,255,${0.7 * I})`;
+    c.lineWidth = Math.max(1, H * 0.003);
+    c.beginPath();
+    for (let i = 0; i < 90 * I; i++) {
+      const x = Math.random() * W * 1.2 - W * 0.1, y = Math.random() * H, l = H * U.rand(0.03, 0.08);
+      c.moveTo(x, y); c.lineTo(x - l, y + l * 0.35);
+    }
+    c.stroke();
+  },
+
+  drawVignette(c) {
+    const W = this.W, H = this.H;
+    if (!this.vig || this.vig.w !== W || this.vig.h !== H) {
+      const g = c.createRadialGradient(W / 2, H * 0.55, Math.min(W, H) * 0.45, W / 2, H * 0.55, Math.hypot(W, H) * 0.62);
+      g.addColorStop(0, 'rgba(10,16,40,0)');
+      g.addColorStop(1, 'rgba(10,16,40,0.32)');
+      this.vig = { w: W, h: H, g };
+    }
+    c.fillStyle = this.vig.g;
+    c.fillRect(0, 0, W, H);
+  },
+
   drawMountains(c) {
     const W = this.W, H = this.H, p = this.pal, base = this.HZ + H * 0.2;
     for (const L of this.mtns) {
       const period = L.period * H;
       const off = (((this.bgX * L.par * H) % period) + period) % period;
-      const body = U.rgb(U.mix(L.near ? p.mtnNear : p.mtnFar, p.fog, L.near ? 0.05 : 0.25));
-      const snow = U.rgb(U.mix(p.mtnSnow, p.fog, L.near ? 0.05 : 0.25));
+      const body = U.rgb(U.mix(L.near ? p.mtnNear : p.mtnFar, p.fog, L.haze));
+      const snow = U.rgb(U.mix(p.mtnSnow, p.fog, L.haze));
       for (const pk of L.peaks) {
         const hw = pk.w * H;
         let x = pk.x * period - off;
         while (x > -hw) x -= period;
         for (; x < W + hw; x += period) {
           if (x < -hw) continue;
-          const top = this.HZ - pk.h * H - (L.near ? 0 : H * 0.03);
+          const top = this.HZ - pk.h * H - (L.near ? 0 : L.haze > 0.4 ? H * 0.07 : H * 0.03);
           const hgt = base - top;
           Art.poly(c, [x - hw, base, x, top, x + hw, base], body);
           c.globalAlpha = 0.14;
@@ -229,12 +314,12 @@ const Render = {
       x += dx; dx += s.curve;
       s.clip = maxy;
       if (z1 + SL <= 1 || s.p2.sy >= s.p1.sy || s.p2.sy >= maxy) continue;
-      this.drawSeg(c, s);
+      this.drawSeg(c, s, n);
       maxy = s.p2.sy;
     }
 
     for (const e of G.entities) {
-      const len = ET[e.type].len || 0;
+      const len = e.len || ET[e.type].len || 0;
       let n = Math.floor((e.z + len) / SL) - baseI;
       if (len && n >= DD && Math.floor(e.z / SL) - baseI < DD) n = DD - 1;
       if (n >= 0 && n < DD) segs[n].list.push(e);
@@ -258,13 +343,29 @@ const Render = {
     }
   },
 
-  drawSeg(c, s) {
+  drawSeg(c, s, n) {
     const p1 = s.p1, p2 = s.p2, f = s.fog;
+    // Light the slope: steep drops fall into shade, rises catch the light.
+    const sh = U.clamp(((s.y2 - s.y1) / CFG.SEG_LEN + 0.14) * 3.2, -1, 1);
     const top = Math.floor(p2.sy);
-    c.fillStyle = this.col(s.band ? 'offA' : 'offB', f);
+    c.fillStyle = this.col(s.band ? 'offA' : 'offB', f, sh);
     c.fillRect(-this.W * 0.25, top, this.W * 1.5, Math.ceil(p1.sy) - top + 1);
-    this.trap(c, p1.sx, p1.sy, p1.w * 1.12, p2.sx, p2.sy, p2.w * 1.12, this.col('bank', f));
-    this.trap(c, p1.sx, p1.sy, p1.w, p2.sx, p2.sy, p2.w, this.col(s.band ? 'snowA' : 'snowB', f));
+    this.trap(c, p1.sx, p1.sy, p1.w * 1.12, p2.sx, p2.sy, p2.w * 1.12, this.col('bank', f, sh));
+    this.trap(c, p1.sx, p1.sy, p1.w, p2.sx, p2.sy, p2.w, this.col(s.band ? 'snowA' : 'snowB', f, sh));
+    if (n < 70) {
+      // Glints: fixed spots in the snow that twinkle as you pass.
+      for (let j = 0; j < 2; j++) {
+        const hsh = Math.sin(s.i * 12.9898 + j * 78.233) * 43758.5453;
+        const fr = hsh - Math.floor(hsh);
+        const tw = Math.sin(this.t * 6 + fr * 40);
+        if (tw < 0.55) continue;
+        const gx = p1.sx + (fr * 2.6 - 1.3) * p1.w, gy = (p1.sy + p2.sy) / 2;
+        const r = Math.max(1, p1.s * 45) * (tw - 0.5) * 2;
+        c.fillStyle = 'rgba(255,255,255,0.95)';
+        c.fillRect(gx - r, gy - r * 0.18, r * 2, r * 0.36);
+        c.fillRect(gx - r * 0.18, gy - r, r * 0.36, r * 2);
+      }
+    }
     if (s.band) {
       const lc = this.col('line', f);
       for (const l of [-0.62, -0.2, 0.2, 0.62]) {
@@ -292,7 +393,13 @@ const Render = {
       if (h < 2) { c.globalAlpha = 1; return; }
       const w = h * 0.5;
       if (sx + w < 0 || sx - w > this.W) { c.globalAlpha = 1; return; }
-      this.withClip(c, s, sy, () => c.drawImage(Art.trees[d.v], sx - w / 2, sy - h, w, h));
+      this.withClip(c, s, sy, () => {
+        if (h > 14) {
+          c.fillStyle = 'rgba(40,60,110,0.16)';
+          c.beginPath(); c.ellipse(sx - w * 0.2, sy, w * 0.42, w * 0.09, 0, 0, TAU); c.fill();
+        }
+        c.drawImage(Art.trees[d.v], sx - w / 2, sy - h, w, h);
+      });
     } else {
       if (sc * 400 < 3 || sx < -500 * sc || sx > this.W + 500 * sc) { c.globalAlpha = 1; return; }
       this.withClip(c, s, sy, () => {
@@ -342,19 +449,30 @@ const Render = {
   },
 
   // Flat things painted onto the snow (boost pads, crevasses).
+  // Flat things on the snow (boost pads, crevasses, rails). Points nearer than
+  // the camera's near plane are pulled forward to it, so long objects that
+  // start behind you still draw in the right place.
   drawFlat(c, s, e, G, def) {
     const T = G.track, SL = CFG.SEG_LEN;
+    const near = G.cam.z + 120 - e.z; // smallest dz still in front of the camera
     const shiftAt = z => {
       const sg = T.get(Math.floor(z / SL));
       return U.lerp(sg.p1.shift || 0, sg.p2.shift || 0, z / SL - sg.i);
     };
     const gp = (dx, dz) => {
-      const z = e.z + dz, cz = Math.max(40, z - G.cam.z), sc = this.F / cz;
-      return [this.W / 2 + (shiftAt(z) + e.x * CFG.ROAD_W + dx - G.cam.x) * sc, this.HZ + (G.cam.y - T.groundY(z)) * sc];
+      dz = Math.max(dz, near);
+      const z = e.z + dz, sc = this.F / (z - G.cam.z);
+      return [this.W / 2 + (shiftAt(z) + e.x * CFG.ROAD_W + dx - G.cam.x) * sc, this.HZ + (G.cam.y - T.groundY(z)) * sc, sc];
     };
-    if (e.z + (def.len || 0) - G.cam.z < 40) return;
+    // Screen-y below which a world point at e.z+dz is hidden by a nearer hill.
+    const clipAt = dz => {
+      const n = Math.floor((e.z + Math.max(dz, near)) / SL) - Math.floor(G.cam.z / SL);
+      const sg = this.segs[U.clamp(n, 0, CFG.DRAW_DIST - 1)];
+      return sg ? sg.clip : this.H;
+    };
+    if (e.z + (e.len || def.len || 0) - G.cam.z < 120) return;
     c.globalAlpha = 1 - s.fog * 0.85;
-    def.drawFlat(c, gp, e, G.time);
+    def.drawFlat(c, gp, e, G.time, { near, clipAt, W: this.W });
     c.globalAlpha = 1;
   },
 

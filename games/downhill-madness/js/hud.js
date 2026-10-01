@@ -5,14 +5,16 @@ const HUD = {
   pops: [],
   bannerMsg: null,
 
-  reset() { this.pops.length = 0; this.bannerMsg = null; },
+  reset() { this.pops.length = 0; this.bannerMsg = null; this.shownScore = 0; },
 
   pop(text, color = '#ffffff', size = 1, sub = '') {
+    if (typeof G !== 'undefined' && G.attract) return;
     this.pops.unshift({ text, color, size, sub, t: 0, life: 1.8 });
     if (this.pops.length > 4) this.pops.length = 4;
   },
 
-  banner(text, color = '#ff3b30', life = 2.4) { this.bannerMsg = { text, color, t: 0, life }; },
+  banner(text, color = '#ff3b30', life = 2.4) {
+    if (typeof G !== 'undefined' && G.attract) return; this.bannerMsg = { text, color, t: 0, life }; },
 
   update(dt) {
     for (const p of this.pops) p.t += dt;
@@ -55,7 +57,10 @@ const HUD = {
       const P = G.player;
       // score + combo
       this.label(c, 'SCORE', u * 2, top + u * 1.4, u * 1.3, '#dff3ff');
-      this.text(c, U.fmt(G.score), u * 2, top + u * 5, u * 3.6, '#ffffff', { align: 'left' });
+      this.shownScore = (this.shownScore || 0) + (G.score - (this.shownScore || 0)) * 0.18;
+      if (Math.abs(G.score - this.shownScore) < 1) this.shownScore = G.score;
+      const bump = 1 + Math.min(0.25, (G.score - this.shownScore) / 4000);
+      this.text(c, U.fmt(this.shownScore), u * 2, top + u * 5, u * 3.6 * bump, '#ffffff', { align: 'left' });
       this.label(c, `${U.fmt(G.dist)} m`, u * 2, top + u * 7.2, u * 1.4, '#dff3ff');
       if (G.combo > 1) {
         const pulse = 1 + Math.sin(G.time * 10) * 0.04;
@@ -70,12 +75,23 @@ const HUD = {
       const kmh = Math.round(P.speed * CFG.KMH);
       const heat = U.clamp((kmh - 80) / 260, 0, 1);
       const spCol = `hsl(${50 - heat * 50},100%,${70 - heat * 12}%)`;
-      this.text(c, String(kmh), W - u * 7.4, top + u * 5, u * 4.4, spCol, { align: 'right' });
-      this.label(c, 'KM/H', W - u * 2, top + u * 5, u * 1.3, '#dff3ff', 'right');
+      // speedometer arc
+      const gx = W - u * 8.6, gy = top + u * 3.6, gr = u * 4.6;
+      const a0 = Math.PI * 0.8, a1 = Math.PI * 2.2, frac = U.clamp(kmh / 400, 0, 1);
+      c.lineCap = 'round';
+      c.lineWidth = u * 0.7; c.strokeStyle = 'rgba(16,26,58,0.55)';
+      c.beginPath(); c.arc(gx, gy, gr, a0, a1); c.stroke();
+      if (frac > 0) {
+        c.lineWidth = u * 0.5; c.strokeStyle = spCol;
+        c.beginPath(); c.arc(gx, gy, gr, a0, a0 + (a1 - a0) * frac); c.stroke();
+      }
+      c.lineCap = 'butt';
+      this.text(c, String(kmh), gx, top + u * 5, u * 4.2, spCol);
+      this.label(c, 'KM/H', gx, top + u * 6.9, u * 1.1, '#dff3ff', 'center');
       const lvlTxt = `MADNESS ${G.level} · ${levelName(G.level).toUpperCase()}`;
       c.font = `${u * 1.25}px Bungee, sans-serif`;
       const lw = c.measureText(lvlTxt).width + u * 2;
-      const lx = W - u * 2 - lw, ly = top + u * 6.6;
+      const lx = W - u * 2 - lw, ly = top + u * 8.6;
       c.fillStyle = `hsl(${(G.level * 47) % 360},85%,55%)`;
       this.roundRect(c, lx, ly, lw, u * 2.4, u * 1.2); c.fill();
       c.lineWidth = u * 0.3; c.strokeStyle = INK; c.stroke();
@@ -86,9 +102,13 @@ const HUD = {
 
       this.drawAvalancheMeter(c, G, u, top);
       this.drawPowers(c, G, u, top + u * 14.5);
+      if (G.fever > 0) this.drawFever(c, G, u);
+      if (G.boss && G.boss.t <= G.boss.dur) this.drawBossBar(c, G, u, top);
 
       // live trick readout
-      if (P.airborne && P.crash <= 0) {
+      if (P.grind) {
+        this.text(c, `GRINDING ${P.grindT.toFixed(1)}s`, W / 2, H * 0.965, u * 2.2, '#ffb02e');
+      } else if (P.airborne && P.crash <= 0) {
         const f = Math.floor(Math.abs(P.flip) / TAU + 0.2), s = Math.floor(Math.abs(P.spin) / TAU + 0.2);
         const bits = [];
         if (f) bits.push(`${f}× ${P.flip < 0 ? 'BACKFLIP' : 'FRONTFLIP'}`);
@@ -145,6 +165,31 @@ const HUD = {
       y += u * 3.2 * p.size + (p.sub ? u * 2 : u * 0.8);
       c.globalAlpha = 1;
     }
+  },
+
+  // Madness Mode: a hue-cycling frame around the screen plus a countdown.
+  drawFever(c, G, u) {
+    const W = Render.W, H = Render.H, t = G.time;
+    const g = c.createLinearGradient(0, 0, W, H);
+    for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${(t * 240 + i * 60) % 360},100%,60%)`);
+    c.strokeStyle = g;
+    c.lineWidth = u * (1.2 + Math.sin(t * 12) * 0.3);
+    c.globalAlpha = Math.min(1, G.fever);
+    c.strokeRect(c.lineWidth / 2, c.lineWidth / 2, W - c.lineWidth, H - c.lineWidth);
+    const y = u * 1.2 + 8 * Render.dpr + u * 19.5; // below the power-up icons
+    this.text(c, `MADNESS MODE ×3 · ${G.fever.toFixed(1)}s`, u * 2, y, u * 1.8, `hsl(${(t * 240) % 360},100%,70%)`, { align: 'left' });
+    c.globalAlpha = 1;
+  },
+
+  drawBossBar(c, G, u, top) {
+    const W = Render.W, b = G.boss;
+    const mw = Math.min(u * 32, W * 0.34), mh = u * 1.1, mx = W / 2 - mw / 2, my = top + u * 6.6;
+    const frac = U.clamp(1 - b.t / b.dur, 0, 1);
+    c.fillStyle = 'rgba(16,26,58,0.7)';
+    this.roundRect(c, mx, my, mw, mh, mh / 2); c.fill();
+    c.fillStyle = '#ffd23f';
+    this.roundRect(c, mx, my, Math.max(mh, mw * frac), mh, mh / 2); c.fill();
+    this.label(c, `YETI KING · SURVIVE ${Math.ceil(b.dur - b.t)}s`, W / 2, my + mh + u * 1.9, u * 1.2, '#ffd23f', 'center');
   },
 
   drawPowers(c, G, u, y) {

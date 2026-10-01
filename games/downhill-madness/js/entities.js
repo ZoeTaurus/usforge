@@ -176,6 +176,7 @@ const ET = {
   coin: {
     kind: 'coin', w: 120, h: 220, d: 90,
     draw(c, e, t) {
+      if (e.y < 10) { c.fillStyle = 'rgba(20,30,70,0.18)'; c.beginPath(); c.ellipse(0, 0, 70, 16, 0, 0, TAU); c.fill(); }
       c.translate(0, -110);
       Art.circ(c, 0, 0, 100, 'rgba(255,214,70,0.28)');
       const sp = Math.cos(t * 5 + e.seed);
@@ -272,6 +273,7 @@ const ET = {
       } else if (e.falling) e.rot = Math.sin(e.t * 3) * 0.25;
     },
     draw(c, e) {
+      if (!e.falling) return; // only its shadow shows until it drops
       c.translate(0, -160); c.rotate(e.rot || 0);
       Art.rect(c, -210, -160, 420, 300, '#17131a');
       Art.rect(c, -226, -176, 452, 26, '#2e2436');
@@ -619,6 +621,322 @@ Object.assign(ET, {
       Art.rect(c, -X, -1320, X * 2, 220, '#ffffff');
       for (let i = 0; i < 40; i++) for (let j = 0; j < 2; j++) if ((i + j) % 2) Art.rect(c, -X + i * 100, -1320 + j * 40, 100, 40, '#101a3a');
       Art.label(c, e.label, 0, -1165, 110, '#ffd23f', '#101a3a');
+    },
+  },
+});
+
+// ---------------------------------------------------------------- v4: more obstacles
+// Low ones (log, fence, skier) can be cleared with a hop.
+Object.assign(ET, {
+  log: {
+    kind: 'crash', w: 420, h: 120, d: 70, name: 'a fallen log',
+    draw(c) {
+      Art.rect(c, -420, -120, 840, 110, '#7a4a24');
+      for (let i = 0; i < 6; i++) Art.rect(c, -400 + i * 140, -110, 90, 8, '#5e3518');
+      Art.ell(c, -420, -65, 30, 58, '#c9955a'); Art.ell(c, -420, -65, 16, 32, '#a87a44');
+      Art.ell(c, 420, -65, 30, 58, '#c9955a'); Art.ell(c, 420, -65, 16, 32, '#a87a44');
+      Art.poly(c, [-400, -118, -300, -140, -100, -128, 120, -142, 330, -126, 410, -118], '#f4f8ff');
+      Art.line(c, [180, -120, 230, -200, 210, -240], '#5e3518', 14);
+    },
+  },
+  fence: {
+    kind: 'crash', w: 300, h: 170, d: 60, name: 'a snow fence',
+    draw(c) {
+      for (const x of [-290, 0, 290]) Art.rect(c, x - 12, -200, 24, 200, '#6b4424');
+      Art.rect(c, -300, -170, 600, 110, '#ff5a1f');
+      c.strokeStyle = '#c8400f'; c.lineWidth = 6;
+      c.beginPath();
+      for (let x = -300; x <= 300; x += 40) { c.moveTo(x, -170); c.lineTo(x + 40, -60); c.moveTo(x + 40, -170); c.lineTo(x, -60); }
+      c.stroke();
+      Art.poly(c, [-310, -172, 310, -172, 300, -186, -300, -186], '#f4f8ff');
+    },
+  },
+  skier: {
+    kind: 'crash', w: 260, h: 130, d: 60, name: 'a crashed skier',
+    draw(c, e, t) {
+      Art.line(c, [-260, -10, 120, -40], '#3d6fd6', 16);
+      Art.line(c, [-120, -60, 260, -20], '#3d6fd6', 16);
+      Art.ell(c, 0, -70, 120, 60, '#f4f8ff');
+      Art.line(c, [-40, -110, -60, -170], '#e63946', 30);
+      Art.line(c, [50, -110, 70, -170], '#e63946', 30);
+      Art.ell(c, -62, -180, 26, 16, '#2b2d42'); Art.ell(c, 72, -180, 26, 16, '#2b2d42');
+      Art.line(c, [-160, -80, -230, -150 + Math.sin(t * 6) * 30], '#ffd23f', 26);
+      Art.circ(c, -230, -150 + Math.sin(t * 6) * 30, 18, '#ff5a1f');
+      Art.line(c, [150, -60, 200, -230], '#9aa3b5', 8);
+    },
+  },
+  igloo: {
+    kind: 'crash', w: 270, h: 260, d: 140, name: 'an igloo',
+    draw(c, e, t) {
+      c.fillStyle = '#eef5ff';
+      c.beginPath(); c.ellipse(0, 0, 280, 260, 0, Math.PI, TAU); c.fill();
+      c.strokeStyle = '#c3d4ea'; c.lineWidth = 6;
+      for (let r = 1; r < 4; r++) { c.beginPath(); c.ellipse(0, 0, 280, 260 * (1 - r * 0.25), 0, Math.PI, TAU); c.stroke(); }
+      for (let i = -3; i <= 3; i++) { c.beginPath(); c.moveTo(i * 70, 0); c.lineTo(i * 62, -60); c.stroke(); }
+      c.fillStyle = '#1d2c4a';
+      c.beginPath(); c.ellipse(0, 0, 70, 95, 0, Math.PI, TAU); c.fill();
+      Art.circ(c, -18, -60, 9, '#ffd23f'); Art.circ(c, 18, -60, 9, '#ffd23f'); // someone's home
+      Art.rect(c, 150, -330, 8, 120, '#5b3a26');
+      Art.poly(c, [158, -330, 230, -312 + Math.sin(t * 8) * 6, 158, -294], '#e63946');
+    },
+  },
+  cabin: {
+    kind: 'crash', w: 400, h: 760, d: 180, name: 'a ski cabin',
+    draw(c, e, t) {
+      for (let i = 0; i < 4; i++) {
+        const k = (t * 0.6 + i / 4) % 1;
+        Art.circ(c, 220 + k * 120, -720 - k * 400, 40 + k * 70, `rgba(230,236,245,${0.7 * (1 - k)})`);
+      }
+      Art.rect(c, 180, -720, 70, 180, '#7a7f8c');
+      Art.rect(c, -380, -420, 760, 420, '#8a5a2e');
+      for (let y = -400; y < 0; y += 50) Art.rect(c, -380, y, 760, 10, '#6d4522');
+      Art.poly(c, [-450, -400, 0, -700, 450, -400], '#5e3518');
+      Art.poly(c, [-470, -395, 0, -720, 470, -395, 420, -420, 0, -690, -420, -420], '#f4f8ff');
+      Art.rect(c, -70, -260, 140, 260, '#5e3518');
+      Art.circ(c, 45, -130, 10, '#ffd23f');
+      for (const x of [-280, 170]) {
+        Art.rect(c, x, -320, 110, 100, '#ffcf6b');
+        Art.rect(c, x + 50, -320, 10, 100, '#6d4522'); Art.rect(c, x, -275, 110, 10, '#6d4522');
+      }
+      Art.label(c, 'HOT COCOA', 0, -470, 56, '#ffd23f', '#3a2410');
+    },
+  },
+  moose: {
+    kind: 'crash', w: 230, h: 640, d: 120, name: 'a moose', update: Ent.cross,
+    draw(c, e, t) {
+      if (e.vx < 0) c.scale(-1, 1);
+      const st = Math.sin(t * 7 + e.seed);
+      for (const [x, ph] of [[-150, 0], [-90, Math.PI], [110, Math.PI], [170, 0]]) {
+        c.save(); c.translate(x, -330); c.rotate(Math.sin(t * 7 + ph) * 0.3);
+        Art.rect(c, -16, 0, 32, 330, '#4a2e1a'); c.restore();
+      }
+      Art.ell(c, 0, -400, 240, 120, '#6b4226');
+      Art.ell(c, -170, -470, 80, 90, '#6b4226');
+      Art.rect(c, 170, -540, 80, 160, '#6b4226');
+      Art.ell(c, 270, -560, 110, 60, '#6b4226');
+      Art.ell(c, 360, -545, 40, 34, '#4a2e1a');
+      Art.circ(c, 260, -585, 10, '#111');
+      Art.line(c, [270, -440, 285, -390 + st * 6], '#4a2e1a', 22);
+      for (const s of [-1, 1]) {
+        c.save(); c.translate(230, -610); c.scale(1, s > 0 ? 1 : 0.85);
+        Art.poly(c, [0, 0, -60, -120, -20, -100, 0, -170, 30, -110, 70, -160, 70, -90, 120, -110, 60, -20], '#d9c39a');
+        c.restore();
+      }
+    },
+  },
+  unibear: {
+    kind: 'crash', w: 150, h: 700, d: 100, name: 'a bear on a unicycle', update: Ent.cross,
+    draw(c, e, t) {
+      c.rotate(Math.sin(t * 5 + e.seed) * 0.12);
+      Art.circ(c, 0, -110, 110, '#2b2d42');
+      Art.circ(c, 0, -110, 90, '#9aa3b5');
+      c.save(); c.translate(0, -110); c.rotate(t * e.vx * 20);
+      Art.line(c, [-90, 0, 90, 0], '#2b2d42', 8); Art.line(c, [0, -90, 0, 90], '#2b2d42', 8);
+      c.restore();
+      Art.rect(c, -10, -340, 20, 230, '#2b2d42');
+      Art.rect(c, -60, -360, 120, 30, '#e63946');
+      Art.ell(c, 0, -470, 120, 140, '#7a4a24');
+      Art.ell(c, 0, -440, 75, 90, '#c9955a');
+      Art.circ(c, 0, -640, 85, '#7a4a24');
+      Art.circ(c, -70, -710, 30, '#7a4a24'); Art.circ(c, 70, -710, 30, '#7a4a24');
+      Art.ell(c, 0, -615, 40, 30, '#c9955a'); Art.circ(c, 0, -625, 12, '#111');
+      Art.circ(c, -30, -660, 9, '#111'); Art.circ(c, 30, -660, 9, '#111');
+      Art.poly(c, [-50, -720, 0, -830, 50, -720], '#5ee27a'); Art.circ(c, 0, -835, 14, '#ffd23f');
+      for (let i = 0; i < 3; i++) {
+        const a = t * 6 + (i / 3) * TAU;
+        Art.circ(c, Math.cos(a) * 130, -780 + Math.sin(a) * 70, 20, ['#ff5a5f', '#ffd23f', '#4db8ff'][i]);
+      }
+      Art.line(c, [-90, -520, -120, -760], '#7a4a24', 36); Art.line(c, [90, -520, 120, -760], '#7a4a24', 36);
+    },
+  },
+  hottub: {
+    kind: 'crash', w: 360, h: 420, d: 160, name: 'a yeti hot tub party',
+    draw(c, e, t) {
+      for (let i = 0; i < 5; i++) {
+        const k = (t * 0.5 + i / 5) % 1;
+        Art.circ(c, -200 + i * 100, -260 - k * 300, 40 + k * 50, `rgba(255,255,255,${0.5 * (1 - k)})`);
+      }
+      Art.ell(c, -40, -270, 110, 100, '#eef3fa');
+      Art.ell(c, -40, -290, 60, 52, '#7b93b8');
+      Art.circ(c, -60, -300, 8, '#111'); Art.circ(c, -20, -300, 8, '#111');
+      c.strokeStyle = '#2c3a55'; c.lineWidth = 6; c.beginPath(); c.arc(-40, -275, 22, 0.2, Math.PI - 0.2); c.stroke();
+      Art.rect(c, -60, -230, 40, 40, '#ffd23f');
+      Art.line(c, [60, -250, 170, -340 + Math.sin(t * 3) * 10], '#eef3fa', 50);
+      Art.rect(c, 150, -400, 40, 60, 'rgba(230,240,255,0.8)');
+      Art.ell(c, 0, -200, 360, 50, '#4db8ff');
+      Art.ell(c, 160, -210, 30, 24, '#ffd21f');
+      Art.rect(c, -380, -200, 760, 200, '#8a5a2e');
+      for (let x = -360; x < 380; x += 60) Art.rect(c, x, -200, 10, 200, '#6d4522');
+      Art.rect(c, -390, -110, 780, 16, '#3a4050'); Art.rect(c, -390, -40, 780, 16, '#3a4050');
+    },
+  },
+});
+
+// ---------------------------------------------------------------- v5: rails and the Yeti King
+Object.assign(ET, {
+  rail: {
+    kind: 'rail', w: 50, h: 140, d: 0, len: 3000, flat: true,
+    // Drawn in chunks from far to near so each chunk can hide behind hills.
+    drawFlat(c, gp, e, t, R) {
+      const L = e.len, h = e.h, w = 46;
+      const up = (dx, dz, y) => { const q = gp(dx, dz); return [q[0], q[1] - y * q[2], q[2]]; };
+      const quad = (pts, col) => {
+        c.fillStyle = col; c.beginPath();
+        pts.forEach((p, i) => (i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])));
+        c.closePath(); c.fill();
+      };
+      const start = Math.max(0, R.near);
+      if (start >= L) return;
+      const CH = 400;
+      for (let z1 = L; z1 > start; z1 -= CH) {
+        const z0 = Math.max(start, z1 - CH);
+        c.save();
+        c.beginPath(); c.rect(-R.W, -R.W, R.W * 3, R.W + R.clipAt(z0)); c.clip();
+        // support posts with snowy base plates
+        for (let z = Math.ceil(z0 / 500) * 500; z <= z1; z += 500) {
+          const a = up(0, z, 0), b = up(0, z, h - 20);
+          c.strokeStyle = '#2b2d42'; c.lineWidth = Math.max(1.5, 36 * a[2]);
+          c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
+          quad([up(-70, z - 40, 0), up(70, z - 40, 0), up(70, z + 40, 0), up(-70, z + 40, 0)], '#9aa3b5');
+        }
+        quad([up(-w, z0, h - 46), up(w, z0, h - 46), up(w, z1, h - 46), up(-w, z1, h - 46)], '#1d2233'); // dark side
+        quad([up(-w, z0, h - 46), up(-w, z0, h), up(-w, z1, h), up(-w, z1, h - 46)], '#2b2d42');
+        quad([up(w, z0, h - 46), up(w, z0, h), up(w, z1, h), up(w, z1, h - 46)], '#2b2d42');
+        quad([up(-w, z0, h), up(w, z0, h), up(w, z1, h), up(-w, z1, h)], '#ff5a1f');       // orange top
+        quad([up(-w * 0.25, z0, h + 1), up(w * 0.25, z0, h + 1), up(w * 0.25, z1, h + 1), up(-w * 0.25, z1, h + 1)], '#ffd23f');
+        c.restore();
+      }
+      // Front cap and sign only while the start is still ahead of the camera.
+      if (R.near < -1500) {
+        quad([up(-w, 0, h - 46), up(w, 0, h - 46), up(w, 0, h), up(-w, 0, h)], '#ffd23f');
+        const s0 = up(0, 0, h + 150);
+        if (s0[2] * 110 > 5) Art.label(c, 'GRIND', s0[0], s0[1], Math.max(8, 110 * s0[2]), '#ffd23f', '#101a3a');
+      }
+    },
+  },
+  bossyeti: {
+    kind: 'none', w: 0, h: 1500, d: 0,
+    draw(c, e, t) {
+      c.save();
+      c.scale(2.4, 2.4);
+      ET.yeti.draw(c, e, t);
+      Art.poly(c, [-62, -540, -62, -610, -32, -575, 0, -625, 32, -575, 62, -610, 62, -540], '#ffd23f');
+      Art.circ(c, 0, -570, 10, '#e63946');
+      c.restore();
+      if (e.throwT > 0) Art.circ(c, 330, -1150, 150, '#f4f8ff');
+      Art.label(c, 'THE YETI KING', 0, -1700, 150, '#ffd23f', '#101a3a');
+    },
+  },
+  snowbomb: {
+    kind: 'crash', w: 170, h: 320, d: 130, name: "the Yeti King's snowball",
+    update(e, dt) {
+      e.z += e.vz * dt;
+      e.x += e.vx * dt;
+      if (e.y > 0 || e.vy > 0) {
+        e.vy -= 2400 * dt;
+        e.y += e.vy * dt;
+        if (e.y <= 0) { e.y = 0; e.vy = 0; e.vx = 0; }
+      }
+      e.spin = (e.spin || 0) + dt * 8;
+    },
+    draw(c, e) {
+      c.translate(0, -160);
+      c.rotate(e.spin || 0);
+      Art.circ(c, 0, 0, 165, '#f4f8ff');
+      c.strokeStyle = '#c9d7ea'; c.lineWidth = 12;
+      for (let i = 0; i < 3; i++) { c.beginPath(); c.arc(0, 0, 60 + i * 35, i * 2, i * 2 + 1.8); c.stroke(); }
+    },
+  },
+});
+
+
+// ---------------------------------------------------------------- v6: caves, launchers, weather, ice
+Object.assign(ET, {
+  arch: {
+    kind: 'none', w: 0, h: 1900, d: 0,
+    draw(c, e, t) {
+      const X = 2150, T = 300;
+      c.fillStyle = '#7fbfe8';
+      c.beginPath();
+      c.moveTo(-X - T, 0); c.lineTo(-X - T, -1300);
+      c.quadraticCurveTo(-X - T, -2100, 0, -2150);
+      c.quadraticCurveTo(X + T, -2100, X + T, -1300);
+      c.lineTo(X + T, 0); c.lineTo(X, 0); c.lineTo(X, -1300);
+      c.quadraticCurveTo(X, -1850, 0, -1860);
+      c.quadraticCurveTo(-X, -1850, -X, -1300);
+      c.lineTo(-X, 0); c.closePath(); c.fill();
+      c.strokeStyle = '#dff3ff'; c.lineWidth = 40;
+      c.beginPath(); c.moveTo(-X, 0); c.lineTo(-X, -1300); c.quadraticCurveTo(-X, -1850, 0, -1860); c.quadraticCurveTo(X, -1850, X, -1300); c.lineTo(X, 0); c.stroke();
+      for (let i = -6; i <= 6; i++) {
+        const x = i * 300, yTop = -1860 + Math.pow(i / 7, 2) * 520, len = 120 + ((i * 53) & 127);
+        Art.poly(c, [x - 40, yTop, x + 40, yTop, x, yTop + len], '#e9f7ff');
+      }
+      const glow = 0.5 + 0.5 * Math.sin(t * 2 + e.seed);
+      Art.circ(c, -X - 150, -700, 60, `rgba(125,252,255,${0.4 + glow * 0.4})`);
+      Art.circ(c, X + 150, -900, 50, `rgba(179,107,255,${0.4 + glow * 0.4})`);
+    },
+  },
+  tramp: {
+    kind: 'tramp', w: 270, h: 0, d: 120,
+    draw(c, e, t) {
+      for (const s of [-1, 1]) Art.rect(c, s * 220 - 12, -70, 24, 70, '#2b2d42');
+      Art.ell(c, 0, -80, 280, 60, '#e63946');
+      Art.ell(c, 0, -84 + (e.hit ? Math.max(0, 30 - e.t * 60) : 0), 235, 44, '#3d6fd6');
+      Art.ell(c, -60, -92, 90, 12, 'rgba(255,255,255,0.35)');
+      c.strokeStyle = '#ffd23f'; c.lineWidth = 6;
+      for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; c.beginPath(); c.moveTo(Math.cos(a) * 240, -80 + Math.sin(a) * 50); c.lineTo(Math.cos(a) * 270, -80 + Math.sin(a) * 58); c.stroke(); }
+      Art.label(c, 'BOING', 0, -170, 60, '#ffd23f', '#101a3a');
+    },
+  },
+  cannon: {
+    kind: 'cannon', w: 230, h: 0, d: 140,
+    draw(c, e, t) {
+      for (const s of [-1, 1]) {
+        Art.circ(c, s * 250, -120, 120, '#8a5a2e');
+        Art.circ(c, s * 250, -120, 95, '#c9955a');
+        for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + t; Art.line(c, [s * 250, -120, s * 250 + Math.cos(a) * 95, -120 + Math.sin(a) * 95], '#8a5a2e', 12); }
+      }
+      Art.circ(c, 0, -230, 230, '#e63946');
+      for (let i = 0; i < 6; i++) {
+        c.fillStyle = '#ffffff'; c.beginPath();
+        c.arc(0, -230, 230, (i / 6) * TAU, (i / 6) * TAU + 0.35); c.lineTo(0, -230); c.fill();
+      }
+      Art.circ(c, 0, -230, 190, '#2b2d42');
+      Art.circ(c, 0, -230, 160, '#101a3a');
+      Art.label(c, 'GET IN', 0, -230, 70, '#ffd23f');
+      Art.label(c, 'HUMAN CANNON', 0, -510, 70, '#ffffff', '#e63946');
+    },
+  },
+  nado: {
+    kind: 'nado', w: 260, h: 2400, d: 220, update: Ent.cross,
+    draw(c, e, t) {
+      for (let i = 0; i < 14; i++) {
+        const k = i / 13, y = -k * 2200, r = 90 + k * 420;
+        const wob = Math.sin(t * 6 + i * 0.7) * (30 + k * 80);
+        c.strokeStyle = i % 2 ? 'rgba(235,242,252,0.85)' : 'rgba(180,200,225,0.75)';
+        c.lineWidth = 36 - k * 14;
+        c.beginPath(); c.ellipse(wob, y, r, r * 0.18, 0, t * 4 + i, t * 4 + i + Math.PI * 1.4); c.stroke();
+      }
+      c.save(); c.translate(Math.sin(t * 3) * 260, -1300); c.rotate(t * 5); c.scale(0.35, 0.35);
+      ET.cow.draw(c, { vx: 1, seed: 1, rot: 0 }, t);
+      c.restore();
+      Art.ell(c, 0, 0, 260, 50, 'rgba(235,242,252,0.7)');
+    },
+  },
+  ice: {
+    kind: 'ice', w: 900, h: 0, d: 0, len: 2600, flat: true,
+    drawFlat(c, gp, e, t, R) {
+      const W = 900, L = e.len || 2600;
+      groundPoly(c, gp, [[-W - 60, -60], [W + 60, -60], [W + 60, L + 60], [-W - 60, L + 60]], '#e9f7ff');
+      groundPoly(c, gp, [[-W, 0], [W, 0], [W, L], [-W, L]], '#8fd3f4');
+      for (let i = 0; i < 6; i++) {
+        const z = ((i * 0.17 + 0.05) * L), x = -W + ((i * 331) % (2 * W));
+        groundPoly(c, gp, [[x, z], [x + 260, z], [x + 140, z + 380], [x - 120, z + 380]], 'rgba(255,255,255,0.55)');
+      }
+      for (let i = 0; i < 8; i++) {
+        const z = (i / 8) * L + 100, x = -W + 120 + ((i * 433) % (2 * W - 240));
+        if (Math.sin(t * 5 + i * 1.7) > 0.5) groundPoly(c, gp, [[x - 30, z], [x + 30, z], [x, z + 90]], '#ffffff');
+      }
     },
   },
 });

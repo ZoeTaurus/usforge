@@ -8,7 +8,7 @@ const Save = {
       sled: 'toboggan', outfit: 'classic',
       owned: { toboggan: true, classic: true },
       missions: [], rank: 1, missionsDone: 0,
-      totals: {},
+      totals: {}, trophies: {},
       settings: { music: true, sfx: true, voice: false, shake: true, voiceStyle: 'hype' },
       settingsVersion: 2,
     };
@@ -18,6 +18,8 @@ const Save = {
     const base = this.defaults();
     this.data = Object.assign(base, d || {});
     this.data.settings = Object.assign(this.defaults().settings, (d && d.settings) || {});
+    this.data.trophies = Object.assign({}, (d && d.trophies) || {});
+    this.data.totals = Object.assign({}, (d && d.totals) || {});
     this.data.owned = Object.assign({ toboggan: true, classic: true }, (d && d.owned) || {});
     if (!d) this.data.best = U.store.get('dm-best', 0);
     // v2: the announcer became opt-in, so switch it off for existing saves once.

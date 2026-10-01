@@ -30,10 +30,16 @@ const G = {
     this.toTitle();
     let last = performance.now();
     const frame = now => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      this.tick(dt);
-      requestAnimationFrame(frame);
+      // Clamp: the first rAF timestamp can be earlier than performance.now() above.
+      const dt = U.clamp((now - last) / 1000, 0, 0.05);
+      last = Math.max(last, now);
+      requestAnimationFrame(frame); // schedule first so one bad frame can't kill the loop
+      try {
+        this.tick(dt);
+      } catch (err) {
+        if (!this.loggedError) { this.loggedError = true; console.error('Downhill Madness frame error:', err); }
+        Input.endFrame();
+      }
     };
     requestAnimationFrame(frame);
   },
@@ -45,10 +51,13 @@ const G = {
     this.entities.length = 0;
     Player.reset();
     this.attract = attract;
-    this.level = attract ? 3 : 1;
+    this.level = 1;
+    this.attractT = 0;
+    Pilot.reset();
     this.maxSpeed = this.speedFor(this.level);
     this.gateSeries = {};
-    Director.reset(this, attract ? 6000 : 9000);
+    Player.z = this.startZ = CFG.PD + CFG.SEG_LEN * 4; // camera must sit on generated track
+    Director.reset(this, attract ? 3000 : 3500);
     Theme.set(0, true);
     Theme.update(0);
     Particles.list.length = 0;
@@ -57,13 +66,14 @@ const G = {
       points: 0, dist: 0, score: 0, combo: 1, comboT: 0,
       gap: CFG.AVA_START_M * CFG.METER, surge: 0, crashes: 0,
       bestTrick: null, bestTrickPts: 0, topSpeed: 0, shake: 0, flash: 0, slowmo: 0, roll: 0,
-      quips: {}, warned: false, caughtT: 0, avaDelay: 2, intro: 0, overT: 0, lastCrashZ: 0,
-      missionCoins: 0, lastReason: '',
+      quips: {}, warned: false, caughtT: 0, avaDelay: 2, intro: 0, overT: 0, lastCrashZ: this.startZ,
+      missionCoins: 0, lastReason: '', scoreSent: false,
+      fever: 0, feverReady: true, blizzard: 0, blizzI: 0, boss: null, caveI: 0,
     });
     this.stats = {
       dist: 0, backflips: 0, frontflips: 0, spins: 0, tricks: 0, perfects: 0, bowled: 0, coins: 0, close: 0,
       kmh: 0, level: 1, combo: 1, rotations: 0, powerups: 0, rivals: 0, air: 0, crevasses: 0, gates: 0,
-      clean: 0, abducted: 0, demolished: 0,
+      clean: 0, abducted: 0, demolished: 0, grind: 0, bosses: 0, fevers: 0, cannon: 0,
     };
     this.cam.x = 0;
     this.cam.z = -CFG.PD;
@@ -75,6 +85,8 @@ const G = {
     this.showPlayer = true;
     this.showAvalanche = false;
     Player.speed = 5200;
+    const tag = document.getElementById('demo-level');
+    if (tag) tag.textContent = 'Madness 1 · Chill';
     UI.showTitle();
   },
 
@@ -87,7 +99,8 @@ const G = {
     this.showAvalanche = true;
     this.lastBeep = 4;
     const bd = Save.data.bestDist;
-    if (bd > 150) this.add('bestflag', 0, bd * CFG.METER, { label: `YOUR BEST · ${U.fmt(bd)} m` });
+    Director.update(this); // the slope is already populated during the countdown
+    if (bd > 150) this.add('bestflag', 0, this.startZ + bd * CFG.METER, { label: `YOUR BEST · ${U.fmt(bd)} m` });
     UI.only(null);
   },
 
@@ -118,7 +131,7 @@ const G = {
 
   // Everything that scores goes through here so combo and 2× apply consistently.
   award(base) {
-    const pts = Math.round(base * this.combo * (this.player.pw.double > 0 ? 2 : 1));
+    const pts = Math.round(base * this.combo * (this.player.pw.double > 0 ? 2 : 1) * (this.fever > 0 ? 3 : 1));
     this.points += pts;
     return pts;
   },
@@ -126,6 +139,7 @@ const G = {
   // ---------------------------------------------------------------- loop
   tick(dt) {
     this.time += dt;
+    Sfx.quiet = this.state === 'title';
     if (Input.pressed.mute) UI.setMute(Sfx.toggleMute());
 
     if (this.state === 'paused') {
@@ -156,21 +170,36 @@ const G = {
 
     const playing = this.state === 'play' || this.state === 'paused';
     const gapM = this.gap / CFG.METER;
-    Sfx.ambience(this.state === 'title' ? 0.3 : U.clamp(this.player.speed / 16000, 0, 1),
+    Sfx.ambience((this.state === 'title' ? 0.3 : U.clamp(this.player.speed / 16000, 0, 1)) + this.blizzI * 0.5,
       playing ? U.clamp(1 - gapM / 150, 0, 1) + (this.surge > 0 ? 0.3 : 0) : this.state === 'caught' ? 1 : 0);
-    Sfx.updateMusic(this.level, this.state === 'play');
+    Sfx.updateMusic(this.level + (this.fever > 0 ? 4 : 0), this.state === 'play');
 
     Render.draw(this);
     Input.endFrame();
   },
 
+  // Title-screen demo: an AI rider plays for real while madness climbs through
+  // every level and sky, then loops.
   updateAttract(dt) {
     const P = this.player;
-    P.x = Math.sin(this.time * 0.45) * 0.55;
-    P.lean = Math.cos(this.time * 0.45) * 0.6;
+    this.attractT += dt;
+    const lvl = 1 + (Math.floor(Math.max(0, this.attractT) / 12) % 12);
+    if (lvl !== this.level) {
+      this.level = lvl;
+      this.maxSpeed = this.speedFor(lvl);
+      this.track.curveScale = 1 + (lvl - 1) * 0.12;
+      Theme.set(Theme.indexFor(lvl));
+      const tag = document.getElementById('demo-level');
+      if (tag) tag.textContent = `Madness ${lvl} · ${levelName(lvl)}`;
+      if (lvl % 4 === 0) this.startBoss();
+    }
+    const z0 = P.z;
+    P.update(dt, this, Pilot.input(this, dt));
     P.z += P.speed * dt;
     this.updateEntities(dt);
-    Director.update(this);
+    this.collide(z0, P.z);
+    this.updateSetPieces(dt);
+    this.effects(dt);
     this.updateCamera(dt);
   },
 
@@ -178,6 +207,7 @@ const G = {
     const P = this.player;
     if (this.intro > 0) {
       this.intro -= dt;
+      for (const e of this.entities) e.t += dt; // keep things animating while you wait
       const n = Math.ceil(this.intro);
       if (n !== this.lastBeep) { this.lastBeep = n; if (n > 0) Sfx.beep(false); }
       if (this.intro <= 0) {
@@ -195,7 +225,7 @@ const G = {
     P.z += P.speed * dt;
     this.updateEntities(dt);
     this.collide(z0, P.z);
-    Director.update(this);
+    this.updateSetPieces(dt);
 
     // the avalanche
     if (this.avaDelay > 0) this.avaDelay -= dt;
@@ -211,16 +241,21 @@ const G = {
     if (this.gap <= 0) { this.caught(); return; }
 
     // progress
-    this.dist = P.z / CFG.METER;
+    this.dist = (P.z - this.startZ) / CFG.METER;
     this.score = this.points + Math.floor(this.dist);
     this.topSpeed = Math.max(this.topSpeed, P.speed);
     const lvl = 1 + Math.floor(this.dist / CFG.LEVEL_METERS);
     if (lvl > this.level) this.levelUp(lvl);
 
+    if (this.fever > 0) {
+      this.fever -= dt;
+      this.comboT = Math.max(this.comboT, 1.5); // the combo can't drop during Madness Mode
+    }
     if (this.combo > 1) {
       this.comboT -= dt;
       if (this.comboT <= 0) this.combo = 1;
     }
+    if (this.combo < 10) this.feverReady = true;
 
     const kmh = P.speed * CFG.KMH;
     for (const [v, txt] of SPEED_QUIPS) {
@@ -239,6 +274,7 @@ const G = {
     st.combo = Math.max(st.combo, this.combo);
     st.clean = Math.max(st.clean, (P.z - this.lastCrashZ) / CFG.METER);
     Missions.check(st);
+    Trophies.check(st);
 
     this.effects(dt);
     this.updateCamera(dt);
@@ -311,6 +347,15 @@ const G = {
       if (def.kind === 'none') continue;
 
       if (def.kind === 'crevasse') { this.crevasse(e, def); continue; }
+      if (def.kind === 'rail') { this.railCheck(e); continue; }
+      if (def.kind === 'ice') {
+        const len = e.len || def.len;
+        if (P.z >= e.z && P.z <= e.z + len && Math.abs(P.x - e.x) * CFG.ROAD_W < def.w && !P.airborne && P.crash <= 0) {
+          if (P.icy <= 0) HUD.pop('THIN ICE!', '#8fd3f4', 0.8, 'fast and slippery');
+          P.icy = 0.15;
+        }
+        continue;
+      }
 
       const d = def.d || 60;
       const r0 = z0 - e.zPrev, r1 = z1 - e.z;
@@ -463,6 +508,35 @@ const G = {
         if (p) Particles.add({ x: p.x, y: p.y, type: 'ring', color: pw.color, size: Render.H * 0.05, grow: 5, life: 0.5 });
         break;
       }
+      case 'tramp':
+        if (P.air > 40 || P.crash > 0) return;
+        e.hit = true; e.t = 0;
+        P.launch(2600 + P.speed * 0.16, 'tramp');
+        HUD.pop('BOING!', '#3d6fd6', 1);
+        Sfx.boing();
+        break;
+      case 'cannon': {
+        if (P.air > 40 || P.crash > 0) return;
+        e.hit = true;
+        P.launch(5000 + P.speed * 0.1, 'cannon');
+        P.speed += this.maxSpeed * 0.35;
+        this.stats.cannon++;
+        HUD.pop('HUMAN CANNONBALL!', '#e63946', 1.3, 'try not to scream');
+        Sfx.boom(0.7);
+        Voice.say('Fire in the hole!', 1, true);
+        this.shake = 0.8; this.flash = 0.3;
+        const ps = Render.playerScreen;
+        Particles.burst(ps.x, ps.y, 30, { speed: 900 * Render.dpr, size: 22 * Render.dpr, life: 0.9, color: ['#9aa3b5', '#c9ced8', '#ffb02e'], drag: 2.5 });
+        break;
+      }
+      case 'nado':
+        if (!yOver || P.crash > 0) return;
+        e.hit = true;
+        P.launch(3000 + P.speed * 0.1, 'nado');
+        P.nado = 1.4; P.flip = 0;
+        HUD.pop('SNOWNADO!', '#dff3ff', 1.2, 'free spins');
+        Sfx.whoosh();
+        break;
       case 'ramp':
         if (P.air > 40 || P.crash > 0) return;
         e.hit = true;
@@ -504,14 +578,134 @@ const G = {
     }
   },
 
+  // ---------------------------------------------------------------- set pieces
+  updateSetPieces(dt) {
+    // Ice caves dim the light while you're under the arches.
+    const P = this.player;
+    const inCave = this.entities.some(e => e.type === 'arch' && e.z > P.z - 700 && e.z < P.z + 1400);
+    this.caveI = U.approach(this.caveI, inCave ? 1 : 0, dt * 1.5);
+    // Weather
+    this.blizzard = Math.max(0, this.blizzard - dt);
+    this.blizzI = U.approach(this.blizzI, this.blizzard > 0 ? 1 : 0, dt * 0.7);
+    // Bosses pause the regular events
+    if (this.boss) {
+      this.updateBoss(dt);
+      Director.cursor = Math.max(Director.cursor, this.player.z + 14000);
+    } else Director.update(this);
+  },
+
+  startBlizzard() {
+    if (this.blizzard > 0) return;
+    this.blizzard = 7;
+    HUD.banner('BLIZZARD! RIDE BLIND!', '#dff3ff', 2.6);
+    Voice.say("Blizzard! I can't see a thing!", 0.8);
+  },
+
+  startFever() {
+    if (this.attract) return;
+    this.fever = 8;
+    this.feverReady = false;
+    this.stats.fevers++;
+    HUD.banner('MADNESS MODE!', '#ff4fa3', 3);
+    HUD.pop('×3 POINTS', '#ff4fa3', 1.3, 'everything is worth triple for 8 seconds');
+    Sfx.level(); Sfx.hype();
+    Voice.say('Madness mode! Triple points!', 1, true);
+    this.flash = 0.5;
+  },
+
+  // Rails: ride onto the start or drop onto one from the air to grind.
+  railCheck(e) {
+    const P = this.player;
+    if (P.grind || P.crash > 0) return;
+    const along = P.z - e.z;
+    if (along < 0 || along > e.len - 250) return;
+    if (Math.abs(P.x - e.x) * CFG.ROAD_W > 170) return;
+    const mountStart = along < 500 && P.air < 80;
+    const dropOn = P.air > 0 && P.air < e.h + 180 && P.vy <= 0;
+    if (!mountStart && !dropOn) return;
+    if (P.airborne && (Math.abs(P.flip) > 0.3 || Math.abs(P.spin) > 0.3)) {
+      P.land(this); // tricks count when you land them on a rail
+      if (P.crash > 0) return;
+    }
+    P.grind = e; P.grindT = 0;
+    P.air = e.h; P.vy = 0; P.flip = 0; P.spin = 0;
+    HUD.pop('RAIL GRIND!', '#d7dde8', 0.9);
+    Sfx.gate();
+  },
+
+  endGrind(popped) {
+    const P = this.player, t = P.grindT;
+    P.grind = null;
+    P.nado = 0;
+    P.airTime = 0; P.grabTime = 0;
+    P.launch((popped ? 1500 : 1100) + P.speed * 0.12, 'rail');
+    this.stats.grind += t;
+    this.bumpCombo();
+    const pts = this.award(200 + t * 450);
+    HUD.pop(popped ? `RAIL POP! ${t.toFixed(1)}s` : `RAIL GRIND ${t.toFixed(1)}s`, '#ffffff', 0.9, `+${U.fmt(pts)}`);
+  },
+
+  // Boss: the Yeti King runs ahead hurling snowballs at where you're heading.
+  startBoss() {
+    if (this.boss) return;
+    const P = this.player;
+    for (const e of this.entities) if (e.z > P.z + 9000 && e.type !== 'bestflag') e.dead = true;
+    const e = this.add('bossyeti', 0, P.z + 18000, { dist: 18000, throwT: 0 });
+    this.boss = { t: 0, dur: 16, next: 2.5, e, paid: false };
+    HUD.banner('BOSS: THE YETI KING!', '#ffd23f', 3);
+    Sfx.roar();
+    Voice.say('Boss fight! The Yeti King approaches!', 1, true);
+  },
+
+  updateBoss(dt) {
+    const b = this.boss, e = b.e, P = this.player;
+    b.t += dt;
+    const leaving = b.t > b.dur;
+    e.dist += ((leaving ? 40000 : 7500) - e.dist) * Math.min(1, dt * (leaving ? 0.7 : 1.1));
+    e.z = e.zPrev = P.z + e.dist;
+    e.x = Math.sin(b.t * 0.7) * 0.45;
+    e.throwT = Math.max(0, e.throwT - dt);
+    if (!leaving && b.t > 2) {
+      b.next -= dt;
+      if (b.next <= 0) {
+        b.next = U.rand(0.7, 1.3) * Math.max(0.55, 1 - this.level * 0.03);
+        this.throwBomb(e);
+      }
+    }
+    if (leaving && !b.paid) {
+      b.paid = true;
+      this.stats.bosses++;
+      this.stats.coins += 25;
+      const pts = this.award(3000);
+      HUD.pop('YETI KING DEFEATED!', '#ffd23f', 1.3, `+${U.fmt(pts)}  ·  +25 coins`);
+      HUD.banner('BOSS SURVIVED!', '#5ee27a', 2.5);
+      Sfx.record();
+      Voice.say('You survived the Yeti King!', 1, true);
+    }
+    if (b.t > b.dur + 3) { e.dead = true; this.boss = null; }
+  },
+
+  throwBomb(e) {
+    const P = this.player;
+    const closing = Math.max(2600, P.speed * 0.45);
+    const T = e.dist / closing;
+    const tx = U.clamp(P.x + P.lean * 0.25 + U.rand(-0.25, 0.25), -0.95, 0.95);
+    const y0 = 1100;
+    this.add('snowbomb', e.x, e.z, { y: y0, vy: (1200 * T * T - y0) / T, vz: P.speed - closing, vx: (tx - e.x) / T });
+    e.throwT = 0.35;
+    Sfx.whoosh();
+  },
+
   bumpCombo() {
     this.combo = Math.min(10, this.combo + 1);
     this.comboT = 5;
+    if (this.combo >= 10 && this.feverReady) this.startFever();
   },
 
   crash(reason) {
     const P = this.player;
     if (P.crash > 0 || P.invuln > 0 || P.pw.rocket > 0) return;
+    P.grind = null;
     const ps = Render.playerScreen, d = Render.dpr;
     if (P.pw.shield > 0) {
       P.pw.shield = 0;
@@ -597,6 +791,7 @@ const G = {
     this.maxSpeed = this.speedFor(lvl);
     this.track.curveScale = 1 + (lvl - 1) * 0.12;
     const changed = Theme.set(Theme.indexFor(lvl));
+    if (lvl % 4 === 0) this.startBoss();
     HUD.banner(`MADNESS ${lvl}: ${levelName(lvl).toUpperCase()}`, '#ffd23f', 2.6);
     if (changed) HUD.pop(THEMES[Theme.to].name.toUpperCase(), '#ffffff', 0.7);
     Sfx.level();
@@ -640,7 +835,19 @@ const G = {
         });
       }
     }
-    if (this.level >= 7 || P.sled.rainbow) {
+    if (P.grind) {
+      for (let i = 0; i < 3; i++) {
+        Particles.add({
+          x: ps.x + U.rand(-120, 120) * k, y: ps.gy - P.air * k, vx: U.rand(-300, 300) * d, vy: U.rand(-500, -100) * d,
+          g: 2200 * d, life: U.rand(0.2, 0.4), size: U.rand(3, 6) * d, color: U.pick(['#fff3a8', '#ffb02e', '#ffffff']),
+        });
+      }
+      if (Math.floor(this.time * 12) !== Math.floor((this.time - dt) * 12)) Sfx.grind();
+    }
+    if (P.sled.trail) {
+      Particles.add({ x: ps.x + U.rand(-80, 80) * k, y: ps.y - 30 * k, vx: 0, vy: 500 * d, life: 0.45, size: 12 * d, color: P.sled.trail });
+    }
+    if (this.level >= 7 || P.sled.rainbow || this.fever > 0) {
       Particles.add({
         x: ps.x + U.rand(-60, 60) * k, y: ps.y - 60 * k, vx: 0, vy: 600 * d,
         life: 0.5, size: 14 * d, color: `hsl(${(this.time * 400) % 360},100%,60%)`,
@@ -672,10 +879,17 @@ const G = {
     this.state = 'over';
     this.overT = 0;
     this.score = this.points + Math.floor(this.dist);
+    // One leaderboard submission per real run (the title-screen demo never gets here).
+    if (!this.attract && !this.scoreSent && Number.isFinite(this.score) && this.score >= 0 && this.score < 1e12) {
+      this.scoreSent = true;
+      sendScoreToUsForge(this.score);
+    }
     const d = Save.data;
     const isBest = this.score > d.best;
     if (isBest) d.best = this.score;
     d.bestDist = Math.max(d.bestDist, Math.floor(this.dist));
+    d.totals.runs = (d.totals.runs || 0) + 1;
+    Trophies.check(this.stats);
     const distCoins = Math.floor(this.dist / 100);
     this.earned = { coins: this.stats.coins, dist: distCoins, missions: this.missionCoins };
     d.bank += this.stats.coins + distCoins;

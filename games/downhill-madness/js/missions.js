@@ -20,6 +20,9 @@ const MISSION_TPL = [
   { id: 'gates', stat: 'gates', base: 4, step: 3, text: n => `Shoot through ${n} speed gates` },
   { id: 'clean', stat: 'clean', base: 500, step: 300, text: n => `Go ${U.fmt(n)} m without a wipeout` },
   { id: 'abduct', stat: 'abducted', base: 1, step: 0, minRank: 3, text: () => 'Get abducted by aliens' },
+  { id: 'grind', stat: 'grind', base: 2, step: 1, max: 12, text: n => `Grind rails for ${n} seconds in total` },
+  { id: 'boss', stat: 'bosses', base: 1, step: 0, minRank: 2, text: () => 'Survive the Yeti King' },
+  { id: 'fever', stat: 'fevers', base: 1, step: 0, minRank: 2, text: () => 'Trigger Madness Mode (×10 combo)' },
   { id: 'demolish', stat: 'demolished', base: 3, step: 2, text: n => `Demolish ${n} obstacles with a rocket` },
 ];
 

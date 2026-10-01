@@ -131,6 +131,57 @@ const OUTFITS = [
     jacket: '#ffd21f', sleeve: '#f2bf00', stripe: '#6b4a1e', mitt: '#ffd21f', hat: 'banana', hatColor: '#ffd21f' },
 ];
 
+// v5 additions, kept in price order.
+SLEDS.push(
+  { id: 'surf', name: 'Surfboard', cost: 800, blurb: 'Wrong kind of wave. Still rips.',
+    far(c) {
+      Art.poly(c, [-60, -70, 0, -150, 60, -70], '#2ec4b6');
+    },
+    near(c) {
+      Art.ell(c, 0, -30, 210, 38, '#2ec4b6');
+      Art.ell(c, 0, -34, 200, 26, '#cbf3f0');
+      Art.rect(c, -200, -40, 400, 10, '#ff9f1c');
+      Art.poly(c, [-10, -6, 0, 30, 10, -6], '#ff9f1c');
+    } },
+  { id: 'couch', name: 'Living Room Couch', cost: 1200, blurb: 'Comfiest crash of your life. Remote not included.',
+    far(c) {
+      Art.rect(c, -230, -360, 460, 240, '#b5651d');
+      for (const x of [-150, 0, 150]) Art.rect(c, x - 70, -345, 140, 200, '#c97b2e');
+    },
+    near(c) {
+      Art.rect(c, -240, -200, 70, 200, '#a0561a'); Art.rect(c, 170, -200, 70, 200, '#a0561a');
+      Art.ell(c, -205, -200, 40, 20, '#c97b2e'); Art.ell(c, 205, -200, 40, 20, '#c97b2e');
+      Art.rect(c, -175, -110, 350, 100, '#b5651d');
+      Art.rect(c, -175, -120, 350, 22, '#c97b2e');
+      Art.rect(c, -230, -10, 22, 18, '#3a2410'); Art.rect(c, 208, -10, 22, 18, '#3a2410');
+      Art.rect(c, 80, -150, 70, 30, '#1d1d28');
+    } },
+  { id: 'ufo', name: 'Personal UFO', cost: 5000, blurb: 'Borrowed from the polite aliens. Return by Tuesday.', trail: '#7dff9a',
+    far(c) {
+      c.fillStyle = 'rgba(140,255,170,0.25)';
+      c.beginPath(); c.moveTo(-120, -20); c.lineTo(120, -20); c.lineTo(200, 60); c.lineTo(-200, 60); c.closePath(); c.fill();
+    },
+    near(c, t) {
+      Art.ell(c, 0, -50, 240, 60, '#a9b3c7');
+      Art.ell(c, 0, -32, 220, 34, '#7d879c');
+      for (let i = 0; i < 7; i++) Art.circ(c, -180 + i * 60, -44, 12, (Math.floor(t * 8) + i) % 2 ? '#fff36b' : '#ff4fa3');
+      c.fillStyle = 'rgba(170,230,255,0.28)';
+      c.beginPath(); c.ellipse(0, -90, 150, 300, 0, Math.PI, TAU); c.fill();
+      c.strokeStyle = 'rgba(255,255,255,0.6)'; c.lineWidth = 8; c.stroke();
+    } },
+);
+SLEDS.sort((a, b) => a.cost - b.cost);
+
+OUTFITS.push(
+  { id: 'chef', name: 'Chef', cost: 400, blurb: 'Here to serve. Mostly snow.',
+    jacket: '#f4f6fa', sleeve: '#dfe4ee', stripe: '#e63946', mitt: '#f4f6fa', hat: 'chef', hatColor: '#ffffff' },
+  { id: 'santa', name: 'Santa', cost: 700, blurb: 'Making a list. Checking it at 300 km/h.',
+    jacket: '#d62839', sleeve: '#a51d2e', stripe: '#1d1d28', mitt: '#1d1d28', hat: 'santa', hatColor: '#d62839' },
+  { id: 'yeti', name: 'Yeti Costume', cost: 1600, blurb: 'The other yetis are very confused.',
+    jacket: '#eef3fa', sleeve: '#dce5f1', stripe: '#7b93b8', mitt: '#7b93b8', hat: 'yetihood', hatColor: '#eef3fa' },
+);
+OUTFITS.sort((a, b) => a.cost - b.cost);
+
 const RIVAL_NAMES = ['GARY', 'SVEN', 'GRANDMA', 'BRAD', 'OLGA', 'A BEAR?', 'DOUG', 'INGRID', 'KEVIN', 'THE MAYOR', 'CHAD', 'MRS. P'];
 
 function sledById(id) { return SLEDS.find(s => s.id === id) || SLEDS[0]; }
@@ -180,6 +231,30 @@ function drawHat(c, look, front, t) {
       Art.rect(c, -8, -455, 16, 34, '#6b4a1e');
       if (front) { Art.ell(c, -40, -380, 8, 18, '#e0a800'); }
       break;
+    case 'chef':
+      Art.rect(c, -50, -390, 100, 80, look.hatColor);
+      for (const x of [-40, 0, 40]) Art.circ(c, x, -400, 40, look.hatColor);
+      Art.rect(c, -58, -320, 116, 22, '#dfe4ee');
+      break;
+    case 'santa': {
+      const sw = Math.sin(t * 8) * 10;
+      c.fillStyle = look.hatColor;
+      c.beginPath(); c.moveTo(-60, -305); c.quadraticCurveTo(-30, -420, 60 + sw, -410); c.lineTo(62, -305); c.closePath(); c.fill();
+      Art.rect(c, -66, -318, 132, 24, '#ffffff');
+      Art.circ(c, 66 + sw, -405, 22, '#ffffff');
+      break;
+    }
+    case 'yetihood':
+      if (front) {
+        c.strokeStyle = look.hatColor; c.lineWidth = 34;
+        c.beginPath(); c.arc(0, -280, 66, 0, TAU); c.stroke();
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; Art.circ(c, Math.cos(a) * 80, -280 + Math.sin(a) * 80, 14, look.hatColor); }
+      } else {
+        Art.ell(c, 0, -285, 82, 78, look.hatColor);
+        for (let i = 0; i < 10; i++) { const a = (i / 10) * TAU; Art.circ(c, Math.cos(a) * 78, -285 + Math.sin(a) * 74, 14, look.hatColor); }
+      }
+      Art.poly(c, [-60, -330, -80, -390, -40, -345], '#dfe7f2'); Art.poly(c, [60, -330, 80, -390, 40, -345], '#dfe7f2');
+      break;
     default: // beanie
       c.fillStyle = look.hatColor;
       c.beginPath(); c.ellipse(0, -296, 62, 56, 0, Math.PI, TAU); c.fill();
@@ -209,17 +284,18 @@ const Garage = {
     const key = this.tab === 'sleds' ? 'sled' : 'outfit';
     if (d.owned[id]) {
       d[key] = id;
-      Sfx.init(); Sfx.coin();
+      Sfx.init(); Sfx.ui(() => Sfx.coin());
     } else if (d.bank >= item.cost) {
       d.bank -= item.cost;
       d.owned[id] = true;
       d[key] = id;
-      Sfx.init(); Sfx.level();
+      Sfx.init(); Sfx.ui(() => Sfx.level());
     } else {
-      Sfx.init(); Sfx.beep(false);
+      Sfx.init(); Sfx.ui(() => Sfx.beep(false));
       return;
     }
     Save.write();
+    Trophies.check(null);
     this.render();
   },
   render() {

@@ -8,7 +8,7 @@ const UI = {
     const $ = id => document.getElementById(id);
     this.$ = $;
     this.el = {
-      title: $('title-screen'), pause: $('pause-screen'), over: $('over-screen'), garage: $('garage-screen'),
+      title: $('title-screen'), pause: $('pause-screen'), over: $('over-screen'), garage: $('garage-screen'), trophies: $('trophy-screen'),
       mute: $('mute'), touch: $('touch'),
     };
     $('play').addEventListener('click', () => G.start());
@@ -17,6 +17,8 @@ const UI = {
     $('quit').addEventListener('click', () => G.toTitle());
     $('menu').addEventListener('click', () => G.toTitle());
     $('open-garage').addEventListener('click', () => this.showGarage());
+    $('open-trophies').addEventListener('click', () => { Trophies.render(); this.only('trophies'); });
+    $('trophy-back').addEventListener('click', () => this.back());
     $('over-garage').addEventListener('click', () => this.showGarage());
     this.el.mute.addEventListener('click', () => { Sfx.init(); this.setMute(Sfx.toggleMute()); });
     document.querySelectorAll('[data-setting]').forEach(b => b.addEventListener('click', () => {
@@ -55,9 +57,9 @@ const UI = {
   },
 
   only(which) {
-    for (const k of ['title', 'pause', 'over', 'garage']) this.el[k].hidden = k !== which;
+    for (const k of ['title', 'pause', 'over', 'garage', 'trophies']) this.el[k].hidden = k !== which;
     this.el.touch.hidden = which !== null;
-    if (which && which !== 'garage') this.prev = which;
+    if (which && which !== 'garage' && which !== 'trophies') this.prev = which;
     this.current = which;
   },
 
@@ -66,7 +68,8 @@ const UI = {
     return `<span><b>Rank ${d.rank}</b> ${rankName(d.rank)}</span>
       <span><b>${U.fmt(d.bank)}</b> coins</span>
       <span><b>${U.fmt(d.best)}</b> best score</span>
-      <span><b>${U.fmt(d.bestDist)} m</b> furthest</span>`;
+      <span><b>${U.fmt(d.bestDist)} m</b> furthest</span>
+      <span><b>${Trophies.count()}/${TROPHIES.length}</b> trophies</span>`;
   },
 
   showTitle() {
@@ -99,7 +102,7 @@ const UI = {
     const e = G.earned;
     const total = e.coins + e.dist + e.missions;
     this.$('over-coins').textContent =
-      `+${U.fmt(total)} coins  ·  ${e.coins} picked up, ${e.dist} for distance, ${e.missions} from missions  ·  Bank: ${U.fmt(Save.data.bank)}`;
+      `+${U.fmt(total)} coins  ·  ${e.coins} picked up, ${e.dist} for distance, ${e.missions} from missions & trophies  ·  Bank: ${U.fmt(Save.data.bank)}`;
     const rows = [
       ['Score', U.fmt(G.score)],
       ['Distance', `${U.fmt(G.dist)} m`],
@@ -111,6 +114,8 @@ const UI = {
       ['Perfect landings', st.perfects],
       ['Wipeouts', G.crashes],
       ['Things bowled over', st.bowled + st.demolished],
+      ['Rail time', `${st.grind.toFixed(1)}s`],
+      ['Yeti Kings beaten', st.bosses],
     ];
     this.$('stats').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
     this.$('over-missions').innerHTML = Missions.html(st);

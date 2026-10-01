@@ -12,5 +12,9 @@
   "Milan": {
     "icon": "crown",
     "fav": "pirate-madness"
+  },
+  "Henrique": {
+    "icon": "shield",
+    "bio": "I make games."
   }
 }

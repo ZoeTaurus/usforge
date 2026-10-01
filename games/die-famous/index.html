@@ -956,6 +956,18 @@
 
 <script>
 // ═══════════════════════════════════════════
+// USFORGE LEADERBOARD
+// ═══════════════════════════════════════════
+function sendScoreToUsForge(score) {
+  // only when running inside UsForge's page; does nothing when the game is opened on its own
+  if (window.parent === window) return;
+  try {
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'points' }, '');
+  } catch (e) {}
+}
+</script>
+<script>
+// ═══════════════════════════════════════════
 // DATA TABLES
 // ═══════════════════════════════════════════
 
@@ -1465,6 +1477,7 @@ function startGame() {
   G.headlines = [];
   G.jailDays = 0;
   G.dead = false;
+  G.scoreSent = false;
   G.actionsToday = 0;
   G.maxActionsPerDay = 2;
   G.streakCount = 0;
@@ -1851,6 +1864,9 @@ function showDeath() {
   sfx.death();
   showScreen('death');
   const tf = totalFame();
+
+  // Report the final run score to UsForge exactly once per run
+  if(!G.scoreSent) { G.scoreSent = true; sendScoreToUsForge(tf); }
 
   const ending = [...ENDINGS].reverse().find(e=>tf >= e.minFame) || ENDINGS[0];
 

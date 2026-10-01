@@ -349,7 +349,9 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790438292
+    "added": 1790438292,
+    "leaderboard": true,
+    "updated": 1790858586
   },
   {
     "slug": "gravity-golf",

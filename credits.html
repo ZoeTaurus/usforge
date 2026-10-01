@@ -10,10 +10,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=47">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
-<script src="site.js?v=33"></script>
+<script src="site.js?v=34"></script>
 </head>
 <body>
 <div class="wrap">
@@ -54,6 +54,7 @@
         <span class="initial${emo(p.name) ? ' emoji' : ''}" aria-hidden="true">${emo(p.name) ? UsForgeIcon(emo(p.name)) : esc(p.name[0])}</span>
         <h2><a class="person-link" href="maker.html?n=${encodeURIComponent(p.name)}">${esc(p.name)}</a></h2>
         <div class="roles">${p.roles.map((r, i) => `<span class="role${i < (p.lead || 0) ? ' lead' : ''}"${r === 'Potato' ? ' data-potato title="Click me" style="cursor:pointer"' : ''}>${esc(r)}</span>`).join('')}</div>
+        ${st ? UsForge.levelChip(UsForge.levelOf(UsForge.makerPoints(p.name, games, st))) : ''}
         ${mine.length ? `<a href="maker.html?n=${encodeURIComponent(p.name)}">${mine.length} game${mine.length === 1 ? '' : 's'} on UsForge →</a>` : '<span class="role" style="border-style:dashed;width:fit-content">first game coming soon</span>'}
       </article>`;
     }).join('');
@@ -66,14 +67,14 @@
     document.getElementById('communityWrap').hidden = !seen.size;
     // small tiles (no roles), so a big community still fits neatly
     document.getElementById('community').innerHTML = [...seen].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name, n]) =>
-      `<a class="member" href="maker.html?n=${encodeURIComponent(name)}"><span class="mini${emo(name) ? ' emoji' : ''}" aria-hidden="true">${emo(name) ? UsForgeIcon(emo(name)) : esc(name[0])}</span><span class="member-name">${esc(name)}</span><span class="member-n">${n ? `${n} game${n === 1 ? '' : 's'}` : 'New member'}</span></a>`).join('');
+      `<a class="member" href="maker.html?n=${encodeURIComponent(name)}"><span class="mini${emo(name) ? ' emoji' : ''}" aria-hidden="true">${emo(name) ? UsForgeIcon(emo(name)) : esc(name[0])}</span><span class="member-name">${esc(name)}</span><span class="member-n">${n ? `${n} game${n === 1 ? '' : 's'}` : 'New member'}${st && n ? UsForge.levelChip(UsForge.levelOf(UsForge.makerPoints(name, games, st))) : ''}</span></a>`).join('');
   };
-  let profiles = {};
+  let profiles = {}, st = null;   // (st: plays + stokes, for levels)
   const emo = name => { const i = (profiles[Object.keys(profiles).find(k => k.toLowerCase() === String(name).toLowerCase())] || {}).icon; return UsForgeIcon.avatars.includes(i) ? i : ''; };
   paint();
   Promise.all([fetch('games.json', { cache: 'no-cache' }).then(r => r.json()), fetch('profiles.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
-    fetch('/api/members').then(r => r.ok ? r.json() : []).catch(() => [])])
-    .then(([g, p, m]) => { profiles = p || {}; paint(g); community(g, Array.isArray(m) ? m : []); }).catch(() => {});
+    fetch('/api/members').then(r => r.ok ? r.json() : []).catch(() => []), UsForge.stats()])
+    .then(([g, p, m, s2]) => { profiles = p || {}; st = s2; paint(g); community(g, Array.isArray(m) ? m : []); }).catch(() => {});
 })();
 </script>
 </body>

@@ -10,10 +10,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=47">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
-<script src="site.js?v=33"></script>
+<script src="site.js?v=34"></script>
 </head>
 <body>
 <div class="wrap">
@@ -126,6 +126,19 @@
           </label>
           <button class="link" type="button" id="coverClear" hidden>Remove picture</button>
         </div>
+
+        <div class="cover-field">
+          <span class="lbl">Screenshots <span class="hint">(optional — up to 4, shown on the game’s page)</span></span>
+          <label class="shots-drop" id="shotsDrop" tabindex="0">
+            <input id="fShots" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+            <span id="shotsHint">Drag up to 4 pictures here, or click to choose</span>
+            <span class="shots-row" id="shotsRow"></span>
+          </label>
+          <label class="check" id="clearShotsRow" hidden><input id="fClearShots" type="checkbox"> Remove this game’s screenshots</label>
+        </div>
+
+        <label id="whatsnewRow" hidden>What’s new in this update? <span class="hint">(optional — one line, shown on the game’s page and in everyone’s notifications)</span>
+          <input id="fWhatsnew" maxlength="120" placeholder="Added a boss fight and 3 new levels!"></label>
 
         <fieldset>
           <legend>Game files</legend>
@@ -395,13 +408,28 @@
     $('formTitle').textContent = `Update ${g.title}`; $('send').textContent = 'Save update'; $('cancelEdit').hidden = false;
     chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name, description or cover.');
     $('fCover').value = ''; setCover(null, g.cover);
+    setShots([], g.shots || []); $('whatsnewRow').hidden = false; $('fWhatsnew').value = '';
     $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function endEdit() {
-    editing = null; $('up').reset(); countBlurb(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); devShow();
+    editing = null; $('up').reset(); countBlurb(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); devShow(); setShots([]); $('whatsnewRow').hidden = true;
     $('formTitle').textContent = 'Add a game'; $('send').textContent = 'Upload'; $('cancelEdit').hidden = true;
   }
   $('cancelEdit').onclick = endEdit;
+  // ---------- screenshots (up to 4) ----------
+  let shotPicks = [];
+  function setShots(files, existing = []) {
+    shotPicks = files.slice(0, 4);
+    const urls = shotPicks.length ? shotPicks.map(f => URL.createObjectURL(f)) : existing;
+    $('shotsRow').innerHTML = urls.map(u => `<img src="${esc(u)}" alt="">`).join('');
+    $('shotsHint').textContent = shotPicks.length ? `${shotPicks.length} new screenshot${shotPicks.length === 1 ? '' : 's'} (they replace the old ones) · click to change` : existing.length ? `${existing.length} screenshot${existing.length === 1 ? '' : 's'} now · drop new ones to replace them` : 'Drag up to 4 pictures here, or click to choose';
+    $('clearShotsRow').hidden = !(editing && existing.length && !shotPicks.length); $('fClearShots').checked = false;
+  }
+  const pickShots = list => { const imgs = [...list].filter(f => /^image\/(png|jpeg|webp|gif)$/.test(f.type)); if (imgs.length) setShots(imgs, []); if (list.length > 4) UsForge.toast('Only the first 4 screenshots are used.'); };
+  $('fShots').onchange = () => pickShots($('fShots').files);
+  $('shotsDrop').addEventListener('dragover', e => { e.preventDefault(); $('shotsDrop').classList.add('over'); });
+  $('shotsDrop').addEventListener('dragleave', () => $('shotsDrop').classList.remove('over'));
+  $('shotsDrop').addEventListener('drop', e => { e.preventDefault(); $('shotsDrop').classList.remove('over'); pickShots(e.dataTransfer.files); });
   const countBlurb = () => { const n = $('fBlurb').value.length; $('blurbCount').textContent = `${n} / 300`; $('blurbCount').style.color = n >= 280 ? 'var(--accent)' : ''; };
   $('fBlurb').addEventListener('input', countBlurb);
 
@@ -515,6 +543,9 @@
     fd.append('dev', String($('fDev').checked));
     if ($('fDev').checked) { fd.append('progress', $('fProgress').value); fd.append('next', $('fNext').value.trim()); }
     if (coverPick) fd.append('cover', coverPick, coverPick.name);
+    for (const f of shotPicks) fd.append('shot', f, f.name);
+    if ($('fClearShots').checked) fd.append('clearShots', 'true');
+    if (editing && $('fWhatsnew').value.trim()) fd.append('whatsnew', $('fWhatsnew').value.trim());
     $('send').disabled = true; say('upMsg', 'Uploading…');
     try {
       // code and text go with the upload; pictures and sounds go ahead in small batches (so big games fit)

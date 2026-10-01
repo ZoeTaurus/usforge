@@ -10,10 +10,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=47">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
-<script src="site.js?v=33"></script>
+<script src="site.js?v=34"></script>
 </head>
 <body>
 <div class="wrap">
@@ -84,6 +84,7 @@
         <span class="eyebrow">Lazy Studios</span>
         <h1>${esc(person.name)}</h1>
         <div class="roles">${person.roles.map((r, i) => `<span class="role${i < (person.lead || 0) ? ' lead' : ''}"${r === 'Potato' ? ' data-potato title="Click me" style="cursor:pointer"' : ''}>${esc(r)}</span>`).join('')}</div>
+        ${stats ? (lv => `<div class="level-progress">${U.levelChip(lv)}<span class="bar"><i style="width:${Math.round(lv.progress * 100)}%"></i></span><small>${lv.points.toLocaleString()} points${lv.next ? ` · ${lv.toNext.toLocaleString()} more to ${lv.next}` : ' · top level!'}</small></div>`)(U.levelOf(U.makerPoints(person.name, games, stats))) : ''}
         <div class="stats">
           <div class="stat"><b>${done.length}</b><span>${done.length === 1 ? 'Game' : 'Games'}</span></div>
           ${stats ? `<div class="stat"><b>${plays.toLocaleString()}</b><span>Plays</span></div><div class="stat"><b>${stokes.toLocaleString()}</b><span>Stokes</span></div>` : ''}

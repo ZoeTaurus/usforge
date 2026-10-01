@@ -17,7 +17,7 @@
     "progress": 65,
     "next": "Beautifying",
     "build": true,
-    "added": 1790877468
+    "added": 1790877471
   },
   {
     "slug": "skyline-dash",
@@ -35,7 +35,7 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790857977
+    "added": 1790857978
   },
   {
     "slug": "fish-life",
@@ -56,7 +56,7 @@
     "next": "",
     "build": true,
     "added": 1790798392,
-    "updated": 1790869182
+    "updated": 1790869184
   },
   {
     "slug": "downhill-madness",
@@ -74,7 +74,7 @@
     "build": true,
     "added": 1790792708,
     "leaderboard": true,
-    "updated": 1790859237
+    "updated": 1790859241
   },
   {
     "slug": "striker-100",
@@ -93,7 +93,7 @@
     "next": "",
     "build": true,
     "added": 1790771414,
-    "updated": 1790858006
+    "updated": 1790857952
   },
   {
     "slug": "1-million-deaths",
@@ -373,7 +373,7 @@
     "build": true,
     "added": 1790438292,
     "leaderboard": true,
-    "updated": 1790870526
+    "updated": 1790858588
   },
   {
     "slug": "gravity-golf",

@@ -89,6 +89,12 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
         'build': playable or bool(url),   # False = a teaser for a game with nothing to play yet
         'added': added_at(folder),
     })
+    shots = sorted(f'games/{folder.name}/shots/{p.name}' for p in (folder / 'shots').glob('*') if p.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp', '.gif')) if (folder / 'shots').is_dir() else []
+    if shots:
+        games[-1]['shots'] = shots[:4]
+    wn = info.get('whatsnew')
+    if isinstance(wn, dict) and wn.get('text'):
+        games[-1]['whatsnew'] = {'text': str(wn['text'])[:120], 'at': int(wn.get('at') or 0)}
     if playable and has_leaderboard(folder):
         games[-1]['leaderboard'] = True   # the game sends scores (see "Add a leaderboard" on the Share page)
     up = updated_at(folder, games[-1]['added'])

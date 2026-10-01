@@ -11,10 +11,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=47">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
-<script src="site.js?v=33"></script>
+<script src="site.js?v=34"></script>
 <script>
   // skip the title screen if it was already shown this visit (checked before the page paints, so it never flashes)
   try { if (sessionStorage.getItem('usforge-welcomed')) document.documentElement.classList.add('welcomed'); } catch (e) {}
@@ -300,10 +300,51 @@
   $('sort').addEventListener('change', () => { paint(); U.paintLive(); });
   $('makers').addEventListener('change', () => { by = $('makers').value; syncUrl(); paint(); });
   $('genres').addEventListener('change', () => { genre = $('genres').value; syncUrl(); paint(); });
+  // ---------- Surprise me: spin the wheel ----------
   $('surprise').onclick = () => {
-    const pool = released().filter(g => !g.url && g.build !== false);
-    const g = pool[Math.floor(Math.random() * pool.length)];
-    if (g) location.href = href(g);
+    const pool = released().filter(g => !g.url && g.build !== false).sort(() => Math.random() - .5).slice(0, 10);
+    if (pool.length < 2) { if (pool[0]) location.href = href(pool[0]); return; }
+    let d = $('wheel');
+    if (!d) {
+      d = document.createElement('dialog'); d.id = 'wheel'; d.className = 'wheel-dialog';
+      d.innerHTML = `<button type="button" class="wheel-x" aria-label="Close">${UsForgeIcon('close')}</button><h2>Spin the wheel</h2>
+        <div class="wheel-wrap"><span class="wheel-pointer" aria-hidden="true"></span><svg class="wheel" viewBox="-110 -110 220 220" aria-hidden="true"></svg><button type="button" class="wheel-spin">SPIN</button></div>
+        <p class="wheel-result" role="status" aria-live="polite"></p><div class="wheel-acts"></div>`;
+      document.body.append(d);
+      d.querySelector('.wheel-x').onclick = () => d.close();
+      d.addEventListener('click', e => { if (e.target === d) d.close(); });
+    }
+    const svg = d.querySelector('.wheel'), n = pool.length, seg = 360 / n, R = 100;
+    const pt = a => [Math.sin(a * Math.PI / 180) * R, -Math.cos(a * Math.PI / 180) * R].map(v => v.toFixed(2)).join(' ');
+    const short = t => t.length > 14 ? t.slice(0, 13) + '…' : t;
+    svg.innerHTML = pool.map((g, k) => {
+      const a0 = k * seg, mid = a0 + seg / 2;
+      return `<path d="M0 0 L${pt(a0)} A${R} ${R} 0 ${seg > 180 ? 1 : 0} 1 ${pt(a0 + seg)} Z" class="wseg ws-${k % 2}" style="--k:${k}"/>
+        <text transform="rotate(${mid}) translate(0 -62) rotate(90)" class="wlabel">${esc(short(g.title))}</text>`;
+    }).join('') + '<circle r="16" class="whub"/>';
+    svg.style.transition = 'none'; svg.style.transform = 'rotate(0deg)'; let angle = 0;
+    d.querySelector('.wheel-result').textContent = ''; d.querySelector('.wheel-acts').innerHTML = '';
+    const spinBtn = d.querySelector('.wheel-spin');
+    const spin = () => {
+      spinBtn.disabled = true; d.querySelector('.wheel-result').textContent = ''; d.querySelector('.wheel-acts').innerHTML = '';
+      const pick = Math.floor(Math.random() * n), within = seg * (.2 + Math.random() * .6);
+      // land so that slice `pick` sits under the pointer at the top
+      angle += 360 * (calm ? 1 : 5) + ((360 - (pick * seg + within)) - (angle % 360) + 360) % 360;
+      void svg.getBoundingClientRect();
+      svg.style.transition = calm ? 'transform .3s ease-out' : 'transform 4.2s cubic-bezier(.12,.8,.18,1)';
+      svg.style.transform = `rotate(${angle}deg)`;
+      setTimeout(() => {
+        const g = pool[pick];
+        d.querySelector('.wheel-result').innerHTML = `It’s <b>${esc(g.title)}</b> by ${esc(g.author)}!`;
+        d.querySelector('.wheel-acts').innerHTML = `<a class="play-btn" href="${esc(href(g))}#play">${UsForgeIcon('play')} Play it</a><button type="button" class="btn-l wheel-again">Spin again</button>`;
+        d.querySelector('.wheel-again').onclick = spin;
+        spinBtn.disabled = false;
+        window.UsForgeEggs?.burst(innerWidth / 2, innerHeight / 2, 40, 320);
+      }, calm ? 350 : 4300);
+    };
+    spinBtn.onclick = spin;
+    d.showModal();
+    setTimeout(spin, 250);   // it starts spinning straight away
   };
   const gamesP = fetch('games.json', { cache: 'no-cache' }).then(r => r.json());
   gamesP.then(list => {

@@ -317,6 +317,18 @@ async function upload(req, env) {
     for (let i = files.length - 1; i >= 0; i--) if (rootCover(files[i].path)) { if (files[i].text === undefined && !files[i].sha) binaries--; files.splice(i, 1); }
     files.push({ path: coverPath, bytes: new Uint8Array(await coverIn.arrayBuffer()) }); binaries++; total += coverIn.size;
   }
+  // up to 4 screenshots, sent on their own (like the cover); a new set replaces the old one
+  const isShot = p => p.startsWith(`games/${slug}/shots/`);
+  const shotsIn = form.getAll('shot').filter(f => typeof f === 'object' && f.size > 0).slice(0, 4);
+  for (const [i, f] of shotsIn.entries()) {
+    const ext = (String(f.name).match(/\.(png|jpe?g|webp|gif)$/i) || [])[1];
+    if (!ext) throw fail(400, 'Screenshots must be PNG, JPG, WEBP or GIF pictures.');
+    if (f.size > 3 * 1024 * 1024) throw fail(400, `Screenshot ${i + 1} is over 3 MB — try a smaller one.`);
+    files.push({ path: `games/${slug}/shots/${i + 1}.${ext.toLowerCase()}`, bytes: new Uint8Array(await f.arrayBuffer()) }); binaries++; total += f.size;
+  }
+  const dropOldShots = shotsIn.length > 0 || form.get('clearShots') === 'true';
+  // a one-line "what's new" note for an update
+  const whatsnewText = String(form.get('whatsnew') || '').replace(/\s+/g, ' ').trim().slice(0, 120);
   if (files.length > MAX_FILES) throw fail(400, `That’s ${files.length} files — the limit is ${MAX_FILES}.`);
   if (binaries > MAX_BINARIES) throw fail(400, `Too many images/sounds (${binaries}) — the limit is ${MAX_BINARIES}. Combine some, or ask Taurus to add it.`);
   if (total > MAX_BYTES) throw fail(400, `That game is over ${MAX_BYTES / 1024 / 1024} MB — too big.`);
@@ -333,9 +345,9 @@ async function upload(req, env) {
   const shaOf = new Map(baseTree.map(e => [e.path, e.sha]));
   const existing = [...shaOf.keys()];
   const kept = replacing
-    // new game files replace the old ones, but the cover picture stays unless a new one came with them
-    ? (coverPath || files.some(f => rootCover(f.path)) ? [] : existing.filter(rootCover))
-    : existing.filter(p => !p.endsWith('/game.json') && !(coverPath && rootCover(p)));   // details-only edit keeps the files
+    // new game files replace the old ones, but the cover picture and screenshots stay unless new ones came with them
+    ? [...(coverPath || files.some(f => rootCover(f.path)) ? [] : existing.filter(rootCover)), ...(dropOldShots ? [] : existing.filter(isShot))]
+    : existing.filter(p => !p.endsWith('/game.json') && !(coverPath && rootCover(p)) && !(dropOldShots && isShot(p)));   // details-only edit keeps the files
   const playable = files.some(f => f.path === `games/${slug}/index.html`) || kept.includes(`games/${slug}/index.html`);
   if (replacing && !playable) throw fail(400, 'Your game needs an index.html at the top of its folder.');
   if (!playable && !link && !dev) throw fail(400, 'Choose your game’s folder (or HTML file), or give a link — or tick “Still in development” to post it as coming soon.');
@@ -343,9 +355,13 @@ async function upload(req, env) {
   const info = { title, author: before?.author && who.admin ? before.author : who.name, owner, blurb, ...(pixel ? { pixel: true } : {}), ...(link && !playable ? { url: link } : {}),
     ...(genres.length ? { genres } : {}), ...(dev ? { dev: true, ...(progress !== null ? { progress } : {}), ...(next ? { next } : {}) } : {}) };
   const now = Math.floor(Date.now() / 1000), list = await readJson(env, 'games.json', head);
+  const whatsnew = before && whatsnewText ? { text: whatsnewText, at: now } : before?.whatsnew || null;   // (kept until the next note)
+  if (whatsnew) info.whatsnew = whatsnew;
   const all = new Set([...files.map(f => f.path), ...kept]);
   const cover = COVERS.find(c => all.has(`games/${slug}/${c}`));
+  const shots = [...all].filter(p => isShot(p) && /\.(png|jpe?g|webp|gif)$/i.test(p)).sort();
   const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null,
+    ...(shots.length ? { shots } : {}), ...(whatsnew ? { whatsnew } : {}),
     genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now,
     ...((replacing ? files.some(f => f.text !== undefined && /usforge['"]?\s*:\s*['"]score/.test(f.text)) : (list || []).find(g => g.slug === slug)?.leaderboard) ? { leaderboard: true } : {}),
     ...((before && (replacing || coverPath)) ? { updated: now } : (list || []).find(g => g.slug === slug)?.updated ? { updated: (list || []).find(g => g.slug === slug).updated } : {}) };

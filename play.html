@@ -9,10 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=47">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
-<script src="site.js?v=33"></script>
+<script src="site.js?v=34"></script>
 </head>
 <body>
 
@@ -80,6 +80,7 @@
           ${g.dev && g.progress != null ? `<div class="devprog"><span class="progress"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span></div>` : ''}
           ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
           <div class="facts"><span>${ago(g.added)}</span>${g.updated ? `<span>${ago(g.updated).replace('Added', 'Updated')}</span>` : ''}<span id="pickFact" hidden></span><span class="live-fact" data-live="${esc(g.slug)}" data-now hidden></span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          ${g.whatsnew?.text ? `<p class="whatsnew"><b>What’s new:</b> ${esc(g.whatsnew.text)} <time>${ago(g.whatsnew.at).replace('Added', 'Updated')}</time></p>` : ''}
           <div class="acts">
             ${g.build === false ? `<span class="soon">Nothing to play yet. ${esc(g.author)} is still making it.</span>` : g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">${UsForgeIcon('play')} ${g.dev ? 'Play early build' : 'Play'}</button>`}
             ${g.build === false ? '' : `<button class="stoke" id="stokeBtn" type="button" title="Stoke the fire: tell ${esc(g.author)} you love this game">${UsForge.FLAME}<span id="stokeLbl">Stoke</span><b id="stokeN"></b></button>`}
@@ -97,6 +98,7 @@
           </form>`}
           <p class="tipline" data-support hidden>Enjoying ${esc(g.title)}? <a href="support.html">Support Lazy Studios ${UsForgeIcon('heart')}</a></p>
         </div>
+        ${g.shots?.length ? `<div class="shots" aria-label="Screenshots">${g.shots.map((src, k) => `<button type="button" class="shot" data-k="${k}" aria-label="Screenshot ${k + 1} of ${g.shots.length}"><img src="${esc(src)}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
         <section class="board" id="board" hidden>
           <div class="shelf-head"><h2>Leaderboard</h2><span class="shelf-note" id="boardNote"></span></div>
           <ol class="board-list" id="boardList"></ol>
@@ -106,6 +108,7 @@
         <div class="grid">${more.map(o => `<article><a class="card tilt" data-cover href="play.html?g=${encodeURIComponent(o.slug)}"><div class="cover${o.pixel ? ' pixel' : ''}">${coverOf(o)}<span class="glint" aria-hidden="true"></span></div></a>
           <div class="meta"><b>${esc(o.title)}</b><span class="by">by ${esc(o.author)}</span></div></article>`).join('')}</div></section>` : ''}`;
     UsForgeIcon.fill();   // (draw the icons in what was just built)
+    for (const b of document.querySelectorAll('.shot')) b.onclick = () => openShot(+b.dataset.k);
     $('playBtn')?.addEventListener('click', () => { history.pushState({ playing: true }, '', location.href); play(); });
     document.querySelector('.big-play[href]')?.addEventListener('click', () => { countPlay(); UsForge.played(game.slug); });   // link-only games count when you head off to play
     for (const el of document.querySelectorAll('.tipline')) el.hidden = !UsForge.supportUrl;
@@ -201,6 +204,24 @@
   }
 
   // ---------- playing ----------
+  // ---------- screenshots: click one to see it big (arrows / swipe-free buttons to flip through) ----------
+  function openShot(k) {
+    const list = game.shots || []; if (!list.length) return;
+    let d = $('lightbox');
+    if (!d) {
+      d = document.createElement('dialog'); d.id = 'lightbox'; d.className = 'lightbox';
+      d.innerHTML = `<img alt=""><button type="button" class="lb-prev" aria-label="Previous screenshot">‹</button><button type="button" class="lb-next" aria-label="Next screenshot">›</button><button type="button" class="lb-close" aria-label="Close">${UsForgeIcon('close')}</button><span class="lb-n"></span>`;
+      document.body.append(d);
+      d.addEventListener('click', e => { if (e.target === d) d.close(); });
+      d.querySelector('.lb-close').onclick = () => d.close();
+      d.querySelector('.lb-prev').onclick = () => show(d.k - 1);
+      d.querySelector('.lb-next').onclick = () => show(d.k + 1);
+      d.addEventListener('keydown', e => { if (e.key === 'ArrowLeft') show(d.k - 1); if (e.key === 'ArrowRight') show(d.k + 1); });
+    }
+    const show = n => { d.k = (n + list.length) % list.length; d.querySelector('img').src = list[d.k]; d.querySelector('.lb-n').textContent = `${d.k + 1} / ${list.length}`; for (const b of d.querySelectorAll('.lb-prev, .lb-next')) b.hidden = list.length < 2; };
+    show(k); d.showModal();
+  }
+
   // ---------- play time (while the game is open and the tab is visible) ----------
   setInterval(() => { if (frame && !document.hidden && game) UsForge.addTime(game.slug, 10); }, 10000);
 

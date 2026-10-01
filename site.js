@@ -322,7 +322,10 @@
     try { games = await (await fetch('/games.json', { cache: 'no-cache' })).json(); } catch (e) { return; }
     const bySlug = Object.fromEntries(games.map(g => [g.slug, g])), items = [];
     for (const g of games) if (!g.dev && g.added > seen) items.push({ at: g.added, icon: 'sparkles', text: `New game: <b>${esc(g.title)}</b> by ${esc(g.author)}`, href: `/play.html?g=${encodeURIComponent(g.slug)}` });
-    for (const slug of favs()) { const g = bySlug[slug]; if (g?.updated > seen) items.push({ at: g.updated, icon: 'heart', text: `Your favorite <b>${esc(g.title)}</b> was updated`, href: `/play.html?g=${encodeURIComponent(slug)}` }); }
+    // updates with a "what's new" note go to everyone; favorites also get a plain "updated" when there's no note
+    const noted = new Set();
+    for (const g of games) if (g.whatsnew?.at > seen) { noted.add(g.slug); items.push({ at: g.whatsnew.at, icon: 'refresh', text: `<b>${esc(g.title)}</b> updated: ${esc(g.whatsnew.text)}`, href: `/play.html?g=${encodeURIComponent(g.slug)}` }); }
+    for (const slug of favs()) { const g = bySlug[slug]; if (g?.updated > seen && !noted.has(slug)) items.push({ at: g.updated, icon: 'heart', text: `Your favorite <b>${esc(g.title)}</b> was updated`, href: `/play.html?g=${encodeURIComponent(slug)}` }); }
     // leaderboards: did anyone pass you?
     const mine = store.get('usforge-myscores', {});
     await Promise.all(Object.entries(mine).filter(([slug]) => bySlug[slug]).slice(0, 8).map(async ([slug, m]) => {
@@ -360,6 +363,19 @@
   addEventListener('click', e => { if (newsPanel && !newsPanel.contains(e.target)) closeNews(); });
   addEventListener('keydown', e => { if (e.key === 'Escape' && newsPanel) closeNews(); });
 
-  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast, store, favs, isFav, toggleFav, addTime, flag };
+  // ---------- maker levels: 20 points per game, 1 per play, 5 per stoke ----------
+  const LEVELS = [['Spark', 0, 'sparkles'], ['Ember', 50, 'flame'], ['Flame', 200, 'flame'], ['Blaze', 500, 'bolt'], ['Inferno', 1500, 'flame']];
+  function makerPoints(name, games, st) {
+    const mine = games.filter(g => g.author.toLowerCase() === String(name).toLowerCase() && !g.dev);
+    return mine.length * 20 + mine.reduce((t, g) => t + (st?.plays?.[g.slug] || 0) + 5 * (st?.stokes?.[g.slug] || 0), 0);
+  }
+  function levelOf(points) {
+    let i = 0; while (i + 1 < LEVELS.length && points >= LEVELS[i + 1][1]) i++;
+    const [name, from, icon] = LEVELS[i], next = LEVELS[i + 1];
+    return { name, i, icon, points, next: next?.[0] || null, toNext: next ? next[1] - points : 0, progress: next ? (points - from) / (next[1] - from) : 1 };
+  }
+  const levelChip = lv => `<span class="level lv-${lv.i}" title="${lv.points.toLocaleString()} points${lv.next ? ` · ${lv.toNext.toLocaleString()} more to ${lv.next}` : ' · top level!'}">${window.UsForgeIcon?.(lv.icon) || ''} ${lv.name}</span>`;
+
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, LEVELS, makerPoints, levelOf, levelChip, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast, store, favs, isFav, toggleFav, addTime, flag };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

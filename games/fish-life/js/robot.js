@@ -14,11 +14,16 @@ const ROBOT_ZONES = [
   { name: 'THE ARMY BASE', x: 3100, sky: ['#f77622', '#3e2731'] },
 ];
 const ROBOT_BOSS_X = 3950;
+const DIVE_X = 2870;     // the end of the pier
 const ENEMY_STATS = {
   tank: { hp: 6, w: 26, h: 14, iq: 20, name: 'TANK' },
   heli: { hp: 5, w: 26, h: 12, iq: 15, name: 'HELICOPTER' },
   drone: { hp: 2, w: 10, h: 6, iq: 6, name: 'DRONE' },
   boss: { hp: 140, w: 84, h: 40, iq: 120, name: 'MEGA TANK' },
+  shark: { hp: 10, w: 30, h: 12, iq: 25, name: 'SHARK' },
+  sub: { hp: 8, w: 30, h: 12, iq: 22, name: 'SUBMARINE' },
+  jelly: { hp: 2, w: 10, h: 12, iq: 5, name: 'JELLYFISH' },
+  boat: { hp: 60, w: 60, h: 30, iq: 150, name: 'FISHING BOAT' },
 };
 
 class RobotScene {
@@ -45,6 +50,14 @@ class RobotScene {
     this.dead = null;
     this.army = this.bowl.owned('army') ? [[-26, -54], [-34, -36], [-22, -70], [-40, -60]].map(([ox, oy], i) => ({ ox, oy, x: 110 + ox, y: 74 + oy, cd: 0.5 + i * 0.3, i })) : [];
     this.bowing = this.bowl.owned('mind');
+    this.worldW = ROBOT_W;
+    this.phys = { grav: 520, jet: 900, up: -140, fuel: 40, walk: 85, top: 36, fall: 9999 };
+    this.cars = [];
+    this.setupWorld();
+    Sound.sfx('rumble');
+  }
+  enter() { Sound.play('danger'); }
+  setupWorld() {
     // things placed along the world
     const r = mulberry32(7);
     this.spawns = [];
@@ -68,9 +81,7 @@ class RobotScene {
     for (const x of [900, 1800, 2700, 3400]) this.crates.push({ x, y: ROBOT_GY, vy: 0 });
     this.far = this.paintFar();
     this.near = this.paintNear();
-    Sound.sfx('rumble');
   }
-  enter() { Sound.play('danger'); }
   onBlur() {}
   zoneAt(x) { let z = 0; ROBOT_ZONES.forEach((zn, i) => { if (x >= zn.x) z = i; }); return z; }
 
@@ -170,15 +181,43 @@ class RobotScene {
     this.updateArmy(dt);
     this.updateEnemies(dt);
     this.updateShots(dt);
-    this.updatePeople(dt);
     this.updateCrates(dt);
+    this.updateWorld(dt);
+    if (this.leaving) return;
+    this.camX = clamp(lerp(this.camX, this.p.x - W * 0.4 + this.p.face * 20, 1 - Math.pow(0.02, dt)), 0, this.worldW - W);
+  }
+  updateWorld(dt) {
+    this.updatePeople(dt);
+    // walk onto the end of the pier and press down to dive back into the sea
+    const p = this.p;
+    if (this.canDive() && (hit('down') || this.touchButtons().stomp)) { this.dive(); return; }
     // zone banners
     const z = this.zoneAt(this.p.x);
     if (z !== this.zone) {
       this.zone = z;
-      this.banner = { title: ROBOT_ZONES[z].name, sub: ['STOMP STOMP STOMP.', 'MOO? (THE COWS ARE NOT IMPRESSED.)', 'THE SEA! YOU MISS IT A LITTLE.', 'THE ARMY IS WAITING. THEY BROUGHT A MEGA TANK.'][z], t: 2.6, style: z === 3 ? 'red' : 'aqua' };
+      this.banner = { title: ROBOT_ZONES[z].name, sub: ['STOMP STOMP STOMP.', 'MOO? (THE COWS ARE NOT IMPRESSED.)', 'THE SEA! WALK TO THE END OF THE PIER TO DIVE IN.', 'THE ARMY IS WAITING. THEY BROUGHT A MEGA TANK.'][z], t: 2.6, style: z === 3 ? 'red' : 'aqua' };
     }
-    this.camX = clamp(lerp(this.camX, this.p.x - W * 0.4 + this.p.face * 20, 1 - Math.pow(0.02, dt)), 0, ROBOT_W - W);
+  }
+  canDive() { const p = this.p; return p.ground && !this.won && p.x > DIVE_X - 30 && p.x < DIVE_X + 40; }
+  dive() {
+    if (this.leaving) return;
+    this.leaving = true;
+    Sound.sfx('splash');
+    Game.go(() => new RobotSeaScene(this), { color: '#0099db' });
+  }
+  // coming back up from the sea
+  surface(sea) {
+    const p = this.p;
+    this.leaving = false;
+    p.x = DIVE_X; p.y = ROBOT_GY; p.vx = 0; p.vy = 0; p.ground = true; p.face = -1;
+    p.hp = sea.p.hp; p.fuel = 100;
+    this.kills = sea.kills;
+    this.elapsed += sea.elapsed;
+    this.shots = [];
+    this.camX = clamp(p.x - W * 0.6, 0, this.worldW - W);
+    for (const s of this.army) { s.x = p.x; s.y = p.y - 40; }
+    this.banner = { title: 'BACK ON LAND', sub: 'YOUR ROBOT IS DRIPPING EVERYWHERE.', t: 2.4, style: 'aqua' };
+    Game.go(() => this, { color: '#0099db' });
   }
   updateIntro(dt, active) {
     const it = this.intro;
@@ -211,25 +250,27 @@ class RobotScene {
     if (held('right')) ix += 1;
     if (tb.left) ix = -1;
     if (tb.right) ix = 1;
-    p.vx = approach(p.vx, ix * 85, 500 * dt);
+    const ph = this.phys;
+    p.net = Math.max(0, (p.net || 0) - dt);
+    p.vx = approach(p.vx, ix * ph.walk * (p.net > 0 ? 0.35 : 1), 500 * dt);
     if (ix) p.face = ix;
     // jump jets: hold up to fly while there is fuel
     const jets = held('up') || tb.jets;
     p.jet = false;
     if (jets && p.fuel > 0) {
       if (p.ground) { p.vy = -150; p.ground = false; }
-      p.vy = Math.max(-140, p.vy - 900 * dt);
-      p.fuel = Math.max(0, p.fuel - 40 * dt);
+      p.vy = Math.max(ph.up, p.vy - ph.jet * dt);
+      p.fuel = Math.max(0, p.fuel - ph.fuel * dt);
       p.jet = true;
-      if (Math.random() < 0.7) this.parts.add({ x: p.x + rnd(-8, 8), y: p.y - 4, vx: rnd(-10, 10), vy: rnd(60, 120), life: 0.35, size: 2, c: pick(['#fee761', '#f77622', '#e43b44']) });
+      if (Math.random() < 0.7) this.parts.add(this.jetParticle(p));
       if (Math.floor(this.t * 20) % 3 === 0) Sound.noise(0.05, { vol: 0.04, freq: 700 });
     } else if (p.ground) p.fuel = Math.min(100, p.fuel + 45 * dt);
     // stomp: press down in the air
     if (!p.ground && !p.stomp && (hit('down') || tb.stomp) && p.y < ROBOT_GY - 24) { p.stomp = true; p.vy = 420; Sound.tone(300, 0.25, { type: 'square', vol: 0.08, slide: 0.3 }); }
-    p.vy += 520 * dt;
-    p.x = clamp(p.x + p.vx * dt, 20, ROBOT_W - 20);
+    p.vy = Math.min(p.stomp ? 9999 : ph.fall, p.vy + ph.grav * dt);
+    p.x = clamp(p.x + p.vx * dt, 20, this.worldW - 20);
     p.y += p.vy * dt;
-    if (p.y < 36) { p.y = 36; p.vy = Math.max(0, p.vy); }
+    if (p.y < ph.top) { p.y = ph.top; p.vy = Math.max(0, p.vy); }
     if (p.y >= ROBOT_GY) {
       if (!p.ground) {
         const hard = p.stomp || p.vy > 260;
@@ -266,6 +307,7 @@ class RobotScene {
       this.floaters.add('MISSILES!', p.x, p.y - 60, '#fee761');
     }
   }
+  jetParticle(p) { return { x: p.x + rnd(-8, 8), y: p.y - 4, vx: rnd(-10, 10), vy: rnd(60, 120), life: 0.35, size: 2, c: pick(['#fee761', '#f77622', '#e43b44']) }; }
   gunPos() { const p = this.p; return { x: p.x + p.face * 14, y: p.y - 30 }; }
   nearestEnemy(x, y, range) {
     let best = null, bd = range;
@@ -312,7 +354,7 @@ class RobotScene {
       p.hp = 0;
       this.dead = { t: 0 };
       this.boom(p.x, p.y - 30, 30);
-      this.banner = { title: 'SYSTEM FAILURE', sub: 'THE BOWL EJECTS AND PARACHUTES HOME. (THE ROBOT WILL BE FIXED BY TOMORROW.)', t: 4, style: 'red' };
+      this.banner = { title: 'SYSTEM FAILURE', sub: this.deathText(), t: 4, style: 'red' };
     }
   }
 
@@ -347,7 +389,7 @@ class RobotScene {
       this.trickle = rnd(4, 7) - this.zoneAt(p.x) * 0.8;
       if (this.enemies.filter(e => e.type !== 'boss').length < 4) {
         const side = Math.random() < 0.7 ? 1 : -1;
-        this.spawnEnemy(Math.random() < 0.5 ? 'drone' : 'heli', clamp(this.camX + (side > 0 ? W + 30 : -30), 0, ROBOT_W), rnd(40, 90));
+        this.spawnEnemy(pick(this.trickleTypes()), clamp(this.camX + (side > 0 ? W + 30 : -30), 0, this.worldW), rnd(this.skyTop || 40, 90));
       }
     }
     for (const e of this.enemies) {
@@ -386,12 +428,13 @@ class RobotScene {
         if (e.cd2 <= 0) { e.cd2 = 5; this.spawnEnemy('drone', e.x, e.y - 50); this.spawnEnemy('drone', e.x, e.y - 40); }
       }
     }
-    this.enemies = this.enemies.filter(e => e.hp > 0 && e.x > this.camX - 400 && e.x < this.camX + W + 400 || e.type === 'boss' && e.hp > 0);
+    this.enemies = this.enemies.filter(e => e.hp > 0 && e.x > this.camX - 400 && e.x < this.camX + W + 400 || e.big && e.hp > 0);
   }
+  trickleTypes() { return ['drone', 'heli']; }
   spawnEnemy(type, x, y) {
     const st = ENEMY_STATS[type];
     const ground = type === 'tank' || type === 'boss';
-    this.enemies.push({ type, x, y: ground ? ROBOT_GY : y, w: st.w, h: st.h, hp: st.hp, max: st.hp, t: rnd(0, 1), cd: rnd(1, 2.5), flash: 0, face: -1 });
+    this.enemies.push({ type, x, y: ground ? ROBOT_GY : y, w: st.w, h: st.h, hp: st.hp, max: st.hp, t: rnd(0, 1), cd: rnd(1, 2.5), flash: 0, face: -1, big: type === 'boss' || type === 'boat' });
     if (type === 'boss') { this.banner = { title: 'MEGA TANK!', sub: 'THE ARMY\'S BIGGEST WEAPON. STOMP IT. LASER IT. MISSILE IT.', t: 3.2, style: 'red' }; Sound.sfx('shark'); }
   }
   // a lobbed tank shell that lands near the robot
@@ -438,6 +481,12 @@ class RobotScene {
         } else s.vy += 80 * dt;
         if (Math.random() < 0.6) this.parts.add({ x: s.x, y: s.y, vx: rnd(-8, 8), vy: rnd(-8, 8), life: 0.4, c: pick(['#c0cbdc', '#8b9bb4', '#f77622']) });
       }
+      if (s.kind === 'torpedo' && s.life > 1) {
+        const a = Math.atan2(p.y - 28 - s.y, p.x - s.x), sp = Math.hypot(s.vx, s.vy);
+        s.vx = lerp(s.vx, Math.cos(a) * sp, 1 - Math.pow(0.4, dt));
+        s.vy = lerp(s.vy, Math.sin(a) * sp, 1 - Math.pow(0.4, dt));
+        if (Math.random() < 0.4) this.parts.add({ type: 'bubble', x: s.x, y: s.y, vy: -15, life: 0.6, c: '#c8f4ff' });
+      }
       if (s.g) s.vy += s.g * dt;
       s.x += s.vx * dt;
       s.y += s.vy * dt;
@@ -465,7 +514,8 @@ class RobotScene {
       } else if (Math.abs(s.x - p.x) < 13 && s.y > p.y - 48 && s.y < p.y) {
         s.life = 0;
         this.hurt(s.dmg);
-        this.boom(s.x, s.y, 6);
+        if (s.kind === 'netshot') { p.net = 2.5; this.floaters.add('TANGLED IN A NET!', p.x, p.y - 60, '#ff8f7a', { font: F5 }); Sound.sfx('caught'); }
+        else this.boom(s.x, s.y, 6);
       }
     }
     this.shots = this.shots.filter(s => s.life > 0 && s.x > this.camX - 60 && s.x < this.camX + W + 60);
@@ -531,25 +581,10 @@ class RobotScene {
     this.drawSky(cx + W / 2);
     gfx.drawImage(this.far, fx, 0, W, H, 0, 0, W, H);
     gfx.drawImage(this.near, cx, 0, W, H, 0, 0, W, H);
-    // sea waves at the beach
-    if (cx + W > 2250 && cx < 3100) for (let x = 0; x < W; x += 3) { const wx = x + cx; if (wx > 2250 && wx < 3100) px(x, 118 + Math.round(Math.sin(wx * 0.1 + t * 3)), '#ffffff'); }
-    // the hole Sam's window became
-    if (!this.intro || this.intro.broke) { const hx = 110 - cx; if (hx > -40 && hx < W + 40) { ellipse(hx, 77, 16, 15, '#262b44'); ellipse(hx, 77, 12, 11, '#181425'); } }
-    for (const c of this.cars) this.drawCar(c, c.x - cx, t);
-    for (const c of this.cows) this.drawCow(c.x - cx, c.face, t);
-    for (const h of this.people) if (h.x - cx > -10 && h.x - cx < W + 10) this.drawPerson(Math.round(h.x - cx), ROBOT_GY + 2, h, t);
+    this.drawDecor(cx, t);
     for (const c of this.crates) this.drawCrate(c.x - cx, c.y);
     for (const e of this.enemies) this.drawEnemy(e, cx, t);
-    // shots
-    for (const s of this.shots) {
-      if (s.delay > 0) continue;
-      const x = Math.round(s.x - cx), y = Math.round(s.y);
-      if (s.kind === 'laser') { line(x, y, Math.round(x - s.vx * 0.02), Math.round(y - s.vy * 0.02), '#2ce8f5'); px(x, y, '#ffffff'); }
-      else if (s.kind === 'bubble') { ring(x, y, 2, '#9ff3fa'); px(x - 1, y - 1, '#ffffff'); }
-      else if (s.kind === 'missile') { const a = Math.atan2(s.vy, s.vx); line(x, y, Math.round(x - Math.cos(a) * 5), Math.round(y - Math.sin(a) * 5), '#e8eef7'); px(x, y, '#e43b44'); }
-      else if (s.kind === 'shell') { disc(x, y, 2, '#262b44'); px(x, y - 1, '#8b9bb4'); }
-      else { rect(x - 1, y - 1, 2, 2, '#fee761'); }
-    }
+    this.drawShots(cx);
     // the robot and its fish army
     const hidden = this.intro && !this.intro.broke;
     if (hidden) { /* still a little bowl in the window */ }
@@ -559,12 +594,42 @@ class RobotScene {
     if (!hidden) for (const s of this.army) this.drawSoldier(Math.round(s.x - cx), Math.round(s.y), s.face, t);
     this.parts.draw(cx, 0);
     this.floaters.draw(cx, 0);
+    this.drawFront(cx, t);
     gfx.restore();
     if (this.intro) this.drawIntro(t);
     else this.drawHUD();
     if (this.banner) this.drawBanner();
   }
+  drawFront() {}
+  drawDecor(cx, t) {
+    // sea waves at the beach
+    if (cx + W > 2250 && cx < 3100) for (let x = 0; x < W; x += 3) { const wx = x + cx; if (wx > 2250 && wx < 3100) px(x, 118 + Math.round(Math.sin(wx * 0.1 + t * 3)), '#ffffff'); }
+    // the hole Sam's window became
+    if (!this.intro || this.intro.broke) { const hx = 110 - cx; if (hx > -40 && hx < W + 40) { ellipse(hx, 77, 16, 15, '#262b44'); ellipse(hx, 77, 12, 11, '#181425'); } }
+    for (const c of this.cars) this.drawCar(c, c.x - cx, t);
+    for (const c of this.cows) this.drawCow(c.x - cx, c.face, t);
+    for (const h of this.people) if (h.x - cx > -10 && h.x - cx < W + 10) this.drawPerson(Math.round(h.x - cx), ROBOT_GY + 2, h, t);
+    // dive sign at the end of the pier
+    const dx = DIVE_X + 22 - cx;
+    if (dx > -20 && dx < W + 20) {
+      rect(dx, ROBOT_GY - 22, 2, 22, '#733e39'); rect(dx - 10, ROBOT_GY - 30, 22, 9, '#fee761'); text('DIVE', dx + 1, ROBOT_GY - 28, '#a22633', { font: F3, align: 'center' });
+    }
+  }
+  drawShots(cx) {
+    for (const s of this.shots) {
+      if (s.delay > 0) continue;
+      const x = Math.round(s.x - cx), y = Math.round(s.y);
+      if (s.kind === 'laser') { line(x, y, Math.round(x - s.vx * 0.02), Math.round(y - s.vy * 0.02), '#2ce8f5'); px(x, y, '#ffffff'); }
+      else if (s.kind === 'bubble') { ring(x, y, 2, '#9ff3fa'); px(x - 1, y - 1, '#ffffff'); }
+      else if (s.kind === 'missile') { const a = Math.atan2(s.vy, s.vx); line(x, y, Math.round(x - Math.cos(a) * 5), Math.round(y - Math.sin(a) * 5), '#e8eef7'); px(x, y, '#e43b44'); }
+      else if (s.kind === 'shell') { disc(x, y, 2, '#262b44'); px(x, y - 1, '#8b9bb4'); }
+      else if (s.kind === 'torpedo') { const a = Math.atan2(s.vy, s.vx); thickLine(x, y, Math.round(x - Math.cos(a) * 6), Math.round(y - Math.sin(a) * 6), 1, '#3a4466'); px(x, y, '#e43b44'); if (Math.floor(this.t * 20) % 2) px(Math.round(x - Math.cos(a) * 8), Math.round(y - Math.sin(a) * 8), '#c8f4ff'); }
+      else if (s.kind === 'netshot') { for (let i = -3; i <= 3; i += 2) { line(x + i, y - 3, x + i, y + 3, '#c0cbdc'); line(x - 3, y + i, x + 3, y + i, '#c0cbdc'); } }
+      else { rect(x - 1, y - 1, 2, 2, '#fee761'); }
+    }
+  }
 
+  deathText() { return 'THE BOWL EJECTS AND PARACHUTES HOME. (THE ROBOT WILL BE FIXED BY TOMORROW.)'; }
   // the sky blends from zone to zone around the middle of the screen
   drawSky(wx) {
     const z = this.zoneAt(wx), zn = ROBOT_ZONES[z], nx = ROBOT_ZONES[z + 1];
@@ -735,20 +800,34 @@ class RobotScene {
     text(Input.touchSeen ? '' : 'ESC: GO HOME', W - 4, 5, '#c0cbdc', { font: F3, align: 'right', outline: '#07060f' });
     touchPauseButton(W - 17, 4);
     text('KILLS ' + this.kills, W - 4, 13, '#fee761', { font: F3, align: 'right', outline: '#07060f' });
+    this.drawProgress();
+    const boss = this.enemies.find(e => e.type === 'boss' || e.type === 'boat');
+    if (boss) {
+      panel(70, 150, 180, 16, { fill: '#141330', alpha: 0.9 });
+      text(ENEMY_STATS[boss.type].name, 76, 155, '#ff8f7a', { font: F3 });
+      rect(132, 155, 112, 5, '#3e2731'); rect(132, 155, Math.round(112 * boss.hp / boss.max), 5, '#e43b44');
+    } else if (this.canDive && this.canDive()) {
+      const s = (Input.touchSeen ? 'STOMP: ' : '↓: ') + 'DIVE INTO THE SEA!';
+      const w = textW(s) + 12;
+      panel(W / 2 - w / 2, 150, w, 15, { fill: '#124e89', border: '#fee761' });
+      text(s, W / 2, 154, '#ffffff', { align: 'center' });
+    } else if (!Input.touchSeen && this.elapsed < 9 && !this.dead) {
+      text(this.hint(), W / 2, 168, '#ffffff', { font: F3, align: 'center', outline: '#07060f' });
+    }
+    this.drawTouch();
+  }
+  hint() { return '← → WALK   ↑ JETS   ↓ STOMP   SPACE LASER   X MISSILES'; }
+  drawProgress() {
+    const p = this.p;
     // progress across the world
     const mx = 120, mw = 80;
     rect(mx, 8, mw, 1, '#c0cbdc');
     ROBOT_ZONES.forEach(z => rect(mx + Math.round(z.x / ROBOT_W * mw), 6, 1, 5, '#c0cbdc'));
     rect(mx + Math.round(ROBOT_BOSS_X / ROBOT_W * mw) - 1, 6, 3, 5, this.b.robotBoss ? '#63c74d' : '#e43b44');
+    rect(mx + Math.round(DIVE_X / ROBOT_W * mw) - 1, 9, 3, 3, '#2ce8f5');
     rect(mx + Math.round(p.x / ROBOT_W * mw) - 1, 5, 3, 7, '#fee761');
-    const boss = this.enemies.find(e => e.type === 'boss');
-    if (boss) {
-      panel(70, 150, 180, 16, { fill: '#141330', alpha: 0.9 });
-      text('MEGA TANK', 76, 155, '#ff8f7a', { font: F3 });
-      rect(118, 155, 126, 5, '#3e2731'); rect(118, 155, Math.round(126 * boss.hp / boss.max), 5, '#e43b44');
-    } else if (!Input.touchSeen && this.elapsed < 9 && !this.dead) {
-      text('← → WALK   ↑ JETS   ↓ STOMP   SPACE LASER   X MISSILES', W / 2, 168, '#ffffff', { font: F3, align: 'center', outline: '#07060f' });
-    }
+  }
+  drawTouch() {
     if (Input.touchSeen) {
       panel(2, H - 28, 26, 24, { fill: '#262b44', alpha: 0.8 }); drawArrow(15, H - 16, 'left', '#ffffff', 4);
       panel(32, H - 28, 26, 24, { fill: '#262b44', alpha: 0.8 }); drawArrow(45, H - 16, 'right', '#ffffff', 4);
@@ -757,5 +836,260 @@ class RobotScene {
       panel(W - 64, H - 28, 30, 24, { fill: '#262b44', alpha: 0.8 }); text('JETS', W - 49, H - 19, '#ffffff', { font: F3, align: 'center' });
       panel(W - 32, H - 28, 30, 24, { fill: '#124e89', alpha: 0.8 }); text('FIRE', W - 17, H - 19, '#ffffff', { font: F3, align: 'center' });
     }
+  }
+}
+
+/* =====================================================================
+   Back into the sea: the robot dives off the end of the pier and walks
+   along the sea floor. Sharks, jellyfish, submarines... and the fishing
+   boat that caught you all those years ago.
+   ===================================================================== */
+const RSEA_W = 2400, RSEA_SURF = 40, RSEA_HOME_X = 940, RSEA_SHIP_X = 1460, RSEA_BOAT_X = 1950;
+const RSEA_CHESTS = [620, RSEA_SHIP_X + 6, 2290];
+
+class RobotSeaScene extends RobotScene {
+  constructor(land) {
+    super(land.bowl);
+    this.land = land;
+    this.intro = null;
+    this.worldW = RSEA_W;
+    this.phys = { grav: 140, jet: 520, up: -90, fuel: 10, walk: 60, top: 98, fall: 80 };
+    const p = this.p;
+    Object.assign(p, { x: 70, y: 110, vx: 30, vy: 20, face: 1, ground: false, hp: land.p.hp, fuel: 100 });
+    for (const s of this.army) { s.x = p.x; s.y = p.y - 40; }
+    this.kills = land.kills;
+    this.zone = 0;
+    this.trickle = 6;
+    this.skyTop = RSEA_SURF + 20;
+    this.banner = { title: 'SPLASH!', sub: 'BACK IN THE SEA... AND THIS TIME YOU ARE THE BIGGEST FISH.', t: 3, style: 'aqua' };
+    for (let i = 0; i < 30; i++) this.parts.add({ type: 'bubble', x: p.x + rnd(-20, 20), y: rnd(RSEA_SURF + 10, 120), vy: -rnd(20, 50), life: rnd(0.6, 1.4), size: rndi(1, 3), c: '#c8f4ff' });
+  }
+  enter() { Sound.play('sea'); Sound.sfx('splash'); }
+  zoneAt() { return 2; }   // sandy floor
+  setupWorld() {
+    const r = mulberry32(21), b = this.b;
+    this.spawns = [];
+    for (let x = 360; x < RSEA_W - 120; x += 150 + Math.floor(r() * 130)) {
+      this.spawns.push({ x, type: pick(['shark', 'jelly', 'jelly', 'sub']), y: 70 + Math.floor(r() * 70) });
+    }
+    if (!b.boatRevenge) this.spawns.push({ x: RSEA_BOAT_X, type: 'boat', y: RSEA_SURF + 4 });
+    this.spawns.sort((a, c) => a.x - c.x);
+    this.fish = [];
+    for (let i = 0; i < 26; i++) {
+      this.fish.push({ x: r() * RSEA_W, y: RSEA_SURF + 10 + r() * 100, kind: pick(['guppy', 'minnow', 'perch', 'bluefish', 'goldfish']), vx: (r() < 0.5 ? -1 : 1) * (14 + r() * 16), ph: r() * 9, scare: 0 });
+    }
+    if (b.seaChestDay !== b.day) { b.seaChestDay = b.day; b.seaChests = []; }
+    this.chests = RSEA_CHESTS.map((x, i) => ({ x, open: (b.seaChests || []).includes(i), i }));
+    this.kelp = [];
+    for (let x = 100; x < RSEA_W; x += 30 + Math.floor(r() * 60)) this.kelp.push({ x, h: 20 + Math.floor(r() * 40), ph: r() * 6 });
+    this.crates.push({ x: 1200, y: ROBOT_GY, vy: 0 }, { x: 2100, y: ROBOT_GY, vy: 0 });
+    this.far = this.paintSeaFar();
+    this.near = this.paintSeaNear();
+  }
+  paintSeaFar() {
+    const fw = Math.ceil(RSEA_W * 0.35) + W, c = makeCanvas(fw, H), prev = setTarget(c.getContext('2d'));
+    const r = mulberry32(5);
+    // light rays from the surface
+    for (let i = 0; i < 14; i++) {
+      const x = r() * fw;
+      gfx.globalAlpha = 0.12;
+      for (let y = RSEA_SURF; y < 150; y += 2) rect(x + (y - RSEA_SURF) * 0.4, y, 6 + y * 0.05, 2, '#c8f4ff');
+    }
+    gfx.globalAlpha = 1;
+    // distant rocks
+    for (let x = 0; x < fw; x += 2) {
+      const h = 30 + Math.abs(Math.sin(x * 0.017)) * 26 + Math.sin(x * 0.07) * 4;
+      rect(x, 160 - h, 2, h, '#0e3258');
+      const h2 = 14 + Math.abs(Math.sin(x * 0.031 + 2)) * 14;
+      rect(x, 160 - h2, 2, h2, '#124e89');
+    }
+    setTarget(prev);
+    return c;
+  }
+  paintSeaNear() {
+    const c = makeCanvas(RSEA_W, H), prev = setTarget(c.getContext('2d'));
+    const r = mulberry32(9), G = ROBOT_GY;
+    // the beach slope you came down
+    for (let x = 0; x < 110; x++) { const h = Math.round((110 - x) * 0.9); rect(x, G - h, 1, h, '#e4a672'); rect(x, G - h, 1, 2, '#fee761'); }
+    rect(46, G - 70, 2, 24, '#733e39'); rect(30, G - 78, 34, 10, '#fee761'); text('← BEACH', 47, G - 76, '#a22633', { font: F3, align: 'center' });
+    // your old home: the rock arch
+    const ax = RSEA_HOME_X;
+    rect(ax - 50, G - 70, 22, 70, '#3a4466'); rect(ax + 28, G - 70, 22, 70, '#3a4466');
+    for (let i = 0; i <= 78; i++) { const yy = G - 70 - Math.round(Math.sin(i / 78 * Math.PI) * 26); rect(ax - 50 + i + 11, yy - 12, 1, 14, '#3a4466'); }
+    rect(ax - 48, G - 68, 4, 66, '#5a6988'); rect(ax + 30, G - 68, 4, 66, '#5a6988');
+    for (let i = 0; i < 12; i++) disc(ax - 60 + r() * 120, G - r() * 80, 2, pick(['#f6757a', '#feae34', '#b55088']));
+    // the sunken ship
+    const sx = RSEA_SHIP_X;
+    for (let i = 0; i < 120; i++) { const yy = G - 26 + Math.round(i * 0.08); rect(sx - 60 + i, yy, 1, G - yy, i % 9 ? '#5a3a2e' : '#3e2731'); }
+    rect(sx - 60, G - 32, 120, 4, '#733e39');
+    rect(sx + 10, G - 90, 4, 60, '#5a3a2e'); line(sx + 12, G - 90, sx + 40, G - 60, '#5a3a2e'); rect(sx - 4, G - 80, 20, 14, '#c0cbdc'); rect(sx - 2, G - 78, 3, 3, '#3e2731');
+    for (let i = 0; i < 6; i++) disc(sx - 50 + i * 18, G - 20, 3, '#262b44');
+    // rocks and coral on the sea floor
+    for (let x = 140; x < RSEA_W; x += 50 + Math.floor(r() * 90)) {
+      if (Math.abs(x - RSEA_HOME_X) < 70 || Math.abs(x - RSEA_SHIP_X) < 70) continue;
+      if (r() < 0.5) { ellipse(x, G - 4, 10 + r() * 10, 7, '#3a4466'); ellipse(x - 3, G - 7, 5, 3, '#5a6988'); }
+      else { const col = pick(['#f6757a', '#feae34', '#b55088', '#2ce8f5']); for (let k = 0; k < 4; k++) rect(x + k * 3 - 5, G - 6 - k % 2 * 5 - r() * 6, 2, 16, col); }
+    }
+    // sand
+    for (let x = 0; x < RSEA_W; x += 4) { rect(x, G, 4, H - G, '#c28569'); rect(x, G, 4, 2, '#e4a672'); if ((x * 7) % 23 < 3) px(x, G + 6, '#e4a672'); }
+    setTarget(prev);
+    return c;
+  }
+
+  // the sea floor: fish, treasure, your old home and the way back out
+  updateWorld(dt) {
+    const p = this.p, b = this.b, t = this.t;
+    for (const f of this.fish) {
+      const d = dist(f.x, f.y, p.x, p.y - 30);
+      if (d < 70 && f.scare <= 0) { f.scare = 1.2; f.vx = (f.x < p.x ? -1 : 1) * 80; }
+      f.scare -= dt;
+      if (f.scare <= 0 && Math.abs(f.vx) > 30) f.vx = Math.sign(f.vx) * 20;
+      f.x += f.vx * dt;
+      f.y = clamp(f.y + Math.sin(t * 2 + f.ph) * 6 * dt, RSEA_SURF + 8, 150);
+      if (f.x < -20) f.x = RSEA_W + 10; else if (f.x > RSEA_W + 20) f.x = -10;
+    }
+    for (const c of this.chests) {
+      if (c.open || Math.abs(c.x - p.x) > 18 || p.y < ROBOT_GY - 12) continue;
+      c.open = true;
+      b.seaChests = (b.seaChests || []).concat(c.i);
+      Sound.sfx('gold');
+      for (let i = 0; i < 20; i++) this.parts.add({ type: 'spark', x: c.x, y: ROBOT_GY - 8, vx: rnd(-50, 50), vy: rnd(-90, -20), g: 120, life: 1, c: pick(['#fee761', '#feae34', '#ffffff']) });
+      this.reward(40, c.x, ROBOT_GY - 30, 'TREASURE!');
+      saveGame();
+    }
+    if (!this.homeSeen && Math.abs(p.x - RSEA_HOME_X) < 60) {
+      this.homeSeen = true;
+      this.banner = { title: 'YOUR OLD HOME', sub: 'THE CORAL ARCH WHERE IT ALL STARTED. THE LITTLE FISH HERE STARE AT YOU.', t: 3.2, style: 'aqua' };
+    }
+    if (Math.random() < dt * 2.5) this.parts.add({ type: 'bubble', x: p.x + rnd(-6, 6), y: p.y - 56, vy: -rnd(15, 35), life: 1.4, size: rndi(1, 2), c: '#c8f4ff', minY: RSEA_SURF });
+    // walk back up the beach slope to leave the sea
+    if (p.x < 34 && (held('left') || this.touchButtons().left)) { this.leaving = true; this.land.surface(this); }
+  }
+  trickleTypes() { return ['jelly', 'shark']; }
+  jetParticle(p) { return { type: 'bubble', x: p.x + rnd(-8, 8), y: p.y - 4, vx: rnd(-10, 10), vy: -rnd(20, 50), life: 0.8, size: rndi(1, 2), c: '#c8f4ff', minY: RSEA_SURF }; }
+  updateEnemies(dt) {
+    super.updateEnemies(dt);
+    const p = this.p;
+    for (const e of this.enemies) {
+      if (e.hp <= 0) continue;
+      const dx = p.x - e.x, bx = p.x, by = p.y - 28;
+      const touching = Math.abs(dx) < 14 + e.w / 3 && e.y > p.y - 54 && e.y - e.h < p.y;
+      if (e.type === 'shark') {
+        e.mode = e.mode || 'stalk';
+        e.cd -= dt;
+        if (e.mode === 'stalk') {
+          const a = Math.atan2(by - e.y, bx - e.x);
+          e.x += Math.cos(a) * 45 * dt; e.y += Math.sin(a) * 45 * dt;
+          if (dist(e.x, e.y, bx, by) < 100 && e.cd <= 0) { e.mode = 'charge'; e.mt = 0.9; e.vx = Math.cos(a) * 160; e.vy = Math.sin(a) * 160; Sound.sfx('shark'); }
+        } else if (e.mode === 'charge') {
+          e.x += e.vx * dt; e.y += e.vy * dt; e.mt -= dt;
+          e.face = e.vx < 0 ? -1 : 1;
+          if (touching) { this.hurt(12); this.floaters.add('CHOMP!', p.x, p.y - 60, '#ff8f7a', { font: F5 }); e.mode = 'retreat'; e.mt = 1.2; }
+          else if (e.mt <= 0) { e.mode = 'stalk'; e.cd = rnd(1.5, 2.5); }
+        } else {
+          e.x -= Math.sign(dx) * 60 * dt; e.mt -= dt;
+          if (e.mt <= 0) { e.mode = 'stalk'; e.cd = rnd(1.5, 2.5); }
+        }
+        e.y = clamp(e.y, RSEA_SURF + 14, ROBOT_GY - 6);
+      } else if (e.type === 'sub') {
+        const tx = p.x - e.face * 110, ty = clamp(p.y - 30, RSEA_SURF + 20, 140);
+        e.x += clamp(tx - e.x, -40, 40) * dt; e.y += clamp(ty - e.y, -30, 30) * dt;
+        e.cd -= dt;
+        if (e.cd <= 0 && Math.abs(dx) < 230) {
+          e.cd = rnd(2.6, 3.6);
+          this.shots.push({ x: e.x + e.face * 14, y: e.y - 6, vx: e.face * 90, vy: 0, life: 4, dmg: 8, kind: 'torpedo' });
+          Sound.tone(200, 0.2, { type: 'triangle', vol: 0.08, slide: 0.6 });
+        }
+      } else if (e.type === 'jelly') {
+        e.x += Math.sign(dx) * 10 * dt;
+        e.y += Math.sin(e.t * 2.4) * 18 * dt;
+        e.y = clamp(e.y, RSEA_SURF + 14, ROBOT_GY - 4);
+        if (touching) { this.hurt(6); this.floaters.add('ZAP!', p.x, p.y - 60, '#f6a0c8', { font: F5 }); }
+      } else if (e.type === 'boat') {
+        e.x += clamp(p.x + 70 + Math.sin(e.t * 0.7) * 40 - e.x, -30, 30) * dt;
+        e.cd -= dt;
+        if (e.cd <= 0 && Math.abs(dx) < 200) {
+          e.cd = e.hp < 30 ? 1.6 : 2.4;
+          this.shots.push({ x: e.x - 24, y: e.y, vx: clamp(dx * 0.35, -60, 60), vy: 40, g: 25, life: 5, dmg: 4, kind: 'netshot' });
+          Sound.sfx('splash');
+        }
+        if (!this.boatSeen) { this.boatSeen = true; this.banner = { title: 'THE FISHING BOAT!', sub: 'THE BOAT THAT CAUGHT YOU AS A LITTLE FISH. REVENGE TIME!', t: 3.2, style: 'red' }; }
+      }
+    }
+  }
+  damage(e, n) {
+    const alive = e.hp > 0;
+    super.damage(e, n);
+    if (alive && e.hp <= 0 && e.type === 'boat') {
+      this.b.boatRevenge = true;
+      saveGame();
+      Sound.sfx('fanfare');
+      Game.shake(6, 1);
+      for (let i = 0; i < 5; i++) setTimeout(() => this.boom(e.x + rnd(-30, 30), e.y - rnd(0, 20), 18), i * 200);
+      this.banner = { title: 'REVENGE!', sub: 'THE FISHING BOAT SINKS. THE FISHERMEN SWIM TO SHORE. NOBODY NETS THIS FISH AGAIN.', t: 4, style: 'gold' };
+    }
+  }
+  leave() {
+    if (this.leaving) return;
+    this.leaving = true;
+    this.land.leaving = true;
+    this.bowl.onExploreDone(this.land.elapsed + this.elapsed, 0);
+    Game.go(() => this.bowl);
+  }
+  deathText() { return 'THE BOWL POPS OFF AND FLOATS HOME ON THE TIDE. (THE ROBOT WILL BE FIXED BY TOMORROW.)'; }
+  hint() { return '← → WALK   ↑ SWIM UP   SPACE LASER   X MISSILES   WALK LEFT TO LEAVE'; }
+
+  drawSky() {
+    rect(0, 0, W, RSEA_SURF, '#9fe8f5');
+    if (!this.waterBg) this.waterBg = gradientCanvas(W, ROBOT_GY - RSEA_SURF, [[0, '#2690c0'], [1, '#0b1f3a']], 3);
+    blit(this.waterBg, 0, RSEA_SURF);
+  }
+  drawDecor(cx, t) {
+    for (const k of this.kelp) if (k.x - cx > -20 && k.x - cx < W + 20) drawKelp(k.x - cx, ROBOT_GY, k.h, t, k.ph, '#265c42', '#3e8948');
+    for (const f of this.fish) {
+      const x = f.x - cx;
+      if (x > -12 && x < W + 12) sprC(f.kind, Math.floor(t * 6 + f.ph) % 2, x, f.y, f.vx < 0);
+    }
+    for (const c of this.chests) {
+      const x = Math.round(c.x - cx), y = ROBOT_GY;
+      if (x < -20 || x > W + 20) continue;
+      rect(x - 8, y - 9, 16, 9, '#733e39'); rect(x - 8, y - 5, 16, 1, '#fee761'); rect(x - 1, y - 6, 2, 3, '#fee761');
+      if (c.open) { rect(x - 8, y - 14, 16, 4, '#5a3a2e'); rect(x - 6, y - 10, 12, 2, '#fee761'); }
+      else { rect(x - 8, y - 12, 16, 4, '#8a4a38'); if (Math.floor(t * 3 + c.i) % 3 === 0) px(x + rndi(-6, 6), y - 13, '#ffffff'); }
+    }
+    if (Math.abs(RSEA_HOME_X - cx - W / 2) < W) text('HOME SWEET HOME', RSEA_HOME_X - cx, ROBOT_GY - 108, '#c8f4ff', { font: F3, align: 'center', outline: '#0b1f3a' });
+  }
+  drawFront(cx, t) {
+    // the surface of the sea
+    for (let x = 0; x < W; x++) px(x, RSEA_SURF + Math.round(Math.sin((x + cx) * 0.08 + t * 2.5) * 1.2), '#e8fbff');
+  }
+  drawEnemy(e, cx, t) {
+    const x = Math.round(e.x - cx), y = Math.round(e.y), f = e.face, fl = e.flash > 0;
+    if (x < -60 || x > W + 60) return;
+    if (e.type === 'shark') {
+      sprC('shark', Math.floor(t * 8) % 2, x, y - 6, f < 0, fl);
+      if (e.mode === 'charge') px(x + f * 10, y - 8, '#e43b44');
+    } else if (e.type === 'sub') {
+      const body = fl ? '#ffffff' : '#5a6988';
+      ellipse(x, y - 6, 14, 5, body); rect(x - 3, y - 15, 7, 5, body); rect(x + f * 2, y - 19, 1, 4, '#3a4466');
+      for (let i = -1; i <= 1; i++) disc(x + i * 6, y - 6, 1, '#fee761');
+      rect(x - f * 15 - 1, y - 9, 2, 6, Math.floor(t * 20) % 2 ? '#8b9bb4' : '#3a4466');
+    } else if (e.type === 'jelly') {
+      const c = fl ? '#ffffff' : '#f6a0c8';
+      ellipse(x, y - 9, 5, 3, c); rect(x - 5, y - 9, 11, 2, c);
+      for (let i = -4; i <= 4; i += 2) for (let k = 0; k < 5; k++) px(x + i + Math.round(Math.sin(t * 5 + k + i) * 1), y - 7 + k, '#b55088');
+    } else if (e.type === 'boat') {
+      drawBoat(x, y - 4, t, fl ? '#ffffff' : null);
+      line(x - 24, y - 12, x - 24, y + 6, '#c0cbdc');
+      if (e.hp < e.max * 0.5 && Math.random() < 0.3) this.parts.add({ x: x + cx + rnd(-10, 10), y: y - 22, vy: -20, life: 0.8, size: 2, c: '#3a4466' });
+    } else { super.drawEnemy(e, cx, t); return; }
+    if (e.type !== 'boat' && e.hp < e.max) { rect(x - 8, y - e.h - 8, 16, 2, '#3e2731'); rect(x - 8, y - e.h - 8, Math.round(16 * e.hp / e.max), 2, '#e43b44'); }
+  }
+  drawProgress() {
+    const p = this.p, mx = 120, mw = 80;
+    rect(mx, 8, mw, 1, '#9fe8f5');
+    rect(mx + Math.round(RSEA_HOME_X / RSEA_W * mw), 6, 1, 5, '#c0cbdc');
+    rect(mx + Math.round(RSEA_BOAT_X / RSEA_W * mw) - 1, 6, 3, 5, this.b.boatRevenge ? '#63c74d' : '#e43b44');
+    rect(mx + Math.round(p.x / RSEA_W * mw) - 1, 5, 3, 7, '#fee761');
   }
 }

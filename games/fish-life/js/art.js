@@ -271,8 +271,8 @@ function buildSam(pose, frame, outfit) {
   const cv = makeCanvas(cw, ch), g = cv.getContext('2d');
   const prev = setTarget(g);
   const skin = '#e8b796', skinD = '#c28569', hair = '#733e39', hairL = '#b86f50';
-  const cop = outfit === 'police';
-  const shirt = outfit === 'butler' ? '#262b44' : cop ? '#124e89' : '#e43b44', shirtD = outfit === 'butler' ? '#181425' : cop ? '#0b3a6b' : '#a22633';
+  const cop = outfit === 'police', mom = outfit === 'mom';
+  const shirt = outfit === 'butler' ? '#262b44' : cop ? '#124e89' : mom ? '#b55088' : '#e43b44', shirtD = outfit === 'butler' ? '#181425' : cop ? '#0b3a6b' : mom ? '#68386c' : '#a22633';
   const pants = outfit === 'butler' || cop ? '#181425' : '#124e89', pantsD = outfit === 'butler' || cop ? '#07060f' : '#0b3a6b', shoe = '#3e2731';
   const ox = 3;
   const kneel = pose === 'kneel' || pose === 'bow';
@@ -288,6 +288,7 @@ function buildSam(pose, frame, outfit) {
     rect(ox + 3 + Math.min(0, step) * 2, 29 - Math.max(0, step), 5, 2, shoe);
     rect(ox + 7 - Math.min(0, step) * 2, 29 + Math.min(0, step), 5, 2, shoe);
     rect(ox + 4, 19, 7, 3, pants);
+    if (mom) { rect(ox + 2, 19, 11, 6, '#3a4466'); rect(ox + 2, 24, 11, 1, '#262b44'); }
   }
   // body
   const by = 11 + top;
@@ -320,6 +321,11 @@ function buildSam(pose, frame, outfit) {
   rect(ox + 2, hy + 5, 2, 4, hair);
   rect(ox + 11, hy + 5, 2, 3, hair);
   rect(ox + 5, hy + 1, 4, 1, hairL);
+  if (mom) {
+    rect(ox + 5, hy - 3, 5, 3, hair); rect(ox + 6, hy - 4, 3, 1, hair);
+    rect(ox + 2, hy + 5, 2, 7, hair); rect(ox + 11, hy + 5, 2, 7, hair);
+    rect(ox + 6, hy + 9, 3, 1, '#e43b44');
+  }
   if (cop) {
     rect(ox + 2, hy - 1, 11, 4, '#0b3a6b'); rect(ox + 1, hy + 3, 13, 1, '#181425'); px(ox + 7, hy, '#fee761');
     rect(ox + 5, hy + 9, 5, 1, '#3e2731');

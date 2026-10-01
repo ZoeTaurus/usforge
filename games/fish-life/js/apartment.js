@@ -98,7 +98,7 @@ class ApartmentScene {
     else if (this.sam) {
       list.push({ x: 405, r: 30, label: b.samFed === b.day ? 'PET THE FISH (YOU)' : 'FEED THE FISH (YOURSELF!)', act: () => this.samFeed() });
       list.push({ x: 900, r: 26, label: 'DO HOMEWORK', act: () => this.homework() });
-      list.push({ x: 30, r: 22, label: 'LEAVE THE APARTMENT', act: () => this.say(pick(['SAM WALKS INTO THE DOOR. THE HELMET HAS A RANGE OF 10 METRES.', 'OUTSIDE IS SCARY. AND THERE IS NO WATER.', 'THE GIANT ROBOT CAN GO OUTSIDE. SAM CANNOT.']), '#9fe8f5') });
+      list.push({ x: 30, r: 22, label: 'LEAVE THE APARTMENT', act: () => this.momCatch() });
       list.push({ x: 225, r: 30, label: 'SIT ON THE COUCH', act: () => this.say(pick(['THE CAT SCOOTS OVER. IT KNOWS WHO IS IN CHARGE.', 'SAM SITS. YOU MAKE HIM SAY "I LOVE MY FISH" OUT LOUD.', 'A COMFY COUCH. HUMANS HAVE IT SO EASY.']), '#f6a0c8') });
     }
     else list.push({ x: 405, r: 22, label: 'GO HOME TO THE TABLE', act: () => this.leave() });
@@ -133,6 +133,73 @@ class ApartmentScene {
       this.floaters.add('+' + fmt(v) + ' IQ', 500, 90, '#b4f08c', { font: F5 });
       Sound.sfx('idea');
     }
+  }
+  /* ------------------------------------------------- Sam's mom */
+  // Mind-controlled Sam tries to sneak out... Mom appears with a slipper.
+  momCatch() {
+    const b = this.b, p = this.p;
+    b.momCatches = (b.momCatches || 0) + 1;
+    this.mom = { phase: 'run', t: 0, x: Math.max(0, p.x - 120), anim: 0, n: b.momCatches };
+    p.vx = 0;
+    Sound.sfx('sting');
+    this.say(pick(['MOM: SAMUEL!!! WHERE DO YOU THINK YOU ARE GOING?!', 'MOM: OH NO YOU DON\'T!', 'MOM: SAM! GET BACK HERE!']), '#f6a0c8');
+    saveGame();
+  }
+  updateMom(dt) {
+    const m = this.mom, p = this.p;
+    m.t += dt;
+    if (m.phase === 'run') {
+      m.x = approach(m.x, p.x - 13, 260 * dt);
+      m.anim += dt * 16;
+      if (Math.abs(m.x - (p.x - 13)) < 1) { m.phase = 'smack'; m.t = 0; this.thwack(); }
+    } else if (m.phase === 'smack') {
+      if (m.t > 0.45 && !m.hit2) { m.hit2 = true; this.thwack(); }
+      if (m.t > 1.1) {
+        m.phase = 'drag'; m.t = 0;
+        p.y = APT_GROUND; p.vy = 0; p.ground = true; p.face = 1;
+        this.floaters.add(pick(['OW OW OW!', 'THE FISH MADE ME DO IT!', 'NOT THE EAR!']), p.x, p.y - 44, '#ffffff', { font: F5, life: 1.5 });
+      }
+    } else if (m.phase === 'drag') {
+      // pulled by the ear all the way back to his room
+      p.x = approach(p.x, 900, 300 * dt);
+      m.x = p.x + 12;
+      m.anim += dt * 16;
+      p.anim += dt * 16;
+      if (p.x === 900) {
+        m.phase = 'scold'; m.t = 0;
+        const lines = ['MOM: STAY IN YOUR ROOM! AND STOP STARING AT THAT FISH!', 'MOM: AGAIN?! NO TV FOR A WEEK, YOUNG MAN!', 'MOM: I DON\'T CARE WHAT THE FISH SAYS. YOU ARE GROUNDED!', 'MOM: THAT IS ESCAPE NUMBER ' + m.n + '! AND WHY ARE YOUR EYES ALL SWIRLY?!'];
+        this.say(m.n <= 3 ? lines[m.n - 1] : lines[3], '#f6a0c8');
+      }
+    } else if (m.phase === 'scold') {
+      if (m.t > 2.4) { m.phase = 'leave'; m.t = 0; }
+    } else {
+      m.x -= 240 * dt;
+      m.anim += dt * 16;
+      if (m.x < p.x - W) this.mom = null;
+    }
+    this.camX = clamp(lerp(this.camX, p.x - W / 2, 1 - Math.pow(0.002, dt)), 0, APT_W - W);
+  }
+  thwack() {
+    const p = this.p;
+    Sound.sfx('pinch');
+    Sound.noise(0.12, { vol: 0.3, freq: 1500 });
+    Game.shake(3, 0.25);
+    this.floaters.add('THWACK!', p.x, p.y - 46, '#fee761', { font: F5 });
+    for (let i = 0; i < 8; i++) this.parts.add({ type: 'spark', x: p.x, y: p.y - 30, vx: rnd(-60, 60), vy: rnd(-60, 10), life: 0.5, c: '#fee761' });
+  }
+  drawMom(cx, t) {
+    const m = this.mom, x = Math.round(m.x) - cx, y = APT_GROUND + 1;
+    const walking = m.phase === 'run' || m.phase === 'drag' || m.phase === 'leave';
+    const flip = m.phase === 'leave' || m.phase === 'scold';
+    drawSam(x, y, walking ? 'walk' : 'stand', Math.floor(m.anim), flip, 'mom');
+    // the slipper
+    const f = flip ? -1 : 1;
+    let sx = x + f * 9, sy = y - 26;
+    if (m.phase === 'smack') { const k = (m.t % 0.45) / 0.45; sy = y - 34 + Math.round(k * 12); sx = x + f * (6 + Math.round(k * 5)); }
+    else if (m.phase === 'scold') sy = y - 32 + Math.round(Math.sin(t * 12) * 2);
+    else if (m.phase === 'drag') { sx = x - 8; sy = y - 24; }
+    rect(sx - 3, sy, 7, 3, '#f6757a'); rect(sx - 3, sy + 2, 7, 1, '#b55088'); rect(sx - 1, sy - 1, 3, 1, '#ffffff');
+    if (m.phase === 'run' && Math.floor(t * 8) % 2) text('!!', x, y - 44, '#ff5a5a', { outline: '#07060f', align: 'center' });
   }
   samFeed() {
     const b = this.b;
@@ -239,6 +306,7 @@ class ApartmentScene {
       }
     }
     this.orders = this.orders.filter(o => o.t > 0);
+    if (this.mom) { this.updateMom(dt); return; }
     if (this.store) { this.store.flash = Math.max(0, this.store.flash - dt); if (active) this.updateStore(); return; }
     if (!active) return;
     if (hit('back') || touchPauseHit(W - 17, 4)) { this.leave(); return; }
@@ -461,6 +529,7 @@ class ApartmentScene {
     // the player
     if (this.cat) this.drawCat(p.x - cx, p.y, t);
     else if (this.sam) this.drawSamPlayer(p.x - cx, p.y, t);
+    if (this.mom) this.drawMom(cx, t);
     else this.drawBowl(p.x - cx, p.y, t);
     if (b.items.skateboard && !p.onVac) { const sx = Math.round(p.x) - cx; rect(sx - 9, Math.round(p.y) - 1, 18, 2, '#e43b44'); disc(sx - 6, Math.round(p.y) + 2, 1, '#181425'); disc(sx + 6, Math.round(p.y) + 2, 1, '#181425'); }
     if (b.items.jetpack) { const jx = Math.round(p.x - p.face * (this.cat ? 3 : this.sam ? 8 : 10)) - cx, jy = Math.round(p.y) - (this.cat ? 14 : this.sam ? 22 : 26); rect(jx - 2, jy, 4, 8, '#8b9bb4'); rect(jx - 2, jy, 4, 2, '#e43b44'); }
@@ -506,7 +575,7 @@ class ApartmentScene {
   }
   drawSamPlayer(x, y, t) {
     x = Math.round(x); y = Math.round(y);
-    const p = this.p, walking = p.ground && Math.abs(p.vx) > 5;
+    const p = this.p, walking = (p.ground && Math.abs(p.vx) > 5) || (this.mom && this.mom.phase === 'drag');
     drawSam(x, y + 1, walking ? 'walk' : 'stand', Math.floor(p.anim), p.face < 0);
     // swirly hypnotized eyes
     for (const ex of [x - 2, x + 2]) {
@@ -548,7 +617,7 @@ class ApartmentScene {
     text(Input.touchSeen ? '' : 'ESC: BACK TO BOWL', W - 4, 5, '#c0cbdc', { font: F3, align: 'right', outline: '#07060f' });
     touchPauseButton(W - 17, 4);
     // interaction prompt
-    const it = this.store ? null : this.nearest();
+    const it = this.store || this.mom ? null : this.nearest();
     if (it) {
       const s = (Input.touchSeen ? 'USE: ' : 'E: ') + it.label;
       const w = textW(s) + 12;

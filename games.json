@@ -66,8 +66,8 @@
     "genres": [
       "Sports"
     ],
-    "dev": false,
-    "progress": null,
+    "dev": true,
+    "progress": 25,
     "next": "",
     "build": true,
     "added": 1790771414,

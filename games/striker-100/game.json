@@ -5,5 +5,7 @@
   "blurb": "A goofy game where you take shots at a goal.",
   "genres": [
     "Sports"
-  ]
+  ],
+  "dev": true,
+  "progress": 25
 }

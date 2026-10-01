@@ -38,7 +38,7 @@
   },
   {
     "slug": "aquadise",
-    "title": "AquaDise",
+    "title": "Aquadise",
     "author": "Henrique",
     "owner": "Henrique",
     "blurb": "The chill aquarium fishing game.",
@@ -51,7 +51,7 @@
       "Simulation"
     ],
     "dev": true,
-    "progress": 65,
+    "progress": 70,
     "next": "Beautifying",
     "build": true,
     "added": 1790877471

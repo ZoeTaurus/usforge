@@ -829,3 +829,7 @@ body.playing .site-banner { display: none; }
 .wheel-acts .play-btn { margin: 0; }
 .detail > div.shots { grid-column: 1; grid-row: 2; }   /* (more specific than the text column's rule, which also matches divs) */
 @media (max-width: 760px) { .detail > div.shots { grid-column: auto; grid-row: auto; } }
+/* "N online now": its separator dot sat inside the green highlight — keep the highlight on the words only */
+.stat-live.live-clickable { margin: 0; }
+.stat-live::before { display: none; }
+.stat-live { margin-left: 6px; }

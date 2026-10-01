@@ -1,0 +1,38 @@
+{
+  "slug": "skyline-dash",
+  "title": "Skyline Dash",
+  "owner": "Milan",
+  "author": "Milan",
+  "submittedBy": "Milan",
+  "founder": false,
+  "submitted": 1790857299,
+  "kind": "new",
+  "status": "pending",
+  "info": {
+    "title": "Skyline Dash",
+    "author": "Milan",
+    "owner": "Milan",
+    "blurb": "completete obbies and minigames when your bored its offline",
+    "genres": [
+      "Platformer"
+    ]
+  },
+  "entry": {
+    "slug": "skyline-dash",
+    "title": "Skyline Dash",
+    "author": "Milan",
+    "owner": "Milan",
+    "blurb": "completete obbies and minigames when your bored its offline",
+    "cover": "games/skyline-dash/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Platformer"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790857299
+  }
+}

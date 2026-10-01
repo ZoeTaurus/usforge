@@ -1,0 +1,14 @@
+{
+  "title": "AquaDise",
+  "author": "Henrique",
+  "owner": "Henrique",
+  "blurb": "The chill aquarium fishing game.",
+  "genres": [
+    "Casual",
+    "Open world",
+    "Simulation"
+  ],
+  "dev": true,
+  "progress": 65,
+  "next": "Beautifying"
+}

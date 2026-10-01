@@ -1,5 +1,25 @@
 [
   {
+    "slug": "aquadise",
+    "title": "AquaDise",
+    "author": "Henrique",
+    "owner": "Henrique",
+    "blurb": "The chill aquarium fishing game.",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Casual",
+      "Open world",
+      "Simulation"
+    ],
+    "dev": true,
+    "progress": 65,
+    "next": "Beautifying",
+    "build": true,
+    "added": 1790877468
+  },
+  {
     "slug": "skyline-dash",
     "title": "Skyline Dash",
     "author": "Milan",

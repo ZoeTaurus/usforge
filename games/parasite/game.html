@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Parasite</title>
+  <meta name="description" content="Parasite: burrow into a beetle, a crow, a rat, a man — and stay yourself." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,400&family=Cinzel:wght@500;700&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/game.css" />
+</head>
+<body>
+  <canvas id="game" aria-label="Parasite"></canvas>
+
+  <div id="whispers" aria-hidden="true"></div>
+
+  <!-- HUD -->
+  <div class="hud hud-left">
+    <div id="self-meter" class="meter self">
+      <span class="label">SELF</span>
+      <span class="bar"><span id="self-fill" class="fill"></span></span>
+      <span id="self-value" class="value">100%</span>
+    </div>
+    <div id="moist-meter" class="meter moist">
+      <span class="label">MOISTURE</span>
+      <span class="bar"><span id="moist-fill" class="fill"></span></span>
+    </div>
+    <div id="wings-meter" class="meter wings">
+      <span class="label">WINGS</span>
+      <span class="bar"><span id="wings-fill" class="fill"></span></span>
+    </div>
+    <div class="meter host">
+      <span class="label">HOST</span>
+      <span id="host-name" class="value">none</span>
+      <span id="host-hp" class="pips"></span>
+    </div>
+    <div id="traits" class="traits" aria-label="Traits carried from earlier bodies"></div>
+  </div>
+  <div class="hud hud-right">
+    <span class="label">memories</span> <b id="shard-count">0/3</b>
+    <button class="pause-btn" data-action="pause" aria-label="Pause">❚❚</button>
+  </div>
+
+  <p id="hint" class="hint" aria-live="polite"></p>
+  <p id="prompt" class="prompt"><b>E</b> burrow in</p>
+
+  <div id="chapter-card" class="chapter-card">
+    <p id="card-kicker" class="kicker">beneath the glasshouse</p>
+    <h1 id="card-title">Chapter I <span>— The Beetle</span></h1>
+    <p class="rotate">best played with your phone sideways</p>
+  </div>
+
+  <!-- Touch controls -->
+  <div class="touch-controls" aria-hidden="true">
+    <div class="pad">
+      <button data-touch="left">◀</button>
+      <button data-touch="up">▲</button>
+      <button data-touch="down">▼</button>
+      <button data-touch="right">▶</button>
+    </div>
+    <div class="actions">
+      <button data-touch="leave">Q</button>
+      <button data-touch="burrow">E</button>
+      <button data-touch="jump" class="big">⤒</button>
+    </div>
+  </div>
+
+  <!-- Overlays -->
+  <section id="pause" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="pause-title">
+    <div class="overlay-inner pause-inner">
+      <h2 id="pause-title">Paused</h2>
+      <canvas id="map" class="map" aria-label="Map of this chapter"></canvas>
+      <p class="map-legend"><i class="dot you"></i>you <i class="dot cp"></i>checkpoints <i class="dot mem"></i>memories <i class="dot host"></i>sleeping bodies <i class="dot out"></i>the way out</p>
+      <div id="pause-menu" class="pause-menu">
+        <button class="menu-item" data-action="resume">Resume</button>
+        <button class="menu-item" data-action="restart">Last checkpoint</button>
+        <button class="menu-item" data-action="sound">Sound: <span id="sound-state">on</span></button>
+        <button class="menu-item" data-action="gentle">Gentle mode: <span id="gentle-state">off</span></button>
+        <button class="menu-item" data-action="controls">Controls</button>
+        <button class="menu-item" data-action="title">Title screen</button>
+      </div>
+      <div id="controls-panel" class="controls-panel" hidden>
+        <p class="controls-note">Pick an action, then press the key you want for it. The arrow keys and WASD keep working too.</p>
+        <div id="binds" class="binds"></div>
+        <div class="controls-actions">
+          <button class="menu-item small" data-action="reset-keys">Reset keys</button>
+          <button class="menu-item small" data-action="controls-back">Back</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="dead" class="overlay dead" hidden role="dialog" aria-modal="true" aria-labelledby="dead-title">
+    <div class="overlay-inner">
+      <h2 id="dead-title">Exterminated.</h2>
+      <p id="dead-text" class="sub"></p>
+      <button class="menu-item" data-action="retry">Try again</button>
+      <button class="menu-item" data-action="title">Title screen</button>
+    </div>
+  </section>
+
+  <section id="won" class="overlay won" hidden role="dialog" aria-modal="true" aria-labelledby="won-title">
+    <div class="overlay-inner">
+      <p id="won-kicker" class="kicker">chapter complete</p>
+      <h2 id="won-title">You got out.</h2>
+      <p id="won-text" class="sub"></p>
+      <div id="won-stats" class="stats"></div>
+      <p id="won-next" class="next"></p>
+      <button id="next-btn" class="menu-item" data-action="next">Go on</button>
+      <button class="menu-item" data-action="replay">Play this chapter again</button>
+      <button class="menu-item" data-action="title">Title screen</button>
+    </div>
+  </section>
+
+  <section id="ending" class="overlay ending" hidden role="dialog" aria-modal="true" aria-label="The mirror">
+    <div class="overlay-inner">
+      <div id="ending-choice">
+        <p class="kicker">the mirror</p>
+        <h2>A man you have never been.</h2>
+        <p class="sub">His face looks back at you. It would be so easy to stay. He has a name, a house, a daughter asleep upstairs. You have a thread of wet flesh and whatever you still remember.</p>
+        <button class="menu-item" data-action="stay">Stay in him</button>
+        <button class="menu-item" data-action="leave">Leave him</button>
+      </div>
+      <div id="ending-text" hidden></div>
+    </div>
+  </section>
+
+  <script src="js/audio.js"></script>
+  <script src="js/levels/beetle.js"></script>
+  <script src="js/levels/crow.js"></script>
+  <script src="js/levels/rat.js"></script>
+  <script src="js/levels/man.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

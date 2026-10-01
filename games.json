@@ -1,5 +1,24 @@
 [
   {
+    "slug": "parasite",
+    "title": "Parasite",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "you are a parasite. posses creatures and clear the levels! hey, ik it looks discusting, but give it a try!",
+    "cover": "games/parasite/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Action",
+      "Casual"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790879346
+  },
+  {
     "slug": "aquadise",
     "title": "AquaDise",
     "author": "Henrique",

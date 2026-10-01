@@ -1,0 +1,70 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Parasite</title>
+  <meta name="description" content="You are a tiny organism that burrows into other creatures. Hold on to who you are." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,500;1,300;1,400&family=Cinzel:wght@500;700&family=IBM+Plex+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/title.css" />
+<style>html,body{background:#050407}</style>
+
+  <!-- Living background: spores, veins, watching eyes and the parasite itself -->
+  <canvas id="world" aria-hidden="true"></canvas>
+
+  <!-- Organic wobble applied to the title lettering -->
+  <svg class="defs" aria-hidden="true">
+    <filter id="flesh">
+      <feTurbulence id="flesh-noise" type="fractalNoise" baseFrequency="0.012 0.03" numOctaves="2" seed="7" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="6" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </svg>
+
+  <div id="whispers" aria-hidden="true"></div>
+
+  <main id="title-screen">
+    <header class="title-block">
+      <p class="kicker">an organism with no body of its own</p>
+      <h1 id="title" class="title" aria-label="Parasite">
+        <span class="letter">P</span><span class="letter">A</span><span class="letter">R</span><span class="letter">A</span><span class="letter">S</span><span class="letter">I</span><span class="letter">T</span><span class="letter">E</span>
+      </h1>
+      <p class="tagline">Every body you take remembers <em>someone else</em>.</p>
+    </header>
+
+    <p id="wake" class="wake">press any key to wake</p>
+
+    <nav id="menu" class="menu" aria-label="Main menu" hidden>
+      <button class="menu-item" data-action="begin"><span class="glyph"></span>Begin</button>
+      <button class="menu-item" data-action="continue" disabled title="No host remembers you yet"><span class="glyph"></span>Continue</button>
+      <button class="menu-item" data-action="sound"><span class="glyph"></span>Sound: <span id="sound-state">on</span></button>
+      <button class="menu-item" data-action="about"><span class="glyph"></span>What am I?</button>
+    </nav>
+  </main>
+
+  <aside class="self-meter" aria-label="Sense of self">
+    <span class="self-label">SELF</span>
+    <span class="self-bar"><span id="self-fill"></span></span>
+    <span id="self-value" class="self-value">100%</span>
+  </aside>
+
+  <footer class="credits">
+    <span>hosts consumed: <b id="host-count">0</b></span>
+    <span class="dot">·</span>
+    <span>v0.1 prototype</span>
+  </footer>
+
+  <section id="about" class="panel" hidden role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <div class="panel-inner">
+      <h2 id="about-title">What am I?</h2>
+      <p>You are small. Smaller than a thumbnail. You have no legs, no eyes, no voice&nbsp;— only hunger, and the knack of slipping inside something that has them.</p>
+      <p>Burrow into a beetle and you can climb walls. A crow, and you can fly. A person, and you can open doors. But every host leaks into you: their fears, their memories, their instincts.</p>
+      <p>Stay too long and you'll forget which thoughts were yours.</p>
+      <p class="panel-goal">The world wants you exterminated. Survive it — and stay <em>you</em>.</p>
+      <button class="menu-item close" data-action="close"><span class="glyph"></span>Back</button>
+    </div>
+  </section>
+
+  <section id="prologue" class="prologue" hidden aria-live="polite"></section>
+
+  <script src="js/audio.js"></script>
+  <script src="js/title.js"></script>
+
+</body></html>

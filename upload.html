@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=44">
+<link rel="stylesheet" href="style.css?v=45">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
 <script src="site.js?v=33"></script>
@@ -46,6 +46,19 @@
         <h2>Needs review <span class="review-count" id="reviewCount"></span></h2>
         <p class="dim">New games from members wait here until one of the founders approves them.</p>
         <div id="reviewList" class="review-list"></div>
+      </section>
+
+      <!-- game ideas: members only -->
+      <section id="ideasBox">
+        <div class="ideas-head"><h2>Game ideas</h2><span class="dim">only members can see these</span>
+          <span class="ideas-sort" role="group" aria-label="Sort ideas"><button type="button" data-sort="top" aria-pressed="true">Most wanted</button><button type="button" data-sort="new" aria-pressed="false">Newest</button></span></div>
+        <form class="panel idea-form" id="ideaForm">
+          <input id="ideaTitle" maxlength="60" placeholder="Idea name, like “Ten-Second Heist”" aria-label="Idea name" required>
+          <textarea id="ideaText" maxlength="400" rows="2" placeholder="What’s the game? What makes it fun? (optional)" aria-label="Describe the idea"></textarea>
+          <div class="row"><button class="go" type="submit" id="ideaSend">Post idea</button><span class="hint">Everyone with an account can see it, vote for it, or say they’re making it.</span></div>
+          <p class="msg" id="ideaMsg" role="status"></p>
+        </form>
+        <div id="ideaList" class="idea-list"></div>
       </section>
 
       <h2>Your games</h2>
@@ -220,8 +233,43 @@
       else reviewAct(slug, 'withdraw', '', b);
     };
     paintReviews();
-    paintPicks(); loadFeedback(); loadProfile(); loadBoards();
+    paintPicks(); loadFeedback(); loadProfile(); loadBoards(); loadIdeas();
   }
+  // ---------- game ideas ----------
+  let ideaList = [], ideaSort = 'top';
+  async function loadIdeas(action, extra = {}) {
+    try {
+      const r = await api('ideas', { name: me.name, password: pass, action: action || 'list', ...extra });
+      ideaList = r.ideas; paintIdeas(); return true;
+    } catch (err) { UsForge.toast(err.message); return false; }
+  }
+  function paintIdeas() {
+    const sorted = [...ideaList].sort(ideaSort === 'new' ? (a, b) => b.at - a.at : (a, b) => b.votes.length - a.votes.length || b.at - a.at);
+    for (const b of document.querySelectorAll('.ideas-sort button')) b.setAttribute('aria-pressed', String(b.dataset.sort === ideaSort));
+    $('ideaList').innerHTML = sorted.length ? sorted.map(i => {
+      const voted = i.votes.includes(me.name), mineIdea = i.by === me.name;
+      return `<article class="idea" data-id="${esc(i.id)}">
+        <button type="button" class="idea-vote" data-act="vote" aria-pressed="${voted}" title="${voted ? 'Take your vote back' : 'I’d play this!'}">${UsForgeIcon(voted ? 'heartFill' : 'heart')}<b>${i.votes.length}</b></button>
+        <div class="idea-body"><b class="idea-title">${esc(i.title)}</b>${i.text ? `<p>${esc(i.text)}</p>` : ''}
+          <span class="idea-meta">by ${esc(i.by)} · ${ago(i.at)}${i.maker ? ` · <span class="idea-maker">${UsForgeIcon('sparkles')} ${esc(i.maker)} is making this</span>` : ''}</span>
+          <span class="idea-acts"><button type="button" class="ghost" data-act="make">${i.maker === me.name ? 'I’m not making it' : i.maker ? (me.founder ? 'Take it over' : '') : 'I’m making this'}</button>${mineIdea || me.founder ? '<button type="button" class="ghost" data-act="delete">Delete</button>' : ''}</span>
+        </div></article>`;
+    }).join('') : '<p class="dim">No ideas yet. Post the first one!</p>';
+    for (const b of $('ideaList').querySelectorAll('[data-act]')) {
+      if (!b.textContent.trim() && b.dataset.act === 'make') { b.remove(); continue; }
+      b.onclick = async () => {
+        const id = b.closest('.idea').dataset.id, act = b.dataset.act;
+        if (act === 'delete' && !b.dataset.arm) { b.dataset.arm = '1'; b.textContent = 'Sure? Delete'; setTimeout(() => { if (b.isConnected) { delete b.dataset.arm; b.textContent = 'Delete'; } }, 3000); return; }
+        b.disabled = true; await loadIdeas(act, { id });
+      };
+    }
+  }
+  for (const b of document.querySelectorAll('.ideas-sort button')) b.onclick = () => { ideaSort = b.dataset.sort; paintIdeas(); };
+  $('ideaForm').onsubmit = async e => {
+    e.preventDefault(); $('ideaSend').disabled = true;
+    if (await loadIdeas('add', { title: $('ideaTitle').value, text: $('ideaText').value })) { $('ideaForm').reset(); say('ideaMsg', 'Posted!'); setTimeout(() => say('ideaMsg', ''), 2500); }
+    $('ideaSend').disabled = false;
+  };
   // leaderboards on your games (founders: every game)
   async function loadBoards() {
     const mineOnly = games.filter(g => !g.dev && (me.founder || (g.owner || g.author).toLowerCase() === me.name.toLowerCase()));

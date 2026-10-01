@@ -36,6 +36,7 @@ export default {
       if (url.pathname === '/api/score') return ok(await scoreAdd(req, env, url));
       if (url.pathname === '/api/score-delete') return ok(await scoreDelete(req, env));
       if (url.pathname === '/api/profile') return ok(await profile(req, env));
+      if (url.pathname === '/api/ideas') return ok(await ideas(req, env));
       if (url.pathname === '/api/feedback') return ok(await feedbackAdd(req, env, url));
       if (url.pathname === '/api/feedback-list') return ok(await feedbackList(req, env));
       if (url.pathname === '/api/feedback-delete') return ok(await feedbackDelete(req, env));
@@ -102,6 +103,25 @@ export class Plays extends DurableObject {
     return { board: b, rank: rank || null, improved: !same || same.score === score };
   }
   async hsDel(slug, id) { const b = await this.hsGet(slug), n = b.list.length; b.list = b.list.filter(e => e.id !== id); await this.ctx.storage.put('hs2:' + slug, b); return n - b.list.length; }
+  // game ideas (members only; kept here, not in the public project)
+  async ideasAll() { return (await this.ctx.storage.get('ideas')) || []; }
+  async ideasDo(action, who, b) {
+    let list = await this.ideasAll();
+    const now = Math.floor(Date.now() / 1000), idea = list.find(i => i.id === b.id);
+    if (action === 'add') {
+      const title = String(b.title || '').replace(/\s+/g, ' ').trim().slice(0, 60), text = String(b.text || '').replace(/[ \t]+/g, ' ').trim().slice(0, 400);
+      if (title.length < 3) return { error: 'Give your idea a name.' };
+      if (list.filter(i => i.by === who.name && now - i.at < 60).length >= 3) return { error: 'Slow down a little!' };
+      list.unshift({ id: crypto.randomUUID().slice(0, 8), title, text, by: who.name, at: now, votes: [], maker: null });
+      list = list.slice(0, 300);
+    } else if (!idea) return { error: 'That idea isn’t there any more.' };
+    else if (action === 'vote') idea.votes = idea.votes.includes(who.name) ? idea.votes.filter(v => v !== who.name) : [...idea.votes, who.name];
+    else if (action === 'make') { if (idea.maker && idea.maker !== who.name && !who.founder) return { error: `${idea.maker} is already making this one.` }; idea.maker = idea.maker === who.name ? null : who.name; }
+    else if (action === 'delete') { if (idea.by !== who.name && !who.founder) return { error: 'Only the person who posted it (or a founder) can delete it.' }; list = list.filter(i => i !== idea); }
+    else return { error: 'Unknown action.' };
+    await this.ctx.storage.put('ideas', list);
+    return { ideas: list };
+  }
   recent = new Map();
   cooldown(key, ms) {   // true = allowed now (kept in memory only)
     const now = Date.now(), last = this.recent.get(key) || 0;
@@ -504,6 +524,15 @@ async function profile(req, env) {
   if (!Object.keys(all[who.name]).length) delete all[who.name];
   await commit(env, head, [{ path: 'profiles.json', text: JSON.stringify(all, null, 2) + '\n' }], `Profile: ${who.name}`);
   return { ok: true, profile: all[who.name] || {} };
+}
+
+// ---------- game ideas: any member can post, vote ("I'd play this") and claim ("I'm making this") ----------
+async function ideas(req, env) {
+  const b = await req.json(), who = await check(b.name, b.password), action = String(b.action || 'list');
+  if (action === 'list') return { ideas: await box(env).ideasAll(), me: who.name, founder: who.founder };
+  const r = await box(env).ideasDo(action, { name: who.name, founder: who.founder }, b);
+  if (r.error) throw fail(400, r.error);
+  return { ...r, me: who.name, founder: who.founder };
 }
 
 // ---------- remove ----------

@@ -744,3 +744,26 @@ body.playing .site-banner { display: none; }
 .news-ico .ico { width: 18px; height: 18px; }
 .news-panel time { display: block; font: 11px var(--mono); color: var(--dim); margin-top: 2px; }
 .news-panel p { margin: 4px; color: var(--dim); }
+
+/* ---------- game ideas ---------- */
+.ideas-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ideas-head h2 { margin-bottom: 8px; }
+.ideas-sort { margin-left: auto; display: inline-flex; gap: 4px; }
+.ideas-sort button { font: 500 13px var(--sans); color: var(--dim); background: transparent; border: 1px solid var(--line); border-radius: 99px; padding: 4px 11px; cursor: pointer; }
+.ideas-sort button[aria-pressed="true"] { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.idea-form { margin-bottom: 12px; }
+.idea-form input, .idea-form textarea { font: 15px/1.4 var(--sans); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; resize: vertical; }
+.idea-form input:focus, .idea-form textarea:focus { outline: none; border-color: var(--accent); }
+.idea-list { display: grid; gap: 8px; margin-bottom: 32px; }
+.idea { display: grid; grid-template-columns: 52px 1fr; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.idea-vote { display: grid; justify-items: center; align-content: center; gap: 2px; height: 56px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: #ff5f7e; cursor: pointer; }
+.idea-vote b { font: 700 14px var(--mono); color: var(--ink); }
+.idea-vote[aria-pressed="true"] { border-color: #ff5f7e; background: rgba(255, 95, 126, .1); }
+.idea-vote .ico { width: 18px; height: 18px; }
+.idea-body { display: grid; gap: 4px; min-width: 0; }
+.idea-title { font-size: 16px; }
+.idea-body p { margin: 0; font-size: 14px; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.idea-meta { font: 12px var(--mono); color: var(--dim); }
+.idea-maker { color: var(--accent); }
+.idea-acts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.idea-acts .ghost { padding: 4px 10px; font-size: 12px; }

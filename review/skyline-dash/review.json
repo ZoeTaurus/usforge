@@ -5,14 +5,14 @@
   "author": "Milan",
   "submittedBy": "Milan",
   "founder": false,
-  "submitted": 1790857299,
+  "submitted": 1790857411,
   "kind": "new",
   "status": "pending",
   "info": {
     "title": "Skyline Dash",
     "author": "Milan",
     "owner": "Milan",
-    "blurb": "completete obbies and minigames when your bored its offline",
+    "blurb": "Do parkour levels and minigames",
     "genres": [
       "Platformer"
     ]
@@ -22,7 +22,7 @@
     "title": "Skyline Dash",
     "author": "Milan",
     "owner": "Milan",
-    "blurb": "completete obbies and minigames when your bored its offline",
+    "blurb": "Do parkour levels and minigames",
     "cover": "games/skyline-dash/cover.png",
     "pixel": false,
     "url": null,
@@ -33,6 +33,6 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1790857299
+    "added": 1790857411
   }
 }

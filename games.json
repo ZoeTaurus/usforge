@@ -1,5 +1,23 @@
 [
   {
+    "slug": "paper-snail-d",
+    "title": "Paper snail :D",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "obby game as a paper snail",
+    "cover": "games/paper-snail-d/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Platformer"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790884974
+  },
+  {
     "slug": "parasite",
     "title": "Parasite",
     "author": "Alex",

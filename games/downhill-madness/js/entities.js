@@ -506,6 +506,13 @@ function drawPowerIcon(c, type, r) {
     Art.poly(c, [-20, 10, -36, 36, -20, 30], col); Art.poly(c, [20, 10, 36, 36, 20, 30], col);
     Art.circ(c, 0, -12, 9, col);
     Art.poly(c, [-12, 32, 0, 62, 12, 32], '#ffd23f');
+  } else if (type === 'giant') {
+    Art.label(c, 'XL', 0, 6, 74, col);
+  } else if (type === 'wings') {
+    for (const sd of [-1, 1]) {
+      c.fillStyle = col; c.beginPath();
+      c.moveTo(sd * 6, 10); c.quadraticCurveTo(sd * 60, -60, sd * 58, -10); c.quadraticCurveTo(sd * 40, 20, sd * 6, 10); c.fill();
+    }
   } else {
     Art.label(c, '2×', 0, 6, 70, col);
   }
@@ -775,10 +782,12 @@ Object.assign(ET, {
 // ---------------------------------------------------------------- v5: rails and the Yeti King
 Object.assign(ET, {
   rail: {
-    kind: 'rail', w: 50, h: 140, d: 0, len: 3000, flat: true,
-    // Drawn in chunks from far to near so each chunk can hide behind hills.
+    kind: 'rail', w: 50, h: 140, d: 0, len: 3000, flat: true, selfClip: true,
+    // Painted strictly far-to-near in thin slices, with each support post drawn
+    // right after the slice behind it, so posts show under the rail along its
+    // whole length and every slice hides correctly behind hills.
     drawFlat(c, gp, e, t, R) {
-      const L = e.len, h = e.h, w = 46;
+      const L = e.len, h = e.h, w = 46, top = h, bot = h - 44;
       const up = (dx, dz, y) => { const q = gp(dx, dz); return [q[0], q[1] - y * q[2], q[2]]; };
       const quad = (pts, col) => {
         c.fillStyle = col; c.beginPath();
@@ -787,30 +796,33 @@ Object.assign(ET, {
       };
       const start = Math.max(0, R.near);
       if (start >= L) return;
-      const CH = 400;
-      for (let z1 = L; z1 > start; z1 -= CH) {
-        const z0 = Math.max(start, z1 - CH);
+      // Only the side of the box facing the camera is visible.
+      const mid = up(0, Math.min(L, start + 600), top);
+      const side = mid[0] > R.W / 2 ? -w : w;
+      const post = z => {
+        quad([up(-80, z - 45, 0), up(80, z - 45, 0), up(80, z + 45, 0), up(-80, z + 45, 0)], '#8d97a8'); // base plate
+        quad([up(-18, z, 0), up(18, z, 0), up(18, z, bot), up(-18, z, bot)], '#2b2d42');
+        quad([up(side * 0.39, z, 0), up(side * 0.39 + (side > 0 ? -12 : 12), z, 0), up(side * 0.39 + (side > 0 ? -12 : 12), z, bot), up(side * 0.39, z, bot)], '#4a5168');
+      };
+      const STEP = 250, POST = 500;
+      for (let z0 = Math.floor((L - 1) / STEP) * STEP; z0 + STEP > start; z0 -= STEP) {
+        const a = Math.max(start, z0), b = Math.min(L, z0 + STEP);
+        if (b <= a) continue;
         c.save();
-        c.beginPath(); c.rect(-R.W, -R.W, R.W * 3, R.W + R.clipAt(z0)); c.clip();
-        // support posts with snowy base plates
-        for (let z = Math.ceil(z0 / 500) * 500; z <= z1; z += 500) {
-          const a = up(0, z, 0), b = up(0, z, h - 20);
-          c.strokeStyle = '#2b2d42'; c.lineWidth = Math.max(1.5, 36 * a[2]);
-          c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-          quad([up(-70, z - 40, 0), up(70, z - 40, 0), up(70, z + 40, 0), up(-70, z + 40, 0)], '#9aa3b5');
-        }
-        quad([up(-w, z0, h - 46), up(w, z0, h - 46), up(w, z1, h - 46), up(-w, z1, h - 46)], '#1d2233'); // dark side
-        quad([up(-w, z0, h - 46), up(-w, z0, h), up(-w, z1, h), up(-w, z1, h - 46)], '#2b2d42');
-        quad([up(w, z0, h - 46), up(w, z0, h), up(w, z1, h), up(w, z1, h - 46)], '#2b2d42');
-        quad([up(-w, z0, h), up(w, z0, h), up(w, z1, h), up(-w, z1, h)], '#ff5a1f');       // orange top
-        quad([up(-w * 0.25, z0, h + 1), up(w * 0.25, z0, h + 1), up(w * 0.25, z1, h + 1), up(-w * 0.25, z1, h + 1)], '#ffd23f');
+        c.beginPath(); c.rect(-R.W, -R.W, R.W * 3, R.W + R.clipAt(a)); c.clip();
+        quad([up(side, a, bot), up(side, a, top), up(side, b, top), up(side, b, bot)], '#2b2d42'); // side face
+        quad([up(-w, a, top), up(w, a, top), up(w, b, top), up(-w, b, top)], '#ff5a1f');            // top
+        quad([up(-w * 0.25, a, top + 1), up(w * 0.25, a, top + 1), up(w * 0.25, b, top + 1), up(-w * 0.25, b, top + 1)], '#ffd23f');
+        if (a % POST === 0 && a >= start) post(a); // the post at this slice's near edge sits in front of it
         c.restore();
       }
-      // Front cap and sign only while the start is still ahead of the camera.
-      if (R.near < -1500) {
-        quad([up(-w, 0, h - 46), up(w, 0, h - 46), up(w, 0, h), up(-w, 0, h)], '#ffd23f');
-        const s0 = up(0, 0, h + 150);
-        if (s0[2] * 110 > 5) Art.label(c, 'GRIND', s0[0], s0[1], Math.max(8, 110 * s0[2]), '#ffd23f', '#101a3a');
+      // Front cap and sign while the start is still well ahead of the camera.
+      if (R.near < -300) {
+        quad([up(-w, 0, bot), up(w, 0, bot), up(w, 0, top), up(-w, 0, top)], '#ffd23f');
+        if (R.near < -1500) {
+          const s0 = up(0, 0, h + 150);
+          if (s0[2] * 110 > 5) Art.label(c, 'GRIND', s0[0], s0[1], Math.max(8, 110 * s0[2]), '#ffd23f', '#101a3a');
+        }
       }
     },
   },
@@ -937,6 +949,331 @@ Object.assign(ET, {
         const z = (i / 8) * L + 100, x = -W + 120 + ((i * 433) % (2 * W - 240));
         if (Math.sin(t * 5 + i * 1.7) > 0.5) groundPoly(c, gp, [[x - 30, z], [x + 30, z], [x, z + 90]], '#ffffff');
       }
+    },
+  },
+});
+
+// ---------------------------------------------------------------- v7: train, ski jump, new power-ups
+POWERS.giant = { name: 'GIANT MODE', color: '#b36bff', dur: 8, sub: 'you are enormous. crush everything' };
+POWERS.wings = { name: 'WINGS', color: '#ffe45c', dur: 10, sub: 'glide forever, flip forever' };
+
+function drawSkiJump(c) {
+  const w = 620, h = 520;
+  for (const s of [-1, 1]) {
+    for (let i = 0; i < 5; i++) Art.line(c, [s * (w + 20), 0, s * (w - 60), -h * (i + 1) / 5], '#5f6879', 14);
+    Art.rect(c, s * (w + 60) - 10, -h - 700, 20, h + 700, '#3a4050');
+    Art.rect(c, s * (w + 60) - 60, -h - 760, 120, 70, '#2b2d42');
+    Art.circ(c, s * (w + 60), -h - 725, 26, '#fff7c2');
+    Art.poly(c, [s * (w + 60), -h - 690, s * (w + 60) - s * 300, -h - 100, s * (w + 60) + s * 80, -h - 100], 'rgba(255,247,194,0.12)');
+  }
+  Art.poly(c, [-w, 0, -w * 0.9, -h, w * 0.9, -h, w, 0], '#eef5ff');
+  for (let i = 0; i < 6; i++) {
+    const x0 = -w + (i * 2 * w) / 6, x1 = x0 + w / 6;
+    Art.poly(c, [x0, 0, x1, 0, x1 * 0.9, -h, x0 * 0.9, -h], i % 2 ? '#3d6fd6' : '#eef5ff');
+  }
+  Art.poly(c, [-w * 0.9, -h - 24, w * 0.9, -h - 24, w * 0.9, -h, -w * 0.9, -h], '#e63946');
+  Art.label(c, 'SKI JUMP', 0, -h * 0.5, 130, '#ffd23f', '#101a3a');
+}
+
+Object.assign(ET, {
+  skijump: { kind: 'ramp', w: 620, h: 0, d: 240, power: 2.3, draw(c) { drawSkiJump(c); } },
+  traintrack: {
+    kind: 'none', w: 0, h: 0, d: 0, flat: true,
+    drawFlat(c, gp) {
+      const X = 6000;
+      groundPoly(c, gp, [[-X, -170], [X, -170], [X, 170], [-X, 170]], 'rgba(90,70,60,0.35)');
+      for (let x = -X; x < X; x += 260) groundPoly(c, gp, [[x, -150], [x + 90, -150], [x + 90, 150], [x, 150]], '#6b4424');
+      for (const z of [-90, 90]) groundPoly(c, gp, [[-X, z - 16], [X, z - 16], [X, z + 16], [-X, z + 16]], '#3a4050');
+    },
+  },
+  loco: {
+    kind: 'crash', w: 360, h: 640, d: 160, name: 'the Polar Express',
+    update(e, dt, G) {
+      e.x += e.vx * dt;
+      if (!e.honked && e.z - G.player.z < 15000) { e.honked = true; Sfx.trainHorn(); }
+    },
+    draw(c, e, t) {
+      if (e.vx < 0) c.scale(-1, 1);
+      for (let i = 0; i < 4; i++) {
+        const k = (t * 0.8 + i / 4) % 1;
+        Art.circ(c, 160 - k * 500, -760 - k * 380, 60 + k * 90, `rgba(240,244,250,${0.75 * (1 - k)})`);
+      }
+      Art.rect(c, -360, -470, 520, 330, '#1d2233');
+      Art.rect(c, 160, -560, 200, 420, '#e63946');
+      Art.rect(c, 190, -520, 140, 110, '#ffcf6b');
+      Art.rect(c, 110, -700, 80, 240, '#2b2d42');
+      Art.rect(c, 90, -720, 120, 40, '#3a4050');
+      Art.rect(c, -360, -480, 520, 30, '#ffd23f');
+      Art.label(c, 'POLAR EXPRESS', -100, -300, 64, '#ffd23f');
+      Art.poly(c, [-360, -140, -470, -20, -360, -20], '#c9ced8');
+      for (const x of [-260, -80, 100, 260]) {
+        Art.circ(c, x, -90, 85, '#2b2d42'); Art.circ(c, x, -90, 55, '#e63946');
+        Art.line(c, [x, -90, x + Math.cos(t * 12) * 50, -90 + Math.sin(t * 12) * 50], '#ffd23f', 12);
+      }
+      Art.circ(c, -390, -360, 40, '#fff7c2');
+    },
+  },
+  traincar: {
+    kind: 'crash', w: 330, h: 560, d: 160, name: 'a train carriage', update: Ent.cross,
+    draw(c, e, t) {
+      if (e.vx < 0) c.scale(-1, 1);
+      const col = ['#3d6fd6', '#e63946', '#2a9d8f', '#8a5a2e'][e.style || 0];
+      Art.rect(c, -330, -540, 660, 400, col);
+      Art.rect(c, -350, -570, 700, 40, '#1d2233');
+      for (let i = 0; i < 4; i++) {
+        const x = -270 + i * 150;
+        Art.rect(c, x, -470, 110, 110, '#ffcf6b');
+        if ((i + (e.style || 0)) % 2 === 0) { // a penguin passenger
+          Art.ell(c, x + 55, -400, 34, 40, '#1c1f2b'); Art.ell(c, x + 55, -395, 22, 28, '#f5f5f5');
+          Art.circ(c, x + 46, -420, 6, '#fff'); Art.circ(c, x + 64, -420, 6, '#fff');
+          Art.poly(c, [x + 48, -410, x + 62, -410, x + 55, -398], '#ffa51f');
+        }
+      }
+      Art.rect(c, -330, -200, 660, 30, '#1d2233');
+      for (const x of [-220, 220]) { Art.circ(c, x, -90, 80, '#2b2d42'); Art.circ(c, x, -90, 48, '#9aa3b5'); }
+      Art.rect(c, 330, -260, 70, 26, '#1d2233');
+    },
+  },
+});
+
+// Roadside crowds and night lamps.
+DecoArt.crowd = function (c, d) {
+  const t = performance.now() / 1000;
+  const cols = ['#e63946', '#3d6fd6', '#ffd23f', '#2a9d8f', '#b36bff', '#ff5a1f'];
+  for (let i = 0; i < 6; i++) {
+    const x = -300 + i * 120, j = Math.abs(Math.sin(t * 6 + i * 1.3 + d.seed)) * 40;
+    Art.ell(c, x, -130 - j, 46, 80, cols[(i + d.seed) % 6]);
+    Art.circ(c, x, -240 - j, 36, '#f1c19e');
+    Art.rect(c, x - 38, -280 - j, 76, 22, cols[(i + 3 + d.seed) % 6]);
+    Art.line(c, [x - 30, -170 - j, x - 70, -260 - j + Math.sin(t * 10 + i) * 30], cols[(i + d.seed) % 6], 18);
+    Art.line(c, [x + 30, -170 - j, x + 70, -260 - j + Math.cos(t * 10 + i) * 30], cols[(i + d.seed) % 6], 18);
+  }
+  Art.rect(c, -360, -420, 720, 90, '#ffffff');
+  Art.label(c, d.text, 0, -375, 56, '#e63946');
+};
+const _drawPole = DecoArt.pole;
+DecoArt.pole = function (c, d) {
+  _drawPole(c, d);
+  const night = Math.max(Theme.pal.moon || 0, Theme.pal.stars || 0);
+  if (night > 0.2) {
+    Art.rect(c, -40, -360, 80, 30, '#2b2d42');
+    Art.circ(c, 0, -330, 90, `rgba(255,220,120,${0.35 * night})`);
+    Art.circ(c, 0, -330, 26, '#fff3b0');
+  }
+};
+
+// ---------------------------------------------------------------- v8: zone scenery sprites
+// Each sprite is pre-rendered at 0.5 px per world unit; w/h are its world size.
+const ZONES = [
+  { id: 'pine', name: 'Pine Ridge', bank: null, flake: null },
+  { id: 'candy', name: 'Candy Land', bank: [255, 170, 205], flake: 'candy' },
+  { id: 'haunted', name: 'Haunted Woods', bank: [150, 140, 175], flake: '#c9c3d8' },
+  { id: 'crystal', name: 'Crystal Forest', bank: [130, 215, 255], flake: '#bff4ff' },
+];
+const ZONE_SEGS = Math.round((1800 * CFG.METER) / CFG.SEG_LEN);
+function zoneIndexAt(segI) { return Math.floor(Math.max(0, segI) / ZONE_SEGS) % ZONES.length; }
+function zoneAtZ(z) { return ZONES[zoneIndexAt(Math.floor(z / CFG.SEG_LEN))]; }
+
+Art.sprite = function (w, h, fn) {
+  const cv = document.createElement('canvas');
+  cv.width = Math.ceil(w * 0.5); cv.height = Math.ceil(h * 0.5);
+  const c = cv.getContext('2d');
+  c.scale(0.5, 0.5); c.translate(w / 2, h);
+  fn(c);
+  return { cv, w, h };
+};
+
+Art.initZones = function () {
+  const S = Art.sprite;
+  const cane = flip => S(320, 940, c => {
+    if (flip) c.scale(-1, 1);
+    c.lineCap = 'round'; c.lineWidth = 46;
+    const path = () => { c.beginPath(); c.moveTo(0, -20); c.lineTo(0, -720); c.arc(-80, -720, 80, 0, Math.PI, true); };
+    c.strokeStyle = '#ffffff'; path(); c.stroke();
+    c.strokeStyle = '#e63946'; c.setLineDash([34, 34]); path(); c.stroke(); c.setLineDash([]);
+    Art.ell(c, 0, -10, 70, 16, '#eef5ff');
+  });
+  const lolli = S(420, 900, c => {
+    Art.rect(c, -10, -560, 20, 560, '#f4f6fa');
+    const cols = ['#ff4f7b', '#ffd23f', '#5ee27a', '#4db8ff', '#b36bff'];
+    Art.circ(c, 0, -700, 190, '#ffffff');
+    for (let i = 0; i < 5; i++) Art.circ(c, 0, -700, 180 - i * 34, cols[i]);
+    c.strokeStyle = 'rgba(255,255,255,0.8)'; c.lineWidth = 14;
+    c.beginPath(); for (let a = 0; a < 14; a += 0.2) c.lineTo(Math.cos(a) * a * 12, -700 + Math.sin(a) * a * 12); c.stroke();
+    Art.ell(c, 0, -8, 80, 16, '#eef5ff');
+  });
+  const gumdrop = S(560, 960, c => {
+    const cols = ['#2ec27e', '#26a269', '#57e389'];
+    [[0, -150, 260, 170], [0, -420, 200, 150], [0, -650, 140, 120]].forEach(([x, y, rx, ry], i) => {
+      c.fillStyle = cols[i]; c.beginPath(); c.ellipse(x, y, rx, ry, 0, Math.PI, TAU); c.lineTo(x + rx, y + ry * 0.4); c.lineTo(x - rx, y + ry * 0.4); c.fill();
+      for (let k = 0; k < 6; k++) Art.circ(c, x - rx * 0.7 + k * rx * 0.28, y - ry * 0.3 + (k % 2) * 30, 14, ['#ff4f7b', '#ffd23f', '#ffffff', '#4db8ff'][k % 4]);
+    });
+    Art.poly(c, [0, -880, 24, -820, 86, -820, 36, -786, 54, -726, 0, -762, -54, -726, -36, -786, -86, -820, -24, -820], '#ffd23f');
+    Art.ell(c, 0, -6, 200, 22, '#eef5ff');
+  });
+  const deadTree = seed => S(700, 1040, c => {
+    let r = seed;
+    const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    const branch = (x, y, a, len, w, d) => {
+      const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+      c.strokeStyle = '#3a3346'; c.lineWidth = w; c.lineCap = 'round';
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x2, y2); c.stroke();
+      if (d > 0) { branch(x2, y2, a - 0.5 - rnd() * 0.3, len * 0.7, w * 0.65, d - 1); branch(x2, y2, a + 0.4 + rnd() * 0.3, len * 0.68, w * 0.65, d - 1); }
+      else { c.strokeStyle = '#eef5ff'; c.lineWidth = w * 0.8; c.beginPath(); c.moveTo(x2 - 6, y2); c.lineTo(x2 + 6, y2); c.stroke(); }
+    };
+    branch(0, 0, -Math.PI / 2, 380, 46, 4);
+    Art.ell(c, 0, -6, 130, 18, '#eef5ff');
+  });
+  const tomb = S(300, 360, c => {
+    c.fillStyle = '#8d8a99'; c.beginPath(); c.moveTo(-110, 0); c.lineTo(-110, -200); c.arc(0, -200, 110, Math.PI, 0); c.lineTo(110, 0); c.fill();
+    Art.rect(c, -110, -60, 220, 60, '#6f6c7d');
+    Art.label(c, 'RIP', 0, -190, 70, '#4a4757');
+    c.fillStyle = '#eef5ff'; c.beginPath(); c.ellipse(0, -300, 90, 26, 0, Math.PI, TAU); c.fill();
+    Art.ell(c, 0, -4, 150, 20, '#eef5ff');
+  });
+  const ghost = S(320, 640, c => {
+    c.fillStyle = 'rgba(245,245,255,0.82)';
+    c.beginPath(); c.moveTo(-120, -160); c.quadraticCurveTo(-130, -560, 0, -580); c.quadraticCurveTo(130, -560, 120, -160);
+    for (let i = 0; i < 5; i++) c.quadraticCurveTo(120 - i * 60 - 30, -110, 120 - (i + 1) * 60, -160);
+    c.fill();
+    Art.ell(c, -40, -440, 22, 34, '#2b2d42'); Art.ell(c, 40, -440, 22, 34, '#2b2d42');
+    Art.ell(c, 0, -360, 26, 34, '#2b2d42');
+  });
+  const crystal = seed => S(620, 980, c => {
+    let r = seed;
+    const rnd = () => { r = (r * 9301 + 49297) % 233280; return r / 233280; };
+    const cols = [['#7fe7ff', '#3fb8e8'], ['#c9a6ff', '#8f5be8'], ['#ffb3e6', '#e86fbf']];
+    for (let i = 0; i < 5; i++) {
+      const x = (i - 2) * 80 + (rnd() - 0.5) * 40, h = 380 + rnd() * 520, w = 60 + rnd() * 40, a = (i - 2) * 0.12;
+      const [lite, dark] = cols[Math.floor(rnd() * 3)];
+      c.save(); c.translate(x, 0); c.rotate(a);
+      Art.poly(c, [-w, 0, -w, -h + w, 0, -h, 0, 0], lite);
+      Art.poly(c, [0, 0, 0, -h, w, -h + w, w, 0], dark);
+      Art.poly(c, [-w * 0.6, -h * 0.2, -w * 0.6, -h * 0.85, -w * 0.3, -h * 0.9, -w * 0.3, -h * 0.25], 'rgba(255,255,255,0.5)');
+      c.restore();
+    }
+    Art.ell(c, 0, -6, 260, 26, '#eef5ff');
+  });
+  const frostPine = S(500, 1000, c => { c.save(); c.translate(-250, -1000); c.scale(2, 2); c.filter = 'hue-rotate(150deg) saturate(0.6) brightness(1.25)'; c.drawImage(Art.trees[0], 0, 0); c.restore(); });
+  Art.zoneSprites = {
+    pine: Art.trees.map(cv => ({ cv, w: 500, h: 1000 })),
+    candy: [cane(false), cane(true), lolli, gumdrop, gumdrop],
+    haunted: [deadTree(3), deadTree(11), deadTree(29), tomb, ghost],
+    crystal: [crystal(5), crystal(17), crystal(41), frostPine, frostPine],
+  };
+};
+
+// Floating letter tiles: collect M-A-D-N-E-S-S in order.
+const WORD = 'MADNESS';
+ET.letter = {
+  kind: 'letter', w: 150, h: 300, d: 110,
+  update(e) { e.y = 120 + Math.sin(e.t * 3 + e.seed) * 40; },
+  draw(c, e, t) {
+    c.translate(0, -140);
+    Art.circ(c, 0, 0, 170 + Math.sin(t * 6) * 12, 'rgba(255,90,31,0.25)');
+    c.rotate(Math.sin(t * 2 + e.seed) * 0.15);
+    Art.rect(c, -120, -120, 240, 240, '#101a3a');
+    Art.rect(c, -104, -104, 208, 208, '#ffd23f');
+    Art.label(c, WORD[e.idx], 0, 12, 190, '#ff5a1f', '#101a3a');
+  },
+};
+
+// Zone-aware trees: obstacle trees match the scenery you're in.
+ET.tree.draw = function (c, e) {
+  const s = e.s || 1;
+  const set = Art.zoneSprites && e.set ? Art.zoneSprites[e.set] : null;
+  if (set) { const sp = set[(e.v || 0) % set.length]; c.drawImage(sp.cv, -sp.w / 2 * s, -sp.h * s, sp.w * s, sp.h * s); }
+  else c.drawImage(Art.trees[e.v || 0], -250 * s, -1000 * s, 500 * s, 1000 * s);
+};
+
+// ---------------------------------------------------------------- v9: zone hazards
+Object.assign(ET, {
+  // Candy Land
+  gummy: {
+    kind: 'smash', w: 110, h: 260, d: 60, update: Ent.cross,
+    draw(c, e, t) {
+      const col = ['rgba(255,79,123,0.85)', 'rgba(94,226,122,0.85)', 'rgba(255,210,63,0.9)', 'rgba(77,184,255,0.85)'][e.style || 0];
+      c.rotate(Math.sin(t * 12 + e.seed) * 0.12);
+      for (const s of [-1, 1]) { Art.ell(c, s * 45, -30, 34, 36, col); Art.ell(c, s * 85, -130, 26, 40, col); }
+      Art.ell(c, 0, -120, 80, 95, col);
+      Art.circ(c, 0, -220, 62, col);
+      Art.circ(c, -44, -268, 22, col); Art.circ(c, 44, -268, 22, col);
+      Art.circ(c, -20, -230, 8, 'rgba(0,0,0,0.6)'); Art.circ(c, 20, -230, 8, 'rgba(0,0,0,0.6)');
+      Art.ell(c, -25, -150, 22, 40, 'rgba(255,255,255,0.35)');
+    },
+  },
+  choco: {
+    kind: 'mud', w: 1500, h: 0, d: 0, len: 1800, flat: true,
+    drawFlat(c, gp, e, t) {
+      const W = 2400, L = e.len || 1800;
+      groundPoly(c, gp, [[-W, -50], [W, -50], [W, L + 50], [-W, L + 50]], '#a0673a');
+      groundPoly(c, gp, [[-W, 0], [W, 0], [W, L], [-W, L]], '#6b3a1e');
+      for (let i = 0; i < 7; i++) {
+        const z = ((i / 7 + t * 0.08) % 1) * L, x = -W + ((i * 571) % (2 * W));
+        groundPoly(c, gp, [[x, z], [x + 420, z], [x + 360, z + 60], [x - 60, z + 60]], 'rgba(200,140,90,0.5)');
+      }
+    },
+  },
+  // Haunted Woods
+  spook: {
+    kind: 'ghost', w: 150, h: 420, d: 90,
+    update(e, dt) { e.x += e.vx * dt; e.y = e.by + Math.sin(e.t * 3 + e.seed) * 80; },
+    draw(c, e, t) {
+      c.globalAlpha *= 0.85;
+      c.translate(0, -60);
+      c.fillStyle = '#f5f5ff';
+      c.beginPath(); c.moveTo(-110, -60); c.quadraticCurveTo(-120, -420, 0, -430); c.quadraticCurveTo(120, -420, 110, -60);
+      for (let i = 0; i < 4; i++) c.quadraticCurveTo(110 - i * 55 - 27, -10 + Math.sin(t * 10 + i) * 14, 110 - (i + 1) * 55, -60);
+      c.fill();
+      Art.ell(c, -36, -300, 20, 30, '#2b2d42'); Art.ell(c, 36, -300, 20, 30, '#2b2d42');
+      Art.ell(c, 0, -220, 26, 34 + Math.sin(t * 8) * 8, '#2b2d42');
+      Art.label(c, 'BOO', 0, -500, 70, '#b36bff', '#101a3a');
+    },
+  },
+  // Crystal Forest
+  laser: {
+    kind: 'laser', w: 2600, h: 300, d: 70,
+    update(e) { e.on = Math.sin(e.t * Math.PI * 0.9 + e.seed) > -0.2; },
+    draw(c, e, t) {
+      const X = 2100;
+      for (const s of [-1, 1]) {
+        Art.poly(c, [s * X - 90, 0, s * X - 50, -520, s * X, -620, s * X + 50, -520, s * X + 90, 0], '#8f5be8');
+        Art.poly(c, [s * X - 40, -60, s * X - 20, -480, s * X, -560, s * X, -60], '#c9a6ff');
+        Art.circ(c, s * X, -180, 40, e.on ? '#ff4f7b' : '#3a2050');
+      }
+      if (e.on) {
+        const fl = 0.7 + Math.random() * 0.3;
+        c.strokeStyle = `rgba(255,79,123,${0.35 * fl})`; c.lineWidth = 90;
+        c.beginPath(); c.moveTo(-X, -180); c.lineTo(X, -180); c.stroke();
+        c.strokeStyle = '#ffffff'; c.lineWidth = 18;
+        c.beginPath(); c.moveTo(-X, -180); c.lineTo(X, -180); c.stroke();
+      } else {
+        c.setLineDash([60, 60]); c.strokeStyle = 'rgba(255,79,123,0.35)'; c.lineWidth = 8;
+        c.beginPath(); c.moveTo(-X, -180); c.lineTo(X, -180); c.stroke(); c.setLineDash([]);
+      }
+    },
+  },
+  shard: {
+    kind: 'crash', w: 130, h: 400, d: 100, name: 'a falling crystal',
+    update(e, dt, G) {
+      if (Ent.faller(e, dt, G)) {
+        e.y = 0; e.landed = true; e.type = 'crystalrock';
+        if (e.z - G.player.z < 15000) { Sfx.smash(); G.spawnFx('poof', e.x, e.z); }
+      } else if (e.falling) e.rot = Math.sin(e.t * 9) * 0.2;
+    },
+    draw(c, e) {
+      if (!e.falling) return; // only its shadow shows until it drops
+      c.rotate(e.rot || 0);
+      Art.poly(c, [-60, -80, 0, -420, 60, -80, 0, 0], '#7fe7ff');
+      Art.poly(c, [0, 0, 0, -420, 60, -80], '#3fb8e8');
+    },
+  },
+  crystalrock: {
+    kind: 'crash', w: 150, h: 380, d: 100, name: 'a crystal shard',
+    draw(c) {
+      Art.poly(c, [-90, 0, -60, -260, 0, -400, 50, -240, 90, 0], '#7fe7ff');
+      Art.poly(c, [0, -400, 50, -240, 90, 0, 10, 0], '#3fb8e8');
+      Art.poly(c, [-50, -60, -30, -240, -10, -250, -20, -70], 'rgba(255,255,255,0.55)');
     },
   },
 });

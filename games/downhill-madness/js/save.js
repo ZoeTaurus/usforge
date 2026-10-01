@@ -5,8 +5,8 @@ const Save = {
   defaults() {
     return {
       bank: 0, best: 0, bestDist: 0, runs: [],
-      sled: 'toboggan', outfit: 'classic',
-      owned: { toboggan: true, classic: true },
+      sled: 'toboggan', outfit: 'classic', pet: 'none',
+      owned: { toboggan: true, classic: true, none: true },
       missions: [], rank: 1, missionsDone: 0,
       totals: {}, trophies: {},
       settings: { music: true, sfx: true, voice: false, shake: true, voiceStyle: 'hype' },
@@ -20,7 +20,7 @@ const Save = {
     this.data.settings = Object.assign(this.defaults().settings, (d && d.settings) || {});
     this.data.trophies = Object.assign({}, (d && d.trophies) || {});
     this.data.totals = Object.assign({}, (d && d.totals) || {});
-    this.data.owned = Object.assign({ toboggan: true, classic: true }, (d && d.owned) || {});
+    this.data.owned = Object.assign({ toboggan: true, classic: true, none: true }, (d && d.owned) || {});
     if (!d) this.data.best = U.store.get('dm-best', 0);
     // v2: the announcer became opt-in, so switch it off for existing saves once.
     if (d && (d.settingsVersion || 1) < 2) {

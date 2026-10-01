@@ -466,3 +466,6 @@ kbd {
 .trophy p { margin: 2px 0 0; font-size: 13px; font-weight: 600; line-height: 1.35; }
 .trophy .reward { font-family: var(--label); font-size: 11px; color: var(--sun); letter-spacing: 0.05em; text-transform: uppercase; }
 
+
+.daily-info { margin: 0; max-width: 52ch; font-size: 14px; font-weight: 700; line-height: 1.4; background: var(--frost); border: 2px solid var(--ink); border-radius: 12px; padding: 8px 14px; }
+.daily-info b { color: var(--go); font-weight: 800; }

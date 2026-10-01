@@ -167,6 +167,8 @@ const Sfx = {
   },
   grind() { this.noise(0.09, 0.14, 3800, 'bandpass'); this.tone(1900 + Math.random() * 300, 0.05, 'square', 0.025); },
   boing() { this.tone(180, 0.45, 'sine', 0.3, 720); this.tone(360, 0.3, 'triangle', 0.12, 1200, 0.05); },
+  trainHorn() { for (const f of [311, 370, 466]) this.tone(f, 1.1, 'sawtooth', 0.07, f * 0.98, 0, 900); },
+  firework() { this.noise(0.08, 0.5, 3000, 'highpass'); this.noise(0.6, 0.15, 6000, 'highpass', 0.08); },
   whoosh() { this.noise(0.5, 0.4, 600, 'bandpass', 0, 4000); },
   caught() { this.noise(2.4, 1, 900, 'lowpass', 0, 60); this.tone(60, 2, 'sawtooth', 0.25, 25, 0, 300); },
 

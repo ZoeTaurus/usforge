@@ -13,6 +13,11 @@ const Render = {
       puffs: Array.from({ length: U.randInt(4, 7) }, (_, j) => ({ dx: (j - 3) * U.rand(0.25, 0.4), dy: U.rand(-0.35, 0.1), r: U.rand(0.35, 0.65) })),
     }));
     this.viewShift = 0;
+    this.balloons = [
+      { x: 0.12, y: 0.13, s: 1.1, p: 0, cols: ['#e63946', '#ffd23f'] },
+      { x: 0.55, y: 0.07, s: 0.7, p: 2, cols: ['#3d6fd6', '#ffffff'] },
+      { x: 0.86, y: 0.2, s: 0.9, p: 4, cols: ['#2a9d8f', '#ff9f1c'] },
+    ];
     this.stars = Array.from({ length: 150 }, () => ({ x: Math.random(), y: Math.random() * 0.42, r: Math.random() * 1.6 + 0.4, p: Math.random() * TAU }));
     this.flakes = Array.from({ length: 160 }, () => this.newFlake(true));
     this.playerScreen = { x: 0, y: 0, gy: 0, k: 1 };
@@ -39,6 +44,12 @@ const Render = {
 
   newFlake(init) {
     return { x: U.rand(-7000, 7000), y: U.rand(-900, 2600), z: init ? U.rand(200, 9000) : U.rand(7000, 9000) };
+  },
+
+  // Zone-tinted piste edge colour, fogged like everything else.
+  zcol(zi, rgb, f) {
+    const q = (f * 20) | 0, key = 'z' + zi + '_' + q;
+    return this.cc[key] || (this.cc[key] = U.rgb(U.mix(rgb, this.pal.fog, q / 20)));
   },
 
   // Palette colour, optionally lit (sh > 0) or shaded (sh < 0), then fogged.
@@ -90,6 +101,10 @@ const Render = {
     this.drawFlakes(c, G.player.speed);
     if (G.blizzI > 0.01) this.drawBlizzard(c, G);
     this.drawSpeedLines(c, G);
+    if (G.player.spooked > 0) {
+      c.fillStyle = `rgba(120,40,180,${0.22 * Math.min(1, G.player.spooked)})`;
+      c.fillRect(-W * 0.25, -H * 0.25, W * 1.5, H * 1.5);
+    }
     if (G.caveI > 0.01) {
       c.fillStyle = `rgba(10,30,80,${0.32 * G.caveI})`;
       c.fillRect(-W * 0.25, -H * 0.25, W * 1.5, H * 1.5);
@@ -186,6 +201,7 @@ const Render = {
       c.globalAlpha = 1;
     }
     this.drawClouds(c, t, p);
+    this.drawBalloons(c, t);
     if (p.planet > 0.01) {
       const px = W * 0.22, py = HZ - H * 0.19, pr = H * 0.1;
       c.globalAlpha = p.planet;
@@ -232,6 +248,22 @@ const Render = {
       c.moveTo(x, y); c.lineTo(x - l, y + l * 0.35);
     }
     c.stroke();
+  },
+
+  // Hot-air balloons drifting across the sky.
+  drawBalloons(c, t) {
+    const W = this.W, H = this.H;
+    for (const b of this.balloons) {
+      const x = ((((b.x + t * 0.004 + this.bgX * 0.03) % 1.3) + 1.3) % 1.3 - 0.15) * W;
+      const y = (b.y + Math.sin(t * 0.5 + b.p) * 0.012) * H, r = H * 0.04 * b.s;
+      c.save();
+      c.beginPath(); c.ellipse(x, y, r, r * 1.15, 0, 0, TAU); c.clip();
+      for (let i = 0; i < 6; i++) { c.fillStyle = b.cols[i % 2]; c.fillRect(x - r + (i * r) / 3, y - r * 1.2, r / 3 + 1, r * 2.4); }
+      c.restore();
+      c.strokeStyle = 'rgba(16,26,58,0.6)'; c.lineWidth = Math.max(1, r * 0.04);
+      c.beginPath(); c.moveTo(x - r * 0.6, y + r * 0.8); c.lineTo(x - r * 0.2, y + r * 1.5); c.moveTo(x + r * 0.6, y + r * 0.8); c.lineTo(x + r * 0.2, y + r * 1.5); c.stroke();
+      c.fillStyle = '#8a5a2e'; c.fillRect(x - r * 0.25, y + r * 1.5, r * 0.5, r * 0.35);
+    }
   },
 
   drawVignette(c) {
@@ -350,7 +382,8 @@ const Render = {
     const top = Math.floor(p2.sy);
     c.fillStyle = this.col(s.band ? 'offA' : 'offB', f, sh);
     c.fillRect(-this.W * 0.25, top, this.W * 1.5, Math.ceil(p1.sy) - top + 1);
-    this.trap(c, p1.sx, p1.sy, p1.w * 1.12, p2.sx, p2.sy, p2.w * 1.12, this.col('bank', f, sh));
+    const zb = ZONES[s.zone || 0].bank;
+    this.trap(c, p1.sx, p1.sy, p1.w * 1.12, p2.sx, p2.sy, p2.w * 1.12, zb ? this.zcol(s.zone, zb, f) : this.col('bank', f, sh));
     this.trap(c, p1.sx, p1.sy, p1.w, p2.sx, p2.sy, p2.w, this.col(s.band ? 'snowA' : 'snowB', f, sh));
     if (n < 70) {
       // Glints: fixed spots in the snow that twinkle as you pass.
@@ -389,16 +422,18 @@ const Render = {
     const sc = p.s, sx = p.sx + d.x * p.w, sy = p.sy;
     c.globalAlpha = 1 - s.fog * 0.85;
     if (d.k === 'tree') {
-      const h = 1000 * d.s * sc;
+      const set = (Art.zoneSprites && Art.zoneSprites[d.set]) || Art.zoneSprites.pine;
+      const sp = set[d.v % set.length];
+      const h = sp.h * d.s * sc;
       if (h < 2) { c.globalAlpha = 1; return; }
-      const w = h * 0.5;
+      const w = (h * sp.w) / sp.h;
       if (sx + w < 0 || sx - w > this.W) { c.globalAlpha = 1; return; }
       this.withClip(c, s, sy, () => {
         if (h > 14) {
           c.fillStyle = 'rgba(40,60,110,0.16)';
           c.beginPath(); c.ellipse(sx - w * 0.2, sy, w * 0.42, w * 0.09, 0, 0, TAU); c.fill();
         }
-        c.drawImage(Art.trees[d.v], sx - w / 2, sy - h, w, h);
+        c.drawImage(sp.cv, sx - w / 2, sy - h, w, h);
       });
     } else {
       if (sc * 400 < 3 || sx < -500 * sc || sx > this.W + 500 * sc) { c.globalAlpha = 1; return; }
@@ -470,9 +505,34 @@ const Render = {
       const sg = this.segs[U.clamp(n, 0, CFG.DRAW_DIST - 1)];
       return sg ? sg.clip : this.H;
     };
-    if (e.z + (e.len || def.len || 0) - G.cam.z < 120) return;
+    const len = e.len || def.len || 0;
+    if (e.z + len - G.cam.z < 120) return;
+    const R = { near, clipAt, W: this.W };
+    const W = this.W;
     c.globalAlpha = 1 - s.fog * 0.85;
-    def.drawFlat(c, gp, e, G.time, { near, clipAt, W: this.W });
+    if (def.selfClip) def.drawFlat(c, gp, e, G.time, R); // rails clip themselves slice by slice
+    else if (len <= 0) {
+      // Short things: hide whatever is behind a nearer hill.
+      c.save();
+      c.beginPath(); c.rect(-W, -W, W * 3, W + clipAt(0)); c.clip();
+      def.drawFlat(c, gp, e, G.time, R);
+      c.restore();
+    } else {
+      // Long things: draw once per band along their length, each band clipped
+      // to its own stretch of ground and to the hills in front of it.
+      const groundY = dz => gp(0, dz)[1];
+      const STEP = 400, start = Math.max(-200, near);
+      for (let z1 = len + 200; z1 > start; z1 -= STEP) {
+        const z0 = Math.max(start, z1 - STEP);
+        const yTop = Math.min(groundY(z1), groundY(z0)) - 0.5;
+        const yBot = Math.min(Math.max(groundY(z1), groundY(z0)) + 0.5, clipAt(z0));
+        if (yBot <= yTop) continue;
+        c.save();
+        c.beginPath(); c.rect(-W, yTop, W * 3, yBot - yTop); c.clip();
+        def.drawFlat(c, gp, e, G.time, R);
+        c.restore();
+      }
+    }
     c.globalAlpha = 1;
   },
 
@@ -483,6 +543,7 @@ const Render = {
     const sy = this.HZ + (G.cam.y - gy) * k;
     this.playerScreen = { x: sx, gy: sy, y: sy - P.air * k, k };
     P.draw(c, sx, sy, k, G);
+    P.drawPet(c, sx, sy, k, G);
   },
 
   updateFlakes(dt, speed) {
@@ -496,9 +557,12 @@ const Render = {
 
   drawFlakes(c, speed) {
     const streak = U.clamp(speed / 9000, 0, 1.4) * 0.06;
-    c.strokeStyle = 'rgba(255,255,255,0.85)';
+    const zf = G.zone ? G.zone.flake : null; // sprinkles in Candy Land, ash in the Haunted Woods...
+    c.strokeStyle = zf && zf !== 'candy' ? zf : 'rgba(255,255,255,0.85)';
     c.lineCap = 'round';
+    let fi = 0;
     for (const f of this.flakes) {
+      if (zf === 'candy') c.strokeStyle = `hsl(${(fi++ * 47) % 360},90%,65%)`;
       const s = this.F / f.z;
       const x = this.W / 2 + f.x * s, y = this.HZ + (800 - f.y) * s;
       const z2 = f.z + (speed + 400) * streak, s2 = this.F / z2;

@@ -67,6 +67,10 @@
     "cover": "games/downhill-madness/cover.png",
     "pixel": false,
     "url": null,
+    "whatsnew": {
+      "text": "Adding more bosses, fixing rendering errors",
+      "at": 1790878975
+    },
     "genres": [],
     "dev": false,
     "progress": null,
@@ -74,7 +78,7 @@
     "build": true,
     "added": 1790792708,
     "leaderboard": true,
-    "updated": 1790859241
+    "updated": 1790878975
   },
   {
     "slug": "striker-100",

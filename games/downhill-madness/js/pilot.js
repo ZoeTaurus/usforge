@@ -25,6 +25,8 @@ const Pilot = {
       const k = 1.3 - dz / look;
       switch (def.kind) {
         case 'crash': if (e.y < CFG.PLAYER_H) s -= 160 * k; break;
+        case 'ghost': if (e.y < CFG.PLAYER_H) s -= 90 * k; break;
+        case 'warn': s -= 120 * k; break; // a tentacle is about to burst out here
         case 'ramp': s += (e.type === 'megaramp' ? 45 : 30) * k; break;
         case 'power': s += 28 * k; break;
         case 'beam': s += 26 * k; break;
@@ -33,6 +35,7 @@ const Pilot = {
         case 'smash': s += 8 * k; break;
         case 'coin': s += 5 * k; break;
         case 'rival': s += 4 * k; break;
+        case 'letter': s += 26 * k; break;
         case 'rail': if (dz > 0) s += 30 * k; break;
         case 'tramp': case 'cannon': s += 35 * k; break;
         case 'nado': s += 18 * k; break;
@@ -66,9 +69,9 @@ const Pilot = {
 
       // Hop a crevasse if we're about to roll into it.
       for (const e of G.entities) {
-        if (e.type !== 'crevasse') continue;
         const dz = e.z - P.z;
-        if (dz > 0 && dz < P.speed * 0.12 + 150) inp.jumpPressed = true;
+        if (e.type === 'crevasse' && dz > 0 && dz < P.speed * 0.12 + 150) inp.jumpPressed = true;
+        if (e.type === 'laser' && e.on && dz > 0 && dz < P.speed * 0.1 + 120) inp.jumpPressed = true;
       }
       return inp;
     }

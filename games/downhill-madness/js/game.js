@@ -7,6 +7,18 @@ const SPEED_QUIPS = [
   [CFG.SOUND_BARRIER, 'SOUND BARRIER BROKEN!'], [420, 'LUDICROUS SPEED'], [520, 'LEAVING THE ATMOSPHERE'],
 ];
 
+// Daily Challenge: one twist per calendar day. Daily runs never go to the UsForge leaderboard.
+const MODS = [
+  { id: 'lowgrav', name: 'Low Gravity', desc: 'Everything floats. Flip like crazy.' },
+  { id: 'turbo', name: 'Turbo Mountain', desc: '30% faster from the very first second.' },
+  { id: 'penguins', name: 'Penguin Invasion', desc: 'Penguins. Everywhere. Bowl them all.' },
+  { id: 'madness5', name: 'Deep End', desc: 'Start at madness level 5. Good luck.' },
+  { id: 'coinrain', name: 'Coin Rain', desc: 'Coins are worth double and there are loads of them.' },
+  { id: 'rampage', name: 'Rampage', desc: 'Ramps, trampolines, cannons and ski jumps everywhere.' },
+];
+function dayIndex() { const d = new Date(); return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000); }
+function todayMod() { return MODS[dayIndex() % MODS.length]; }
+
 const G = {
   state: 'title',
   time: 0,
@@ -20,6 +32,7 @@ const G = {
     Save.load();
     Missions.ensure();
     Art.init();
+    Art.initZones();
     Theme.init();
     Render.init(document.getElementById('game'));
     Input.init();
@@ -44,21 +57,22 @@ const G = {
     requestAnimationFrame(frame);
   },
 
-  speedFor(l) { return 4800 + (l - 1) * 950; },
+  speedFor(l) { return (4800 + (l - 1) * 950) * (this.mod === 'turbo' ? 1.3 : 1); },
 
   newWorld(attract) {
     this.track = new Track();
     this.entities.length = 0;
     Player.reset();
     this.attract = attract;
-    this.level = 1;
+    this.levelBase = !attract && this.mod === 'madness5' ? 5 : 1;
+    this.level = this.levelBase;
     this.attractT = 0;
     Pilot.reset();
     this.maxSpeed = this.speedFor(this.level);
     this.gateSeries = {};
     Player.z = this.startZ = CFG.PD + CFG.SEG_LEN * 4; // camera must sit on generated track
     Director.reset(this, attract ? 3000 : 3500);
-    Theme.set(0, true);
+    Theme.set(Theme.indexFor(this.level), true);
     Theme.update(0);
     Particles.list.length = 0;
     HUD.reset();
@@ -69,17 +83,19 @@ const G = {
       quips: {}, warned: false, caughtT: 0, avaDelay: 2, intro: 0, overT: 0, lastCrashZ: this.startZ,
       missionCoins: 0, lastReason: '', scoreSent: false,
       fever: 0, feverReady: true, blizzard: 0, blizzI: 0, boss: null, caveI: 0,
+      zoneI: 0, zone: ZONES[0], letterIdx: 0,
     });
     this.stats = {
       dist: 0, backflips: 0, frontflips: 0, spins: 0, tricks: 0, perfects: 0, bowled: 0, coins: 0, close: 0,
       kmh: 0, level: 1, combo: 1, rotations: 0, powerups: 0, rivals: 0, air: 0, crevasses: 0, gates: 0,
-      clean: 0, abducted: 0, demolished: 0, grind: 0, bosses: 0, fevers: 0, cannon: 0,
+      clean: 0, abducted: 0, demolished: 0, grind: 0, bosses: 0, fevers: 0, cannon: 0, jump: 0, letters: 0, words: 0, zones: 1, judge10: 0, bossKills: 0,
     };
     this.cam.x = 0;
     this.cam.z = -CFG.PD;
   },
 
   toTitle() {
+    this.mode = 'main'; this.mod = null;
     this.newWorld(true);
     this.state = 'title';
     this.showPlayer = true;
@@ -90,9 +106,12 @@ const G = {
     UI.showTitle();
   },
 
-  start() {
+  start(mode = 'main') {
     Sfx.init();
+    this.mode = mode;
+    this.mod = mode === 'daily' ? todayMod().id : null;
     this.newWorld(false);
+    if (this.mod) HUD.banner(`DAILY: ${todayMod().name.toUpperCase()}`, '#5ee27a', 3);
     this.state = 'play';
     this.intro = 3;
     this.showPlayer = true;
@@ -193,8 +212,9 @@ const G = {
       if (tag) tag.textContent = `Madness ${lvl} · ${levelName(lvl)}`;
       if (lvl % 4 === 0) this.startBoss();
     }
-    const z0 = P.z;
+    const z0 = P.z, x0 = P.x;
     P.update(dt, this, Pilot.input(this, dt));
+    this.pvx = U.lerp(this.pvx || 0, (P.x - x0) / Math.max(dt, 1e-3), Math.min(1, dt * 4));
     P.z += P.speed * dt;
     this.updateEntities(dt);
     this.collide(z0, P.z);
@@ -220,8 +240,9 @@ const G = {
       return;
     }
 
-    const z0 = P.z;
+    const z0 = P.z, x0 = P.x;
     P.update(dt, this, true);
+    this.pvx = U.lerp(this.pvx || 0, (P.x - x0) / Math.max(dt, 1e-3), Math.min(1, dt * 4));
     P.z += P.speed * dt;
     this.updateEntities(dt);
     this.collide(z0, P.z);
@@ -244,7 +265,7 @@ const G = {
     this.dist = (P.z - this.startZ) / CFG.METER;
     this.score = this.points + Math.floor(this.dist);
     this.topSpeed = Math.max(this.topSpeed, P.speed);
-    const lvl = 1 + Math.floor(this.dist / CFG.LEVEL_METERS);
+    const lvl = this.levelBase + Math.floor(this.dist / CFG.LEVEL_METERS);
     if (lvl > this.level) this.levelUp(lvl);
 
     if (this.fever > 0) {
@@ -302,6 +323,17 @@ const G = {
     const targetRoll = -P.lean * 0.035 - seg.curve * 0.007 * U.clamp(P.speed / 8000, 0, 1.5);
     this.roll += (targetRoll - this.roll) * Math.min(1, dt * 3);
     this.track.trim(Math.floor(this.cam.z / CFG.SEG_LEN));
+    const zi = zoneIndexAt(Math.floor(P.z / CFG.SEG_LEN));
+    if (zi !== this.zoneI) {
+      this.zoneI = zi;
+      this.zone = ZONES[zi];
+      if (this.state === 'play' && this.intro <= 0) {
+        this.stats.zones++;
+        HUD.banner(`ENTERING ${this.zone.name.toUpperCase()}`, '#ffffff', 3);
+        Voice.say(`Welcome to ${this.zone.name}!`, 0.7);
+        this.fireworks(3);
+      }
+    }
   },
 
   updateEntities(dt) {
@@ -331,7 +363,8 @@ const G = {
           }
         }
       }
-      if (e.z < P.z - CFG.PD - 400) e.dead = true;
+      // Long things (rails, crevasses, ice) live until their far end is behind the camera.
+      if (e.z + (e.len || ET[e.type].len || 0) < P.z - CFG.PD - 400) e.dead = true;
     }
     let j = 0;
     for (let i = 0; i < L.length; i++) if (!L[i].dead) L[j++] = L[i];
@@ -348,6 +381,26 @@ const G = {
 
       if (def.kind === 'crevasse') { this.crevasse(e, def); continue; }
       if (def.kind === 'rail') { this.railCheck(e); continue; }
+      if (def.kind === 'mud') {
+        const len = e.len || def.len;
+        if (P.z >= e.z && P.z <= e.z + len && !P.airborne && P.crash <= 0) {
+          if (P.mud <= 0) { HUD.pop('CHOCOLATE!', '#a0673a', 0.9, 'sticky and slow'); Sfx.smash(); }
+          P.mud = 0.15;
+          if (Math.random() < 0.5) {
+            const ps = Render.playerScreen;
+            Particles.add({ x: ps.x + U.rand(-150, 150) * ps.k, y: ps.gy, vx: U.rand(-200, 200) * Render.dpr, vy: -U.rand(200, 600) * Render.dpr, g: 1600 * Render.dpr, life: 0.5, size: 10 * Render.dpr, color: '#6b3a1e' });
+          }
+        }
+        continue;
+      }
+      if (def.kind === 'laser') {
+        const d = def.d, r0 = z0 - e.zPrev, r1 = z1 - e.z;
+        if (!e.hit && r0 <= d && r1 >= -d) {
+          if (e.on && P.air < def.h) { e.hit = true; this.crash('Zapped by a laser'); }
+          else if (!e.on || P.air >= def.h) { e.hit = true; const pts = this.award(150); HUD.pop(e.on ? 'LASER HOPPED!' : 'TIMED IT!', '#ff4f7b', 0.8, `+${pts}`); }
+        }
+        continue;
+      }
       if (def.kind === 'ice') {
         const len = e.len || def.len;
         if (P.z >= e.z && P.z <= e.z + len && Math.abs(P.x - e.x) * CFG.ROAD_W < def.w && !P.airborne && P.crash <= 0) {
@@ -363,12 +416,15 @@ const G = {
       if (e.hit || r0 > d || r1 < -d) continue;
 
       const dx = Math.abs(P.x - e.x) * CFG.ROAD_W;
+      // Pets snag coins near them.
+      if (def.kind === 'coin' && P.pet && P.pet.id !== 'none' && e.y < 700 &&
+          Math.abs(P.petX() - e.x) * CFG.ROAD_W < 230 * (P.pet.reach || 1)) { this.collectCoin(e); continue; }
       if (def.kind === 'gate') {
         if (dx < def.w - 40) this.throughGate(e);
         continue;
       }
-      const reach = def.w * (e.s || 1) + CFG.PLAYER_HW;
-      const yOver = P.air < e.y + def.h && P.air + CFG.PLAYER_H > e.y;
+      const reach = def.w * (e.s || 1) + CFG.PLAYER_HW * (1 + P.giantK);
+      const yOver = P.air < e.y + def.h && P.air + CFG.PLAYER_H * (1 + P.giantK) > e.y;
       if (dx < reach) this.hit(e, def, yOver);
       else if (def.kind === 'crash' && yOver && !e.nm && dx < reach + 240 && P.crash <= 0 && P.speed > 3000) {
         e.nm = true;
@@ -410,6 +466,7 @@ const G = {
       HUD.banner('PERSONAL BEST!', '#ffd23f', 2.5);
       Sfx.record();
       Voice.say('New personal record!', 1, true);
+      this.fireworks(5);
       this.flash = 0.4;
     }
   },
@@ -450,7 +507,7 @@ const G = {
     switch (def.kind) {
       case 'crash':
         if (!yOver || P.crash > 0) return;
-        if (P.pw.rocket > 0) {
+        if (P.pw.rocket > 0 || P.pw.giant > 0) {
           e.hit = true;
           this.knock(e, 1.4);
           this.stats.demolished++;
@@ -475,6 +532,7 @@ const G = {
         this.bumpCombo();
         const pts = this.award(150);
         HUD.pop(e.type === 'penguin' ? 'PENGUIN BOWLING!' : 'SNOWMAN SMASHED!', '#ffffff', 0.8, `+${pts}`);
+        if (e.minion && this.boss) Boss.damage(this, 7, 'MINION');
         Sfx.smash();
         if (e.type === 'penguin') Sfx.squeak();
         this.snowBurst();
@@ -502,6 +560,7 @@ const G = {
         this.stats.powerups++;
         HUD.pop(pw.name, pw.color, 1.1, pw.sub);
         if (e.p === 'rocket') { Sfx.rocket(); Voice.say('Rocket mode! Smash everything!', 1, true); this.flash = 0.3; }
+        else if (e.p === 'giant') { Sfx.boom(0.5); Voice.say('Giant mode! Crush everything!', 1, true); this.shake = 0.5; }
         else if (e.p === 'shield') Sfx.shield();
         else Sfx.magnet();
         const p = Render.toScreen(this, e.x, e.y + 120, e.z);
@@ -537,11 +596,42 @@ const G = {
         HUD.pop('SNOWNADO!', '#dff3ff', 1.2, 'free spins');
         Sfx.whoosh();
         break;
+      case 'letter': {
+        if (Math.abs(e.y + 140 - (P.air + 190)) > 330 || P.crash > 0) return;
+        e.hit = true; e.dead = true;
+        if (e.idx !== this.letterIdx) return; // an old letter you already have
+        this.letterIdx++;
+        this.stats.letters++;
+        Sfx.gate();
+        if (this.letterIdx >= WORD.length) {
+          this.letterIdx = 0;
+          this.stats.words++;
+          this.stats.coins += 100;
+          const pts = this.award(5000);
+          HUD.pop('M-A-D-N-E-S-S!', '#ff5a1f', 1.5, `word complete  ·  +${U.fmt(pts)}  ·  +100 coins`);
+          HUD.banner('YOU SPELLED MADNESS!', '#ffd23f', 3);
+          Voice.say('Madness! You spelled it!', 1, true);
+          this.fireworks(8);
+          Sfx.record();
+        } else {
+          HUD.pop(`LETTER ${WORD[e.idx]}`, '#ffd23f', 0.9, `${WORD.slice(0, this.letterIdx)}${'_'.repeat(WORD.length - this.letterIdx)}`);
+        }
+        break;
+      }
+      case 'ghost':
+        if (!yOver || P.crash > 0) return;
+        e.hit = true;
+        if (P.pw.shield > 0 || P.pw.rocket > 0 || P.pw.giant > 0) { HUD.pop('GHOST BUSTED!', '#b36bff', 0.8, `+${this.award(200)}`); break; }
+        P.spooked = 2.5;
+        HUD.pop('SPOOKED!', '#b36bff', 1.1, 'steering reversed');
+        Sfx.roar();
+        break;
       case 'ramp':
         if (P.air > 40 || P.crash > 0) return;
         e.hit = true;
         P.launch((900 + P.speed * 0.26) * def.power, e.type);
         if (e.type === 'megaramp') { HUD.pop('MEGA RAMP!', '#ffd23f', 1.1); this.slowmo = 0.25; }
+        if (e.type === 'skijump') { P.jumpZ = P.z; HUD.pop('SKI JUMP!', '#3d6fd6', 1.2, 'how far can you fly?'); this.slowmo = 0.3; Voice.say('And they take off!', 0.9); }
         break;
       case 'bump':
         if (P.air > 20 || P.crash > 0) return;
@@ -556,16 +646,10 @@ const G = {
         Sfx.boost();
         this.flash = 0.25;
         break;
-      case 'coin': {
+      case 'coin':
         if (Math.abs(e.y + 110 - (P.air + 190)) > 300) return;
-        e.hit = true; e.dead = true;
-        this.stats.coins++;
-        this.award(50);
-        Sfx.coin();
-        const p = Render.toScreen(this, e.x, e.y + 110, e.z);
-        if (p) Particles.burst(p.x, p.y, 10, { speed: 500 * Render.dpr, size: 10 * Render.dpr, life: 0.6, color: ['#ffd23f', '#fff3a8'], type: 'star' });
+        this.collectCoin(e);
         break;
-      }
       case 'beam':
         if (P.air > e.y - 200 || P.crash > 0) return;
         e.hit = true;
@@ -584,6 +668,11 @@ const G = {
     const P = this.player;
     const inCave = this.entities.some(e => e.type === 'arch' && e.z > P.z - 700 && e.z < P.z + 1400);
     this.caveI = U.approach(this.caveI, inCave ? 1 : 0, dt * 1.5);
+    // Lightning cracks over the Haunted Woods now and then.
+    if (this.zone && this.zone.id === 'haunted' && Math.random() < dt * 0.12) {
+      this.flash = Math.max(this.flash, 0.55);
+      Sfx.boom(0.35);
+    }
     // Weather
     this.blizzard = Math.max(0, this.blizzard - dt);
     this.blizzI = U.approach(this.blizzI, this.blizzard > 0 ? 1 : 0, dt * 0.7);
@@ -610,6 +699,7 @@ const G = {
     HUD.pop('×3 POINTS', '#ff4fa3', 1.3, 'everything is worth triple for 8 seconds');
     Sfx.level(); Sfx.hype();
     Voice.say('Madness mode! Triple points!', 1, true);
+    this.fireworks(6);
     this.flash = 0.5;
   },
 
@@ -643,57 +733,32 @@ const G = {
     this.bumpCombo();
     const pts = this.award(200 + t * 450);
     HUD.pop(popped ? `RAIL POP! ${t.toFixed(1)}s` : `RAIL GRIND ${t.toFixed(1)}s`, '#ffffff', 0.9, `+${U.fmt(pts)}`);
+    if (this.boss) Boss.damage(this, 6 + t * 10, 'GRIND');
   },
 
-  // Boss: the Yeti King runs ahead hurling snowballs at where you're heading.
-  startBoss() {
-    if (this.boss) return;
-    const P = this.player;
-    for (const e of this.entities) if (e.z > P.z + 9000 && e.type !== 'bestflag') e.dead = true;
-    const e = this.add('bossyeti', 0, P.z + 18000, { dist: 18000, throwT: 0 });
-    this.boss = { t: 0, dur: 16, next: 2.5, e, paid: false };
-    HUD.banner('BOSS: THE YETI KING!', '#ffd23f', 3);
-    Sfx.roar();
-    Voice.say('Boss fight! The Yeti King approaches!', 1, true);
-  },
+  // Bosses live in bosses.js.
+  startBoss() { Boss.start(this, this.level); },
+  updateBoss(dt) { Boss.update(this, dt); },
 
-  updateBoss(dt) {
-    const b = this.boss, e = b.e, P = this.player;
-    b.t += dt;
-    const leaving = b.t > b.dur;
-    e.dist += ((leaving ? 40000 : 7500) - e.dist) * Math.min(1, dt * (leaving ? 0.7 : 1.1));
-    e.z = e.zPrev = P.z + e.dist;
-    e.x = Math.sin(b.t * 0.7) * 0.45;
-    e.throwT = Math.max(0, e.throwT - dt);
-    if (!leaving && b.t > 2) {
-      b.next -= dt;
-      if (b.next <= 0) {
-        b.next = U.rand(0.7, 1.3) * Math.max(0.55, 1 - this.level * 0.03);
-        this.throwBomb(e);
-      }
+  // Celebration bursts in the sky.
+  fireworks(n) {
+    const W = Render.W, H = Render.H, d = Render.dpr;
+    for (let i = 0; i < n; i++) {
+      const x = W * U.rand(0.15, 0.85), y = H * U.rand(0.07, 0.3);
+      const hue = U.randInt(0, 360);
+      Particles.burst(x, y, 36, { speed: 520 * d, size: 6 * d, life: U.rand(0.9, 1.4), color: [`hsl(${hue},100%,65%)`, `hsl(${(hue + 40) % 360},100%,75%)`, '#ffffff'], g: 120 * d, drag: 1.4 });
     }
-    if (leaving && !b.paid) {
-      b.paid = true;
-      this.stats.bosses++;
-      this.stats.coins += 25;
-      const pts = this.award(3000);
-      HUD.pop('YETI KING DEFEATED!', '#ffd23f', 1.3, `+${U.fmt(pts)}  ·  +25 coins`);
-      HUD.banner('BOSS SURVIVED!', '#5ee27a', 2.5);
-      Sfx.record();
-      Voice.say('You survived the Yeti King!', 1, true);
-    }
-    if (b.t > b.dur + 3) { e.dead = true; this.boss = null; }
+    Sfx.firework();
   },
 
-  throwBomb(e) {
-    const P = this.player;
-    const closing = Math.max(2600, P.speed * 0.45);
-    const T = e.dist / closing;
-    const tx = U.clamp(P.x + P.lean * 0.25 + U.rand(-0.25, 0.25), -0.95, 0.95);
-    const y0 = 1100;
-    this.add('snowbomb', e.x, e.z, { y: y0, vy: (1200 * T * T - y0) / T, vz: P.speed - closing, vx: (tx - e.x) / T });
-    e.throwT = 0.35;
-    Sfx.whoosh();
+  collectCoin(e) {
+    e.hit = true; e.dead = true;
+    const rain = this.mod === 'coinrain' ? 2 : 1;
+    this.stats.coins += rain;
+    this.award(50 * rain);
+    Sfx.coin();
+    const p = Render.toScreen(this, e.x, e.y + 110, e.z);
+    if (p) Particles.burst(p.x, p.y, 10, { speed: 500 * Render.dpr, size: 10 * Render.dpr, life: 0.6, color: ['#ffd23f', '#fff3a8'], type: 'star' });
   },
 
   bumpCombo() {
@@ -704,7 +769,7 @@ const G = {
 
   crash(reason) {
     const P = this.player;
-    if (P.crash > 0 || P.invuln > 0 || P.pw.rocket > 0) return;
+    if (P.crash > 0 || P.invuln > 0 || P.pw.rocket > 0 || P.pw.giant > 0) return;
     P.grind = null;
     const ps = Render.playerScreen, d = Render.dpr;
     if (P.pw.shield > 0) {
@@ -719,6 +784,7 @@ const G = {
     }
     P.crash = 1.6;
     P.tumble = 0;
+    if (this.boss) Boss.onPlayerHit(this);
     P.speed *= 0.35;
     P.vy = Math.max(P.vy, 700);
     P.air = Math.max(P.air, 1);
@@ -740,6 +806,14 @@ const G = {
     const ps = Render.playerScreen, d = Render.dpr;
     Particles.burst(ps.x, ps.gy, 16, { angle: -Math.PI / 2, spread: 1.4, speed: 700 * d, size: 10 * d, life: 0.6, color: '#f4f8ff', g: 1600 * d });
     st.air = Math.max(st.air, airTime);
+    if (P.jumpZ) {
+      const m = (P.z - P.jumpZ) / CFG.METER;
+      P.jumpZ = 0;
+      st.jump = Math.max(st.jump, m);
+      const jp = this.award(m * 25);
+      HUD.pop(`JUMP: ${m.toFixed(1)} m`, '#3d6fd6', 1.3, `+${U.fmt(jp)}`);
+      if (m > 120) this.fireworks(4);
+    }
     const parts = [];
     if (flips) {
       const mult = flips === 1 ? '' : ['', '', 'DOUBLE ', 'TRIPLE ', 'QUADRUPLE ', 'QUINTUPLE '][flips] || `${flips}× `;
@@ -771,7 +845,19 @@ const G = {
     if (sketchy) sub = `SKETCHY LANDING  +${U.fmt(pts)}`;
     else if (n >= 5) sub = `the mountain is concerned  +${U.fmt(pts)}`;
     HUD.pop(name, sketchy ? '#ffb02e' : '#7dfcff', n >= 3 ? 1.2 : 1, sub);
+    if (n >= 2 || perfect) {
+      // Three judges hold up scorecards. Bigger, cleaner tricks score higher.
+      const base = 6 + Math.min(3.4, n * 0.7) + (perfect ? 0.8 : 0) - (sketchy ? 2.5 : 0) + (grabT > 0.3 ? 0.3 : 0);
+      const cards = [0, 1, 2].map(() => Math.round(U.clamp(base + U.rand(-0.6, 0.6), 0, 10) * 10) / 10);
+      HUD.judge(cards);
+      if (cards.some(v => v >= 10)) {
+        this.stats.judge10++;
+        const jp = this.award(500);
+        HUD.pop('A PERFECT 10!', '#ffffff', 0.8, `+${jp}`);
+      }
+    }
     Sfx.trick(n);
+    if (this.boss) Boss.damage(this, 12 + n * 9 + (perfect ? 10 : 0) + (grabT > 0.3 ? 5 : 0) - (sketchy ? 8 : 0), 'TRICK');
     if (perfect) {
       st.perfects++;
       P.speed += this.maxSpeed * 0.15;
@@ -795,6 +881,7 @@ const G = {
     HUD.banner(`MADNESS ${lvl}: ${levelName(lvl).toUpperCase()}`, '#ffd23f', 2.6);
     if (changed) HUD.pop(THEMES[Theme.to].name.toUpperCase(), '#ffffff', 0.7);
     Sfx.level();
+    this.fireworks(4);
     Voice.say(`Madness level ${lvl}! ${levelName(lvl)}!`, Math.min(1, 0.6 + lvl * 0.05), true);
     this.flash = 0.3;
   },
@@ -880,13 +967,21 @@ const G = {
     this.overT = 0;
     this.score = this.points + Math.floor(this.dist);
     // One leaderboard submission per real run (the title-screen demo never gets here).
-    if (!this.attract && !this.scoreSent && Number.isFinite(this.score) && this.score >= 0 && this.score < 1e12) {
+    if (!this.attract && this.mode === 'main' && !this.scoreSent && Number.isFinite(this.score) && this.score >= 0 && this.score < 1e12) {
       this.scoreSent = true;
       sendScoreToUsForge(this.score);
     }
     const d = Save.data;
-    const isBest = this.score > d.best;
-    if (isBest) d.best = this.score;
+    let isBest = false;
+    if (this.mode === 'daily') {
+      // Daily runs keep their own best for today.
+      if (!d.daily || d.daily.day !== dayIndex()) d.daily = { day: dayIndex(), best: 0 };
+      isBest = this.score > d.daily.best;
+      if (isBest) d.daily.best = this.score;
+    } else {
+      isBest = this.score > d.best;
+      if (isBest) d.best = this.score;
+    }
     d.bestDist = Math.max(d.bestDist, Math.floor(this.dist));
     d.totals.runs = (d.totals.runs || 0) + 1;
     Trophies.check(this.stats);

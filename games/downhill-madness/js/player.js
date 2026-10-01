@@ -6,11 +6,13 @@ const Player = {
     Object.assign(this, {
       x: 0, z: 0, speed: 0, air: 0, vy: 0, flip: 0, spin: 0, airTime: 0, grabTime: 0, grab: false,
       crash: 0, tumble: 0, invuln: 0, lean: 0, boost: 0, deep: false, launchKind: '', maxAir: 0, squash: 0,
-      pw: { shield: 0, magnet: 0, rocket: 0, double: 0 }, grind: null, grindT: 0, icy: 0, nado: 0,
+      pw: { shield: 0, magnet: 0, rocket: 0, double: 0, giant: 0, wings: 0 }, grind: null, grindT: 0, icy: 0, nado: 0, giantK: 0, jumpZ: 0, mud: 0, spooked: 0,
     });
     const d = Save.data;
     this.sled = sledById(d.sled);
     this.look = outfitById(d.outfit);
+    this.pet = petById(d.pet || 'none');
+    this.petAir = 0; this.petSide = 1;
   },
 
   get airborne() { return this.air > 0 || this.vy > 0; },
@@ -35,6 +37,10 @@ const Player = {
     for (const k in this.pw) if (this.pw[k] > 0 && k !== 'shield') this.pw[k] = Math.max(0, this.pw[k] - dt);
     if (this.pw.shield > 0) this.pw.shield = Math.max(0, this.pw.shield - dt);
     this.squash = U.approach(this.squash, 0, dt * 2.5);
+    this.giantK = U.approach(this.giantK, this.pw.giant > 0 ? 0.6 : 0, dt * 2); // 1.6× size
+    // The pet hops after you a beat late and keeps to the roomier side.
+    this.petAir += (this.air * 0.8 - this.petAir) * Math.min(1, dt * 6);
+    this.petSide = U.approach(this.petSide, this.x > 0.8 ? -1 : this.x < -0.8 ? 1 : this.petSide, dt * 4);
 
     if (this.crash > 0) {
       this.crash -= dt;
@@ -52,9 +58,10 @@ const Player = {
       this.air = r.h; this.vy = 0;
       this.lean = Math.sin(G.time * 22) * 0.12;
       this.grindT += dt;
-      if (jumpPressed || this.z > r.z + r.len) G.endGrind(!!jumpPressed);
+      if (jumpPressed || r.dead || this.z > r.z + r.len) G.endGrind(!!jumpPressed);
     } else if (!this.airborne) {
-      const steer = controls ? (inp.right ? 1 : 0) - (inp.left ? 1 : 0) : 0;
+      let steer = controls ? (inp.right ? 1 : 0) - (inp.left ? 1 : 0) : 0;
+      if (this.spooked > 0) steer = -steer; // ghosts flip your steering
       // On ice you barely steer and slowly slide.
       this.x += steer * (1.1 + this.speed / 6500) * dt * (this.icy > 0 ? 0.3 : 1);
       if (this.icy > 0) this.x += Math.sin(G.time * 2.3) * 0.18 * dt;
@@ -80,6 +87,8 @@ const Player = {
     if (this.pw.rocket > 0) target = Math.max(target, maxBase * 1.85);
     if (G.fever > 0) target *= 1.15;
     if (this.icy > 0) { target *= 1.15; this.icy -= dt; }
+    if (this.mud > 0) { target *= 0.55; this.mud -= dt; }
+    if (this.spooked > 0) this.spooked -= dt;
     if (this.invuln > 0) this.invuln -= dt;
 
     if (this.speed < target) {
@@ -106,7 +115,7 @@ const Player = {
 
   airPhysics(dt, G) {
     if (!this.airborne) return;
-    this.vy -= CFG.GRAVITY * dt;
+    this.vy -= CFG.GRAVITY * (this.pw.wings > 0 ? 0.45 : 1) * (G.mod === 'lowgrav' ? 0.6 : 1) * dt; // wings / low-gravity days
     this.air += this.vy * dt;
     this.airTime += dt;
     this.maxAir = Math.max(this.maxAir, this.air);
@@ -147,7 +156,7 @@ const Player = {
 
     c.save();
     c.translate(gx, gy - this.air * k);
-    c.scale(k, k);
+    c.scale(k * (1 + this.giantK), k * (1 + this.giantK));
     if (this.crash > 0 || G.state === 'caught') { this.drawCrash(c, G); c.restore(); return; }
     if (this.invuln > 0 && Math.floor(this.invuln * 12) % 2) c.globalAlpha = 0.45;
 
@@ -158,6 +167,16 @@ const Player = {
     c.scale(U.sign(cs) * Math.max(0.12, Math.abs(cs)) * (1 + this.squash * 0.5), U.sign(cf) * Math.max(0.12, Math.abs(cf)) * (1 - this.squash));
     c.translate(0, 170);
     const pose = this.grab ? 'grab' : this.airborne ? 'air' : 'ride';
+    if (this.pw.wings > 0) {
+      const flap = Math.sin(G.time * (this.airborne ? 9 : 4)) * 0.35;
+      for (const sd of [-1, 1]) {
+        c.save(); c.translate(sd * 60, -200); c.rotate(sd * (-0.3 + flap));
+        c.fillStyle = '#ffffff';
+        c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(sd * 260, -220, sd * 330, -60); c.quadraticCurveTo(sd * 200, 0, 0, 30); c.fill();
+        c.strokeStyle = '#ffe45c'; c.lineWidth = 8; c.stroke();
+        c.restore();
+      }
+    }
     this.drawFigure(c, this.sled, this.look, cf * cs < 0, pose, G.time, this.speed, 0);
     c.globalAlpha = 1;
 
@@ -267,6 +286,35 @@ const Player = {
         c.restore();
       }
     }
+  },
+
+  petX() { return this.x + 0.32 * this.petSide; },
+
+  drawPet(c, gx, gy, k, G) {
+    if (!this.pet || this.pet.id === 'none') return;
+    const px = gx + 0.32 * this.petSide * CFG.ROAD_W * k;
+    c.fillStyle = 'rgba(20,30,70,0.2)';
+    c.beginPath(); c.ellipse(px, gy, 90 * k, 20 * k, 0, 0, TAU); c.fill();
+    c.save();
+    c.translate(px, gy - this.petAir * k);
+    c.scale(k, k);
+    c.rotate(this.lean * 0.1);
+    this.pet.draw(c, G.time);
+    c.restore();
+  },
+
+  previewPet(cv, id) {
+    const c = cv.getContext('2d');
+    c.clearRect(0, 0, cv.width, cv.height);
+    c.save();
+    c.translate(cv.width / 2, cv.height * 0.86);
+    const k = cv.height / 330;
+    c.scale(k, k);
+    Art.ell(c, 0, 6, 130, 18, 'rgba(16,26,58,0.25)');
+    const pet = petById(id);
+    if (pet.id === 'none') Art.label(c, 'NONE', 0, -100, 60, '#9aa3b5');
+    else pet.draw(c, 0.3);
+    c.restore();
   },
 
   preview(cv, sledId, outfitId, front) {

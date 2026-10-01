@@ -2,6 +2,9 @@
 // The Director drops a set piece ahead of you every few seconds.
 // Gaps shrink as speed and madness climb, and sillier events unlock with each level.
 
+// Obstacle trees match the zone's scenery (candy canes, dead trees, crystals...).
+function treeProps(z) { return { v: U.randInt(0, 4), s: U.rand(0.8, 1.1), set: zoneAtZ(z).id }; }
+
 function estSpeed(G) { return Math.max(G.player.speed, G.maxSpeed * 0.85, 3000); }
 
 // Place a lateral crosser so it is on the piste around when the player arrives.
@@ -41,7 +44,7 @@ const EVENTS = [
       for (const x of [-0.92, -0.55, -0.18, 0.18, 0.55, 0.92]) {
         if (Math.abs(x - gap) < 0.3 || !U.chance(0.6)) continue;
         const t = U.pick(pool);
-        G.add(t, x + U.rand(-0.05, 0.05), z + r * step, t === 'tree' ? { v: U.randInt(0, 2), s: U.rand(0.8, 1.1) } : {});
+        G.add(t, x + U.rand(-0.05, 0.05), z + r * step, t === 'tree' ? treeProps(z + r * step) : {});
       }
     }
     return rows * step;
@@ -50,7 +53,7 @@ const EVENTS = [
     const n = U.randInt(6, 10);
     for (let i = 0; i < n; i++) {
       const t = U.chance(0.7) ? 'rock' : 'tree';
-      G.add(t, U.rand(-0.95, 0.95), z + U.rand(0, 7000), t === 'tree' ? { v: U.randInt(0, 2) } : {});
+      G.add(t, U.rand(-0.95, 0.95), z + U.rand(0, 7000), t === 'tree' ? treeProps(z) : {});
     }
     return 7000;
   } },
@@ -155,7 +158,8 @@ const EVENTS = [
   } },
   { id: 'power', lvl: 1, w: 2.2, spawn(G, z) {
     const pool = [{ p: 'shield', w: 3 }, { p: 'magnet', w: 3 }, { p: 'double', w: 2 }];
-    if (G.level >= 2) pool.push({ p: 'rocket', w: 2 });
+    if (G.level >= 2) pool.push({ p: 'rocket', w: 2 }, { p: 'wings', w: 2 });
+    if (G.level >= 3) pool.push({ p: 'giant', w: 1.6 });
     const x = U.rand(-0.7, 0.7);
     for (let i = 0; i < 5; i++) G.add('coin', x, z - 2500 + i * 500);
     G.add('power', x, z, { p: U.weighted(pool).p });
@@ -279,9 +283,80 @@ const EVENTS = [
     for (let i = 0; i < 5; i++) G.add('coin', x + U.rand(-0.3, 0.3), z + 300 + i * 450);
     return len + 600;
   } },
+  { id: 'train', lvl: 2, w: 1.6, spawn(G, z) {
+    // A train crosses the slope: slip through a gap between carriages, or hit a ramp and jump it.
+    const dir = U.pick([-1, 1]), vx = dir * U.rand(0.32, 0.42);
+    const cars = U.randInt(3, 5), spacing = 0.62;
+    const tArrive = (z - G.player.z) / estSpeed(G);
+    const headX = U.rand(-0.2, 0.2) + (dir * cars * spacing) / 2 - vx * tArrive;
+    G.add('traintrack', 0, z);
+    G.add('loco', headX, z, { vx });
+    for (let i = 1; i <= cars; i++) G.add('traincar', headX - dir * i * spacing, z, { vx, style: i % 4 });
+    for (const x of [-0.5, 0.5]) G.add('ramp', x, z - 3000);
+    G.banner('TRAIN CROSSING!', '#e63946');
+    return 2500;
+  } },
+  { id: 'skijump', lvl: 3, w: 1.3, spawn(G, z) {
+    G.add('skijump', 0, z);
+    G.banner('SKI JUMP! HOW FAR CAN YOU FLY?', '#3d6fd6');
+    return Math.max(3000, coinArc(G, 0, z, 2.3));
+  } },
+  { id: 'letter', lvl: 1, w: 2.4, spawn(G, z) {
+    // The next letter of M-A-D-N-E-S-S, usually guarded by something.
+    const x = U.rand(-0.7, 0.7);
+    G.add('letter', x, z, { idx: G.letterIdx });
+    if (U.chance(0.6)) for (const s of [-1, 1]) G.add('rock', x + s * 0.32, z + U.rand(-300, 300));
+    else for (let i = 1; i <= 5; i++) G.add('coin', x, z - i * 450);
+    return 1500;
+  } },
+  // ---- zone-only events: they only happen in their zone, and often
+  { id: 'gummies', zone: 'candy', lvl: 1, w: 4, spawn(G, z) {
+    const n = U.randInt(8, 14), dir = U.pick([-1, 1]), tArrive = (z - G.player.z) / estSpeed(G);
+    for (let i = 0; i < n; i++) {
+      const vx = dir * U.rand(0.3, 0.5);
+      G.add('gummy', U.clamp(U.rand(-0.9, 0.9) - vx * tArrive, -4, 4), z + U.rand(0, 3000), { vx, style: i % 4 });
+    }
+    G.banner('GUMMY BEAR STAMPEDE', '#ff4f7b');
+    return 3000;
+  } },
+  { id: 'choco', zone: 'candy', lvl: 1, w: 3, spawn(G, z) {
+    G.add('choco', 0, z, { len: 1800 });
+    for (const x of [-0.6, 0, 0.6]) if (U.chance(0.6)) G.add('ramp', x, z - 2200);
+    G.banner('CHOCOLATE RIVER!', '#a0673a');
+    return 2600;
+  } },
+  { id: 'ghosts', zone: 'haunted', lvl: 1, w: 4, spawn(G, z) {
+    const n = U.randInt(4, 7), dir = U.pick([-1, 1]), tArrive = (z - G.player.z) / estSpeed(G);
+    for (let i = 0; i < n; i++) {
+      const vx = dir * U.rand(0.25, 0.45);
+      G.add('spook', U.clamp(U.rand(-0.8, 0.8) - vx * tArrive, -4, 4), z + i * 700, { vx, by: U.rand(0, 500) });
+    }
+    G.banner('GHOSTS! DON\'T GET SPOOKED', '#b36bff');
+    return n * 700;
+  } },
+  { id: 'skeletons', zone: 'haunted', lvl: 1, w: 3, spawn(G) {
+    const names = ['BONES', 'SKULLY', 'MR. RATTLES', 'SPINE'];
+    for (let i = 0; i < U.randInt(2, 3); i++) {
+      const bx = U.rand(-0.6, 0.6);
+      G.add('rival', bx, G.player.z + 11000 + i * 1800, { bx, vz: G.maxSpeed * U.rand(0.55, 0.7), name: names[i], sled: U.pick(['toboggan', 'door', 'piano']), outfit: 'skeleton' });
+    }
+    return 1500;
+  } },
+  { id: 'lasers', zone: 'crystal', lvl: 1, w: 4, spawn(G, z) {
+    const n = U.randInt(2, 4), step = Math.max(2600, estSpeed(G) * 0.7);
+    for (let i = 0; i < n; i++) G.add('laser', 0, z + i * step, { seed: i * 1.7 });
+    G.banner('LASER GRID: HOP OR TIME IT', '#ff4f7b');
+    return n * step;
+  } },
+  { id: 'shards', zone: 'crystal', lvl: 1, w: 3, spawn(G, z) {
+    const n = U.randInt(4, 7), y0 = 4200;
+    for (let i = 0; i < n; i++) G.add('shard', U.rand(-0.85, 0.85), z + i * U.rand(900, 1500), { y: y0, fallT: Math.sqrt((2 * y0) / CFG.GRAVITY) });
+    G.banner('CRYSTAL SHARDS FALLING', '#7fe7ff');
+    return n * 1300;
+  } },
   { id: 'blizzard', lvl: 3, w: 1.1, spawn(G) { G.startBlizzard(); return 800; } },
   { id: 'chaos', lvl: 8, w: 2.5, spawn(G, z) {
-    const pool = EVENTS.filter(e => e.lvl <= G.level && !['chaos', 'surge', 'crevasse', 'rivals', 'power', 'blizzard'].includes(e.id));
+    const pool = EVENTS.filter(e => e.lvl <= G.level && !e.zone && !['chaos', 'surge', 'crevasse', 'rivals', 'power', 'blizzard'].includes(e.id));
     const a = U.pick(pool).spawn(G, z) || 0;
     const b = U.pick(pool).spawn(G, z + 800) || 0;
     return Math.max(a, b + 800);
@@ -295,21 +370,26 @@ const Director = {
   // Scatter a few loose obstacles between set pieces so the slope is never empty.
   filler(G, z0, span) {
     if (span < 600) return;
-    const pool = ['rock', 'rock', 'tree', 'log', 'skier'];
+    const pool = G.mod === 'penguins' ? ['penguin', 'penguin', 'penguin', 'rock'] : ['rock', 'rock', 'tree', 'log', 'skier'];
     if (G.level >= 2) pool.push('igloo', 'snowman', 'fence');
     if (G.level >= 4) pool.push('penguin', 'mogul');
     const n = U.randInt(1, 2 + Math.min(3, Math.floor(G.level / 2)));
     for (let i = 0; i < n; i++) {
       const t = U.pick(pool);
-      G.add(t, U.rand(-0.9, 0.9), z0 + U.rand(0, span), t === 'tree' ? { v: U.randInt(0, 2), s: U.rand(0.8, 1.1) } : t === 'penguin' ? { vx: 0 } : {});
+      G.add(t, U.rand(-0.9, 0.9), z0 + U.rand(0, span), t === 'tree' ? treeProps(z0) : t === 'penguin' ? { vx: G.mod === 'penguins' ? U.rand(-0.3, 0.3) : 0 } : {});
     }
   },
   update(G) {
     const P = G.player, horizon = P.z + 36000;
     let guard = 0;
     while (this.cursor < horizon && guard++ < 6) {
-      const pool = EVENTS.filter(e => e.lvl <= G.level && !(e.id === 'surge' && (G.attract || this.cursor - this.lastSurgeZ < 60000)));
-      const ev = U.weighted(pool.length ? pool : EVENTS.filter(e => e.lvl <= 1));
+      const zone = zoneAtZ(this.cursor).id;
+      // Daily twists unlock and boost certain events.
+      const boosted = G.mod === 'penguins' ? ['penguins'] : G.mod === 'rampage' ? ['ramp', 'megaramp', 'tramps', 'cannon', 'skijump'] : G.mod === 'coinrain' ? ['coins', 'ramp'] : [];
+      const pool = EVENTS.filter(e => (e.lvl <= G.level || boosted.includes(e.id)) && (!e.zone || e.zone === zone) && !(e.id === 'surge' && (G.attract || this.cursor - this.lastSurgeZ < 60000)))
+        .map(e => ({ ev: e, w: e.w * (boosted.includes(e.id) ? 4 : 1) }));
+      const pick = pool.length ? U.weighted(pool).ev : U.pick(EVENTS.filter(e => e.lvl <= 1));
+      const ev = pick;
       if (ev.id === 'surge') this.lastSurgeZ = this.cursor;
       const len = ev.spawn(G, this.cursor) || 0;
       const gap = Math.max(2500, estSpeed(G) * U.rand(0.8, 1.4) * Math.max(0.5, 1 - G.level * 0.045));

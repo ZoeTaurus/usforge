@@ -36,13 +36,19 @@ class Track {
   }
 
   decorate(seg) {
+    // Scenery follows the zone this stretch of mountain belongs to.
+    seg.zone = zoneIndexAt(seg.i);
+    const set = ZONES[seg.zone].id;
     for (const side of [-1, 1]) {
-      if (U.chance(0.55)) seg.deco.push({ k: 'tree', x: side * U.rand(1.22, 1.7), v: U.randInt(0, 2), s: U.rand(0.8, 1.25) });
-      if (U.chance(0.45)) seg.deco.push({ k: 'tree', x: side * U.rand(1.8, 4.4), v: U.randInt(0, 2), s: U.rand(0.9, 1.5) });
+      if (U.chance(0.55)) seg.deco.push({ k: 'tree', set, x: side * U.rand(1.22, 1.7), v: U.randInt(0, 4), s: U.rand(0.8, 1.25) });
+      if (U.chance(0.45)) seg.deco.push({ k: 'tree', set, x: side * U.rand(1.8, 4.4), v: U.randInt(0, 4), s: U.rand(0.9, 1.5) });
     }
     if (seg.i % 12 === 0) {
       seg.deco.push({ k: 'pole', x: -1.07 });
       seg.deco.push({ k: 'pole', x: 1.07 });
+    }
+    if (seg.i > 60 && U.chance(0.012)) {
+      seg.deco.push({ k: 'crowd', x: U.pick([-1, 1]) * U.rand(1.3, 1.45), seed: U.randInt(0, 5), text: U.pick(['GO GO GO!', 'SEND IT!', 'FASTER!', 'YOU GOT THIS', 'WE LOVE YOU', 'DO A FLIP!']) });
     }
     if (seg.i > 40 && U.chance(0.01)) {
       seg.deco.push({ k: 'sign', x: U.pick([-1, 1]) * U.rand(1.15, 1.3), text: U.pick(SIGNS) });

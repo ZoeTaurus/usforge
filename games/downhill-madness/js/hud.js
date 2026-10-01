@@ -5,7 +5,9 @@ const HUD = {
   pops: [],
   bannerMsg: null,
 
-  reset() { this.pops.length = 0; this.bannerMsg = null; this.shownScore = 0; },
+  reset() { this.pops.length = 0; this.bannerMsg = null; this.shownScore = 0; this.cards = null; },
+
+  judge(cards) { this.cards = { v: cards, t: 0 }; },
 
   pop(text, color = '#ffffff', size = 1, sub = '') {
     if (typeof G !== 'undefined' && G.attract) return;
@@ -17,6 +19,7 @@ const HUD = {
     if (typeof G !== 'undefined' && G.attract) return; this.bannerMsg = { text, color, t: 0, life }; },
 
   update(dt) {
+    if (this.cards) { this.cards.t += dt; if (this.cards.t > 2.6) this.cards = null; }
     for (const p of this.pops) p.t += dt;
     this.pops = this.pops.filter(p => p.t < p.life);
     if (this.bannerMsg) {
@@ -102,8 +105,11 @@ const HUD = {
 
       this.drawAvalancheMeter(c, G, u, top);
       this.drawPowers(c, G, u, top + u * 14.5);
+      this.drawWord(c, G, u, top);
+      if (G.mod) this.label(c, `DAILY · ${todayMod().name.toUpperCase()}`, W - u * 2, top + u * 17.6, u * 1.1, '#5ee27a', 'right');
+      if (this.cards) this.drawJudges(c, u);
       if (G.fever > 0) this.drawFever(c, G, u);
-      if (G.boss && G.boss.t <= G.boss.dur) this.drawBossBar(c, G, u, top);
+      if (G.boss && !G.boss.done) this.drawBossBar(c, G, u, top);
 
       // live trick readout
       if (P.grind) {
@@ -182,20 +188,54 @@ const HUD = {
   },
 
   drawBossBar(c, G, u, top) {
+    // Boss health (tricks, grinds and minions hurt it) plus time until it escapes.
     const W = Render.W, b = G.boss;
-    const mw = Math.min(u * 32, W * 0.34), mh = u * 1.1, mx = W / 2 - mw / 2, my = top + u * 6.6;
-    const frac = U.clamp(1 - b.t / b.dur, 0, 1);
-    c.fillStyle = 'rgba(16,26,58,0.7)';
+    const mw = Math.min(u * 32, W * 0.34), mh = u * 1.3, mx = W / 2 - mw / 2, my = top + u * 6.6;
+    const frac = U.clamp(b.hp / b.maxHp, 0, 1);
+    c.fillStyle = 'rgba(16,26,58,0.75)';
     this.roundRect(c, mx, my, mw, mh, mh / 2); c.fill();
-    c.fillStyle = '#ffd23f';
-    this.roundRect(c, mx, my, Math.max(mh, mw * frac), mh, mh / 2); c.fill();
-    this.label(c, `YETI KING · SURVIVE ${Math.ceil(b.dur - b.t)}s`, W / 2, my + mh + u * 1.9, u * 1.2, '#ffd23f', 'center');
+    c.fillStyle = b.e.hurtT > 0 ? '#ffffff' : '#ff3b5c';
+    if (frac > 0) { this.roundRect(c, mx, my, Math.max(mh, mw * frac), mh, mh / 2); c.fill(); }
+    c.lineWidth = u * 0.25; c.strokeStyle = INK; this.roundRect(c, mx, my, mw, mh, mh / 2); c.stroke();
+    this.label(c, `${b.def.name.toUpperCase()}${b.tier > 1 ? ' ' + 'I'.repeat(Math.min(3, b.tier)) : ''} · ESCAPES IN ${Math.max(0, Math.ceil(b.dur - b.t))}s`, W / 2, my + mh + u * 1.9, u * 1.15, b.def.color, 'center');
+    if (b.t < 6) this.label(c, 'LAND TRICKS TO HURT IT', W / 2, my + mh + u * 3.6, u * 1, '#ffffff', 'center');
+  },
+
+  // M-A-D-N-E-S-S progress, under the madness pill.
+  drawWord(c, G, u, top) {
+    const W = Render.W, sz = u * 2.1, gap = u * 0.35;
+    const x0 = W - u * 2 - WORD.length * (sz + gap) + gap, y = top + u * 13;
+    for (let i = 0; i < WORD.length; i++) {
+      const got = i < G.letterIdx, x = x0 + i * (sz + gap);
+      c.fillStyle = got ? '#ffd23f' : 'rgba(16,26,58,0.55)';
+      this.roundRect(c, x, y, sz, sz, u * 0.4); c.fill();
+      c.lineWidth = u * 0.25; c.strokeStyle = INK; c.stroke();
+      this.text(c, WORD[i], x + sz / 2, y + sz * 0.78, sz * 0.8, got ? '#ff5a1f' : 'rgba(230,244,255,0.35)', { stroke: false });
+    }
+  },
+
+  // Judges' scorecards slide up on the left after a big trick.
+  drawJudges(c, u) {
+    const H = Render.H, J = this.cards, names = ['CHAMP', 'YETI', 'GRANDMA'];
+    for (let i = 0; i < 3; i++) {
+      const k = U.clamp((J.t - i * 0.15) / 0.25, 0, 1), out = U.clamp((J.t - 2.2) / 0.4, 0, 1);
+      const w = u * 7, h = u * 6.2, x = u * 2 + i * (w + u * 0.8), y = H * 0.62 + (1 - k) * h * 1.5 + out * h * 2;
+      if (k <= 0) continue;
+      c.save();
+      c.translate(x + w / 2, y + h / 2); c.rotate((i - 1) * 0.06);
+      c.fillStyle = '#ffffff'; this.roundRect(c, -w / 2, -h / 2, w, h, u * 0.6); c.fill();
+      c.lineWidth = u * 0.3; c.strokeStyle = INK; c.stroke();
+      const v = J.v[i];
+      this.text(c, v.toFixed(1), 0, u * 1.4, u * 3.4, v >= 9.5 ? '#e63946' : '#101a3a', { stroke: false });
+      this.label(c, names[i], 0, -h / 2 + u * 1.5, u * 1, '#7d93b8', 'center');
+      c.restore();
+    }
   },
 
   drawPowers(c, G, u, y) {
     const pw = G.player.pw;
     let x = u * 4.2;
-    for (const k of ['shield', 'magnet', 'rocket', 'double']) {
+    for (const k of ['shield', 'magnet', 'rocket', 'double', 'giant', 'wings']) {
       const v = pw[k];
       if (v <= 0) continue;
       const r = u * 2.1;

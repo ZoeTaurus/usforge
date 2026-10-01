@@ -2,5 +2,9 @@
   "title": "Downhill Madness",
   "author": "Taurus",
   "owner": "Taurus",
-  "blurb": "Race down an endless mountain on a sled, pulling flips, grinding rails and dodging yetis, flying cows and a snowball-hurling Yeti King, while an avalanche chases you and everything gets more ridiculous the faster you go."
+  "blurb": "Race down an endless mountain on a sled, pulling flips, grinding rails and dodging yetis, flying cows and a snowball-hurling Yeti King, while an avalanche chases you and everything gets more ridiculous the faster you go.",
+  "whatsnew": {
+    "text": "Adding more bosses, fixing rendering errors",
+    "at": 1790878975
+  }
 }

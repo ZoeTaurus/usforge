@@ -180,7 +180,46 @@ OUTFITS.push(
   { id: 'yeti', name: 'Yeti Costume', cost: 1600, blurb: 'The other yetis are very confused.',
     jacket: '#eef3fa', sleeve: '#dce5f1', stripe: '#7b93b8', mitt: '#7b93b8', hat: 'yetihood', hatColor: '#eef3fa' },
 );
+OUTFITS.push({ id: 'skeleton', name: 'Skeleton', cost: 1200, blurb: 'Raced here in 1987. Never stopped.',
+  jacket: '#1d1d28', sleeve: '#15161c', stripe: '#f3efe0', mitt: '#f3efe0', hat: 'skull', hatColor: '#f3efe0' });
 OUTFITS.sort((a, b) => a.cost - b.cost);
+
+// Pets ride alongside you and grab coins near them.
+function miniSled(c) {
+  Art.poly(c, [-110, -40, 110, -40, 100, -6, -100, -6], '#d62839');
+  Art.line(c, [-100, -2, 100, -2], '#2b2d42', 10);
+}
+const PETS = [
+  { id: 'none', name: 'No Pet', cost: 0, blurb: 'Lonely, but aerodynamic.', draw() {} },
+  { id: 'penguin', name: 'Penguin Pal', cost: 600, blurb: 'Waddles at 200 km/h. Grabs nearby coins.',
+    draw(c, t) { miniSled(c); c.save(); c.translate(0, -36); c.scale(0.85, 0.85); ET.penguin.draw(c, { seed: 2 }, t); c.restore(); } },
+  { id: 'puppy', name: 'Snow Puppy', cost: 900, blurb: 'Very good dog. Very fast dog. Grabs nearby coins.',
+    draw(c, t) {
+      miniSled(c);
+      const wag = Math.sin(t * 16) * 0.5;
+      c.save(); c.translate(70, -110); c.rotate(-0.6 + wag); Art.rect(c, -8, -60, 16, 60, '#c9955a'); c.restore();
+      Art.ell(c, 0, -90, 90, 55, '#c9955a');
+      Art.ell(c, 10, -78, 50, 30, '#f2dcc0');
+      Art.circ(c, -60, -160, 52, '#c9955a');
+      Art.ell(c, -100, -180, 20, 40, '#8a5a2e'); Art.ell(c, -22, -186, 20, 40, '#8a5a2e');
+      Art.ell(c, -66, -138, 24, 18, '#f2dcc0'); Art.circ(c, -66, -148, 9, '#2b2d42');
+      Art.circ(c, -80, -170, 7, '#2b2d42'); Art.circ(c, -44, -170, 7, '#2b2d42');
+      Art.rect(c, -100, -118, 80, 16, '#e63946');
+    } },
+  { id: 'yeticub', name: 'Baby Yeti', cost: 1500, blurb: 'Mum is the Yeti King. Do not tell her. Grabs nearby coins.',
+    draw(c, t) { miniSled(c); c.save(); c.translate(0, -30); c.scale(0.36, 0.36); ET.yeti.draw(c, { seed: 4 }, t); c.restore(); } },
+  { id: 'miniufo', name: 'Mini UFO', cost: 2500, blurb: 'Hovers. Beams up coins from further away.', reach: 1.6,
+    draw(c, t) {
+      const y = -160 + Math.sin(t * 3) * 20;
+      c.fillStyle = 'rgba(140,255,170,0.3)';
+      c.beginPath(); c.moveTo(-30, y + 20); c.lineTo(30, y + 20); c.lineTo(90, 0); c.lineTo(-90, 0); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(170,230,255,0.75)'; c.beginPath(); c.ellipse(0, y - 14, 46, 38, 0, Math.PI, TAU); c.fill();
+      Art.ell(c, 0, y - 22, 14, 18, '#6fe36f');
+      Art.ell(c, 0, y, 110, 26, '#a9b3c7');
+      for (let i = 0; i < 5; i++) Art.circ(c, -80 + i * 40, y + 2, 7, (Math.floor(t * 8) + i) % 2 ? '#fff36b' : '#ff4fa3');
+    } },
+];
+function petById(id) { return PETS.find(p => p.id === id) || PETS[0]; }
 
 const RIVAL_NAMES = ['GARY', 'SVEN', 'GRANDMA', 'BRAD', 'OLGA', 'A BEAR?', 'DOUG', 'INGRID', 'KEVIN', 'THE MAYOR', 'CHAD', 'MRS. P'];
 
@@ -255,6 +294,15 @@ function drawHat(c, look, front, t) {
       }
       Art.poly(c, [-60, -330, -80, -390, -40, -345], '#dfe7f2'); Art.poly(c, [60, -330, 80, -390, 40, -345], '#dfe7f2');
       break;
+    case 'skull':
+      Art.circ(c, 0, -285, 62, look.hatColor);
+      Art.rect(c, -34, -240, 68, 34, look.hatColor);
+      if (front) {
+        Art.circ(c, -22, -292, 15, '#1d1d28'); Art.circ(c, 22, -292, 15, '#1d1d28');
+        Art.poly(c, [0, -275, -8, -260, 8, -260], '#1d1d28');
+        for (let i = -2; i <= 2; i++) Art.rect(c, i * 12 - 4, -238, 6, 22, '#1d1d28');
+      }
+      break;
     default: // beanie
       c.fillStyle = look.hatColor;
       c.beginPath(); c.ellipse(0, -296, 62, 56, 0, Math.PI, TAU); c.fill();
@@ -277,11 +325,12 @@ const Garage = {
       if (b) this.act(b.dataset.id);
     });
   },
-  items() { return this.tab === 'sleds' ? SLEDS : OUTFITS; },
+  items() { return this.tab === 'sleds' ? SLEDS : this.tab === 'pets' ? PETS : OUTFITS; },
+  key() { return this.tab === 'sleds' ? 'sled' : this.tab === 'pets' ? 'pet' : 'outfit'; },
   act(id) {
     const d = Save.data, item = this.items().find(i => i.id === id);
     if (!item) return;
-    const key = this.tab === 'sleds' ? 'sled' : 'outfit';
+    const key = this.key();
     if (d.owned[id]) {
       d[key] = id;
       Sfx.init(); Sfx.ui(() => Sfx.coin());
@@ -302,7 +351,7 @@ const Garage = {
     const d = Save.data;
     this.bank.textContent = U.fmt(d.bank);
     this.el.querySelectorAll('[data-tab]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === this.tab)));
-    const key = this.tab === 'sleds' ? 'sled' : 'outfit';
+    const key = this.key();
     this.grid.innerHTML = this.items().map(it => {
       const owned = d.owned[it.id], equipped = d[key] === it.id;
       const label = equipped ? 'Riding' : owned ? 'Equip' : `${U.fmt(it.cost)} coins`;
@@ -315,6 +364,7 @@ const Garage = {
     }).join('');
     this.grid.querySelectorAll('canvas[data-prev]').forEach(cv => {
       const id = cv.dataset.prev;
+      if (this.tab === 'pets') { Player.previewPet(cv, id); return; }
       const sled = this.tab === 'sleds' ? id : d.sled;
       const outfit = this.tab === 'sleds' ? d.outfit : id;
       Player.preview(cv, sled, outfit, this.tab !== 'sleds');

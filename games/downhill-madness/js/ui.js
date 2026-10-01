@@ -11,8 +11,9 @@ const UI = {
       title: $('title-screen'), pause: $('pause-screen'), over: $('over-screen'), garage: $('garage-screen'), trophies: $('trophy-screen'),
       mute: $('mute'), touch: $('touch'),
     };
-    $('play').addEventListener('click', () => G.start());
-    $('again').addEventListener('click', () => G.start());
+    $('play').addEventListener('click', () => G.start('main'));
+    $('daily').addEventListener('click', () => G.start('daily'));
+    $('again').addEventListener('click', () => G.start(G.mode));
     $('resume').addEventListener('click', () => G.pause(false));
     $('quit').addEventListener('click', () => G.toTitle());
     $('menu').addEventListener('click', () => G.toTitle());
@@ -75,6 +76,8 @@ const UI = {
   showTitle() {
     this.$('profile').innerHTML = this.profile();
     this.$('title-missions').innerHTML = Missions.html(null);
+    const m = todayMod(), dd = Save.data.daily;
+    this.$('daily-info').innerHTML = `<b>Today's Daily Challenge: ${m.name}.</b> ${m.desc}${dd && dd.day === dayIndex() && dd.best ? ` Your best today: ${U.fmt(dd.best)}.` : ''}`;
     this.only('title');
     this.$('play').focus();
   },
@@ -120,6 +123,8 @@ const UI = {
     this.$('stats').innerHTML = rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
     this.$('over-missions').innerHTML = Missions.html(st);
     this.$('new-best').hidden = !isBest;
+    this.$('new-best').textContent = G.mode === 'daily' ? 'New daily best!' : 'New best score!';
+    this.$('again').textContent = G.mode === 'daily' ? 'Try the daily again' : 'Sled again';
     this.only('over');
     this.$('again').focus();
   },

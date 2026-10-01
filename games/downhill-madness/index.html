@@ -15,9 +15,11 @@
     <p class="tag">An endless mountain, one sled, and an avalanche that really wants a word with you. The faster you go, the weirder it gets.</p>
     <div class="row">
       <button id="play" class="btn" type="button">Start sledding</button>
+      <button id="daily" class="btn ghost" type="button">Daily Challenge</button>
       <button id="open-garage" class="btn ghost" type="button">Garage</button>
       <button id="open-trophies" class="btn ghost" type="button">Trophies</button>
     </div>
+    <p id="daily-info" class="daily-info"></p>
     <p id="profile" class="profile"></p>
     <section class="panel">
       <h2 class="panel-h">Missions</h2>
@@ -36,6 +38,8 @@
         <div class="air"><dt>Rails</dt><dd>Ride onto the start of a rail or drop onto it to grind. <kbd>Space</kbd> pops off early.</dd></div>
         <div class="air"><dt>Madness Mode</dt><dd>Max out a ×10 combo for 8 seconds of triple points.</dd></div>
         <div class="air"><dt>Bosses</dt><dd>At madness 4, 8 and 12 the Yeti King throws snowballs. Watch the shadows and survive 16 seconds.</dd></div>
+        <div class="air"><dt>Letters</dt><dd>Grab the floating tiles in order to spell M-A-D-N-E-S-S for 5,000 points and 100 coins.</dd></div>
+        <div class="air"><dt>Zones</dt><dd>Every 1,800 m the mountain changes: Pine Ridge, Candy Land, Haunted Woods, Crystal Forest.</dd></div>
         <div class="air"><dt>Rule one</dt><dd>Don't let the avalanche catch you. Crevasses need a ramp or a well-timed hop.</dd></div>
         <div class="air"><dt>Keys</dt><dd><kbd>P</kbd> pause · <kbd>M</kbd> mute</dd></div>
       </dl>
@@ -58,6 +62,7 @@
     <div class="tabs" role="tablist">
       <button type="button" class="chip" role="tab" data-tab="sleds">Sleds</button>
       <button type="button" class="chip" role="tab" data-tab="outfits">Riders</button>
+      <button type="button" class="chip" role="tab" data-tab="pets">Pets</button>
     </div>
     <div id="garage-grid" class="grid"></div>
     <button id="garage-back" class="btn" type="button">Done</button>
@@ -137,6 +142,7 @@
 <script src="js/particles.js"></script>
 <script src="js/track.js"></script>
 <script src="js/entities.js"></script>
+<script src="js/bosses.js"></script>
 <script src="js/garage.js"></script>
 <script src="js/missions.js"></script>
 <script src="js/trophies.js"></script>

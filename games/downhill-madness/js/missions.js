@@ -21,8 +21,12 @@ const MISSION_TPL = [
   { id: 'clean', stat: 'clean', base: 500, step: 300, text: n => `Go ${U.fmt(n)} m without a wipeout` },
   { id: 'abduct', stat: 'abducted', base: 1, step: 0, minRank: 3, text: () => 'Get abducted by aliens' },
   { id: 'grind', stat: 'grind', base: 2, step: 1, max: 12, text: n => `Grind rails for ${n} seconds in total` },
-  { id: 'boss', stat: 'bosses', base: 1, step: 0, minRank: 2, text: () => 'Survive the Yeti King' },
+  { id: 'boss', stat: 'bosses', base: 1, step: 0, minRank: 2, text: () => 'Survive a boss fight' },
+  { id: 'bosskill', stat: 'bossKills', base: 1, step: 0, minRank: 3, text: () => 'Defeat a boss with tricks' },
   { id: 'fever', stat: 'fevers', base: 1, step: 0, minRank: 2, text: () => 'Trigger Madness Mode (×10 combo)' },
+  { id: 'skijump', stat: 'jump', base: 60, step: 12, max: 160, minRank: 2, text: n => `Fly ${n} m off a ski jump` },
+  { id: 'letters', stat: 'letters', base: 3, step: 1, max: 7, text: n => `Collect ${n} letters of MADNESS` },
+  { id: 'zones', stat: 'zones', base: 2, step: 0, minRank: 2, text: () => 'Reach Candy Land' },
   { id: 'demolish', stat: 'demolished', base: 3, step: 2, text: n => `Demolish ${n} obstacles with a rocket` },
 ];
 

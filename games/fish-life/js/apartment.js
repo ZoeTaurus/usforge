@@ -67,14 +67,14 @@ class ApartmentScene {
   constructor(bowl, who) {
     this.bowl = bowl;
     this.b = bowl.b;
-    this.who = who;                     // 'cat' | 'bowl'
+    this.who = who;                     // 'cat' | 'bowl' | 'sam'
     const b = this.b;
     b.items = b.items || {};
     b.debt = b.debt || 0;
     if (b.aptDay !== b.day) { b.aptDay = b.day; b.coins = []; b.cups = 0; b.fridge = false; b.tvDone = false; }
     this.t = 0;
     this.elapsed = 0;
-    this.p = { x: who === 'cat' ? 470 : 405, y: who === 'cat' ? 136 : 128, vx: 0, vy: 0, face: 1, ground: true, anim: 0, drop: 0 };
+    this.p = { x: who === 'cat' ? 470 : who === 'sam' ? 900 : 405, y: who === 'cat' ? 136 : who === 'sam' ? APT_GROUND : 128, vx: 0, vy: 0, face: 1, ground: true, anim: 0, drop: 0 };
     this.camX = clamp(this.p.x - W / 2, 0, APT_W - W);
     this.cups = [0, 1, 2, 3].map(i => ({ x: 580 + i * 34, y: 118, vy: 0, falling: false, broken: i < b.cups }));
     this.orders = [];
@@ -83,17 +83,24 @@ class ApartmentScene {
     this.parts = new Particles();
     this.floaters = new Floaters();
     this.store = null;
-    this.msg = { text: who === 'cat' ? 'SAM IS AT SCHOOL. THE APARTMENT IS YOURS, KITTY!' : 'YOUR BOWL WALKS OFF THE TABLE. FREEDOM!', t: 3.5 };
+    this.msg = { text: who === 'cat' ? 'SAM IS AT SCHOOL. THE APARTMENT IS YOURS, KITTY!' : who === 'sam' ? 'THE HELMET HUMS... SAM\'S EYES GO SWIRLY. {YOU ARE SAM NOW.}' : 'YOUR BOWL WALKS OFF THE TABLE. FREEDOM!', t: 3.5 };
     this.bg = this.paint();
   }
   enter() { Sound.play('shop'); }
   onBlur() {}
   get cat() { return this.who === 'cat'; }
+  get sam() { return this.who === 'sam'; }
 
   /* ------------------------------------------------------- objects */
   interactables() {
     const b = this.b, list = [];
     if (this.cat) list.push({ x: 405, r: 26, label: 'BACK TO THE BOWL', act: () => this.leave() });
+    else if (this.sam) {
+      list.push({ x: 405, r: 30, label: b.samFed === b.day ? 'PET THE FISH (YOU)' : 'FEED THE FISH (YOURSELF!)', act: () => this.samFeed() });
+      list.push({ x: 900, r: 26, label: 'DO HOMEWORK', act: () => this.homework() });
+      list.push({ x: 30, r: 22, label: 'LEAVE THE APARTMENT', act: () => this.say(pick(['SAM WALKS INTO THE DOOR. THE HELMET HAS A RANGE OF 10 METRES.', 'OUTSIDE IS SCARY. AND THERE IS NO WATER.', 'THE GIANT ROBOT CAN GO OUTSIDE. SAM CANNOT.']), '#9fe8f5') });
+      list.push({ x: 225, r: 30, label: 'SIT ON THE COUCH', act: () => this.say(pick(['THE CAT SCOOTS OVER. IT KNOWS WHO IS IN CHARGE.', 'SAM SITS. YOU MAKE HIM SAY "I LOVE MY FISH" OUT LOUD.', 'A COMFY COUCH. HUMANS HAVE IT SO EASY.']), '#f6a0c8') });
+    }
     else list.push({ x: 405, r: 22, label: 'GO HOME TO THE TABLE', act: () => this.leave() });
     list.push({ x: 500, r: 24, label: 'WATCH TV', act: () => this.watchTV() });
     list.push({ x: 745, r: 24, label: b.fridge ? 'FRIDGE (EMPTY TODAY)' : 'RAID THE FRIDGE', act: () => this.raidFridge() });
@@ -127,12 +134,32 @@ class ApartmentScene {
       Sound.sfx('idea');
     }
   }
+  samFeed() {
+    const b = this.b;
+    if (b.samFed === b.day) { this.say('SAM PATS THE BOWL. YOU MAKE HIM SAY: "GOOD FISHY. SMARTEST FISH EVER."', '#f6a0c8'); return; }
+    b.samFed = b.day;
+    b.energy = 100;
+    Sound.sfx('eatbig');
+    for (let i = 0; i < 12; i++) this.parts.add({ x: 405 + rnd(-6, 6), y: 100, vx: rnd(-10, 10), vy: rnd(10, 40), life: 1, c: pick(['#feae34', '#f77622', '#e43b44']) });
+    this.say('YOU MAKE SAM POUR A WHOLE PILE OF FLAKES INTO YOUR BOWL. {ENERGY FULL!}', '#ffffff');
+    saveGame();
+  }
+  homework() {
+    const b = this.b;
+    if (b.homework === b.day) { this.say('HOMEWORK IS DONE FOR TODAY. SAM GOT AN A+. (YOU GOT THE A+.)', '#fee761'); return; }
+    b.homework = b.day;
+    const v = Math.max(50, this.bowl.passive() * 30);
+    this.bowl.addIQ(v);
+    Sound.sfx('idea');
+    this.floaters.add('+' + fmt(v) + ' IQ', 900, 100, '#b4f08c', { font: F5 });
+    this.say(pick(['YOU SOLVE SAM\'S MATH HOMEWORK WITH HIS OWN HANDS. 1 + 1 = FISH.', 'YOU MAKE SAM WRITE AN ESSAY: "WHY FISH SHOULD RULE THE WORLD".', 'SAM\'S SCIENCE PROJECT: A BIGGER BOWL. GENIUS.']), '#ffffff');
+  }
   raidFridge() {
     if (this.b.fridge) { this.say('YOU ALREADY RAIDED IT TODAY. SAM MIGHT NOTICE...'); return; }
     this.b.fridge = true;
     this.b.energy = Math.min(100, this.b.energy + 40);
     Sound.sfx('eatbig');
-    this.say(this.cat ? 'YOU STOLE A SARDINE AND DROPPED IT IN THE BOWL. {+40 ENERGY}' : 'YOU FOUND FISH FLAKES IN THE FRIDGE! {+40 ENERGY}', '#ffffff');
+    this.say(this.cat ? 'YOU STOLE A SARDINE AND DROPPED IT IN THE BOWL. {+40 ENERGY}' : this.sam ? 'SAM EATS A WHOLE CHEESE AND DROPS SHRIMP IN YOUR BOWL. {+40 ENERGY}' : 'YOU FOUND FISH FLAKES IN THE FRIDGE! {+40 ENERGY}', '#ffffff');
   }
   knock(c) {
     c.falling = true;
@@ -225,13 +252,13 @@ class ApartmentScene {
       if (pt.x < 34 && pt.y > H - 30) ix = -1;
       else if (pt.x >= 34 && pt.x < 64 && pt.y > H - 30) ix = 1;
     }
-    const speed = (this.cat ? 95 : 60) * (this.b.items.skateboard ? (this.cat ? 1.3 : 1.8) : 1);
+    const speed = (this.cat ? 95 : this.sam ? 72 : 60) * (this.b.items.skateboard ? (this.cat ? 1.3 : 1.8) : 1);
     p.vx = approach(p.vx, ix * speed, 700 * dt);
     if (ix) p.face = ix;
     // jumping and dropping through platforms
     const jump = hit('up') || hit('dash') || tb.jump;
     if (p.ground) p.air = 1;
-    if (jump && p.ground) { p.vy = this.cat ? -300 : -215; p.ground = false; Sound.tone(this.cat ? 500 : 300, 0.1, { type: 'p25', vol: 0.08, slide: 1.8 }); }
+    if (jump && p.ground) { p.vy = this.cat ? -300 : this.sam ? -245 : -215; p.ground = false; Sound.tone(this.cat ? 500 : 300, 0.1, { type: 'p25', vol: 0.08, slide: 1.8 }); }
     else if (jump && this.b.items.jetpack && p.air > 0) {
       p.air--; p.vy = this.cat ? -280 : -240;
       Sound.noise(0.3, { vol: 0.15, freq: 900, slide: 0.4 });
@@ -390,13 +417,14 @@ class ApartmentScene {
       for (let i = 0; i < 6; i++) px(dx - 4 + ((i * 3 + Math.floor(t * 8)) % 9), 16 + (i * 5) % 9, '#ffffff');
       for (let i = 0; i < 8; i++) { const a = t * 1.5 + i; px(dx + Math.cos(a) * (40 + i * 9), 70 + Math.sin(a * 1.3) * 40, pick(['#f6757a', '#2ce8f5', '#fee761'])); }
     }
-    // the fish bowl on its table (when you are the cat)
-    if (this.cat) {
+    // the fish bowl on its table (when you are the cat or Sam)
+    if (this.cat || this.sam) {
       const bx = 405 - cx, by = 128;
       for (let y = by - 20; y <= by - 2; y++) { const hw = Math.floor(Math.sqrt(Math.max(0, 144 - (y - by + 12) * (y - by + 12)))); if (hw > 0) rect(bx - hw, y, hw * 2 + 1, 1, y < by - 17 ? '#9ff3fa' : '#4fb8dc'); }
       sprC('hero1', Math.floor(t * 4) % 2, bx + Math.sin(t) * 3, by - 12, Math.cos(t) < 0);
       ring(bx, by - 12, 12, '#c8f4ff');
-      if (Math.floor(t * 2) % 4 === 0) text('GO KITTY!', bx, by - 34, '#ffffff', { font: F3, align: 'center', outline: '#07060f' });
+      if (this.sam) { spr('helmet', 0, Math.round(bx + Math.sin(t) * 3) - 4, by - 22); if (Math.floor(t * 3) % 2) for (let i = 0; i < 3; i++) px(bx - 10 + i * 10, by - 30 - i % 2 * 3, '#2ce8f5'); }
+      if (Math.floor(t * 2) % 4 === 0) text(this.sam ? 'WALK, HUMAN!' : 'GO KITTY!', bx, by - 34, '#ffffff', { font: F3, align: 'center', outline: '#07060f' });
     }
     // coins
     APT_COINS.forEach(([x, y], i) => {
@@ -428,11 +456,14 @@ class ApartmentScene {
       const vx = Math.round(this.vac.x) - cx;
       ellipse(vx, 151, 9, 4, '#3a4466'); ellipse(vx, 150, 8, 3, '#5a6988'); px(vx + this.vac.dir * 5, 149, Math.floor(t * 4) % 2 ? '#63c74d' : '#e43b44');
     }
+    // the cat lounges on the couch while you drive Sam around
+    if (this.sam) this.drawCatSitting(232 - cx, 104, t);
     // the player
     if (this.cat) this.drawCat(p.x - cx, p.y, t);
+    else if (this.sam) this.drawSamPlayer(p.x - cx, p.y, t);
     else this.drawBowl(p.x - cx, p.y, t);
     if (b.items.skateboard && !p.onVac) { const sx = Math.round(p.x) - cx; rect(sx - 9, Math.round(p.y) - 1, 18, 2, '#e43b44'); disc(sx - 6, Math.round(p.y) + 2, 1, '#181425'); disc(sx + 6, Math.round(p.y) + 2, 1, '#181425'); }
-    if (b.items.jetpack) { const jx = Math.round(p.x - p.face * (this.cat ? 3 : 10)) - cx; rect(jx - 2, Math.round(p.y) - (this.cat ? 14 : 26), 4, 8, '#8b9bb4'); rect(jx - 2, Math.round(p.y) - (this.cat ? 14 : 26), 4, 2, '#e43b44'); }
+    if (b.items.jetpack) { const jx = Math.round(p.x - p.face * (this.cat ? 3 : this.sam ? 8 : 10)) - cx, jy = Math.round(p.y) - (this.cat ? 14 : this.sam ? 22 : 26); rect(jx - 2, jy, 4, 8, '#8b9bb4'); rect(jx - 2, jy, 4, 2, '#e43b44'); }
     this.parts.draw(cx, 0);
     this.floaters.draw(cx, 0);
     this.drawHUD();
@@ -463,6 +494,29 @@ class ApartmentScene {
     px(hx + f * 4, hy + 1, '#f6757a');
     line(hx + f * 3, hy + 1, hx + f * 8, hy, '#e8eef7');
   }
+  drawCatSitting(x, y, t) {
+    if (x < -20 || x > W + 20) return;
+    const g = '#8b9bb4', d = '#5a6988';
+    ellipse(x, y - 4, 7, 4, g);
+    for (let i = 0; i < 6; i++) px(x - 8 - i, y - 2 - Math.round(Math.sin(t * 3 + i * 0.6)), d);
+    disc(x + 5, y - 10, 4, g);
+    rect(x + 1, y - 16, 2, 3, g); rect(x + 7, y - 16, 2, 3, g);
+    const eye = Math.floor(t * 6) % 2 ? '#fee761' : '#b55088';
+    px(x + 4, y - 11, eye); px(x + 7, y - 11, eye);
+  }
+  drawSamPlayer(x, y, t) {
+    x = Math.round(x); y = Math.round(y);
+    const p = this.p, walking = p.ground && Math.abs(p.vx) > 5;
+    drawSam(x, y + 1, walking ? 'walk' : 'stand', Math.floor(p.anim), p.face < 0);
+    // swirly hypnotized eyes
+    for (const ex of [x - 2, x + 2]) {
+      const a = t * 10 + ex;
+      rect(ex - 1, y - 28, 3, 3, '#ffffff');
+      px(ex + Math.round(Math.cos(a)), y - 27 + Math.round(Math.sin(a)), '#b55088');
+    }
+    // mind control waves from the bowl
+    if (Math.floor(t * 4) % 2) { ring(x, y - 36, 3 + Math.floor(t * 8) % 4, '#2ce8f5', y - 40); }
+  }
   drawBowl(x, y, t) {
     x = Math.round(x); y = Math.round(y);
     const step = this.p.ground && Math.abs(this.p.vx) > 5 ? Math.round(Math.sin(t * 14) * 2) : 0;
@@ -482,7 +536,7 @@ class ApartmentScene {
   drawHUD() {
     const b = this.b;
     panel(2, 2, 124, 24, { fill: '#141330', alpha: 0.9 });
-    text(this.cat ? 'PLAYING AS: THE CAT' : 'PLAYING AS: THE BOWL', 8, 6, '#f6a0c8', { font: F3 });
+    text(this.cat ? 'PLAYING AS: THE CAT' : this.sam ? 'PLAYING AS: SAM (MIND CTRL)' : 'PLAYING AS: THE BOWL', 8, 6, '#f6a0c8', { font: F3 });
     spr('brain', 0, 7, 13);
     text('IQ ' + fmt(b.iq), 17, 15, '#ffffff', { font: F3 });
     text('COINS ' + b.coins.length + '/' + APT_COINS.length, 120, 15, '#fee761', { font: F3, align: 'right' });
@@ -501,7 +555,7 @@ class ApartmentScene {
       panel(W / 2 - w / 2, 150, w, 15, { fill: '#262b44', border: '#fee761' });
       text(s, W / 2, 154, '#ffffff', { align: 'center' });
     } else if (!Input.touchSeen && this.t < 8) {
-      text(this.cat ? '← → WALK   SPACE JUMP   ↓ DROP DOWN' : '← → WALK   SPACE HOP', W / 2, 168, '#ffffff', { font: F3, align: 'center', outline: '#07060f' });
+      text(this.cat || this.sam ? '← → WALK   SPACE JUMP   ↓ DROP DOWN' : '← → WALK   SPACE HOP', W / 2, 168, '#ffffff', { font: F3, align: 'center', outline: '#07060f' });
     }
     // speech / event message
     if (this.msg) {

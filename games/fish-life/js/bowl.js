@@ -20,13 +20,13 @@ const UPGRADES = [
   { id: 'cat', name: 'HYPNOTIZE CAT', cost: 13000, pas: 100, game: 'stare', desc: 'NO MORE CAT ATTACKS. THE CAT NOW BRINGS YOU SNACKS.' },
   { id: 'lab', name: 'SECRET LAB', cost: 36000, pas: 250, desc: 'TURN THE BOWL CASTLE INTO A BUBBLING SCIENCE LAB.' },
   { id: 'wifi', name: 'HACK THE WIFI', cost: 105000, pas: 650, game: 'hack', desc: 'PUT AN ANTENNA ON THE BOWL. HELLO, INTERNET!' },
-  { id: 'laptop', name: 'BORROW LAPTOP', cost: 290000, pas: 1600, desc: 'SAM WILL NEVER NOTICE. PROBABLY.' },
+  { id: 'laptop', name: 'BORROW LAPTOP', cost: 290000, pas: 1600, desc: 'SHOP ON FISHMART RIGHT FROM YOUR BOWL. SAM WILL NEVER NOTICE.' },
   { id: 'legs', name: 'ROBOT LEGS', cost: 780000, pas: 4500, game: 'walk', desc: 'YOUR BOWL CAN WALK! THE FRIDGE IS NO LONGER SAFE.' },
   { id: 'stocks', name: 'STOCK MARKET', cost: 2.3e6, pas: 12000, desc: 'BUY LOW, SELL HIGH, SWIM FAST.' },
   { id: 'corp', name: 'FISHCORP', cost: 6.5e6, pas: 32000, desc: 'THE BIGGEST COMPANY ON EARTH. YOU ARE THE BOSS. NICE TIE.' },
-  { id: 'army', name: 'FISH ARMY', cost: 18.5e6, pas: 90000, desc: 'EVERY FISH IN THE SEA JOINS YOUR CAUSE.' },
-  { id: 'mind', name: 'MIND CONTROL', cost: 55e6, pas: 250000, desc: 'A SHINY HELMET THAT MAKES HUMANS OBEY FISH.' },
-  { id: 'robot', name: 'GIANT ROBOT', cost: 160e6, pas: 700000, desc: 'A 100 METER ROBOT SUIT... WITH A FISH BOWL FOR A HEAD.' },
+  { id: 'army', name: 'FISH ARMY', cost: 18.5e6, pas: 90000, desc: 'A SQUAD OF SOLDIER FISH JOINS YOU AND GRABS IDEAS FOR YOU.' },
+  { id: 'mind', name: 'MIND CONTROL', cost: 55e6, pas: 250000, desc: 'A HELMET THAT LETS YOU CONTROL SAM. TAKE HIM FOR A WALK!' },
+  { id: 'robot', name: 'GIANT ROBOT', cost: 160e6, pas: 700000, desc: 'YOUR BOWL BECOMES A GIANT ROBOT WITH LASERS. EXPLORE THE WORLD!' },
   { id: 'world', name: 'RULE THE WORLD', cost: 500e6, pas: 0, desc: 'THE FINAL STEP. EVERY HUMAN WILL BOW TO YOU.' },
 ];
 const ERAS = ['PET FISH', 'SMART FISH', 'GENIUS FISH', 'MASTERMIND', 'OVERLORD'];
@@ -158,12 +158,18 @@ class BowlScene {
     if (this.shop) { if (active) this.updateShop(dt); return; }
     if (this.gamesMenu) { if (active) this.updateGames(); return; }
     if (this.exploreMenu) { if (active) this.updateExplore(); return; }
+    if (this.mart && this.mart.store) { if (active) this.updateMart(dt); return; }
     if (active && (hit('pause') || touchPauseHit(W - 17, 35))) { this.pause.toggle(); return; }
     if (active && !this.sleep && (hit('menu') || this.clickedUpgradeButton())) { this.openShop(); return; }
     if (active && !this.sleep && !this.feed && this.hasGames()) {
       const [gx, gy, gw, gh] = this.gamesButtonRect();
       if (keyHit('KeyG') || clicked(gx, gy, gw, gh)) { this.openGames(); return; }
     }
+    if (active && !this.sleep && this.owned('laptop')) {
+      const [mx0, my0, mw0, mh0] = this.martButtonRect();
+      if (keyHit('KeyB') || clicked(mx0, my0, mw0, mh0)) { this.openMart(); return; }
+    }
+    if (this.checkArrest()) return;
     if (active && !this.sleep && !this.feed && this.canExplore()) {
       const [ex, ey, ew, eh] = this.exploreButtonRect();
       if (keyHit('KeyX') || clicked(ex, ey, ew, eh)) { this.openExplore(); return; }
@@ -195,6 +201,8 @@ class BowlScene {
       for (const i of this.ideas) i.y -= d;
     }
     this.updateFish(dt, active);
+    this.updateSoldiers(dt);
+    this.tickDeliveries(dt);
     this.updateFlakes(dt);
     this.updateIdeas(dt);
     if (this.feed) this.updateFeeding(dt);
@@ -233,7 +241,7 @@ class BowlScene {
       const [bx, by, bw, bh] = this.upgradeButtonRect();
       for (const pt of Input.pointers.values()) {
         if (pt.x >= bx && pt.y >= by && pt.x < bx + bw && pt.y < by + bh) continue;
-        if (this.hasGames() && pt.x < 140 && pt.y > H - 32) continue;
+        if (this.hasGames() && pt.x < 210 && pt.y > H - 32) continue;
         const dx = pt.x - this.fish.x, dy = pt.y - this.fish.y, d = Math.hypot(dx, dy);
         if (d > 3) { const s = Math.min(1, d / 20); ix = (dx / d) * s; iy = (dy / d) * s; }
         break;
@@ -304,7 +312,7 @@ class BowlScene {
       if (f.state !== 'fall') {
         const hw = this.halfW(f.y, 4);
         f.x = clamp(f.x, BOWL.cx - hw, BOWL.cx + hw);
-        if (dist(mx, my, f.x, f.y) < (f.treat ? 7 : 5)) {
+        if (dist(mx, my, f.x, f.y) < (f.treat ? 7 : 5) || this.soldierAt(f.x, f.y, 5)) {
           f.gone = true;
           const v = this.flakeValue() * (f.treat ? 5 : 1);
           this.addIQ(v);
@@ -330,7 +338,7 @@ class BowlScene {
     for (const i of this.ideas) {
       i.t += dt;
       i.life -= dt;
-      if (dist(mx, my, i.x, i.y + 1) < 8 || dist(this.fish.x, this.fish.y, i.x, i.y + 1) < 7) {
+      if (dist(mx, my, i.x, i.y + 1) < 8 || dist(this.fish.x, this.fish.y, i.x, i.y + 1) < 7 || this.soldierAt(i.x, i.y + 1, 7)) {
         i.gone = true;
         const v = this.ideaValue(i.gold);
         this.addIQ(v);
@@ -370,6 +378,8 @@ class BowlScene {
     } else if (f.phase === 'out' && f.t > 1.1) this.feed = null;
   }
   samLine(i) {
+    if (this.b.samJailed) return pick(['MEOW. (SAM IS IN JAIL. I WILL FEED YOU, MASTER.)', 'MEOW MEOW. (DINNER IS SERVED.)', 'MRRROW. (I DID NOT EAT ANY. PROMISE.)']);
+    if (this.b.samBack && this.owned('lips')) { this.b.samBack = false; return "I'M BACK FROM JAIL. THE JUDGE DID NOT BELIEVE THAT MY FISH ORDERED A JETPACK."; }
     const lips = this.owned('lips');
     let s = lips ? SAM_LINES[Math.min(this.era, SAM_LINES.length - 1)][i] : pick(GIBBERISH);
     const debt = this.b.debt || 0;
@@ -411,12 +421,15 @@ class BowlScene {
       b.min = DAY_START;
       b.fed = [false, false, false, false, false];
       this.flakes = [];
+      if (b.samJailed) { b.samJailed = false; b.debt = 0; b.samBack = true; s.released = true; }
       saveGame();
     }
     if (s.t > 5.2) {
       this.sleep = null;
       Sound.play('bowl');
-      this.banner = { title: 'DAY ' + this.b.day, sub: 'WHILE YOU SLEPT, YOU DREAMED UP {+' + fmt(this.sleepGain || 0) + ' IQ}', t: 3, style: 'aqua' };
+      this.banner = s.released
+        ? { title: 'SAM IS BACK!', sub: "MOM PAID OFF THE DEBT. SAM IS GROUNDED. FOREVER.", t: 3.5, style: 'green' }
+        : { title: 'DAY ' + this.b.day, sub: 'WHILE YOU SLEPT, YOU DREAMED UP {+' + fmt(this.sleepGain || 0) + ' IQ}', t: 3, style: 'aqua' };
     }
     this.sleepGain = s.gain;
   }
@@ -556,38 +569,114 @@ class BowlScene {
   gamesButtonRect() { return [4, H - 30, 64, 20]; }
   canExplore() { return this.owned('cat') || this.owned('legs'); }
   exploreButtonRect() { return [72, H - 30, 64, 20]; }
+  exploreOptions() {
+    const o = [];
+    if (this.owned('cat')) o.push({ who: 'cat', label: 'AS THE HYPNOTIZED CAT' });
+    if (this.owned('legs')) o.push({ who: 'bowl', label: 'AS YOUR WALKING BOWL' });
+    if (this.owned('mind')) o.push({ who: 'sam', label: this.b.samJailed ? 'AS SAM (SAM IS IN JAIL!)' : 'AS SAM (MIND CONTROL)', off: this.b.samJailed });
+    if (this.owned('robot')) o.push({ who: 'robot', label: 'AS THE GIANT ROBOT!' });
+    return o;
+  }
   openExplore() {
-    const opts = [];
-    if (this.owned('cat')) opts.push('cat');
-    if (this.owned('legs')) opts.push('bowl');
-    if (opts.length === 1) { this.startExplore(opts[0]); return; }
-    this.exploreMenu = { sel: 0, opts };
+    const opts = this.exploreOptions();
+    if (opts.length === 1) { this.startExplore(opts[0].who); return; }
+    this.exploreMenu = { sel: opts.length - 1, opts };
     Sound.sfx('ok');
   }
   startExplore(who) {
+    const opt = this.exploreOptions().find(o => o.who === who);
+    if (opt && opt.off) { Sound.sfx('no'); return; }
     this.exploreMenu = null;
     saveGame();
     Sound.sfx('ok');
-    Game.go(() => new ApartmentScene(this, who));
+    Game.go(() => (who === 'robot' ? new RobotScene(this) : new ApartmentScene(this, who)));
   }
   updateExplore() {
     const m = this.exploreMenu, n = m.opts.length;
-    if (hit('up') || hit('down')) { m.sel = (m.sel + 1) % n; Sound.sfx('move'); }
-    for (let i = 0; i < n; i++) if (clicked(84, 70 + i * 16, 152, 14)) { this.startExplore(m.opts[i]); return; }
-    if (hit('ok')) { this.startExplore(m.opts[m.sel]); return; }
-    if (hit('back') || keyHit('KeyX') || (Input.mhit && !hover(76, 48, 168, 72))) { this.exploreMenu = null; Sound.sfx('back'); }
+    if (hit('up')) { m.sel = (m.sel + n - 1) % n; Sound.sfx('move'); }
+    if (hit('down')) { m.sel = (m.sel + 1) % n; Sound.sfx('move'); }
+    for (let i = 0; i < n; i++) if (clicked(70, 70 + i * 16, 180, 14)) { this.startExplore(m.opts[i].who); return; }
+    if (hit('ok')) { this.startExplore(m.opts[m.sel].who); return; }
+    if (hit('back') || keyHit('KeyX') || (Input.mhit && !hover(64, 48, 192, 30 + n * 16))) { this.exploreMenu = null; Sound.sfx('back'); }
   }
   drawExplore() {
     const m = this.exploreMenu;
     gfx.globalAlpha = 0.6; rect(0, 0, W, H, '#07060f'); gfx.globalAlpha = 1;
-    panel(76, 48, 168, 64, { fill: '#141330' });
-    text('EXPLORE THE APARTMENT', W / 2, 54, '#fee761', { align: 'center' });
+    panel(64, 48, 192, 30 + m.opts.length * 16, { fill: '#141330' });
+    text('GO EXPLORING', W / 2, 54, '#fee761', { align: 'center' });
     m.opts.forEach((o, i) => {
       const y = 70 + i * 16, sel = i === m.sel;
-      if (sel) rect(82, y - 3, 156, 14, '#262b44');
-      text((sel ? '▶ ' : '  ') + (o === 'cat' ? 'AS THE HYPNOTIZED CAT' : 'AS YOUR WALKING BOWL'), 88, y, sel ? '#ffffff' : '#c0cbdc');
+      if (sel) rect(70, y - 3, 180, 14, '#262b44');
+      text((sel ? '▶ ' : '  ') + o.label, 76, y, o.off ? '#5a6988' : sel ? '#ffffff' : '#c0cbdc');
     });
   }
+
+  /* ------------------------------------------------- jail & laptop */
+  // Too much debt on Sam's card? The police come for Sam.
+  checkArrest() {
+    const b = this.b;
+    if (b.samJailed || (b.debt || 0) < 10000 || this.feed || this.sleep || this.ending) return false;
+    saveGame();
+    Game.go(() => new ArrestScene(this));
+    return true;
+  }
+  // With the laptop you can shop on FishMart right from the bowl.
+  openMart() {
+    this.mart = this.mart || { b: this.b, orders: [], packages: [], floaters: this.floaters, store: null };
+    this.mart.b = this.b;
+    ApartmentScene.prototype.openStore.call(this.mart);
+  }
+  updateMart(dt) {
+    const m = this.mart;
+    if (m.store) { m.store.flash = Math.max(0, m.store.flash - dt); ApartmentScene.prototype.updateStore.call(m); }
+  }
+  tickDeliveries(dt) {
+    const m = this.mart;
+    if (!m || !m.orders.length) return;
+    for (const o of m.orders) {
+      o.t -= dt;
+      if (o.t <= 0) {
+        applyItem(this.b, o.id);
+        const it = SHOP_ITEMS.find(i => i.id === o.id);
+        Sound.sfx('upgrade');
+        this.floaters.add('DRONE DELIVERY: ' + it.name + '!', BOWL.cx, this.waterTop() - 20, '#fee761', { life: 2.2 });
+        if (o.id === 'fireworks') { this.b.fireworks = 0; this.fireworksT = 8; }
+        if (o.id === 'cake') { this.b.party = 0; this.partyT = 10; }
+      }
+    }
+    const n = m.orders.length;
+    m.orders = m.orders.filter(o => o.t > 0);
+    if (m.orders.length !== n) saveGame();
+  }
+  martButtonRect() { return [140, H - 30, 64, 20]; }
+
+  /* ------------------------------------------------------ fish army */
+  updateSoldiers(dt) {
+    if (!this.owned('army')) return;
+    const f = this.fish;
+    if (!this.soldiers) this.soldiers = [[-13, -7], [-13, 7], [-24, -12], [-24, 0], [-24, 12], [-35, 0]].map(([ox, oy], i) => ({ ox, oy, x: f.x, y: f.y, face: 1, i }));
+    for (const s of this.soldiers) {
+      const tx = f.x + s.ox * f.facing, ty = f.y + s.oy + Math.sin(this.t * 3 + s.i) * 1.5;
+      const nx = approach(s.x, tx, 70 * dt), ny = approach(s.y, ty, 70 * dt);
+      if (Math.abs(nx - s.x) > 0.3) s.face = nx > s.x ? 1 : -1;
+      s.x = nx; s.y = clamp(ny, this.waterTop() + 4, this.gravelTop() - 4);
+      const hw = this.halfW(s.y, 8);
+      s.x = clamp(s.x, BOWL.cx - hw, BOWL.cx + hw);
+    }
+  }
+  soldierAt(x, y, r) {
+    if (!this.soldiers || !this.owned('army')) return false;
+    return this.soldiers.some(s => dist(s.x, s.y, x, y) < r);
+  }
+  drawSoldiers() {
+    if (!this.soldiers || !this.owned('army')) return;
+    for (const s of this.soldiers) {
+      sprC('bluefish', Math.floor(this.t * 6 + s.i) % 2, s.x, s.y, s.face < 0);
+      rect(Math.round(s.x) - 2 + s.face, Math.round(s.y) - 5, 5, 2, '#5a6988');
+      px(Math.round(s.x) + s.face * 5, Math.round(s.y) - 1, '#3a4466');
+    }
+  }
+
   // Fireworks and cake parties ordered from FishMart.
   drawCelebration() {
     if (this.fireworksT > 0) {
@@ -650,7 +739,8 @@ class BowlScene {
     const latest = [...UPGRADES].reverse().find(u => this.owned(u.id) && NEWS[u.id]);
     let s = latest && Math.random() < 0.5 ? pick(NEWS[latest.id]) : pool.length ? pick(pool) : '';
     const debt = this.b.debt || 0;
-    if (debt >= 1000 && Math.random() < 0.35) s = pick(['LOCAL KID OWES FISHMART ' + usd(debt) + '. "I NEVER ORDERED A JETPACK!"', 'FISHMART REPORTS RECORD SALES TO ONE (1) APARTMENT.', 'BANKS WARN: KEEP YOUR CREDIT CARD AWAY FROM CATS.']);
+    if (this.b.samJailed && Math.random() < 0.6) s = 'KID ARRESTED OVER ' + usd(this.b.jailDebt || 10000) + ' FISHMART BILL. BLAMES HIS FISH.';
+    else if (debt >= 1000 && Math.random() < 0.35) s = pick(['LOCAL KID OWES FISHMART ' + usd(debt) + '. "I NEVER ORDERED A JETPACK!"', 'FISHMART REPORTS RECORD SALES TO ONE (1) APARTMENT.', 'BANKS WARN: KEEP YOUR CREDIT CARD AWAY FROM CATS.']);
     return ('BREAKING NEWS: ' + s).split('{NAME}').join(GS.fishName);
   }
 
@@ -828,6 +918,7 @@ class BowlScene {
     if (this.shop) this.drawShop();
     if (this.gamesMenu) this.drawGames();
     if (this.exploreMenu) this.drawExplore();
+    if (this.mart && this.mart.store) ApartmentScene.prototype.drawStore.call(this.mart);
     if (this.tutorial) this.dlg.draw('bottom');
     if (this.pause.open) this.pause.draw();
   }
@@ -1053,7 +1144,8 @@ class BowlScene {
       if (glow) { gfx.globalAlpha = 0.35; disc(i.x, i.y + bob, 6, i.gold ? '#fee761' : '#fff6c9'); gfx.globalAlpha = 1; }
       spr(i.gold ? 'bulbGold' : 'bulb', 0, Math.round(i.x - 2), Math.round(i.y - 4 + bob));
     }
-    // the fish (you!)
+    // the fish (you!) and your army
+    this.drawSoldiers();
     this.drawFish();
     // water surface line
     const shw = Math.floor(this.halfW(wt, 2));
@@ -1266,6 +1358,17 @@ class BowlScene {
     if (f.phase === 'out') k = 1 - easeIn(clamp(f.t / 1.1, 0, 1));
     const shake = f.phase === 'shake' ? Math.round(Math.sin(f.t * 28) * 2) : 0;
     const hx = Math.round(lerp(W + 40, BOWL.cx + 34, k)), hy = Math.round(lerp(-30, this.waterTop() - 44, k)) + shake;
+    if (this.b.samJailed) {
+      // the hypnotized cat does the feeding today
+      thickLine(hx + 10, hy - 4, W + 30, -40, 7, '#5a6988');
+      thickLine(hx + 10, hy - 4, W + 30, -40, 6, '#8b9bb4');
+      for (let i = 1; i < 6; i++) thickLine(hx + 10 + i * 9, hy - 4 - i * 6, hx + 14 + i * 9, hy - 2 - i * 6, 0.5, '#5a6988');
+      rect(hx - 20, hy - 4, 22, 11, '#124e89'); rect(hx - 20, hy - 1, 22, 5, '#fee761');
+      text('FOOD', hx - 17, hy, '#e43b44', { font: F3 });
+      disc(hx + 6, hy + 1, 7, '#c0cbdc');
+      for (let i = -3; i <= 3; i += 3) px(hx + 6 + i, hy + 7, '#f6757a');
+      return;
+    }
     // arm from the top right corner
     thickLine(hx + 10, hy - 4, W + 30, -40, 7, '#c28569');
     thickLine(hx + 10, hy - 4, W + 30, -40, 6, '#e8b796');
@@ -1291,7 +1394,7 @@ class BowlScene {
     px(x + w - 17, y + h, '#3e2731');
     let ly = y + 5;
     for (const l of s.lines) { text(l, x + 7, ly, this.owned('lips') ? '#262b44' : '#8b9bb4'); ly += 10; }
-    text('SAM', x + 4, y - 7, '#ffffff', { font: F3, outline: '#3e2731' });
+    text(this.b.samJailed ? 'THE CAT' : 'SAM', x + 4, y - 7, '#ffffff', { font: F3, outline: '#3e2731' });
   }
 
   drawHUD() {
@@ -1351,6 +1454,13 @@ class BowlScene {
       panel(ex, ey, ew, eh, { fill: '#265c42', border: Math.floor(this.t * 2) % 2 ? '#b4f08c' : '#8b9bb4', alpha: 0.92 });
       text('EXPLORE', ex + 6, ey + 4, '#ffffff', { font: F3 });
       text(Input.touchSeen ? 'TAP' : 'X KEY', ex + 6, ey + 11, '#b4f08c', { font: F3 });
+    }
+    // laptop shop button
+    if (this.owned('laptop')) {
+      const [bx0, by0, bw0, bh0] = this.martButtonRect();
+      panel(bx0, by0, bw0, bh0, { fill: '#124e89', border: '#8b9bb4', alpha: 0.92 });
+      text('FISHMART', bx0 + 6, by0 + 4, '#ffffff', { font: F3 });
+      text(Input.touchSeen ? 'TAP' : 'B KEY', bx0 + 6, by0 + 11, '#9fe8f5', { font: F3 });
     }
     // disco ball
     if (this.item('disco')) {

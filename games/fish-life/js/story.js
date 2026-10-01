@@ -98,7 +98,7 @@ const STORIES = {
 };
 
 // Shots where the action happens low on screen show dialogue at the top.
-const DIALOG_TOP = { boat: true, shop: true, room: true, night: true, march: true, city: true, throne: true };
+const DIALOG_TOP = { boat: true, shop: true, room: true, night: true, march: true, city: true, throne: true, arrest: true };
 
 const FISH_NAMES = ['BUBBLES', 'FINN', 'GOLDIE', 'SPLASH', 'NUGGET', 'CAPTAIN', 'PICKLE', 'MR BLUB', 'SUNNY', 'NEMO JR', 'SQUISHY', 'BISCUIT', 'WALLY', 'TANGO'];
 
@@ -676,5 +676,75 @@ class StoryScene {
     panel(W / 2 + 6, 102, 56, 16, { fill: '#3e8948' });
     text('OK', W / 2 + 34, 107, '#ffffff', { align: 'center' });
     text('TAB = RANDOM   ENTER = OK', W / 2, 128, '#c0cbdc', { align: 'center', font: F3, outline: '#07060f' });
+  }
+}
+
+/* ------------------------------------------------------------ arrest */
+// Sam's credit card bill got way out of hand...
+STORIES.arrest = [
+  { shot: 'arrest', music: 'danger' },
+  { say: ['', 'DING DONG! SOMEBODY IS AT THE DOOR...'] },
+  { do: 'copEnters', wait: 2.4 },
+  { say: ['POLICE', 'SAM? YOU OWE FISHMART {$DEBT}. YOU ARE UNDER ARREST!'] },
+  { say: ['SAM', "IT WASN'T ME! IT WAS MY FISH! THE FISH ORDERED A JETPACK!"] },
+  { say: ['POLICE', 'SURE, KID. AND I AM A GOLDFISH. COME WITH ME.'] },
+  { do: 'cuff', wait: 3 },
+  { say: ['', 'SAM WAS TAKEN TO JAIL FOR THE NIGHT. THE HYPNOTIZED CAT WILL HAVE TO FEED YOU.'] },
+  { say: ['YOU', '...OOPS.'] },
+  { end: 'bowl' },
+];
+
+class ArrestScene extends StoryScene {
+  constructor(bowl) {
+    const debt = bowl.b.debt || 0;
+    // fill the bill into a fresh copy of the script (Sam can be arrested again)
+    STORIES.arrestLive = STORIES.arrest.map(s => (s.say ? { say: [s.say[0], s.say[1].replace('$DEBT', usd(debt))] } : s));
+    super('arrestLive');
+    this.bowl = bowl;
+    this.debt = debt;
+  }
+  enter() { Sound.play('danger'); Sound.sfx('knock'); }
+  setShot(s) {
+    super.setShot(s);
+    Object.assign(this.st, { copX: -20, copTarget: -20, samX: 200, cuffed: false, leaveT: 0 });
+  }
+  action(a) {
+    const st = this.st;
+    if (a === 'copEnters') { st.copTarget = 168; Sound.sfx('sting'); }
+    else if (a === 'cuff') { st.cuffed = true; Sound.sfx('pinch'); }
+    else super.action(a);
+  }
+  updateShot(dt) {
+    const st = this.st;
+    st.copX = approach(st.copX, st.copTarget, 50 * dt);
+    if (st.cuffed) { st.leaveT += dt; if (st.leaveT > 0.8) { st.copTarget = -60; st.copX -= 45 * dt; st.samX -= 45 * dt; } }
+  }
+  finishSkip() { this.finish(); }
+  finish() {
+    const b = this.bowl.b;
+    b.samJailed = true;
+    b.jailDebt = this.debt;
+    b.arrests = (b.arrests || 0) + 1;
+    saveGame();
+    Game.go(() => this.bowl);
+  }
+  drawShot() {
+    if (this.shot !== 'arrest') return super.drawShot();
+    const t = this.shotT, st = this.st;
+    blit(this.drawRoomBg(false), 0, 0);
+    // police lights flashing through the window
+    const red = Math.floor(t * 4) % 2;
+    gfx.globalAlpha = 0.35;
+    rect(31, 27, 58, 54, red ? '#e43b44' : '#124e89');
+    gfx.globalAlpha = 0.12;
+    rect(0, 0, W, H, red ? '#e43b44' : '#0099db');
+    gfx.globalAlpha = 1;
+    this.drawBowl(240, 124, 1, true, t);
+    const walking = st.cuffed && st.leaveT > 0.8;
+    drawSam(Math.round(st.samX), 162, walking ? 'walk' : st.copX > 150 && !st.cuffed ? 'stand' : 'stand', Math.floor(t * 6), st.cuffed);
+    if (st.copX > -15) drawSam(Math.round(st.copX), 162, Math.abs(st.copX - st.copTarget) > 1 || walking ? 'walk' : 'stand', Math.floor(t * 6), st.cuffed, 'police');
+    if (st.cuffed) { rect(Math.round(st.samX) - 4, 147, 3, 2, '#c0cbdc'); rect(Math.round(st.samX) + 2, 147, 3, 2, '#c0cbdc'); }
+    if (!st.cuffed && st.copX > 150 && Math.floor(t * 3) % 2) text('!', Math.round(st.samX) + 2, 122, '#ff5a5a', { outline: '#07060f' });
+    text('SAM OWES: ' + usd(this.debt), 6, 170, '#ff8f7a', { font: F3, outline: '#07060f' });
   }
 }

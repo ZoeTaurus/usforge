@@ -817,6 +817,7 @@ const VOICES = {
   YOU: { f: 900, type: 'triangle' },
   FISHERMAN: { f: 180, type: 'square' },
   NEWS: { f: 400, type: 'square' },
+  POLICE: { f: 260, type: 'square' },
 };
 class DialogBox {
   constructor() {

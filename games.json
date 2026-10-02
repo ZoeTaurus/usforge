@@ -1,5 +1,21 @@
 [
   {
+    "slug": "lab-madness",
+    "title": "Lab Madness",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "Escape the mad scientist lab and take over the multiverse.",
+    "cover": null,
+    "pixel": true,
+    "url": null,
+    "genres": [],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790943379
+  },
+  {
     "slug": "noodle-soup-chaos",
     "title": "Noodle soup chaos",
     "author": "Alex",

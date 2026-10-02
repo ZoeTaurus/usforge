@@ -52,10 +52,11 @@
       "Simulation"
     ],
     "dev": true,
-    "progress": 70,
+    "progress": 75,
     "next": "Beautifying",
     "build": true,
-    "added": 1790877471
+    "added": 1790877471,
+    "updated": 1790927944
   },
   {
     "slug": "skyline-dash",

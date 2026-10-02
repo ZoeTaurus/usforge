@@ -28,6 +28,12 @@ AQ.Behaviors = (function () {
   H.brake = function (c, dt, k = 4) { c.vx *= Math.exp(-k * dt); c.vy *= Math.exp(-k * dt); H.integrate(c, dt); };
   H.integrate = function (c, dt) {
     const W = AQ.World;
+    // a water creature that ended up in the air (after a leap, a knock, a respawn) falls back in
+    if (!c.allowAir && W.air(c.x, c.y)) {
+      c.vy = Math.max(c.vy, 0) + 260 * dt; c.y += c.vy * dt; c.x += c.vx * dt * 0.5;
+      if (W.solid(c.x, c.y)) c.y -= c.vy * dt;
+      return;
+    }
     const nx = c.x + c.vx * dt, ny = c.y + c.vy * dt;
     const okWater = (x, y) => W.open(x, y) && (c.allowAir || !W.air(x, y));
     if (okWater(nx, ny)) { c.x = nx; c.y = ny; }
@@ -63,7 +69,7 @@ AQ.Behaviors = (function () {
     H.crawlStep(c, c.dir * speed * dt, radius);
   };
   H.crawlStep = function (c, dx, radius = 9999) {
-    const W = AQ.World, half = c.r * 0.6;
+    const W = AQ.World, half = c.foot || c.r * 0.6;
     const nx = c.x + dx;
     if (Math.abs(nx - c.hx) > radius) { c.dir = -Math.sign(nx - c.hx); return false; }
     const g = W.groundBelow(nx, c.y - 6, 16);
@@ -305,7 +311,9 @@ AQ.Behaviors = (function () {
       const fleeing = s.fleeT > 0;
       const speed = (fleeing ? p.fleeSpeed || 75 : (p.speed || 22) * 1.5) * (c.straggler ? 0.75 : 1);
       if (c.leapT > 0) {
+        // leap: a short arc out of the water; it only ends once the fish is back in the water
         c.leapT -= dt; c.allowAir = true; c.vy += 220 * dt; H.integrate(c, dt);
+        if (c.leapT <= 0 && !AQ.World.water(c.x, c.y)) c.leapT = 0.05;
         if (c.leapT <= 0) c.allowAir = false;
       } else H.swimTo(c, tx, ty, speed, dt, 4);
       if (p.leap && c.y < AQ.World.sea + 10 && !fleeing && R.chance(dt * 0.15)) { c.leapT = 0.7; c.vy = -95; c.vx = c.facing * 40; }
@@ -551,7 +559,7 @@ AQ.Behaviors = (function () {
       const side = R.chance(0.5) ? -1 : 1;
       c.ax = c.anchor.x + side * (c.anchor.w / 2 + 4);
       const g = AQ.World.groundBelow(c.ax, c.anchor.surface - 14, 30);
-      c.ay = (g === null ? c.anchor.surface : g) - c.r * 0.6;
+      c.ay = (g === null ? c.anchor.surface : g) - (c.foot || c.r * 0.6);
       if (snap) { c.x = c.hx = c.ax; c.y = c.hy = c.ay; }
     },
     update(c, ctx, dt) {

@@ -37,12 +37,17 @@ AQ.Player = (function () {
     const ax = this.stun > 0 ? { x: 0, y: 0 } : input.axis();
     const hasInput = ax.x !== 0 || ax.y !== 0;
     const mult = 1 + (this.speedLevel - 1) * T.boostPerLevel;
+    // one-way platforms (ladder tops in side scenes) hold you only while you're not rising or climbing
+    if (world.ladderAt) world.oneWayOn = !this.climbing && this.vy >= -1;
     const grounded = this.vy >= -1 && world.boxHits(this.x, this.y + 1.5, hb.w / 2, hb.h / 2);
     // deep enough to submerge your chest -> swim; shallow puddles are just splashed through
     const submerged = world.water(this.x, this.y - (Wk.swimDepth - hb.h / 2)) || (world.water(this.x, this.y) && !grounded);
     this.mode = submerged ? 'swim' : grounded ? 'walk' : 'air';
     this.inAir = !world.water(this.x, this.y);
-    const jumpKey = this.stun <= 0 && input.wasPressed('KeyW', 'ArrowUp');
+    const jumpKey = this.stun <= 0 && input.wasPressed('Space', 'KeyW', 'ArrowUp');
+
+    // ladders (only side scenes have them): up/down on a ladder climbs, Space hops off
+    if (world.ladderAt && this.stun <= 0 && this.climbStep(dt, world, input, ax, grounded)) return;
 
     if (this.mode === 'swim') {
       const accel = T.accel * mult * (this.sneaking ? 0.6 : 1);
@@ -53,7 +58,7 @@ AQ.Player = (function () {
       // gentle surface buoyancy so the diver bobs instead of jittering at the waterline
       if (nearSurface && !hasInput) this.vy += 30 * dt;
       // hop out of a pool / onto the shore when there's ground beside you
-      if (nearSurface && ax.y < 0 && (world.solid(this.x + 10 * (ax.x || this.facing), this.y - 2) || world.solid(this.x + 10 * (ax.x || this.facing), this.y + 2))) {
+      if (nearSurface && (ax.y < 0 || input.isDown('Space')) && (world.solid(this.x + 10 * (ax.x || this.facing), this.y - 2) || world.solid(this.x + 10 * (ax.x || this.facing), this.y + 2))) {
         this.vy = -Wk.jump * 0.85; this.vx += (ax.x || this.facing) * 20;
       }
       const max = this.maxSpeed(), sp = Math.hypot(this.vx, this.vy);
@@ -73,7 +78,12 @@ AQ.Player = (function () {
       }
     }
 
-    if (ax.x) this.facing = ax.x > 0 ? 1 : -1;
+    // face the way you're actually moving (input only decides when nearly still); a net swing keeps its aim
+    const netOut = AQ.Catching && AQ.Catching.armOut();
+    if (!netOut) {
+      if (Math.abs(this.vx) > 8) this.facing = this.vx > 0 ? 1 : -1;
+      else if (ax.x) this.facing = ax.x > 0 ? 1 : -1;
+    }
     if (hasInput) { this.aimX = ax.x; this.aimY = this.mode === 'swim' ? ax.y : 0; }
 
     this.move(world, this.vx * dt, this.vy * dt);
@@ -83,7 +93,6 @@ AQ.Player = (function () {
     }
 
     const sp = this.speed();
-    const netOut = AQ.Catching && AQ.Catching.armOut();
     if (this.mode === 'swim') this.anim = netOut ? 'net' : sp > 18 ? 'swim' : 'idle';
     else if (netOut) this.anim = 'standnet';
     else if (this.mode === 'walk') this.anim = Math.abs(this.vx) > 6 ? 'walk' : 'stand';
@@ -93,6 +102,34 @@ AQ.Player = (function () {
       this.bubbleT = U.R.range(0.6, 1.6);
       AQ.FX && AQ.FX.bubble(this.x + this.facing * 7, this.y - 3);
     }
+  };
+
+  // Returns true while climbing (the normal walk/swim update is skipped that frame).
+  Player.prototype.climbStep = function (dt, world, input, ax, grounded) {
+    const hb = AQ.TUNING.swim.hitbox, feet = this.y + hb.h / 2;
+    if (!this.climbing) {
+      const body = world.ladderAt(this.x, this.y), below = world.ladderAt(this.x, feet + 3);
+      if (ax.y < 0 && body && feet > body.top + 1) this.climbing = body;
+      else if (ax.y > 0 && below && grounded && feet < below.bottom - 2) this.climbing = below;
+      if (!this.climbing) return false;
+    }
+    const L = this.climbing;
+    world.oneWayOn = false;
+    this.mode = 'climb'; this.vx = 0;
+    this.x += (L.x - this.x) * Math.min(1, dt * 12);
+    if (input.wasPressed('Space')) {                       // hop off
+      this.climbing = null; this.vy = -AQ.TUNING.walk.jump * 0.6; this.mode = 'air';
+      return false;
+    }
+    this.vy = ax.y * AQ.TUNING.climb.speed;
+    this.climbT = (this.climbT || 0) + dt * Math.abs(ax.y);
+    this.move(world, 0, this.vy * dt);
+    const nf = this.y + hb.h / 2;
+    if (ax.y < 0 && nf <= L.top) { this.y = L.top - hb.h / 2 - 0.01; this.vy = 0; this.climbing = null; }   // step out onto the floor above
+    else if (ax.y > 0 && nf >= L.bottom - 1) { this.vy = 0; this.climbing = null; }                          // feet on the floor below
+    else if (ax.x && !ax.y && nf >= L.bottom - 3) this.climbing = null;                                       // walk off at the bottom
+    this.anim = 'climb';
+    return true;
   };
 
   Player.prototype.move = function (world, dx, dy) {
@@ -119,7 +156,7 @@ AQ.Player = (function () {
 
   Player.prototype.draw = function (ctx) {
     const blink = this.stun > 0 && Math.floor(this.t * 20) % 2;
-    AQ.Assets.draw(ctx, 'player', this.anim, this.x, this.y, { t: this.t, flip: this.facing < 0, alpha: blink ? 0.5 : 1 });
+    AQ.Assets.draw(ctx, 'player', this.anim, this.x, this.y, { t: this.anim === 'climb' ? this.climbT || 0 : this.t, flip: this.facing < 0, alpha: blink ? 0.5 : 1 });
   };
 
   return Player;
@@ -128,7 +165,7 @@ AQ.Player = (function () {
 AQ.Camera = (function () {
   const U = AQ.U;
   const cam = { x: 0, y: 0, w: 320, h: 180 };
-  cam.snap = function (p) { cam.x = p.x; cam.y = p.y; cam.clamp(); };
+  cam.snap = function (p, world) { cam.x = p.x; cam.y = p.y; cam.clamp(world); };
   cam.update = function (dt, p, world) {
     const C = AQ.TUNING.camera;
     const lx = U.clamp(p.vx * C.lookahead, -C.maxLookahead, C.maxLookahead);

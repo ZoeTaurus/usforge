@@ -2,13 +2,13 @@
   "title": "Aquadise",
   "author": "Henrique",
   "owner": "Henrique",
-  "blurb": "The chill aquarium fishing game.",
+  "blurb": "The beautiful chill aquarium fishing game.",
   "genres": [
     "Casual",
     "Open world",
     "Simulation"
   ],
   "dev": true,
-  "progress": 75,
+  "progress": 85,
   "next": "Beautifying"
 }

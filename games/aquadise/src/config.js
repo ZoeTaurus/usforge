@@ -73,7 +73,8 @@ AQ.TUNING = {
     plantTarget: 3,           // plants for a full "plants" score
     comfortable: 8,           // creatures before the tank starts to feel crowded
     crowdedFloor: 0.5,        // "space" score when the tank is completely full (never lower)
-    stressPenalty: 0.6,       // how much a fully stressed tank lowers "calm" (gentle on purpose)
+    stressPenalty: 0.6,       // how much a fully nervous tank lowers "calm" (gentle on purpose)
+    nervousAbove: 10,         // more creatures than this in one tank -> the smallest few feel a bit nervous
     fedFreshMinutes: 20,      // real minutes a feeding counts as "fed"...
     fedFadeMinutes: 40,       // ...then fades to hungry over this many minutes (they never starve)
     recomputeEvery: 0.5,      // seconds between vibe updates while watching a tank
@@ -133,6 +134,25 @@ AQ.TUNING = {
   },
 
   climb: { speed: 42 },
+
+  // Breeding in the tanks (optional, never needed for anything). Calm and slow on purpose.
+  // A ♂ + ♀ of the same species living in a tank court, then an egg (or a baby) appears.
+  breeding: {
+    enabled: true,
+    minStars: 3,              // tank vibe needed before anyone courts
+    fedLevel: 0.5,            // "fed recently" (1 = just fed; it fades over aquarium.fedFadeMinutes)
+    startChance: 0.3,         // each check, chance a ready pair starts courting
+    courtMinutes: 2,          // real minutes of courting before an egg / baby
+    eggMinutes: 4,            // real minutes from egg to baby (egg-laying species)
+    cooldownMinutes: 20,      // real minutes a tank rests after a new arrival
+    growMinutes: 30,          // real minutes for a baby to grow up
+    checkSeconds: 5           // how often all tanks are checked (cheap; runs anywhere in the game)
+  },
+
+  sexes: {
+    missingBias: 0.25         // once you have one sex of a species, the other spawns this much more often
+                              // (0.25 -> 75% chance; 0 = always 50/50)
+  },
 
   station: {                  // the aquarium building in space
     zoomedOutByDefault: false, // OPTIONAL view: true starts zoomed out to see the whole building (all tanks)

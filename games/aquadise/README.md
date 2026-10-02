@@ -52,7 +52,7 @@ Click a creature for its info card. Hover the stars for what's helping and what'
   shore and only swim once the water is deep enough to submerge you. Shallow pools are splashed
   through and deep ones can be swum in. Tap a pool with the net to try for a Glasswinged Minnow.
 - **The sunken ship** in the Sunken Ruins has a door at the bow, a cabin door and two hatches.
-  Swim up to one and press **E** to open or close it (doors are listed in `data/world.js` `doors`).
+  They open by themselves as you swim up and close behind you (listed in `data/world.js` `doors`).
 - **No fail state.** Hostile creatures only knock you back. Air is unlimited.
 - **Progression** comes only from chests: a bigger net (3 levels) and faster swimming (3 levels).
   Six chests exist at a time, and they despawn and respawn around the world.
@@ -66,6 +66,20 @@ Click a creature for its info card. Hover the stars for what's helping and what'
   The hill and the building are their own scenes and never appear on the world map. The game
   saves which scene you're in. Caught creatures still go straight to their tank. (The old Tab
   shortcut is a test-only setting: `AQ.TUNING.debug.tabOpensAquarium`, off by default.)
+- **Predator wing.** The building's 4th floor holds 5 predator tanks (Reef, Open-Water, Deep, Cave
+  and Swamp Hunters). Every creature marked `predator` lives there instead of in its biome's tank;
+  the grouping is data in `data/aquarium.js` (`predatorTanks`). Each floor has 5 tank slots
+  (`data/scenes.js`); unused slots stay dark. Old saves move predators over automatically.
+  Creatures only get nervous when a tank is crowded (more than `aquarium.nervousAbove`).
+- **Sexes.** Every animal is ♂ or ♀ (plants have none; `sexes: 'none'` in data/creatures.js
+  opts a species out). Males have a small cyan marking. The log tracks both: a species is
+  *discovered* when you catch either sex and *complete* with both. Once you have one sex, the other
+  spawns more often (`sexes.missingBias`).
+- **Breeding (optional).** A ♂ and ♀ of the same species living in one tank may court (they swim
+  together with hearts) when the tank has at least `breeding.minStars`, was fed recently, nobody
+  is nervous and there's room. Then an egg appears (a baby for mammals) and later hatches; babies
+  grow up over `breeding.growMinutes`. It all runs on real time, wherever you are in the game. The
+  log marks species you've bred with a ♥. Nothing requires it.
 - **Aquarium.** One tank per biome, and a creature can only live in its own biome's tank.
   Nothing ever dies and nothing is punished:
   - **Tank vibe (0-5 stars):** decor variety and amount, biome-themed pieces, plants, being fed

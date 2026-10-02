@@ -385,46 +385,6 @@ function propLair(g, p) {
 
 /* ------------------------------------------------------- woodland props */
 
-function propLog(g, p) {
-  const R = mulberry32(p.seed);
-  const l = p.len, w = p.w;
-  const drift = p.type === 'drift';
-  const bark = drift ? ['#b8b0a2', '#e2dccf', '#6e675c'] : ['#5a4030', '#8e6a50', '#241810'];
-  g.save();
-  g.translate(p.x, p.y);
-  const so = rotV(5, 7, -p.rot);
-  g.rotate(p.rot);
-  g.save(); g.translate(so[0], so[1]); roundRectPath(g, -l / 2, -w / 2, l, w, w / 2); g.fillStyle = 'rgba(15,12,4,0.3)'; g.fill(); g.restore();
-  roundRectPath(g, -l / 2, -w / 2, l, w, w / 2);
-  const lg = g.createLinearGradient(0, -w / 2, 0, w / 2);
-  lg.addColorStop(0, bark[1]); lg.addColorStop(0.45, bark[0]); lg.addColorStop(1, bark[2]);
-  g.fillStyle = lg; g.fill();
-  g.save(); g.clip();
-  g.strokeStyle = drift ? 'rgba(90,85,75,0.35)' : 'rgba(20,12,6,0.45)'; g.lineWidth = 1.1;
-  for (let i = 0; i < l / 6; i++) {
-    const x = -l / 2 + R() * l, y = (R() - 0.5) * w, ln = 10 + R() * 30;
-    g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + ln / 2, y + (R() - 0.5) * 3, x + ln, y + (R() - 0.5) * 2); g.stroke();
-  }
-  if (!drift) {
-    for (let i = 0; i < 4; i++) {
-      const x = -l / 2 + R() * l, y = (R() - 0.5) * w * 0.6;
-      for (let k = 0; k < 30; k++) {
-        g.fillStyle = R() < 0.5 ? 'rgba(110,150,50,0.75)' : 'rgba(80,120,40,0.75)';
-        g.beginPath(); g.arc(x + (R() - 0.5) * 22, y + (R() - 0.5) * 12, 1 + R() * 2, 0, TAU); g.fill();
-      }
-    }
-  }
-  g.restore();
-  for (const end of [-1, 1]) {
-    const ex = end * (l / 2 - w * 0.12);
-    g.fillStyle = drift ? '#d8d0c0' : '#b08a62';
-    g.beginPath(); g.ellipse(ex, 0, w * 0.18, w * 0.48, 0, 0, TAU); g.fill();
-    g.strokeStyle = drift ? 'rgba(120,110,95,0.6)' : 'rgba(110,70,40,0.6)'; g.lineWidth = 0.6;
-    for (let k = 1; k < 4; k++) { g.beginPath(); g.ellipse(ex, 0, w * 0.18 * k / 4, w * 0.48 * k / 4, 0, 0, TAU); g.stroke(); }
-  }
-  g.restore();
-}
-
 function propCone(g, p) {
   const R = mulberry32(p.seed);
   g.save(); g.translate(p.x, p.y);
@@ -702,6 +662,39 @@ function propNestLeafball(g, p) {
   drawOutpost(g, { x: p.x - 24, y: p.y + 22, seed: p.seed + 2 });
 }
 
+
+/* ------------------------------------------------------------- trees */
+
+const BARK = {
+  oak: ['#6a5038', '#a08060', '#2e2014'],
+  pine: ['#7a4a30', '#b07a58', '#3a2014'],
+  birch: ['#e8e2d6', '#ffffff', '#9a9488'],
+  willow: ['#5e5040', '#9a8a70', '#2a2218'],
+};
+
+function propShade(g, p) {
+  radialFill(g, p.x, p.y, p.r, [[0, 'rgba(15,22,8,0.34)'], [0.7, 'rgba(15,22,8,0.22)'], [1, 'rgba(15,22,8,0)']]);
+}
+
+function propTermound(g, p) {
+  const R = mulberry32(p.seed);
+  castShadow(g, p.x, p.y, 70, 0.5);
+  radialFill(g, p.x, p.y, 80, [[0, 'rgba(150,100,60,0.85)'], [0.8, 'rgba(140,92,56,0.5)'], [1, 'rgba(140,92,56,0)']]);
+  const spires = [];
+  for (let i = 0; i < 9; i++) { const a = R() * TAU, d = Math.sqrt(R()) * 40; spires.push([p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 12 + R() * 16]); }
+  spires.push([p.x, p.y, 30]);
+  spires.sort((u, v) => u[2] - v[2]);
+  for (const [x, y, r] of spires) {
+    radialFill(g, x + r * 0.35, y + r * 0.45, r * 1.2, [[0, 'rgba(20,10,0,0.35)'], [1, 'rgba(20,10,0,0)']]);
+    const gr = g.createRadialGradient(x - r * 0.4, y - r * 0.45, r * 0.05, x, y, r);
+    gr.addColorStop(0, '#e8b47c'); gr.addColorStop(0.5, '#b47844'); gr.addColorStop(1, '#6a4020');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(80,45,20,0.35)'; g.lineWidth = 0.8;
+    for (let k = 1; k < 4; k++) { g.beginPath(); g.arc(x, y, r * k / 4, R() * TAU, R() * TAU + 3); g.stroke(); }
+  }
+  for (let i = 0; i < 8; i++) { const a = R() * TAU, d = 30 + R() * 40; antHole(g, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 3); }
+}
+
 function drawProp(g, p) {
   switch (p.type) {
     case 'blob': {
@@ -735,6 +728,9 @@ function drawProp(g, p) {
     case 'rock': propRock(g, p); break;
     case 'thistle': propThistle(g, p); break;
     case 'crack': propCrack(g, p); break;
+    case 'shade': propShade(g, p); break;
+    case 'trunk': propTrunk(g, p); break;
+    case 'termound': propTermound(g, p); break;
   }
 }
 
@@ -1062,4 +1058,203 @@ function propNest(g, p) {
     case 'roots': nestBullet(g, p); break;
     case 'leafball': nestWeaver(g, p); break;
   }
+}
+
+/* ------------------------------------------------- bark & wood (v2) */
+
+const ROOT_COL = { oak: ['#5a4232', '#9a7a5c', '#2a1c12'], pine: ['#6a4028', '#a87452', '#2e1a0e'], birch: ['#5e5446', '#968a76', '#2a241c'], willow: ['#54483a', '#8c7c64', '#26201a'] };
+
+/* A surface root: wide where it leaves the trunk, tapering as it dives into the soil. */
+function drawRoot(g, R, x0, y0, a, len, w, col) {
+  const bend = (R() - 0.5) * 1.3, pts = [];
+  for (let j = 0; j <= 14; j++) {
+    const f = j / 14, aa = a + bend * f * f, d = len * f;
+    pts.push({ x: x0 + Math.cos(aa) * d, y: y0 + Math.sin(aa) * d, w: w * (1 - f * 0.75) * (0.9 + Math.sin(f * 9 + bend * 5) * 0.08) + 1, aa });
+  }
+  const outline = (o, k) => {
+    g.beginPath();
+    pts.forEach((q, j) => { const px = q.x - Math.sin(q.aa) * q.w * k + o, py = q.y + Math.cos(q.aa) * q.w * k + o; j ? g.lineTo(px, py) : g.moveTo(px, py); });
+    for (let j = pts.length - 1; j >= 0; j--) { const q = pts[j]; g.lineTo(q.x + Math.sin(q.aa) * q.w * k + o, q.y - Math.cos(q.aa) * q.w * k + o); }
+    g.closePath();
+  };
+  outline(3, 1.1); g.fillStyle = 'rgba(15,10,4,0.3)'; g.fill();
+  outline(0, 1);
+  const gr = g.createLinearGradient(x0, y0, x0 + Math.cos(a) * len, y0 + Math.sin(a) * len);
+  gr.addColorStop(0, col[0]); gr.addColorStop(0.45, col[0]); gr.addColorStop(0.85, rgba(col[0], 0.35)); gr.addColorStop(1, rgba(col[0], 0));
+  g.fillStyle = gr; g.fill();
+  g.save(); outline(0, 1); g.clip();
+  // grain running along the root, lit on the upper-left edge
+  for (let k = -3; k <= 3; k++) {
+    g.strokeStyle = k < 0 ? rgba(col[1], 0.35) : rgba(col[2], 0.4); g.lineWidth = 0.8;
+    g.beginPath();
+    pts.forEach((q, j) => { const off = (k / 4) * q.w; const px = q.x - Math.sin(q.aa) * off + (R() - 0.5) * 0.6, py = q.y + Math.cos(q.aa) * off; j ? g.lineTo(px, py) : g.moveTo(px, py); });
+    g.stroke();
+  }
+  g.restore();
+  // soil crumbs where it sinks into the ground
+  for (let i = 0; i < 14; i++) {
+    const q = pts[10 + ((R() * 4) | 0)];
+    g.fillStyle = R() < 0.5 ? 'rgba(70,50,30,0.7)' : 'rgba(110,85,55,0.6)';
+    g.beginPath(); g.arc(q.x + (R() - 0.5) * q.w * 3, q.y + (R() - 0.5) * q.w * 3, 0.8 + R() * 1.6, 0, TAU); g.fill();
+  }
+}
+
+/* Looking straight down a trunk, its vertical furrows fan out from the centre. */
+function propTrunk(g, p) {
+  const R = mulberry32(p.seed), tr = p.tr, x = p.x, y = p.y;
+  const bark = BARK[p.kind], rc = ROOT_COL[p.kind] || ROOT_COL.oak;
+  radialFill(g, x + tr * 0.2, y + tr * 0.25, tr * 2.2, [[0, 'rgba(15,10,4,0.45)'], [0.5, 'rgba(15,10,4,0.2)'], [1, 'rgba(15,10,4,0)']]);
+  // a collar of loose soil and leaf litter where the trunk meets the ground
+  radialFill(g, x, y, tr * 1.9, [[0.4, 'rgba(70,50,30,0.7)'], [1, 'rgba(70,50,30,0)']]);
+  for (let i = 0; i < 90; i++) {
+    const a = R() * TAU, d = tr * (0.9 + R() * 0.9);
+    g.fillStyle = ['rgba(60,40,22,0.6)', 'rgba(110,82,50,0.5)', 'rgba(140,90,40,0.45)'][(R() * 3) | 0];
+    g.beginPath(); g.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, 1 + R() * 2.4, 0.7 + R() * 1.2, R() * 3, 0, TAU); g.fill();
+  }
+  const roots = 4 + ((R() * 3) | 0);
+  for (let i = 0; i < roots; i++) {
+    const a = (i / roots) * TAU + R() * 0.7;
+    drawRoot(g, R, x + Math.cos(a) * tr * 0.55, y + Math.sin(a) * tr * 0.55, a, tr * (0.8 + R() * 0.6), tr * (0.4 + R() * 0.14), rc);
+  }
+  // the trunk itself
+  const base = p.kind === 'birch' ? ['#e6e0d4', '#fbf8f0', '#8a8478'] : bark;
+  const gr = g.createRadialGradient(x - tr * 0.35, y - tr * 0.4, tr * 0.05, x, y, tr * 1.02);
+  gr.addColorStop(0, base[1]); gr.addColorStop(0.55, base[0]); gr.addColorStop(1, base[2]);
+  g.fillStyle = gr; g.beginPath(); g.arc(x, y, tr, 0, TAU); g.fill();
+  g.save(); g.beginPath(); g.arc(x, y, tr, 0, TAU); g.clip();
+  if (p.kind === 'birch') {
+    for (let i = 0; i < 40; i++) {
+      const a = R() * TAU, d = tr * (0.3 + R() * 0.65), l = 0.15 + R() * 0.3;
+      g.strokeStyle = `rgba(30,25,20,${0.5 + R() * 0.4})`; g.lineWidth = 1 + R() * 1.6; g.lineCap = 'round';
+      g.beginPath(); g.arc(x, y, d, a, a + l); g.stroke();
+    }
+    for (let i = 0; i < 10; i++) {
+      const a = R() * TAU, d = tr * (0.4 + R() * 0.5);
+      g.fillStyle = 'rgba(255,245,230,0.6)';
+      g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 2 + R() * 3, 0, TAU); g.fill();
+    }
+    radialFill(g, x, y, tr, [[0.75, 'rgba(40,34,28,0)'], [1, 'rgba(40,34,28,0.75)']]);
+  } else {
+    const n = p.kind === 'pine' ? 22 : 34;
+    for (let i = 0; i < n; i++) {
+      const a0 = (i / n) * TAU + R() * 0.12;
+      const pts = [];
+      for (let k = 0; k <= 8; k++) {
+        const f = k / 8, d = tr * (0.12 + f * 0.9), a = a0 + Math.sin(f * 5 + i) * 0.05 + (R() - 0.5) * 0.04;
+        pts.push([x + Math.cos(a) * d, y + Math.sin(a) * d]);
+      }
+      const lit = 0.5 - (Math.cos(a0) * 0.6 + Math.sin(a0) * 0.8) * 0.5;
+      g.lineCap = 'round';
+      g.strokeStyle = 'rgba(15,8,2,0.6)'; g.lineWidth = p.kind === 'pine' ? 1.6 : 2.2;
+      g.beginPath(); g.moveTo(pts[0][0], pts[0][1]); for (const q of pts) g.lineTo(q[0], q[1]); g.stroke();
+      g.strokeStyle = `rgba(255,235,200,${0.08 + lit * 0.22})`; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(pts[0][0] - 1.4, pts[0][1] - 1.4); for (const q of pts) g.lineTo(q[0] - 1.4, q[1] - 1.4); g.stroke();
+    }
+    if (p.kind === 'pine') {
+      for (let i = 0; i < 26; i++) {
+        const a = R() * TAU, d = tr * (0.2 + R() * 0.6), s = 3 + R() * 4;
+        g.fillStyle = R() < 0.5 ? 'rgba(220,120,70,0.45)' : 'rgba(170,90,50,0.45)';
+        g.beginPath(); g.ellipse(x + Math.cos(a) * d, y + Math.sin(a) * d, s, s * 0.6, a, 0, TAU); g.fill();
+      }
+    }
+    // cross-cracks between furrows break the ridges into plates
+    g.strokeStyle = 'rgba(15,8,2,0.4)'; g.lineWidth = 0.9;
+    for (let i = 0; i < 50; i++) {
+      const a = R() * TAU, d = tr * (0.25 + R() * 0.7);
+      g.beginPath(); g.arc(x, y, d, a, a + 0.08 + R() * 0.1); g.stroke();
+    }
+  }
+  // moss on the shaded north-east side, lichen spots
+  for (let i = 0; i < 70; i++) {
+    const a = -Math.PI * 0.35 + (R() - 0.5) * 1.6, d = tr * (0.7 + R() * 0.32);
+    g.fillStyle = R() < 0.5 ? 'rgba(100,140,45,0.75)' : 'rgba(70,110,35,0.75)';
+    g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 0.8 + R() * 1.8, 0, TAU); g.fill();
+  }
+  for (let i = 0; i < 6; i++) {
+    const a = R() * TAU, d = tr * (0.3 + R() * 0.6);
+    g.fillStyle = 'rgba(190,200,150,0.5)';
+    g.beginPath(); g.arc(x + Math.cos(a) * d, y + Math.sin(a) * d, 1.5 + R() * 2.5, 0, TAU); g.fill();
+  }
+  g.restore();
+  g.strokeStyle = 'rgba(15,8,2,0.5)'; g.lineWidth = 1.2;
+  g.beginPath(); g.arc(x, y, tr, 0, TAU); g.stroke();
+}
+
+/* Fallen logs and driftwood: furrowed bark, knots, lichen, moss and a cut end with growth rings. */
+function propLog(g, p) {
+  const R = mulberry32(p.seed);
+  const l = p.len, w = p.w;
+  const drift = p.type === 'drift';
+  const bark = drift ? ['#b8b0a2', '#e8e2d4', '#6e675c'] : ['#5a4030', '#9a7a5a', '#241810'];
+  g.save();
+  g.translate(p.x, p.y);
+  const so = rotV(5, 7, -p.rot);
+  g.rotate(p.rot);
+  g.save(); g.translate(so[0], so[1]); roundRectPath(g, -l / 2, -w / 2, l, w, w / 2); g.fillStyle = 'rgba(15,12,4,0.32)'; g.fill(); g.restore();
+  roundRectPath(g, -l / 2, -w / 2, l, w, w / 2);
+  const lg = g.createLinearGradient(0, -w / 2, 0, w / 2);
+  lg.addColorStop(0, bark[1]); lg.addColorStop(0.35, bark[0]); lg.addColorStop(1, bark[2]);
+  g.fillStyle = lg; g.fill();
+  g.save(); roundRectPath(g, -l / 2, -w / 2, l, w, w / 2); g.clip();
+  // long furrows that wander along the log, each with a lit ridge beside it
+  const rows = Math.round(w / 3.2);
+  for (let k = 0; k < rows; k++) {
+    const yy = -w / 2 + (k + 0.5) * (w / rows);
+    let px = -l / 2;
+    while (px < l / 2) {
+      const seg = 14 + R() * 40, wob = (R() - 0.5) * 2;
+      const shadeK = (yy + w / 2) / w;
+      g.strokeStyle = drift ? `rgba(90,85,75,${0.35 + shadeK * 0.25})` : `rgba(15,8,2,${0.45 + shadeK * 0.3})`; g.lineWidth = 1.3;
+      g.beginPath(); g.moveTo(px, yy); g.quadraticCurveTo(px + seg / 2, yy + wob, px + seg, yy + wob * 0.5); g.stroke();
+      g.strokeStyle = `rgba(255,240,215,${0.22 * (1 - shadeK)})`; g.lineWidth = 0.8;
+      g.beginPath(); g.moveTo(px, yy - 1.3); g.quadraticCurveTo(px + seg / 2, yy - 1.3 + wob, px + seg, yy - 1.3 + wob * 0.5); g.stroke();
+      px += seg + 2 + R() * 6;
+    }
+  }
+  // knots
+  for (let i = 0; i < 2 + ((R() * 2) | 0); i++) {
+    const kx = (R() - 0.5) * l * 0.8, ky = (R() - 0.5) * w * 0.5, kr = 2.5 + R() * 3;
+    for (let r = 3; r >= 1; r--) {
+      g.fillStyle = r === 1 ? '#2a1a10' : rgba(drift ? '#8a8070' : '#4a3020', 0.6);
+      g.beginPath(); g.ellipse(kx, ky, kr * r * 0.6, kr * r * 0.35, 0, 0, TAU); g.fill();
+    }
+  }
+  if (!drift) {
+    // bark sloughed off in places, showing pale wood beneath
+    for (let i = 0; i < 2; i++) {
+      const bx = (R() - 0.5) * l * 0.7, by = (R() - 0.5) * w * 0.4, bw = 16 + R() * 26, bh = 5 + R() * 6;
+      g.fillStyle = '#b89a72';
+      g.beginPath(); g.ellipse(bx, by, bw / 2, bh / 2, 0, 0, TAU); g.fill();
+      g.strokeStyle = 'rgba(120,90,55,0.6)'; g.lineWidth = 0.5;
+      for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(bx - bw / 2 + 3, by + k * bh * 0.25); g.lineTo(bx + bw / 2 - 3, by + k * bh * 0.25); g.stroke(); }
+    }
+    for (let i = 0; i < 4; i++) {
+      const mx = (R() - 0.5) * l * 0.9, my = -w * 0.2 + (R() - 0.5) * w * 0.4;
+      for (let k = 0; k < 40; k++) {
+        g.fillStyle = ['rgba(110,150,50,0.85)', 'rgba(80,125,40,0.85)', 'rgba(140,175,70,0.7)'][(R() * 3) | 0];
+        g.beginPath(); g.arc(mx + (R() - 0.5) * 24, my + (R() - 0.5) * 9, 0.8 + R() * 1.6, 0, TAU); g.fill();
+      }
+    }
+  }
+  for (let i = 0; i < 5; i++) {
+    const lx = (R() - 0.5) * l * 0.85, ly = (R() - 0.5) * w * 0.6, lr = 2 + R() * 4;
+    g.fillStyle = R() < 0.5 ? 'rgba(200,205,160,0.55)' : 'rgba(170,190,140,0.5)';
+    g.beginPath(); g.arc(lx, ly, lr, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(230,235,200,0.5)'; g.lineWidth = 0.4; g.stroke();
+  }
+  g.restore();
+  // cut ends: growth rings, heartwood and radial cracks
+  for (const end of [-1, 1]) {
+    const ex = end * (l / 2 - w * 0.12);
+    const ring = drift ? ['#e0d8c8', '#b8ae9c'] : ['#c49a6a', '#8a6038'];
+    g.fillStyle = ring[0]; g.beginPath(); g.ellipse(ex, 0, w * 0.18, w * 0.48, 0, 0, TAU); g.fill();
+    g.strokeStyle = rgba(ring[1], 0.75); g.lineWidth = 0.5;
+    for (let k = 1; k < 6; k++) { g.beginPath(); g.ellipse(ex, 0, w * 0.18 * k / 6, w * 0.48 * k / 6, 0, 0, TAU); g.stroke(); }
+    g.fillStyle = rgba(ring[1], 0.8); g.beginPath(); g.ellipse(ex, 0, w * 0.05, w * 0.12, 0, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(40,25,10,0.5)'; g.lineWidth = 0.6;
+    for (let k = 0; k < 3; k++) { const a = R() * TAU; g.beginPath(); g.moveTo(ex, 0); g.lineTo(ex + Math.cos(a) * w * 0.17, Math.sin(a) * w * 0.45); g.stroke(); }
+    g.strokeStyle = rgba(bark[2], 0.9); g.lineWidth = 1.6;
+    g.beginPath(); g.ellipse(ex, 0, w * 0.18, w * 0.48, 0, 0, TAU); g.stroke();
+  }
+  g.restore();
 }

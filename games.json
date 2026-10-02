@@ -15,9 +15,11 @@
     ],
     "dev": true,
     "progress": 50,
-    "next": "",
+    "next": "Better graphics and mechanics",
     "build": true,
-    "added": 1790957949
+    "added": 1790957949,
+    "leaderboard": true,
+    "updated": 1790963381
   },
   {
     "slug": "lab-madness",

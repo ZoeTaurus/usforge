@@ -96,6 +96,12 @@ class SpatialHash {
   }
 }
 
+function segDist2(x, y, b) {
+  const vx = b.x2 - b.x1, vy = b.y2 - b.y1;
+  const t = clamp(((x - b.x1) * vx + (y - b.y1) * vy) / (vx * vx + vy * vy), 0, 1);
+  return dist2(x, y, b.x1 + vx * t, b.y1 + vy * t);
+}
+
 const AVOID_TRIES = [0.6, -0.6, 1.2, -1.2, 1.9, -1.9, 2.7, -2.7];
 
 /* Steer around rocks, water and (optionally) antlion pits by looking ahead. */
@@ -123,7 +129,7 @@ function avoidDir(world, e, desired, look, pits) {
 const NAV_OFFSETS = [0.35, 0.7, 1.05, 1.4, 1.8, 2.3, 2.8];
 
 function navBlocked(world, e, x, y, pits) {
-  if (!e.swims && world.waterAt(x, y)) return true;
+  if (!e.swims && world.wetAt(x, y)) return true;
   return !!world.blocker(x, y, e.r * 0.6, pits);
 }
 
@@ -172,10 +178,10 @@ function navigate(world, e, desired, look, pits, dt, speed, goal) {
   }
   // wall-following: sweep from "into the wall" towards open ground and take the first clear heading,
   // which keeps the obstacle on one side all the way round, even out of pockets
-  const base = e.a - nav.side * 1.1;
+  const base = (e.navA ?? e.a) - nav.side * 1.1;
   for (let k = 0; k < 18; k++) {
     const a = base + nav.side * k * 0.35;
     if (navClear(world, e, a, look, pits)) return a;
   }
-  return e.a + Math.PI;
+  return (e.navA ?? e.a) + Math.PI;
 }

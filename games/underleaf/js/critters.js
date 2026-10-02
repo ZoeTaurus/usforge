@@ -14,6 +14,7 @@ class Critter {
   get invuln() { return false; }
   move(desired, speed, dt, turn = 3) {
     const off = this.moveOffset || 0;
+    this.navA = this.a + off;
     desired = navigate(this.game.world, this, desired + off, this.r + 16, true, dt, speed) - off;
     this.a += clamp(angDiff(this.a, desired), -turn * dt, turn * dt);
     const ma = this.a + (this.moveOffset || 0);
@@ -515,7 +516,7 @@ class BigFood {
       const lead = this.carriers.find((c) => !c.isPlayer);
       const goal = lead ? lead.colony.dropPoint(this.x, this.y) : null;
       const dir = navigate(g.world, this, Math.atan2(py, px), this.r + 18, false, dt, speed, goal);
-      this.a2 = dir;
+      this.navA = dir;
       g.world.moveTo(this, this.x + Math.cos(dir) * speed * dt, this.y + Math.sin(dir) * speed * dt);
       this.a += angDiff(this.a, dir) * 0.4 * dt;
     }

@@ -2,8 +2,18 @@
 /* Underleaf: game loop, world streaming, colonies, weather, camera and rendering. */
 
 const SAVE_KEY = 'underleaf-save-v2';
-const XP_FOR = { spider: 30, crab: 40, frog: 40, lizard: 35, mouse: 35, scorpion: 30, centipede: 20, mantis: 20, beetle: 15, caterpillar: 8, worm: 8, grasshopper: 6, bee: 4 };
-const BIG_PREDATORS = new Set(['spider', 'crab', 'frog', 'lizard', 'scorpion', 'centipede', 'mantis', 'mouse']);
+
+/* UsForge leaderboard: report a finished run's score to the page hosting the game.
+   Does nothing when the game is opened on its own. */
+function sendScoreToUsForge(score) {
+  if (window.parent === window) return;
+  if (!Number.isFinite(score) || score < 0 || score >= 1e12) return;
+  try {
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'seconds' }, '*');
+  } catch (e) { /* ignore */ }
+}
+const XP_FOR = { hedgehog: 200, wasp: 15, slug: 8, earwig: 6, dungbeetle: 10, termite: 1, spider: 30, crab: 40, frog: 40, lizard: 35, mouse: 35, scorpion: 30, centipede: 20, mantis: 20, beetle: 15, caterpillar: 8, worm: 8, grasshopper: 6, bee: 4 };
+const BIG_PREDATORS = new Set(['hedgehog', 'wasp', 'spider', 'crab', 'frog', 'lizard', 'scorpion', 'centipede', 'mantis', 'mouse']);
 
 class Game {
   constructor() {
@@ -60,7 +70,8 @@ class Game {
     this.fx = new FX();
     this.hash = new SpatialHash(64);
     this.foodHash = new SpatialHash(64);
-    this.time = 0; this.dayT = 0.05; this.dayLen = 300;
+    this.time = 0; this.dayT = 0.05; this.dayLen = 300; this.days = 0.05; this.lastSeason = 0;
+    this.activeTrees = []; this.activePlants = []; this.activeMounds = []; this.flakes = [];
     this.weather = { rain: false, k: 0, t: rand(140, 220) };
     this.weatherSlow = 1;
     this.colonies = new Map();
@@ -72,12 +83,13 @@ class Game {
     this.counts = { home: 0, homeSoldiers: 0 };
     this.colCounts = new Map();
     this.level = 1; this.xp = 0;
-    this.timers = { manage: 0, discover: 0, bird: rand(70, 120), save: 30, ladybug: 30 };
+    this.timers = { manage: 0, discover: 0, bird: rand(70, 120), save: 30, ladybug: 30, hedgehog: rand(40, 90), plants: 0 };
     this.discovered = new Set(['ant:' + species]);
     this.toldOnce = new Set();
     this.activePatches = [];
     this.followerCount = 0;
     this.rallyCd = 0; this.abilityCd = 0; this.respawnT = 0;
+    this.lifeTime = 0; this.lifeSent = false;
     this.over = false; this.scentView = false; this.guideOpen = false; this.view = 'world';
     this.zoomMul = 1;
     this.biomeHere = 'meadow';
@@ -113,6 +125,7 @@ class Game {
     const a = this.spawnAnt(colony, role, n.x + rand(-6, 6), n.y + rand(-6, 6));
     a.a = rand(TAU);
     if (colony.isPlayer) {
+      if (this.mode === 'play') META.add('antsRaised');
       this.fx.sparkle(n.x, n.y, '#fff3c4', 8);
       this.fx.text(n.x, n.y - 18, role === 'soldier' ? 'A soldier hatched' : 'A new sister hatched', '#fff3c4');
     }
@@ -199,7 +212,19 @@ class Game {
     const pats = new Set([...w.featuresNear(px, py, 1800, 'patch'), ...w.featuresNear(0, 0, 1700, 'patch')]);
     for (const pt of pats) if (!pt.seeded) { pt.seeded = true; for (let i = 0; i < 8; i++) this.spawnAphid(pt); }
     this.activePatches = [...pats];
-    w.activePits = [...new Set([...w.featuresNear(px, py, 1600, 'pit'), ...w.featuresNear(0, 0, 1600, 'pit')])];
+    w.activePits = [...new Set([...w.featuresNear(px, py, 1600, 'pit'), ...w.featuresNear(0, 0, 1600, 'pit'), ...w.featuresNear(px, py, 1400, 'sundew')])];
+    for (const pit of w.activePits) if (pit.type === 'sundew') { pit.kind = 'sundew'; pit.jawVis = pit.jawVis || 0; pit.jawA = 0; }
+    this.activeTrees = w.near(px, py, 1500, 'trees');
+    this.activePlants = [...new Set([...w.near(px, py, 1500, 'plants'), ...w.near(0, 0, 1300, 'plants')])];
+    for (const f of this.activePlants) if (f.berries === undefined) { f.berries = randi(2, 6); f.seeds = 10; f.growT = rand(5, 15); f.dropT = rand(4, 10); }
+    this.activeMounds = w.featuresNear(px, py, 1500, 'termites');
+    for (const m of this.activeMounds) {
+      m.termites = (m.termites || []).filter((t) => !t.dead);
+      if (m.termites.length < 12 && Math.random() < 0.5) {
+        const tm = new Termite(this, m, Math.random() < 0.25 ? 'soldier' : 'worker');
+        m.termites.push(tm); this.critters.push(tm);
+      }
+    }
     for (const l of w.featuresNear(px, py, 1800, 'lair')) {
       if ((!l.spider || l.spider.dead) && this.time > (l.respawnAt || 0)) {
         const s = new Spider(this, l.x, l.y);
@@ -210,15 +235,16 @@ class Game {
     // ground animals around the player
     let n = 0;
     for (const c of this.critters) if (!c.dead && dist2(c.x, c.y, px, py) < 1700 * 1700) n++;
-    const want = 15 + (this.weather.rain ? 5 : 0);
+    const want = Math.round((15 + (this.weather.rain ? 5 : 0)) * [1, 1.2, 1, 0.45][this.season]);
     for (let k = 0; k < (initial ? 16 : 3) && n < want; k++) {
       const a = rand(TAU), d = initial ? rand(350, 1400) : rand(950, 1500);
       const x = px + Math.cos(a) * d, y = py + Math.sin(a) * d;
       if (w.waterAt(x, y) || dist2(x, y, 0, 0) < 300 * 300) continue;
       const bb = w.biome(x, y);
       if (bb === 'sea') continue;
-      const kind = this.weather.rain && Math.random() < 0.4 ? 'worm' : weighted(Math.random, SPAWN_TABLE[bb]);
-      if (kind === 'spider') continue;
+      const kind = this.weather.rain && this.season !== 3 && Math.random() < 0.4 ? 'worm' : weighted(Math.random, SPAWN_TABLE[bb]);
+      if (kind === 'spider' || kind === 'hedgehog') continue;
+      if (this.season === 3 && ['wasp', 'grasshopper', 'cricket', 'bee', 'mantis', 'caterpillar'].includes(kind)) continue;
       this.critters.push(new CRITTER_CLASSES[kind](this, x, y));
       n++;
     }
@@ -233,7 +259,9 @@ class Game {
     }
     for (const c of this.critters) if (c.kind === 'bee') bees++;
     const sx = () => px + rand(-900, 900), sy = () => py + rand(-700, 700);
-    if (bf < 5 && b !== 'sea') this.flyers.push(new Butterfly(this, sx(), sy()));
+    const night = this.darkness() > 0.3;
+    if (bf < 5 && b !== 'sea' && !night && this.season !== 3) this.flyers.push(new Butterfly(this, sx(), sy()));
+    if (night && this.flyers.filter((f) => f.kind === 'moth').length < 4) this.flyers.push(new Moth(this, sx(), sy()));
     if (bees < 3 && (b === 'meadow' || b === 'marsh')) this.critters.push(new Bee(this, sx(), sy()));
     if (dfly < 2 && Math.random() < 0.3) {
       for (let i = 0; i < 6; i++) {
@@ -250,8 +278,16 @@ class Game {
       if (dp > 2800 * 2800 && dh > 2000 * 2000) f.taken = true;
     }
     const leafy = () => this.species === 'leafcutter' && Math.random() < 0.55;
-    if (nearP < 34) this.spawnFoodCluster(this.spotNear(px, py, 300, 1400), leafy());
-    if (nearH < 34) this.spawnFoodCluster(this.spotNear(0, 0, 200, 1300), leafy());
+    const foodWant = [34, 34, 40, 14][this.season];
+    if (nearP < foodWant) this.spawnFoodCluster(this.spotNear(px, py, 300, 1400), leafy());
+    if (this.season === 2 && Math.random() < 0.3) {
+      for (const tr of this.activeTrees) if (tr.kind === 'oak' && Math.random() < 0.2) {
+        const a = rand(TAU), d = tr.tr + rand(10, tr.cr * 0.8);
+        const x = tr.x + Math.cos(a) * d, y = tr.y + Math.sin(a) * d;
+        if (!w.wetAt(x, y) && !w.blocker(x, y, 5, false)) this.addFood(new Food('acorn', x, y));
+      }
+    }
+    if (nearH < foodWant) this.spawnFoodCluster(this.spotNear(0, 0, 200, 1300), leafy());
     let sweets = 0;
     for (const bg of this.bigs) {
       if (dist2(bg.x, bg.y, px, py) > 3000 * 3000 && dist2(bg.x, bg.y, 0, 0) > 2000 * 2000 && !bg.carriers.length) bg.done = true;
@@ -266,8 +302,13 @@ class Game {
   /* ----------------------------------------------------------- flow */
 
   start(species) {
-    if (species) this.newGame(species, (Math.random() * 1e9) | 0);
+    if (species) {
+      this.newGame(species, (Math.random() * 1e9) | 0);
+      META.played.add(species); META.add('colonies');
+    }
+    for (const id of this.discovered) META.guide.add(id);
     this.mode = 'play';
+    this.lifeTime = 0; this.lifeSent = false;
     this.ui.onStart();
     const p = this.player;
     this.camera.x = p.x; this.camera.y = p.y;
@@ -290,7 +331,7 @@ class Game {
     for (const role of ['worker', 'soldier']) {
       for (let i = 0; i < (data.pop[role] || 0); i++) this.spawnAnt(h, role, rand(-150, 150), rand(-150, 150));
     }
-    this.time = data.time || 0; this.dayT = data.dayT || 0.1;
+    this.time = data.time || 0; this.dayT = data.dayT || 0.1; this.days = data.days || this.dayT; this.lastSeason = this.season;
     this.level = data.level || 1; this.xp = data.xp || 0;
     Object.assign(this.stats, data.stats, { biomes: new Set(data.stats.biomes || ['meadow']) });
     this.discovered = new Set(data.discovered || []);
@@ -311,7 +352,7 @@ class Game {
     const pop = { worker: 0, soldier: 0 };
     for (const a of this.ants) if (a.colony === h && !a.isPlayer && !a.dead) pop[a.role]++;
     const data = {
-      v: 2, seed: this.seed, species: this.species, time: this.time, dayT: this.dayT, level: this.level, xp: this.xp,
+      v: 2, seed: this.seed, species: this.species, time: this.time, dayT: this.dayT, days: this.days, level: this.level, xp: this.xp,
       stats: { ...this.stats, biomes: [...this.stats.biomes] },
       discovered: [...this.discovered], told: [...this.toldOnce], destroyed: [...this.destroyed],
       home: { food: h.food, leaves: h.leaves, chambers: h.chambers, brood: h.brood, outposts: h.outposts, autoHatch: h.autoHatch },
@@ -418,7 +459,14 @@ class Game {
   update(dt) {
     this.time += dt;
     this.dayT = (this.dayT + dt / this.dayLen) % 1;
+    this.days += dt / this.dayLen;
+    if (this.season !== this.lastSeason) {
+      this.lastSeason = this.season;
+      if (this.mode === 'play') this.ui.toast(SEASON_NEWS[this.season], this.season === 3 ? 'bad' : 'good');
+    }
     this.rallyCd -= dt; this.abilityCd -= dt;
+    // leaderboard clock: time survived in the current ant's body, out in the world
+    if (this.mode === 'play' && this.player && !this.player.dead && !this.player.inNest) this.lifeTime += dt;
     this.updateWeather(dt);
 
     this.hash.clear();
@@ -442,6 +490,8 @@ class Game {
     this.updateRaids(dt);
     this.updateEvents(dt);
     this.updateNight(dt);
+    this.updatePlants(dt);
+    if (this.home.beacon && this.time - this.home.beacon.t > 45) this.home.beacon = null;
 
     this.timers.manage -= dt;
     if (this.timers.manage <= 0) { this.timers.manage = 1; this.manageWorld(); }
@@ -468,12 +518,25 @@ class Game {
     if (this.mode === 'play') {
       this.timers.discover -= dt;
       if (this.timers.discover <= 0) { this.timers.discover = 0.4; this.checkDiscoveries(); }
+      this.timers.meta = (this.timers.meta || 0) - dt;
+      if (this.timers.meta <= 0) { this.timers.meta = 1; this.checkMeta(); }
       this.timers.save -= dt;
       if (this.timers.save <= 0) { this.timers.save = 30; this.save(); }
       this.followCamera(dt);
       if (this.view === 'nest') this.nestView.update(dt);
       this.ui.update(dt);
     }
+  }
+
+  checkMeta() {
+    const p = this.player;
+    META.best('biggestColony', this.stats.peak);
+    META.best('biomes', this.stats.biomes.size);
+    META.best('mostDays', Math.floor(this.days));
+    META.best('highestLevel', this.level);
+    META.best('longestLife', Math.floor(this.lifeTime));
+    if (p && !p.dead) META.best('farthest', Math.round(Math.hypot(p.x, p.y)));
+    for (const a of META.check()) this.ui.achievement(a);
   }
 
   countColony(col) { return this.colCounts.get(col) || 0; }
@@ -484,11 +547,23 @@ class Game {
     if (w.t <= 0) {
       w.rain = !w.rain;
       w.t = w.rain ? rand(40, 70) : rand(170, 280);
-      if (this.mode === 'play') this.ui.toast(w.rain ? 'Rain is falling. Scent trails wash away faster, and earthworms come up.' : 'The rain has stopped.');
+      if (this.mode === 'play') {
+        if (this.season === 3) this.ui.toast(w.rain ? 'Snow is falling. Everyone moves slowly in the cold.' : 'The snow has stopped.');
+        else this.ui.toast(w.rain ? 'Rain is falling. Scent trails wash away faster, and earthworms come up.' : 'The rain has stopped.');
+      }
     }
     w.k = clamp(w.k + (w.rain ? dt : -dt) * 0.25, 0, 1);
-    this.weatherSlow = 1 - 0.12 * w.k;
-    if (w.k > 0.02) {
+    this.weatherSlow = (1 - 0.12 * w.k) * (this.season === 3 ? 0.82 : 1);
+    if (this.season === 3 || this.season === 2) {
+      const want = this.season === 3 ? 90 + 120 * w.k : 14;
+      while (this.flakes.length < want) this.flakes.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(30, 70), p: rand(TAU), r: rand(1, 2.6), c: this.season === 3 ? null : pick(['#c8642a', '#e09a3a', '#a85a20', '#d8b040']) });
+      if (this.flakes.length > want) this.flakes.length = Math.round(want);
+      for (const f of this.flakes) {
+        f.y += f.v * dt; f.x += Math.sin(this.time * 0.8 + f.p) * 20 * dt;
+        if (f.y > this.vh + 10) { f.y = -10; f.x = rand(this.vw); }
+      }
+    } else this.flakes.length = 0;
+    if (w.k > 0.02 && this.season !== 3) {
       const want = Math.round(220 * w.k);
       while (this.raindrops.length < want) this.raindrops.push({ x: rand(-50, this.vw + 50), y: rand(-this.vh, 0), v: rand(700, 1000), l: rand(10, 22) });
       if (this.raindrops.length > want) this.raindrops.length = want;
@@ -576,6 +651,7 @@ class Game {
     if (inp.pressed('KeyX')) this.dismiss();
     if (inp.pressed('KeyF')) this.useAbility();
     if (inp.pressed('KeyN')) this.enterNest();
+    if (inp.pressed('KeyR')) this.placeBeacon();
   }
 
   playerBiteTarget(extra = 0) {
@@ -674,6 +750,11 @@ class Game {
       return { label, act: () => p.leaveBig() };
     }
     if (p.carry) return { label: `Carrying a ${p.carry.name}. Walk into the nest${this.home.outposts.length ? ' or an outpost' : ''} to store it`, act: () => p.dropCarry() };
+    for (const f of this.activePlants) {
+      if (f.type === 'bush' && dist2(p.x, p.y, f.x, f.y) < (f.r + 10) ** 2 && f.berries > 0) {
+        return { label: 'Shake the bramble to drop a blackberry', act: () => { f.berries--; this.dropFrom(f, 'berry'); p.biteT = 0.3; } };
+      }
+    }
     if (dist2(p.x, p.y, 0, 0) < 120 * 120) return { label: `Go inside the nest ${this.isTouch ? '(Nest button)' : '(N)'}`, act: () => this.enterNest(), key: 'N' };
     let v = null;
     this.hash.query(p.x, p.y, 40, (o) => { if (!v && o.kind === 'ant' && o.colony === p.colony && o.trapped && dist2(p.x, p.y, o.x, o.y) < 40 * 40) v = o; });
@@ -706,6 +787,7 @@ class Game {
     p.pickSpot = { x: ap.x, y: ap.y };
     p.greetT = 0.6;
     this.stats.honey = (this.stats.honey || 0) + 1;
+    META.add('honey');
     this.fx.sparkle(ap.x, ap.y, '#ffd36b', 6);
     if (!this.toldOnce.has('honey')) { this.toldOnce.add('honey'); this.ui.toast('Honeydew! Aphids trade this sugary drop for the ants’ protection.'); }
   }
@@ -740,6 +822,7 @@ class Game {
     p.greetT = 0.8;
     this.fx.text(p.x, p.y - 22, n ? `${n} sister${n === 1 ? '' : 's'} follow you` : 'No sisters close enough', n ? '#ffe2a0' : '#e8dcc0');
     if (n) {
+      META.best('bestRally', n);
       if (!this.stats.rallied && this.mode === 'play') this.ui.toast(`Rallied! Sisters follow you, join your fights and help haul big food. Press ${this.isTouch ? 'Rally' : 'Q'} again to refresh.`);
       this.stats.rallied = true;
     }
@@ -779,6 +862,7 @@ class Game {
     }
     if (!best) { this.gameOver(); return; }
     best.makePlayer(this.level);
+    this.lifeTime = 0; this.lifeSent = false;
     this.player = best;
     this.stats.sisters++;
     this.camera.x = best.x; this.camera.y = best.y;
@@ -867,10 +951,13 @@ class Game {
     }
     if (!col.isPlayer) return;
     this.stats.delivered++;
+    if (this.mode === 'play') { META.add('colonyLoads'); if (ant.isPlayer) META.add('playerLoads'); }
+    if (this.view === 'nest' && Math.random() < 0.5) this.nestView.sendCourier('E', 'granary', 'crumb');
     if (ant.isPlayer) {
       this.stats.playerDelivered++;
       this.gainXp(2);
-      this.fx.text(ant.x, ant.y - 30, food.kind === 'leafbit' ? '+1 leaf for the fungus' : `+${shown} food`, '#ffd36b');
+      const whole = Math.round(shown);
+      this.fx.text(ant.x, ant.y - 30, food.kind === 'leafbit' ? '+1 leaf for the fungus' : whole > 0 ? `+${whole} food` : 'Granary full', '#ffd36b');
       if (this.stats.playerDelivered === 1) this.ui.toast('Stored! The queen turns food into eggs. Your scent trail now leads sisters to that spot.');
     }
   }
@@ -882,6 +969,7 @@ class Game {
     for (const c of b.carriers) { c.big = null; if (!c.isPlayer) c.state = c.defaultState(); }
     if (col.isPlayer) {
       this.stats.bigDelivered++;
+      if (this.mode === 'play') { META.add('bigHauls'); META.best('biggestHaul', b.value); }
       if (playerHelped) this.gainXp(10);
       this.fx.text(b.x, b.y - 40, `+${b.value} food`, '#ffd36b');
       this.fx.sparkle(b.x, b.y, '#fff0b0', 14);
@@ -898,6 +986,12 @@ class Game {
   }
 
   onAntDeath(ant, src) {
+    if (ant.isPlayer && this.mode === 'play') { META.best('longestLife', Math.floor(this.lifeTime)); META.add('lives'); }
+    // A run is one ant's life. Only the default species is ranked, so scores are comparable.
+    if (ant.isPlayer && this.mode === 'play' && !this.lifeSent && this.species === 'garden') {
+      this.lifeSent = true;
+      sendScoreToUsForge(Math.floor(this.lifeTime));
+    }
     if (ant.colony === this.home) this.stats.lost++;
     else if (src && src.colony === this.home && src.isPlayer) this.gainXp(1);
     if (ant.isPlayer) {
@@ -911,7 +1005,9 @@ class Game {
     if (BIG_KINDS[c.kind]) this.bigs.push(new BigFood(this, c.kind, c.x, c.y, c.a));
     if (c.lair) c.lair.respawnAt = this.time + 150;
     if (src && src.colony === this.home) {
-      if (BIG_PREDATORS.has(c.kind)) {
+      if (this.mode === 'play') META.kill(c.kind);
+      if (c.kind === 'termite') this.stats.termites = (this.stats.termites || 0) + 1;
+      if (BIG_PREDATORS.has(c.kind) || c.kind === 'hedgehog' || c.kind === 'wasp') {
         this.stats.bigKills++;
         this.ui.toast(`Your colony brought down a ${BIG_KINDS[c.kind].name}! Haul it home together.`, 'good');
       }
@@ -934,7 +1030,7 @@ class Game {
   }
 
   onBirdRepelled(bird, src) {
-    if (src && src.colony === this.home) { this.ui.toast('Your sisters drove the robin away!', 'good'); this.gainXp(15); }
+    if (src && src.colony === this.home) { this.ui.toast('Your sisters drove the robin away!', 'good'); this.gainXp(15); META.add('robins'); }
   }
 
   onNestDestroyed(col, src) {
@@ -943,6 +1039,7 @@ class Game {
     this.bigs.push(new BigFood(this, 'sugar', col.x + 20, col.y));
     if (src && src.colony === this.home) {
       this.stats.nestsDown++;
+      META.add('nests');
       this.gainXp(60);
       this.ui.toast(`You toppled the ${col.name}! Its stores are spilling out.`, 'good');
     }
@@ -988,6 +1085,61 @@ class Game {
     }
   }
 
+  updatePlants(dt) {
+    const s = this.season;
+    for (const f of this.activePlants) {
+      if (f.type === 'bush') {
+        f.growT -= dt * (s === 2 ? 1.8 : s === 3 ? 0 : 1);
+        if (f.growT <= 0) { f.growT = rand(10, 18); if (f.berries < 10) f.berries++; }
+        f.dropT -= dt;
+        if (f.dropT <= 0) { f.dropT = rand(7, 14); if (f.berries > 3) { f.berries--; this.dropFrom(f, 'berry'); } }
+      } else if (f.type === 'sunflower') {
+        f.dropT -= dt * (s === 1 || s === 2 ? 1 : 0.2);
+        if (f.dropT <= 0) { f.dropT = rand(6, 12); this.dropFrom(f, 'seed'); }
+      }
+    }
+    if (this.timers.hedgehog !== undefined) {
+      this.timers.hedgehog -= dt;
+      const p = this.player;
+      if (this.timers.hedgehog <= 0) {
+        this.timers.hedgehog = rand(120, 220);
+        if (this.mode === 'play' && p && !p.dead && this.darkness() > 0.35 && !this.critters.some((c) => c.kind === 'hedgehog') && ['meadow', 'wood'].includes(this.biomeHere)) {
+          const a = rand(TAU), x = p.x + Math.cos(a) * 800, y = p.y + Math.sin(a) * 800;
+          if (!this.world.wetAt(x, y)) {
+            this.critters.push(new Hedgehog(this, x, y));
+            this.ui.toast('Something huge is snuffling through the dark. A hedgehog! Keep your distance.', 'bad');
+          }
+        }
+      }
+    }
+  }
+
+  dropFrom(f, kind) {
+    const a = rand(TAU), d = rand(10, f.r);
+    const x = f.x + Math.cos(a) * d, y = f.y + Math.sin(a) * d;
+    if (this.world.wetAt(x, y) || this.world.blocker(x, y, 4, false)) return;
+    this.addFood(new Food(kind, x, y));
+  }
+
+  placeBeacon() {
+    const p = this.player;
+    if (!p || p.dead || p.inNest) return;
+    this.home.beacon = { x: p.x, y: p.y, t: this.time };
+    this.world.deposit(this.home, p.x, p.y, 6);
+    this.fx.ring(p.x, p.y, 120, 'rgba(255,214,120,', 0.8);
+    this.fx.text(p.x, p.y - 26, 'Sisters will search here', '#ffe2a0');
+    if (!this.toldOnce.has('beacon')) { this.toldOnce.add('beacon'); this.ui.toast('Beacon placed. Foragers will come and search around it for 45 seconds.'); }
+  }
+
+  onStarve() {
+    const victims = this.ants.filter((a) => a.colony === this.home && !a.isPlayer && !a.dead);
+    if (!victims.length) return;
+    const v = pick(victims);
+    v.dead = true;
+    this.stats.lost++;
+    this.ui.toast('The stores are empty and the colony is starving. A sister has died.', 'bad');
+  }
+
   updatePatches(dt) {
     for (const p of this.activePatches) {
       for (const a of p.aphids) a.update(dt);
@@ -1020,7 +1172,7 @@ class Game {
           a.x = pit.x + Math.cos(ang) * (pit.r + 8); a.y = pit.y + Math.sin(ang) * (pit.r + 8);
           a.trapped = null; a.escape = 0; a.pitImmune = 2.5; a.a = ang;
           this.fx.dust(a.x, a.y, 5);
-          if (a.isPlayer) this.fx.text(a.x, a.y - 20, 'Free!', '#ffe2a0');
+          if (a.isPlayer) { this.fx.text(a.x, a.y - 20, 'Free!', '#ffe2a0'); META.add('escapes'); }
           else a.state = a.defaultState();
         }
         continue;
@@ -1039,7 +1191,7 @@ class Game {
           if (a.carry) a.dropCarry();
           a.releaseClaim();
           if (a.isPlayer) {
-            this.discover('antlion');
+            this.discover(pit.kind === 'sundew' ? 'plant:sundew' : 'antlion');
             if (!this.toldOnce.has('pit')) { this.toldOnce.add('pit'); this.ui.toast('Antlion pit! Keep pushing to climb out. Nearby sisters will try to pull you free.', 'bad'); }
           }
         }
@@ -1064,6 +1216,8 @@ class Game {
       this.ui.toast('Your sisters are coming to pull you out!', 'good');
     }
   }
+
+  get season() { return Math.floor(this.days) % 4; }
 
   darkness() {
     const p = this.dayT;
@@ -1092,7 +1246,9 @@ class Game {
     for (const c of this.critters) if (dist2(p.x, p.y, c.x, c.y) < R2) this.discover(c.kind);
     for (const a of this.ants) if (a.colony !== this.home && dist2(p.x, p.y, a.x, a.y) < R2) this.discover('ant:' + a.sp);
     for (const pt of this.activePatches) if (dist2(p.x, p.y, pt.x, pt.y) < (pt.r + 110) ** 2 && pt.aphids.length) this.discover('aphid');
-    for (const pit of this.world.activePits) if (dist2(p.x, p.y, pit.x, pit.y) < 150 * 150) this.discover('antlion');
+    for (const pit of this.world.activePits) if (dist2(p.x, p.y, pit.x, pit.y) < 150 * 150) this.discover(pit.kind === 'sundew' ? 'plant:sundew' : 'antlion');
+    for (const tr of this.activeTrees) if (dist2(p.x, p.y, tr.x, tr.y) < (tr.cr + 60) ** 2) this.discover('plant:' + tr.kind);
+    for (const f of this.activePlants) if (dist2(p.x, p.y, f.x, f.y) < 180 * 180) this.discover('plant:' + f.type);
     for (const f of this.flyers) if (dist2(p.x, p.y, f.x, f.y) < R2) this.discover(f.kind);
     for (const f of this.fireflies) if (f.fade > 0.5 && dist2(p.x, p.y, f.x, f.y) < R2) { this.discover('firefly'); break; }
   }
@@ -1102,6 +1258,7 @@ class Game {
     const sp = guideEntry(id);
     if (!sp) return;
     this.discovered.add(id);
+    META.guide.add(id); META.dirty = true;
     this.gainXp(5);
     this.ui.showDiscovery(sp, this.discovered.size);
   }
@@ -1146,7 +1303,20 @@ class Game {
     this.world.drawPher(ctx, v, this.scentView);
 
     for (const c of this.critters) if (c.kind === 'snail' && this.inView(c, 500)) c.drawTrail(ctx);
-    for (const pit of this.world.activePits) if (this.inView(pit)) drawAntlionJaws(ctx, pit, t);
+    for (const pit of this.world.activePits) {
+      if (!this.inView(pit)) continue;
+      if (pit.kind === 'sundew') { pit.curl = pit.jawVis; drawSundew(ctx, pit, t); }
+      else drawAntlionJaws(ctx, pit, t);
+    }
+    const bc = this.home.beacon;
+    if (bc && this.inView(bc)) {
+      const k = 0.5 + 0.5 * Math.sin(t * 4);
+      ctx.strokeStyle = `rgba(255,214,120,${0.35 + 0.35 * k})`; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(bc.x, bc.y, 18 + k * 8, 0, TAU); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,214,120,0.85)';
+      ctx.beginPath(); ctx.moveTo(bc.x, bc.y - 22); ctx.lineTo(bc.x + 12, bc.y - 16); ctx.lineTo(bc.x, bc.y - 10); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#6a4a20'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(bc.x, bc.y); ctx.lineTo(bc.x, bc.y - 22); ctx.stroke();
+    }
     for (const o of this.home.outposts) if (this.inView(o)) drawOutpost(ctx, o, t);
     for (const col of this.activeColonies) {
       if (col.isPlayer || !this.inView(col) || col.hp >= col.maxHp) continue;
@@ -1175,6 +1345,7 @@ class Game {
         ctx.beginPath(); ctx.arc(c.lx, c.ly, 44 + (1 - k) * 30, 0, TAU); ctx.stroke();
       }
     }
+    drawCanopies(ctx, this, t);
     this.fx.draw(ctx);
     for (const f of this.flyers) if (this.inView(f, 160)) f.draw(ctx, t);
     for (const c of this.critters) if ((c.flying || c.z > 2) && c.kind !== 'bird' && this.inView(c, 160)) c.draw(ctx, t);
@@ -1183,6 +1354,27 @@ class Game {
 
     this.renderNight();
     this.renderRain();
+    this.renderSeason();
+  }
+
+  renderSeason() {
+    const ctx = this.ctx, s = this.season, f = this.days % 1;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // blend the season tint in and out across the season boundaries
+    const edge = Math.min(1, f / 0.15, (1 - f) / 0.15);
+    const tint = [null, 'rgba(255,220,120,', 'rgba(220,120,40,', 'rgba(230,240,255,'][s];
+    const amt = [0, 0.05, 0.1, 0.24][s] * (0.4 + 0.6 * edge);
+    if (tint && amt > 0) { ctx.fillStyle = tint + amt + ')'; ctx.fillRect(0, 0, this.vw, this.vh); }
+    for (const fl of this.flakes) {
+      if (fl.c) {
+        ctx.save(); ctx.translate(fl.x, fl.y); ctx.rotate(this.time * 2 + fl.p);
+        ctx.fillStyle = fl.c; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.4, 0, 0, TAU); ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.beginPath(); ctx.arc(fl.x, fl.y, fl.r, 0, TAU); ctx.fill();
+      }
+    }
   }
 
   renderRain() {
@@ -1192,6 +1384,7 @@ class Game {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = `rgba(40,60,80,${0.16 * k})`;
     ctx.fillRect(0, 0, this.vw, this.vh);
+    if (this.season === 3) return;
     ctx.strokeStyle = `rgba(210,225,240,${0.35 * k})`; ctx.lineWidth = 1;
     ctx.beginPath();
     for (const d of this.raindrops) { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + d.l * 0.15, d.y - d.l); }

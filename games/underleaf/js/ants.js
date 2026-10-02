@@ -59,6 +59,7 @@ class Ant {
     if (o.kind === 'nest') return o !== this.colony && !o.dead;
     if (o.invuln || o.flying) return false;
     if (o.predator) return true;
+    if (o.kind === 'termite') return true;
     if (o.kind === 'ladybug') return HERDERS.has(this.sp) && o.nearPatch;
     if (o.prey || o.kind === 'caterpillar') return this.role === 'soldier' || (o.angryT > 0 && o.angryTeam === this.team);
     return o.angryT > 0 && o.angryTeam === this.team;
@@ -72,6 +73,7 @@ class Ant {
     this.alarmCd -= dt; this.pitImmune -= dt;
     if (this.followT > 0) this.followT -= dt;
     if (this.isPlayer) return;
+    if (this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + dt * 0.4);
     if (this.trapped) {
       this.a += (Math.random() - 0.5) * dt * 14;
       this.gait += dt * 18; this.speedNow = 0;
@@ -84,6 +86,10 @@ class Ant {
       this.think = 0.2 + Math.random() * 0.15;
       this.slow = this.game.slimeAt(this.x, this.y) ? 0.55 : 1;
       if (this.state !== 'carry' && this.state !== 'greet' && this.state !== 'milk') this.spaceOut();
+      // badly hurt sisters go home to recover instead of fighting on
+      if (this.hp < this.maxHp * 0.35 && (this.state === 'forage' || this.state === 'guard' || this.state === 'fetch' || this.state === 'flee')) {
+        this.releaseClaim(); this.target = null; this.state = 'heal';
+      }
     }
     switch (this.state) {
       case 'forage': this.forage(dt, think); break;
@@ -98,6 +104,7 @@ class Ant {
       case 'rescue': this.rescue(dt); break;
       case 'greet': this.greet(dt); break;
       case 'raid': this.raid(dt, think); break;
+      case 'heal': this.healHome(dt); break;
       default: this.state = this.defaultState();
     }
   }
@@ -167,6 +174,15 @@ class Ant {
         desired = this.a + this.wander * dt * 0.9;
       }
     }
+    // steer clear of places where sisters met predators recently
+    const danger = this.colony.dangerNear(this.x, this.y, 170);
+    if (danger) {
+      const away = Math.atan2(this.y - danger.y, this.x - danger.x);
+      desired = away + angDiff(away, desired) * 0.3;
+    }
+    if (think && !this.memory && this.colony.beacon && Math.random() < 0.35 && dist2(this.x, this.y, this.colony.beacon.x, this.colony.beacon.y) < 1100 * 1100) {
+      this.memory = { x: this.colony.beacon.x + rand(-40, 40), y: this.colony.beacon.y + rand(-40, 40) };
+    }
     const dn = dist(this.x, this.y, n.x, n.y);
     if (dn > 1400) desired = Math.atan2(n.y - this.y, n.x - this.x);
     else if (dn < n.r * 0.6) desired = Math.atan2(this.y - n.y, this.x - n.x) + this.wander * 0.3;
@@ -177,7 +193,7 @@ class Ant {
   reachable(f) {
     if (this.swims) return true;
     const w = this.game.world;
-    for (const k of [0.33, 0.66]) if (w.waterAt(lerp(this.x, f.x, k), lerp(this.y, f.y, k))) return false;
+    for (const k of [0.33, 0.66]) if (w.wetAt(lerp(this.x, f.x, k), lerp(this.y, f.y, k))) return false;
     return true;
   }
 
@@ -190,7 +206,7 @@ class Ant {
     const g = this.game;
     let best = null, bd = 105 * 105;
     g.foodHash.query(this.x, this.y, 105, (f) => {
-      if (f.taken || !this.wants(f) || !this.reachable(f)) return;
+      if (f.taken || !this.wants(f) || !this.reachable(f) || this.colony.dangerNear(f.x, f.y, 110)) return;
       const d2 = dist2(this.x, this.y, f.x, f.y) * (f.kind === 'leafbit' ? 0.5 : 1);
       if (d2 < bd) { bd = d2; best = f; }
     });
@@ -308,6 +324,11 @@ class Ant {
     });
     if (!best) return false;
     if (best.predator && this.role !== 'soldier' && g.countAllies(this, 110) < (best.fear || 5)) { this.startFlee(best); return true; }
+    if (best.kind === 'ant' && this.role !== 'soldier') {
+      let foes = 0;
+      g.hash.query(best.x, best.y, 110, (o) => { if (o.kind === 'ant' && o.colony === best.colony && !o.dead) foes++; });
+      if (foes > g.countAllies(this, 110) + 2) { this.startFlee(best); return true; }
+    }
     if (carrying && this.role !== 'soldier') {
       if (bd < 50 * 50) { this.startFlee(best); return true; }
       return false;
@@ -324,6 +345,7 @@ class Ant {
 
   startFlee(o) {
     this.releaseClaim(); this.leaveBig();
+    if (o && (o.predator || o.kind === 'ant')) this.colony.addDanger(o.x, o.y);
     this.fleeFrom = o; this.timer = 1.3; this.state = 'flee';
   }
 
@@ -367,10 +389,34 @@ class Ant {
       if (this.scanThreats()) return;
       if (Math.random() < 0.05 && this.tryGreet()) return;
     }
+    if (think && (!this.escort || this.escort.done) && Math.random() < 0.2) {
+      this.escort = null;
+      for (const b of this.game.bigs) {
+        if (!b.done && b.carriers.some((c) => c.colony === this.colony) && dist2(b.x, b.y, this.x, this.y) < 500 * 500 && dist2(b.x, b.y, this.nest.x, this.nest.y) > 160 * 160) { this.escort = b; break; }
+      }
+    }
+    if (this.escort && !this.escort.done && this.escort.carriers.length) {
+      const b = this.escort, ex = b.x + Math.cos(this.slot) * (b.r + 34), ey = b.y + Math.sin(this.slot) * (b.r + 34);
+      if (dist2(this.x, this.y, ex, ey) < 12 * 12) this.slot += 0.4;
+      this.steer(Math.atan2(ey - this.y, ex - this.x), this.baseSpeed * 0.9, dt, 5, { x: ex, y: ey });
+      return;
+    }
+    this.escort = null;
     const n = this.nest, rad = 112 + (this.id % 5) * 14;
     const gx = n.x + Math.cos(this.slot) * rad, gy = n.y + Math.sin(this.slot) * rad;
     if (dist2(this.x, this.y, gx, gy) < 14 * 14) this.slot += 0.5 + Math.random() * 0.5;
     this.steer(Math.atan2(gy - this.y, gx - this.x), this.baseSpeed * 0.55, dt, 3, { x: gx, y: gy });
+  }
+
+  healHome(dt) {
+    const n = this.colony.dropPoint(this.x, this.y);
+    if (dist2(this.x, this.y, n.x, n.y) > (n.r * 0.5) ** 2) {
+      this.steer(Math.atan2(n.y - this.y, n.x - this.x), this.baseSpeed * 0.8, dt, 5, n);
+      return;
+    }
+    this.speedNow = 0; this.greetT = 0.2;
+    this.hp = Math.min(this.maxHp, this.hp + dt * 9);
+    if (this.hp >= this.maxHp * 0.95) { this.state = this.defaultState(); this.a += Math.PI; }
   }
 
   raid(dt, think) {
@@ -484,7 +530,8 @@ class Ant {
     this.dead = true;
     if (this.carry) this.dropCarry();
     this.leaveBig(); this.releaseClaim();
-    const eaten = src && (src.predator || src.kind === 'antlion' || src.kind === 'frog' || src.kind === 'bird');
+    const eaten = src && (src.predator || src.kind === 'antlion' || src.kind === 'frog' || src.kind === 'bird' || src.kind === 'wasp' || src.kind === 'sundew');
+    if (src && (src.predator || src.kind === 'antlion' || src.kind === 'sundew')) this.colony.addDanger(this.x, this.y);
     if (!eaten) {
       const h = new Food('husk', this.x, this.y);
       h.sp = this.sp; h.a = this.a;

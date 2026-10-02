@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sniglet:wght@400;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
-<link rel="stylesheet" href="css/style.css?v=12">
+<link rel="stylesheet" href="css/style.css?v=24">
 </head>
 <body>
 <canvas id="game" aria-label="The meadow, seen from above"></canvas>
@@ -22,6 +22,7 @@
       <div><b id="sSoldiers">0</b><span>soldiers</span></div>
       <div><b id="sBrood">0</b><span>brood</span></div>
     </div>
+    <p class="upkeep" id="upkeep"></p>
     <p class="leafrow" id="leafRow" hidden><b id="sLeaves">0</b> leaf fragments waiting for the fungus garden</p>
     <div class="hatch">
       <button id="bWorker" type="button"><kbd>1</kbd>Worker egg<em id="costW">8</em></button>
@@ -40,7 +41,7 @@
     <canvas id="minimap"></canvas>
     <div class="maprow">
       <span id="biomeName" class="biome">Meadow</span>
-      <span class="clock"><span class="dial"><i id="clockDial"></i></span><span id="clockText">Morning</span> <span id="weatherText" class="rain"></span></span>
+      <span class="clock"><span id="seasonText" class="season">Spring</span><span class="dial"><i id="clockDial"></i></span><span id="clockText">Morning</span> <span id="weatherText" class="rain"></span></span>
     </div>
     <div class="tools">
       <button id="scentBtn" type="button" title="Show scent trails (T)">Scent</button>
@@ -64,7 +65,8 @@
 
   <div id="prompt" hidden></div>
   <div id="toasts" aria-live="polite"></div>
-  <p class="keys"><kbd>WASD</kbd> move <kbd>Space</kbd> bite <kbd>E</kbd> grab <kbd>F</kbd> ability <kbd>Q</kbd> rally <kbd>N</kbd> nest <kbd>Shift</kbd> scent <kbd>G</kbd> guide</p>
+  <div id="achToast" class="achtoast" hidden><canvas id="achIcon"></canvas><div><p class="eyebrow">Achievement unlocked</p><p id="achName"></p></div></div>
+  <p class="keys"><kbd>WASD</kbd> move <kbd>Space</kbd> bite <kbd>E</kbd> grab <kbd>F</kbd> ability <kbd>Q</kbd> rally <kbd>N</kbd> nest <kbd>R</kbd> beacon <kbd>Shift</kbd> scent <kbd>G</kbd> guide</p>
 </div>
 
 <aside id="nestPanel" class="panel nestpanel" hidden>
@@ -105,24 +107,83 @@
   </div>
 </div>
 
-<div id="title" class="overlay">
-  <div class="sheet titlesheet">
-    <h1>Underleaf</h1>
-    <p class="lede">An endless wild world, seen from an ant's height. Choose your species, raise a colony, and explore meadows, woods, marshes and shores.</p>
-    <div id="speciesGrid" class="speciesgrid" role="group" aria-label="Choose your ant species"></div>
-    <div class="spinfo">
-      <div class="sphead"><h2 id="spName"></h2><p id="spLatin" class="latin"></p></div>
-      <p id="spBlurb" class="sub"></p>
-      <div id="spStats" class="spstats"></div>
-      <p id="spAbility" class="spability"></p>
-      <p id="spPerk" class="spperk"></p>
-    </div>
-    <div class="titlebtns">
-      <button id="continueBtn" class="secondary" type="button" hidden>Continue saved colony</button>
-      <button id="startBtn" class="primary" type="button">Found a colony</button>
-    </div>
-    <p id="continueInfo" class="fine" hidden></p>
-    <p class="fine">WASD move · Space bite · E grab · F ability · Q rally · N nest · Shift scent trail · scroll to zoom</p>
+<div id="title" class="overlay home">
+  <div class="homewrap">
+    <header class="homehead">
+      <canvas id="homeArt" aria-hidden="true"></canvas>
+      <div>
+        <h1>Underleaf</h1>
+        <p class="lede">An endless wild world, seen from an ant's height.</p>
+      </div>
+    </header>
+    <nav class="tabs" role="tablist" aria-label="Home">
+      <button type="button" role="tab" data-tab="play" class="on">Play</button>
+      <button type="button" role="tab" data-tab="achievements">Achievements <span id="achCount" class="count"></span></button>
+      <button type="button" role="tab" data-tab="records">Records</button>
+      <button type="button" role="tab" data-tab="guidebook">Field guide <span id="guideTabCount" class="count"></span></button>
+      <button type="button" role="tab" data-tab="howto">How to play</button>
+    </nav>
+
+    <section class="tabpanel" data-panel="play">
+      <div id="speciesGrid" class="speciesgrid" role="group" aria-label="Choose your ant species"></div>
+      <div class="spinfo">
+        <div class="sphead"><h2 id="spName"></h2><p id="spLatin" class="latin"></p></div>
+        <p id="spBlurb" class="sub"></p>
+        <div id="spStats" class="spstats"></div>
+        <p id="spAbility" class="spability"></p>
+        <p id="spPerk" class="spperk"></p>
+      </div>
+      <div class="titlebtns">
+        <button id="continueBtn" class="secondary" type="button" hidden>Continue saved colony</button>
+        <button id="startBtn" class="primary" type="button">Found a colony</button>
+      </div>
+      <p id="continueInfo" class="fine" hidden></p>
+    </section>
+
+    <section class="tabpanel" data-panel="achievements" hidden>
+      <p class="sub" id="achSummary"></p>
+      <div id="achGrid" class="achgrid"></div>
+    </section>
+
+    <section class="tabpanel" data-panel="records" hidden>
+      <div id="recordGrid" class="recgrid"></div>
+      <h3 class="subhead">Brought down by your colonies</h3>
+      <div id="killGrid" class="killgrid"></div>
+    </section>
+
+    <section class="tabpanel" data-panel="guidebook" hidden>
+      <p class="sub" id="homeGuideCount"></p>
+      <div id="homeGuideGrid" class="guidegrid"></div>
+    </section>
+
+    <section class="tabpanel howto" data-panel="howto" hidden>
+      <div class="howgrid">
+        <div>
+          <h3>Controls</h3>
+          <ul class="controls">
+            <li><kbd>WASD</kbd><span>Walk</span></li>
+            <li><kbd>Space</kbd><span>Bite</span></li>
+            <li><kbd>E</kbd><span>Grab food, milk aphids, shake brambles, rescue sisters</span></li>
+            <li><kbd>F</kbd><span>Your species' special ability</span></li>
+            <li><kbd>Q</kbd><span>Rally nearby sisters to follow you</span></li>
+            <li><kbd>R</kbd><span>Drop a beacon where foragers should search</span></li>
+            <li><kbd>N</kbd><span>Go inside the nest (at home)</span></li>
+            <li><kbd>Shift</kbd><span>Lay a scent trail</span></li>
+            <li><kbd>G</kbd><span>Field guide</span></li>
+            <li><kbd>P</kbd><span>Pause</span></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Keeping a colony alive</h3>
+          <p>Every ant eats. Carry food home faster than the colony uses it, or the stores run dry and sisters starve.</p>
+          <p>Inside the nest the queen turns food into eggs. Dig chambers to store more food, raise brood faster and get through winter.</p>
+          <p>Each season lasts one day. Autumn is for stockpiling; winter is cold, slow and hungry.</p>
+          <h3>Staying alive</h3>
+          <p>Big hunters pick on ants that wander alone. Rally sisters before a fight, and watch for a red ring on the ground: a robin is about to land there.</p>
+          <p>If you fall, you wake as another sister. The leaderboard counts how long one ant survives.</p>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -131,6 +192,7 @@
     <h2>Paused</h2>
     <p class="sub">Your colony is saved in this browser.</p>
     <button id="resumeBtn" class="primary" type="button">Resume</button>
+    <button id="homeBtn" class="secondary" type="button">Save and go to home screen</button>
   </div>
 </div>
 
@@ -146,6 +208,7 @@
   <div id="joy"><div id="knob"></div></div>
   <div class="tbtns">
     <button id="tNest" type="button">Nest</button>
+    <button id="tBeacon" type="button">Beacon</button>
     <button id="tRally" type="button">Rally</button>
     <button id="tTrail" type="button">Scent</button>
     <button id="tAbility" type="button" class="star">Power</button>
@@ -154,18 +217,22 @@
   </div>
 </div>
 
-<script src="js/util.js?v=12"></script>
-<script src="js/species.js?v=12"></script>
-<script src="js/art.js?v=12"></script>
-<script src="js/props.js?v=12"></script>
-<script src="js/art2.js?v=12"></script>
-<script src="js/world.js?v=12"></script>
-<script src="js/critters.js?v=12"></script>
-<script src="js/critters2.js?v=12"></script>
-<script src="js/colony.js?v=12"></script>
-<script src="js/ants.js?v=12"></script>
-<script src="js/nest.js?v=12"></script>
-<script src="js/ui.js?v=12"></script>
-<script src="js/game.js?v=12"></script>
+<script src="js/util.js?v=24"></script>
+<script src="js/species.js?v=24"></script>
+<script src="js/art.js?v=24"></script>
+<script src="js/props.js?v=24"></script>
+<script src="js/art2.js?v=24"></script>
+<script src="js/art3.js?v=24"></script>
+<script src="js/canopy.js?v=24"></script>
+<script src="js/world.js?v=24"></script>
+<script src="js/critters.js?v=24"></script>
+<script src="js/critters2.js?v=24"></script>
+<script src="js/critters3.js?v=24"></script>
+<script src="js/meta.js?v=24"></script>
+<script src="js/colony.js?v=24"></script>
+<script src="js/ants.js?v=24"></script>
+<script src="js/nest.js?v=24"></script>
+<script src="js/ui.js?v=24"></script>
+<script src="js/game.js?v=24"></script>
 </body>
 </html>

@@ -73,6 +73,27 @@ GUIDE.push(
   { id: 'bee', name: 'Honeybee', latin: 'Apis mellifera', scale: 3, text: 'Visits flowers for nectar and pollen. Its sting is barbed, so when it stings a mammal the sting stays behind and the bee dies.', draw: (c, t) => drawBee(c, { x: 0, y: 0, a: -0.4, size: 1, z: 0, id: 1 }, t) },
   { id: 'mantis', name: 'European mantis', latin: 'Mantis religiosa', scale: 1.2, text: 'Waits without moving, then snatches prey with spiked front legs in a fraction of a second. It can turn its head to look over its shoulder.', draw: (c, t) => drawMantis(c, { x: 0, y: 0, a: -0.4, size: 1, gait: 0, biteT: 0 }, t) },
 );
+GUIDE.push(
+  { id: 'wasp', name: 'Common wasp', latin: 'Vespula vulgaris', scale: 2.4, text: 'Hunts other insects to feed its larvae, flying the prey back to a paper nest. The adults themselves mostly drink sugary liquids.', draw: (c, t) => drawWasp(c, { x: 0, y: 0, a: -0.4, size: 1, z: 0, gait: 1, id: 1 }, t) },
+  { id: 'earwig', name: 'Common earwig', latin: 'Forficula auricularia', scale: 2.2, text: 'Despite the old myth, it does not crawl into ears. Mothers guard their eggs and young all through the winter.', draw: (c, t) => drawEarwig(c, { x: 4, y: 0, a: -0.4, size: 1, gait: 1 }, t) },
+  { id: 'slug', name: 'Large red slug', latin: 'Arion rufus', scale: 1.5, text: 'A snail without a shell. It breathes through a hole on its right side called a pneumostome.', draw: (c, t) => drawSlug(c, { x: 0, y: 0, a: -0.3, size: 1, id: 1, speedNow: 0 }, t) },
+  { id: 'dungbeetle', name: 'Dung beetle', latin: 'Scarabaeidae', scale: 2, text: 'Rolls balls of dung much bigger than itself, walking backwards. Some species steer by the Milky Way at night.', draw: (c, t) => drawDungBeetle(c, { x: 10, y: 0, a: 0, size: 1, gait: 1, ball: true, bx: -12, by: 0, ballR: 11, roll: 0 }, t) },
+  { id: 'cricket', name: 'Field cricket', latin: 'Gryllus campestris', scale: 1.8, text: 'Males sing by rubbing their wings together. Their ears are on their front legs.', draw: (c, t) => drawCricket(c, { x: 4, y: 0, a: -0.4, size: 1, z: 0 }, t) },
+  { id: 'moth', name: 'Moth', latin: 'Lepidoptera', scale: 1.8, text: 'Most moths fly at night. Bright lights confuse their sense of which way is up, which is why they circle lamps.', draw: (c, t) => drawMoth(c, { x: 0, y: 0, a: -Math.PI / 2, z: 0, size: 1, id: 1 }, 0.1) },
+  { id: 'hedgehog', name: 'European hedgehog', latin: 'Erinaceus europaeus', scale: 0.55, text: 'Carries thousands of spines and rolls into a prickly ball when threatened. It snuffles through the night eating beetles, worms and ants.', draw: (c, t) => drawHedgehog(c, { x: -12, y: 0, a: 0, size: 1 }, t) },
+  { id: 'stick', name: 'Stick insect', latin: 'Phasmatodea', scale: 1.1, text: 'Looks, and even sways, like a twig to hide from birds. Many species can lay eggs without mating.', draw: (c, t) => drawStickInsect(c, { x: 4, y: 0, a: -0.3, size: 1, gait: 0, id: 1 }, t) },
+  { id: 'termite', name: 'Termite', latin: 'Blattodea', scale: 3, text: 'Termites are really social cockroaches. Workers are soft and blind; soldiers have huge heads for defence. Some ants specialise in raiding them.', draw: (c, t) => drawTermite(c, { x: 0, y: 0, a: -0.4, size: 1, gait: 1, role: 'soldier' }, t) },
+);
+const plantPortrait = (kind) => (c) => { const spr = canopySprite({ seed: 9000 + kind.length, kind, cr: 60, tr: 12 }); c.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h); };
+GUIDE.push(
+  { id: 'plant:oak', name: 'English oak', latin: 'Quercus robur', scale: 0.55, text: 'A single oak can support hundreds of kinds of insect. In autumn it drops acorns that animals carry off and bury.', draw: plantPortrait('oak') },
+  { id: 'plant:pine', name: 'Scots pine', latin: 'Pinus sylvestris', scale: 0.55, text: 'Red wood ants often build their mounds from its fallen needles. Its bark turns orange-red towards the top.', draw: plantPortrait('pine') },
+  { id: 'plant:birch', name: 'Silver birch', latin: 'Betula pendula', scale: 0.55, text: 'Its white bark reflects sunlight. It is one of the first trees to grow on bare ground.', draw: plantPortrait('birch') },
+  { id: 'plant:willow', name: 'Weeping willow', latin: 'Salix babylonica', scale: 0.55, text: 'Grows best with its roots near water. Willow bark contains salicin, a natural relative of aspirin.', draw: plantPortrait('willow') },
+  { id: 'plant:bush', name: 'Bramble', latin: 'Rubus fruticosus', scale: 0.7, text: 'Its blackberries feed birds, mammals and insects alike. Shake it and ripe berries fall for your sisters.', draw: (c) => { const f = { seed: 77, berries: 6, x: 0, y: 0 }; const spr = bushSprite(f); c.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h); } },
+  { id: 'plant:sunflower', name: 'Sunflower', latin: 'Helianthus annuus', scale: 0.75, text: 'The seeds in its head are packed in spirals that follow the Fibonacci numbers. Young flower heads turn to follow the sun.', draw: (c) => { const spr = sunflowerSprite({ seed: 78 }); c.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h); } },
+  { id: 'plant:sundew', name: 'Round-leaved sundew', latin: 'Drosera rotundifolia', scale: 2, text: 'A carnivorous bog plant. Insects stick to its glistening drops, and the tentacles slowly curl around them.', draw: (c) => drawSundew(c, { x: 0, y: 0, seed: 5, curl: 0 }, 0.5) },
+);
 const guideEntry = (id) => GUIDE.find((g) => g.id === id);
 
 function renderPortrait(canvas, sp, w, h, t = 0.4) {
@@ -101,6 +122,10 @@ const OBJECTIVES = [
   { text: 'Bring down a big predator', done: (g) => g.stats.bigKills >= 1 },
   { text: 'Topple a rival ant nest', done: (g) => g.stats.nestsDown >= 1 },
   { text: 'Fill 20 field guide pages', done: (g) => g.discovered.size >= 20, prog: (g) => `${g.discovered.size}/20` },
+  { text: 'Place a scent beacon for foragers', done: (g) => g.toldOnce.has('beacon') },
+  { text: 'Raid a termite mound', done: (g) => (g.stats.termites || 0) >= 5, prog: (g) => `${Math.min(5, g.stats.termites || 0)}/5` },
+  { text: 'Dig an overwintering hall', done: (g) => g.home.chambers.winter >= 1 },
+  { text: 'Survive your first winter', done: (g) => g.days >= 4 },
   { text: 'Grow the colony to 100 ants', done: (g) => g.stats.peak >= 100, prog: (g) => `${Math.min(100, g.counts.home)}/100` },
   { text: 'Topple 3 rival nests', done: (g) => g.stats.nestsDown >= 3, prog: (g) => `${g.stats.nestsDown}/3` },
 ];
@@ -117,7 +142,7 @@ class UI {
       'minimap', 'biomeName', 'clockText', 'clockDial', 'weatherText', 'rival', 'rivalName', 'rivalBar', 'toasts', 'scentBtn',
       'discover', 'dPortrait', 'dName', 'dLatin', 'dText', 'dCount', 'guide', 'guideGrid', 'guideCount',
       'title', 'speciesGrid', 'spName', 'spLatin', 'spBlurb', 'spStats', 'spAbility', 'spPerk', 'continueBtn', 'continueInfo', 'startBtn',
-      'pause', 'over', 'overTitle', 'overText', 'touch', 'joy', 'knob', 'nestPanel', 'npTitle', 'npPips', 'npDesc', 'npNext', 'npBtn', 'npBrood', 'npLayW', 'npLayS', 'npFood', 'tNest'];
+      'seasonText', 'upkeep', 'pause', 'over', 'overTitle', 'overText', 'touch', 'joy', 'knob', 'nestPanel', 'npTitle', 'npPips', 'npDesc', 'npNext', 'npBtn', 'npBrood', 'npLayW', 'npLayS', 'npFood', 'tNest'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.el.scent = this.el.scentBtn;
@@ -144,6 +169,7 @@ class UI {
       const was = g.home.chambers[key];
       if (g.home.upgrade(key)) {
         g.stats.dug++;
+        META.best('chambersDug', g.stats.dug);
         if (key === 'barracks') for (const a of g.ants) if (a.colony === g.home && a.role === 'soldier' && !a.isPlayer) { const f = a.hp / a.maxHp; a.applyStats('soldier', false); a.hp = a.maxHp * f; }
         this.toast(`${was ? 'Enlarged' : 'Dug'} the ${CHAMBERS[key].name.toLowerCase()}.`, 'good');
         g.save();
@@ -153,6 +179,8 @@ class UI {
     this.el.npLayW.addEventListener('click', () => g.layEgg('worker'));
     this.el.npLayS.addEventListener('click', () => g.layEgg('soldier'));
     this.mapCtx = this.el.minimap.getContext('2d');
+    $('homeBtn').addEventListener('click', () => { g.save(); location.reload(); });
+    this.setupHome();
     this.buildSpeciesPicker();
     this.setupTouch();
   }
@@ -188,10 +216,123 @@ class UI {
           const sel = k === this.pickSpecies;
           renderPortrait(cv, { scale: 1 / ANT_SPECIES[k].shape.size, draw: (c, t) => drawAnt(c, { ...fakeAnt(k, 'worker', 2), a: -Math.PI / 2 + (sel ? Math.sin(now / 900) * 0.25 : 0), gait: sel ? now / 90 : 0.5, greetT: sel ? 1 : 0 }, t) }, 84, 64, now / 1000);
         }
+        const k = this.pickSpecies;
+        renderPortrait(this.$('homeArt'), { scale: 1, draw: (c, t) => {
+          drawAnt(c, { ...fakeAnt(k, 'worker', 1.9 / ANT_SPECIES[k].shape.size), x: -40, y: 6, a: -0.1, gait: 0.6, greetT: 1 }, t);
+          drawAnt(c, { ...fakeAnt(k, 'worker', 1.9 / ANT_SPECIES[k].shape.size), x: 40, y: -4, a: Math.PI + 0.15, gait: 2.1, greetT: 1, id: 9 }, t);
+        } }, 190, 90, now / 1000);
       }
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
+  }
+
+  /* ----------------------------------------------------------- home */
+
+  setupHome() {
+    const tabs = document.querySelectorAll('.tabs [data-tab]');
+    for (const b of tabs) {
+      b.addEventListener('click', () => {
+        for (const o of tabs) { o.classList.toggle('on', o === b); o.setAttribute('aria-selected', o === b); }
+        for (const p of document.querySelectorAll('.tabpanel')) p.hidden = p.dataset.panel !== b.dataset.tab;
+        if (b.dataset.tab === 'achievements') this.renderAchievements();
+        if (b.dataset.tab === 'records') this.renderRecords();
+        if (b.dataset.tab === 'guidebook') this.guideCards(this.$('homeGuideGrid'), META.guide, this.$('homeGuideCount'));
+      });
+    }
+    const n = Object.keys(META.unlocked).length;
+    this.$('achCount').textContent = `${n}/${ACHIEVEMENTS.length}`;
+    this.$('guideTabCount').textContent = `${META.guide.size}/${GUIDE.length}`;
+  }
+
+  medal(cv, a, got, size) {
+    const sp = guideEntry(a.icon) || GUIDE[0];
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = cv.height = size * dpr; cv.style.width = cv.style.height = size + 'px';
+    const c = cv.getContext('2d');
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const r = size / 2;
+    const gr = c.createRadialGradient(r * 0.7, r * 0.6, 2, r, r, r);
+    gr.addColorStop(0, got ? '#ffe9a6' : '#5a5848'); gr.addColorStop(0.7, got ? '#e0a83a' : '#3e3d32'); gr.addColorStop(1, got ? '#8a5a10' : '#26251e');
+    c.fillStyle = gr; c.beginPath(); c.arc(r, r, r - 1, 0, TAU); c.fill();
+    c.strokeStyle = got ? 'rgba(255,245,210,0.8)' : 'rgba(255,255,255,0.12)'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(r, r, r - 4, 0, TAU); c.stroke();
+    c.save(); c.beginPath(); c.arc(r, r, r - 5, 0, TAU); c.clip();
+    c.translate(r, r);
+    const k = sp.scale * (size / 84) * 0.8;
+    c.scale(k, k);
+    if (!got) c.globalAlpha = 0.35;
+    sp.draw(c, 0.4);
+    c.restore();
+  }
+
+  renderAchievements() {
+    const grid = this.$('achGrid');
+    grid.innerHTML = '';
+    let n = 0;
+    for (const a of ACHIEVEMENTS) {
+      const got = !!META.unlocked[a.id];
+      if (got) n++;
+      const card = document.createElement('article');
+      card.className = 'ach' + (got ? ' got' : '');
+      const cv = document.createElement('canvas');
+      card.appendChild(cv);
+      const body = document.createElement('div');
+      let extra = '';
+      if (got) extra = `<p class="when">Earned ${new Date(META.unlocked[a.id]).toLocaleDateString()}</p>`;
+      else if (a.prog) {
+        const [v, max] = a.prog(META);
+        extra = `<div class="pbar"><i style="transform:scaleX(${clamp(v / max, 0, 1)})"></i></div><p class="when">${Math.min(v, max).toLocaleString()} / ${max.toLocaleString()}</p>`;
+      }
+      body.innerHTML = `<h3>${a.name}</h3><p>${a.desc}</p>${extra}`;
+      card.appendChild(body);
+      grid.appendChild(card);
+      this.medal(cv, a, got, 56);
+    }
+    this.$('achSummary').textContent = `${n} of ${ACHIEVEMENTS.length} earned. Achievements carry over between colonies.`;
+  }
+
+  renderRecords() {
+    const m = META, fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    const yrs = (d) => (d >= 4 ? `${Math.floor(d / 4)} yr ${d % 4} seasons` : `${d} season${d === 1 ? '' : 's'}`);
+    const tiles = [
+      ['Longest life as one ant', fmt(m.r.longestLife), 'The number on the UsForge leaderboard'],
+      ['Biggest colony', m.r.biggestColony, 'ants alive at once'],
+      ['Longest-lived colony', yrs(m.r.mostDays), ''],
+      ['Highest level', m.r.highestLevel, ''],
+      ['Farthest from home', `${m.r.farthest.toLocaleString()} steps`, ''],
+      ['Biggest single haul', `${m.r.biggestHaul} food`, ''],
+      ['Colonies founded', m.t.colonies, ''],
+      ['Sisters raised', m.t.antsRaised.toLocaleString(), ''],
+      ['Food stored', m.t.colonyLoads.toLocaleString(), 'loads, all colonies'],
+      ['Food you carried', m.t.playerLoads.toLocaleString(), 'loads'],
+      ['Rival nests toppled', m.t.nests, ''],
+      ['Lives lived', m.t.lives, ''],
+    ];
+    this.$('recordGrid').innerHTML = tiles.map(([l, v, s]) => `<div class="rec"><span>${l}</span><b>${v}</b>${s ? `<small>${s}</small>` : ''}</div>`).join('');
+    const kills = Object.entries(m.kills).sort((a, b) => b[1] - a[1]);
+    const kg = this.$('killGrid');
+    kg.innerHTML = kills.length ? '' : '<p class="sub">Nothing yet. Rally your sisters and go hunting.</p>';
+    for (const [kind, n] of kills) {
+      const sp = guideEntry(kind);
+      const d = document.createElement('div');
+      d.className = 'kill';
+      const cv = document.createElement('canvas');
+      d.appendChild(cv);
+      d.insertAdjacentHTML('beforeend', `<span>${sp ? sp.name : kind}</span><b>${n.toLocaleString()}</b>`);
+      kg.appendChild(d);
+      if (sp) renderPortrait(cv, sp, 44, 34);
+    }
+  }
+
+  achievement(a) {
+    const el = this.$('achToast');
+    el.hidden = false;
+    this.$('achName').textContent = `${a.name}: ${a.desc}`;
+    this.medal(this.$('achIcon'), a, true, 46);
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    clearTimeout(this.achTimer);
+    this.achTimer = setTimeout(() => { el.hidden = true; }, 5000);
   }
 
   selectSpecies(k) {
@@ -257,6 +398,7 @@ class UI {
     hold(this.$('tGrab'), () => g.input.just.add('KeyE'));
     hold(this.$('tRally'), () => g.input.just.add('KeyQ'));
     hold(this.$('tAbility'), () => g.useAbility());
+    hold(this.$('tBeacon'), () => g.placeBeacon());
     hold(this.$('tTrail'), () => { g.input.touchTrail = true; }, () => { g.input.touchTrail = false; });
     hold(this.el.tNest, () => (g.view === 'nest' ? g.exitNest() : g.enterNest()));
   }
@@ -314,9 +456,12 @@ class UI {
     el.goalCount.textContent = `${done}/${OBJECTIVES.length}`;
     // time, weather, place
     const d = g.dayT;
+    el.seasonText.textContent = SEASON_NAMES[g.season];
+    el.upkeep.textContent = `Colony eats ${(h.upkeep || 0).toFixed(1)} food a minute${h.food < 5 && c.home > 3 ? ' · stores nearly empty!' : ''}`;
+    el.upkeep.classList.toggle('warn', h.food < 5 && c.home > 3);
     el.clockText.textContent = d < 0.08 ? 'Dawn' : d < 0.3 ? 'Morning' : d < 0.5 ? 'Afternoon' : d < 0.62 ? 'Dusk' : d < 0.92 ? 'Night' : 'Dawn';
     el.clockDial.style.transform = `rotate(${d * 360}deg)`;
-    el.weatherText.textContent = g.weather.k > 0.3 ? 'Rain' : '';
+    el.weatherText.textContent = g.weather.k > 0.3 ? (g.season === 3 ? 'Snow' : 'Rain') : '';
     el.biomeName.textContent = BIOME_NAMES[g.biomeHere];
     // nearest rival
     let near = null, nd = Infinity;
@@ -458,29 +603,31 @@ class UI {
     this.discoverT = 9;
   }
 
+  guideCards(grid, known, countEl) {
+    grid.innerHTML = '';
+    for (const sp of GUIDE) {
+      const has = known.has(sp.id);
+      const card = document.createElement('article');
+      card.className = 'gcard' + (has ? '' : ' unknown');
+      const cv = document.createElement('canvas');
+      card.appendChild(cv);
+      const body = document.createElement('div');
+      body.innerHTML = has
+        ? `<h3>${sp.name}</h3><p class="latin">${sp.latin}</p><p>${sp.text}</p>`
+        : '<h3>Not yet seen</h3><p>Explore the meadow, woods, shore and marsh to find this.</p>';
+      card.appendChild(body);
+      grid.appendChild(card);
+      renderPortrait(cv, sp, 96, 68);
+      if (!has) cv.classList.add('silhouette');
+    }
+    if (countEl) countEl.textContent = `${GUIDE.filter((g) => known.has(g.id)).length} of ${GUIDE.length} found`;
+  }
+
   toggleGuide(force) {
     const el = this.el, g = this.game;
     const show = force ?? el.guide.hidden;
     el.guide.hidden = !show;
-    if (show) {
-      el.guideGrid.innerHTML = '';
-      for (const sp of GUIDE) {
-        const known = g.discovered.has(sp.id);
-        const card = document.createElement('article');
-        card.className = 'gcard' + (known ? '' : ' unknown');
-        const cv = document.createElement('canvas');
-        card.appendChild(cv);
-        const body = document.createElement('div');
-        body.innerHTML = known
-          ? `<h3>${sp.name}</h3><p class="latin">${sp.latin}</p><p>${sp.text}</p>`
-          : '<h3>Not yet seen</h3><p>Explore the meadow, woods, shore and marsh to find this creature.</p>';
-        card.appendChild(body);
-        el.guideGrid.appendChild(card);
-        renderPortrait(cv, sp, 96, 68);
-        if (!known) cv.classList.add('silhouette');
-      }
-      el.guideCount.textContent = `${g.discovered.size} of ${GUIDE.length} creatures found`;
-    }
+    if (show) this.guideCards(el.guideGrid, g.discovered, el.guideCount);
     g.guideOpen = show;
   }
 }

@@ -26,6 +26,19 @@ function nearestAnt(game, x, y, range, filter) {
   return best;
 }
 
+/* Predators pick on ants that have strayed from their sisters. */
+function isolatedAnt(game, x, y, range) {
+  let best = null, bs = Infinity;
+  game.hash.query(x, y, range, (o) => {
+    if (o.kind !== 'ant' || o.dead || o.inNest) return;
+    const d = dist(x, y, o.x, o.y);
+    if (d > range) return;
+    const s = d + game.countAllies(o, 60) * 35;
+    if (s < bs) { bs = s; best = o; }
+  });
+  return best;
+}
+
 /* A generic hunter that stalks ants and bites at close range. */
 class Hunter extends Critter {
   constructor(game, x, y) {
@@ -37,7 +50,7 @@ class Hunter extends Critter {
     const tg = this.target;
     if (this.think <= 0) {
       this.think = 0.4;
-      if (!tg || tg.dead || dist2(this.x, this.y, tg.x, tg.y) > (opts.range * 1.6) ** 2) this.target = nearestAnt(this.game, this.x, this.y, opts.range);
+      if (!tg || tg.dead || dist2(this.x, this.y, tg.x, tg.y) > (opts.range * 1.6) ** 2) this.target = isolatedAnt(this.game, this.x, this.y, opts.range);
     }
     const t2 = this.target;
     if (t2 && !t2.dead) {

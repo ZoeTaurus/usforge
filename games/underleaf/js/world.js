@@ -68,8 +68,13 @@ class World {
     return 'meadow';
   }
   biome(x, y) { const [e, m] = this.em(x, y); return this.classify(e, m); }
+  riverVal(x, y) { return fbm(x / 1500 + 3.3, y / 1500 + 7.1, this.seed + 31, 3); }
   waterFrom(x, y, e, m) {
     let v = (0.34 - e) * 30;
+    if (e > 0.355) {
+      const rk = smoothstep(1100, 1700, Math.hypot(x, y));
+      if (rk > 0) v = Math.max(v, (0.013 - Math.abs(this.riverVal(x, y) - 0.5)) * 380 * rk);
+    }
     if (m > 0.55 && e > 0.36) {
       const p = fbm(x / 420 + 9.1, y / 420 - 3.7, this.seed + 13, 3);
       v = Math.max(v, (p - 0.6) * 60 * smoothstep(0.55, 0.62, m) * smoothstep(1300, 1800, Math.hypot(x, y)));
@@ -78,6 +83,22 @@ class World {
   }
   waterVal(x, y) { const [e, m] = this.em(x, y); return this.waterFrom(x, y, e, m); }
   waterAt(x, y) { return this.waterVal(x, y) > 0; }
+  /* Water a walker cannot cross: open water that is not spanned by a log bridge. */
+  wetAt(x, y) {
+    if (this.waterVal(x, y) <= 0) return false;
+    const d = this.getData(Math.floor(x / CHUNK), Math.floor(y / CHUNK));
+    for (const b of d.nearBridges || this.bridgeList(d)) if (segDist2(x, y, b) < (b.w / 2) ** 2) return false;
+    return true;
+  }
+  bridgeList(d) {
+    const list = [];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const n = this.getData(d.cx + dx, d.cy + dy);
+      for (const b of n.bridges) list.push(b);
+    }
+    d.nearBridges = list;
+    return list;
+  }
   groundRGB(x, y) {
     const [e, m] = this.em(x, y);
     const c = GROUND.meadow.slice();
@@ -168,6 +189,60 @@ class World {
       if (sp === 'bullet') obstacles.push({ x: s.x - 8, y: s.y - 96, r: 62 });
       props.push({ type: 'nest', layer: 2, species: sp, x: s.x, y: s.y, r: 300, seed: (R() * 1e9) | 0 });
     });
+    // log bridges over rivers, so walkers can cross
+    const bridges = [];
+    if (cb !== 'sea' && R() < 0.8) {
+      for (let t = 0; t < 8 && !bridges.length; t++) {
+        const x = x0 + 60 + R() * (CHUNK - 120), y = y0 + 60 + R() * (CHUNK - 120);
+        const [e, m] = this.em(x, y);
+        if (e < 0.38 || this.waterFrom(x, y, e, m) <= 0) continue;
+        const gx = this.riverVal(x + 6, y) - this.riverVal(x - 6, y), gy = this.riverVal(x, y + 6) - this.riverVal(x, y - 6);
+        const gl = Math.hypot(gx, gy);
+        if (gl < 1e-6) continue;
+        const ux = gx / gl, uy = gy / gl;
+        for (let L = 50; L <= 130; L += 16) {
+          if (this.waterVal(x + ux * L, y + uy * L) < -0.3 && this.waterVal(x - ux * L, y - uy * L) < -0.3) {
+            const b = { x1: x - ux * (L + 10), y1: y - uy * (L + 10), x2: x + ux * (L + 10), y2: y + uy * (L + 10), w: 26 };
+            bridges.push(b);
+            props.push({ type: 'log', layer: 3, x, y, len: L * 2 + 36, w: 30, r: L + 40, rot: Math.atan2(uy, ux), seed: (R() * 1e9) | 0, bridge: true });
+            break;
+          }
+        }
+      }
+    }
+    // trees: a trunk you walk around, and a canopy drawn above everything
+    const trees = [], plants = [];
+    const treeN = { wood: 2.2, meadow: 0.3, marsh: 0.35, dry: 0.15, beach: 0.05, sea: 0 }[cb];
+    for (let t = 0; t < 3; t++) {
+      if (R() > treeN / 3) continue;
+      const s = place(70);
+      if (!s) continue;
+      const kind = s.b === 'dry' ? 'pine' : s.b === 'marsh' ? 'willow' : s.b === 'wood' ? (R() < 0.25 ? 'pine' : R() < 0.25 ? 'birch' : 'oak') : (R() < 0.3 ? 'birch' : 'oak');
+      const tr = 24 + R() * 18, tree = { x: s.x, y: s.y, tr, cr: tr * (4.6 + R() * 1.6), kind, seed: (R() * 1e9) | 0 };
+      trees.push(tree);
+      features.push({ type: 'tree', x: s.x, y: s.y, r: tr + 30, id: `t${cx},${cy},${t}` });
+      obstacles.push({ x: s.x, y: s.y, r: tr * 0.95 });
+      props.push({ type: 'shade', layer: 1, x: s.x + tree.cr * 0.15, y: s.y + tree.cr * 0.2, r: tree.cr * 1.05 });
+      props.push({ type: 'trunk', layer: 3, x: s.x, y: s.y, tr, kind, r: tr * 3.4, seed: tree.seed });
+    }
+    const plantRoll = (type, chance, r, okB) => {
+      if (R() > chance) return;
+      const s = place(r);
+      if (!s || !okB.includes(s.b)) return;
+      const f = { type, x: s.x, y: s.y, r, id: `${type}${cx},${cy}`, seed: (R() * 1e9) | 0 };
+      features.push(f); plants.push(f);
+    };
+    plantRoll('bush', { meadow: 0.22, wood: 0.3, marsh: 0.1, dry: 0.05 }[cb] || 0, 46, ['meadow', 'wood', 'marsh', 'dry']);
+    plantRoll('sunflower', cb === 'meadow' ? 0.22 : cb === 'dry' ? 0.08 : 0, 26, ['meadow', 'dry']);
+    plantRoll('sundew', cb === 'marsh' ? 0.4 : cb === 'wood' ? 0.06 : 0, 20, ['marsh', 'wood']);
+    if (cb === 'dry' && R() < 0.14) {
+      const s = place(80);
+      if (s && !home(s.x, s.y, 1200)) {
+        features.push({ type: 'termites', x: s.x, y: s.y, r: 70, id: `m${cx},${cy}` });
+        props.push({ type: 'termound', layer: 3, x: s.x, y: s.y, r: 90, seed: (R() * 1e9) | 0 });
+        obstacles.push({ x: s.x, y: s.y, r: 34 });
+      }
+    }
     region(4, 77, 0.55, ['meadow', 'wood', 'dry'], 900, (s) => {
       features.push({ type: 'lair', x: s.x, y: s.y, r: 80, id: `l${cx},${cy}` });
       props.push({ type: 'lair', layer: 2, x: s.x, y: s.y, r: 95, seed: (R() * 1e9) | 0 });
@@ -261,7 +336,7 @@ class World {
       }
     }
     props.sort((a, b) => a.layer - b.layer);
-    return { cx, cy, props, obstacles, features, flowers, biome: cb, coll: null };
+    return { cx, cy, props, obstacles, features, flowers, trees, plants, bridges, biome: cb, coll: null };
   }
 
   collList(cx, cy) {
@@ -284,6 +359,16 @@ class World {
     for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
       for (const f of this.getData(cx, cy).features) {
         if ((!type || f.type === type) && dist2(x, y, f.x, f.y) < radius * radius) out.push(f);
+      }
+    }
+    return out;
+  }
+
+  near(x, y, radius, key) {
+    const out = [];
+    for (let cx = Math.floor((x - radius) / CHUNK); cx <= Math.floor((x + radius) / CHUNK); cx++) {
+      for (let cy = Math.floor((y - radius) / CHUNK); cy <= Math.floor((y + radius) / CHUNK); cy++) {
+        for (const t of this.getData(cx, cy)[key]) if (dist2(x, y, t.x, t.y) < radius * radius) out.push(t);
       }
     }
     return out;
@@ -313,9 +398,9 @@ class World {
 
   /* Move to (nx, ny) unless that is water the walker cannot cross; slide along shores. */
   moveTo(e, nx, ny) {
-    if (!e.swims && this.waterAt(nx, ny)) {
-      if (!this.waterAt(nx, e.y)) ny = e.y;
-      else if (!this.waterAt(e.x, ny)) nx = e.x;
+    if (!e.swims && this.wetAt(nx, ny)) {
+      if (!this.wetAt(nx, e.y)) ny = e.y;
+      else if (!this.wetAt(e.x, ny)) nx = e.x;
       else { this.collide(e); return false; }
     }
     e.x = nx; e.y = ny;
@@ -355,10 +440,54 @@ class World {
     let i = 0;
     for (; i < list.length && list[i].layer === 0; i++) drawProp(g, list[i]);
     this.drawSpecks(g, cx, cy);
+    this.drawDetail(g, cx, cy);
     for (; i < list.length && list[i].layer <= 1; i++) drawProp(g, list[i]);
     this.drawWater(g, cx, cy);
     for (; i < list.length; i++) drawProp(g, list[i]);
     return c;
+  }
+
+  /* Fine ground texture: grass stubble in meadows, leaf crumbs in woods, sand ripples on shores. */
+  drawDetail(g, cx, cy) {
+    const R = mulberry32(hashInt(cx, cy, this.seed + 9));
+    const x0 = cx * CHUNK, y0 = cy * CHUNK;
+    if (!this.grainTile) {
+      const t = document.createElement('canvas'); t.width = t.height = 128;
+      const tc = t.getContext('2d'), img = tc.createImageData(128, 128), TR = mulberry32(this.seed + 4);
+      for (let i = 0; i < 128 * 128; i++) {
+        const v = TR();
+        img.data[i * 4] = v < 0.5 ? 30 : 230; img.data[i * 4 + 1] = v < 0.5 ? 22 : 220; img.data[i * 4 + 2] = v < 0.5 ? 10 : 180;
+        img.data[i * 4 + 3] = TR() < 0.5 ? 0 : 26;
+      }
+      tc.putImageData(img, 0, 0);
+      this.grainTile = t;
+    }
+    g.save();
+    g.fillStyle = g.createPattern(this.grainTile, 'repeat');
+    g.fillRect(x0 - PAD, y0 - PAD, CHUNK + PAD * 2, CHUNK + PAD * 2);
+    g.restore();
+    g.lineCap = 'round';
+    for (let i = 0; i < 520; i++) {
+      const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+      const b = this.biome(x, y);
+      if (b === 'meadow' || b === 'marsh') {
+        const a = -Math.PI / 2 + (R() - 0.5) * 2.2, l = 3 + R() * 5;
+        g.strokeStyle = R() < 0.5 ? 'rgba(130,170,70,0.35)' : 'rgba(50,80,25,0.35)'; g.lineWidth = 0.9;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke();
+      } else if (b === 'wood') {
+        if (R() < 0.5) continue;
+        g.fillStyle = ['rgba(120,70,30,0.4)', 'rgba(160,110,50,0.35)', 'rgba(70,50,25,0.4)'][(R() * 3) | 0];
+        g.beginPath(); g.ellipse(x, y, 1.5 + R() * 2.5, 0.8 + R(), R() * 3, 0, TAU); g.fill();
+      } else if (b === 'dry') {
+        if (R() < 0.7) continue;
+        g.strokeStyle = 'rgba(80,60,30,0.25)'; g.lineWidth = 0.7;
+        g.beginPath(); g.moveTo(x, y); g.lineTo(x + (R() - 0.5) * 10, y + (R() - 0.5) * 10); g.stroke();
+      } else if (b === 'beach') {
+        if (R() < 0.6) continue;
+        g.fillStyle = R() < 0.5 ? 'rgba(255,250,235,0.5)' : 'rgba(150,120,80,0.35)';
+        g.beginPath(); g.arc(x, y, 0.6 + R() * 0.8, 0, TAU); g.fill();
+      }
+    }
   }
 
   drawSpecks(g, cx, cy) {
@@ -394,8 +523,9 @@ class World {
         continue;
       }
       const sea = e < 0.36 ? 1 : 0;
+      const river = !sea && m <= 0.55 ? 1 : 0;
       const depth = clamp(v / 3, 0, 1);
-      const sh = sea ? [104, 162, 168] : [92, 122, 88], dp = sea ? [24, 70, 88] : [34, 60, 46];
+      const sh = sea ? [104, 162, 168] : river ? [96, 150, 156] : [92, 122, 88], dp = sea ? [24, 70, 88] : river ? [36, 84, 96] : [34, 60, 46];
       let r = lerp(sh[0], dp[0], depth), gg = lerp(sh[1], dp[1], depth), b = lerp(sh[2], dp[2], depth);
       const foam = (1 - smoothstep(0.03, 0.16, v)) * (sea ? 0.65 : 0.25);
       r = lerp(r, 236, foam); gg = lerp(gg, 244, foam); b = lerp(b, 238, foam);

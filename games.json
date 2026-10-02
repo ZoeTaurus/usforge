@@ -1,5 +1,21 @@
 [
   {
+    "slug": "noodle-soup-chaos",
+    "title": "Noodle soup chaos",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "Cook noodles",
+    "cover": "games/noodle-soup-chaos/cover.png",
+    "pixel": true,
+    "url": null,
+    "genres": [],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1790942816
+  },
+  {
     "slug": "parasite",
     "title": "Parasite",
     "author": "Alex",

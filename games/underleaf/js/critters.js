@@ -39,59 +39,86 @@ class Spider extends Critter {
   constructor(game, x, y) {
     super(game, x, y);
     this.kind = 'spider'; this.r = 21; this.size = 1.05; this.gaitK = 0.11; this.predator = true; this.fear = 5;
-    this.maxHp = this.hp = 190; this.state = 'lurk'; this.home = { x, y }; this.think = 0; this.eatT = 0;
+    this.maxHp = this.hp = 190; this.state = 'ambush'; this.home = { x, y }; this.think = 0; this.eatT = 0;
+    this.hidden = 0; this.rushT = 0;
   }
+  get invuln() { return this.state === 'hide'; }
+  /* A wolf spider: waits at its burrow mouth and rushes passing ants; prowls further at night;
+     dives into the burrow to recover when a crowd of ants gangs up on it. */
   update(dt) {
+    const g = this.game;
     this.hurtT -= dt; this.biteCd -= dt; this.biteT -= dt; this.think -= dt;
-    const atHome = dist2(this.x, this.y, this.home.x, this.home.y) < 90 * 90;
-    if (atHome) this.hp = Math.min(this.maxHp, this.hp + 5 * dt);
+    const atHome = dist2(this.x, this.y, this.home.x, this.home.y) < 40 * 40;
+    const night = g.darkness() > 0.3;
+    if (this.think <= 0 && this.state !== 'hide') {
+      this.think = 0.35;
+      const mob = antMob(g, this.x, this.y, 110);
+      if (this.hp < this.maxHp * 0.35 || mob > 9) { this.state = 'flee'; this.target = null; }
+    }
+    this.hidden = lerp(this.hidden, this.state === 'ambush' ? 0.6 : this.state === 'hide' ? 1 : 0, Math.min(1, dt * 4));
     switch (this.state) {
-      case 'lurk':
-        this.wanderStep(dt, 24, this.home, 240);
-        if (this.think <= 0) {
-          this.think = 0.4;
-          if (this.hp > this.maxHp * 0.45) { const tg = this.findPrey(290); if (tg) { this.target = tg; this.state = 'hunt'; } }
+      case 'ambush':
+        if (!atHome) { this.move(Math.atan2(this.home.y - this.y, this.home.x - this.x), 50, dt, 4); break; }
+        this.speedNow = 0;
+        this.hp = Math.min(this.maxHp, this.hp + 3 * dt);
+        if (this.think <= 0.05) {
+          const tg = isolatedAnt(g, this.x, this.y, night ? 260 : 160);
+          if (tg) { this.target = tg; this.state = 'rush'; this.rushT = 1.1; }
+          else if (night && Math.random() < 0.08) this.state = 'prowl';
         }
         break;
-      case 'hunt': {
+      case 'prowl':
+        this.wanderStep(dt, 34, this.home, 420);
+        if (this.think <= 0.05) {
+          const tg = isolatedAnt(g, this.x, this.y, 220);
+          if (tg) { this.target = tg; this.state = 'rush'; this.rushT = 1.1; }
+          else if (!night && Math.random() < 0.2) this.state = 'ambush';
+        }
+        break;
+      case 'rush': {
         const tg = this.target;
-        if (!tg || tg.dead) { this.target = null; this.state = 'eat'; this.eatT = 3.5; break; }
-        const d = dist(this.x, this.y, tg.x, tg.y);
-        if (d > 480 || dist2(this.x, this.y, this.home.x, this.home.y) > 860 * 860 || this.hp < this.maxHp * 0.3) { this.state = 'return'; this.target = null; break; }
-        const ang = Math.atan2(tg.y - this.y, tg.x - this.x);
-        if (d > this.r + tg.r + 1) this.move(ang, 92, dt, 6);
-        else {
+        if (!tg || tg.dead || tg.inNest) { this.state = tg && tg.dead ? 'drag' : 'ambush'; this.eatT = 3; break; }
+        const d = dist(this.x, this.y, tg.x, tg.y), ang = Math.atan2(tg.y - this.y, tg.x - this.x);
+        this.rushT -= dt;
+        if (d > this.r + tg.r + 1) {
+          // a short explosive sprint, then a slower chase if the prey keeps running
+          this.move(ang, this.rushT > 0 ? 165 : 78, dt, 7);
+          if (d > 320 || dist2(this.x, this.y, this.home.x, this.home.y) > 700 * 700) { this.state = 'ambush'; this.target = null; }
+        } else {
           this.a += clamp(angDiff(this.a, ang), -6 * dt, 6 * dt); this.speedNow = 0;
-          if (this.biteCd <= 0) { this.biteCd = 0.85; this.biteT = 0.3; tg.damage(15, this); }
+          if (this.biteCd <= 0) { this.biteCd = 0.8; this.biteT = 0.3; tg.damage(15, this); }
         }
         break;
       }
-      case 'eat':
-        this.eatT -= dt; this.speedNow = 0;
-        if (this.eatT <= 0) this.state = 'return';
+      case 'drag':
+        // carry the catch back to the burrow before eating it
+        if (!atHome) this.move(Math.atan2(this.home.y - this.y, this.home.x - this.x), 55, dt, 4);
+        else { this.speedNow = 0; this.eatT -= dt; if (this.eatT <= 0) this.state = 'ambush'; }
         break;
-      case 'return':
-        this.move(Math.atan2(this.home.y - this.y, this.home.x - this.x), 62, dt, 4);
-        if (atHome) this.state = 'lurk';
+      case 'flee':
+        this.move(Math.atan2(this.home.y - this.y, this.home.x - this.x), 120, dt, 7);
+        if (atHome) { this.state = 'hide'; this.eatT = 10; }
+        break;
+      case 'hide':
+        this.speedNow = 0; this.eatT -= dt;
+        this.hp = Math.min(this.maxHp, this.hp + 8 * dt);
+        if (this.eatT <= 0 && this.hp > this.maxHp * 0.6) this.state = 'ambush';
         break;
     }
   }
-  findPrey(range) {
-    let best = null, bd = range * range;
-    this.game.hash.query(this.x, this.y, range, (o) => {
-      if (o.kind !== 'ant' || o.dead) return;
-      const d2 = dist2(this.x, this.y, o.x, o.y);
-      if (d2 < bd) { bd = d2; best = o; }
-    });
-    return best;
-  }
   damage(amt, src) {
-    if (this.dead) return;
+    if (this.dead || this.invuln) return;
     this.hp -= amt; this.hurtT = 0.15; this.hitFx();
     if (this.hp <= 0) { this.dead = true; this.game.onCritterDeath(this, src); return; }
-    if (src && src.kind === 'ant' && this.state !== 'hunt' && this.hp > this.maxHp * 0.35) { this.target = src; this.state = 'hunt'; }
+    if (src && src.kind === 'ant' && (this.state === 'ambush' || this.state === 'prowl' || this.state === 'drag') && this.hp > this.maxHp * 0.35) { this.target = src; this.state = 'rush'; this.rushT = 0.5; }
   }
-  draw(ctx, t) { drawSpider(ctx, this, t); }
+  draw(ctx, t) {
+    if (this.hidden > 0.98) { drawSpiderEyes(ctx, this, t); return; }
+    ctx.globalAlpha = 1 - this.hidden * 0.55;
+    drawSpider(ctx, this, t);
+    ctx.globalAlpha = 1;
+    if (this.hidden > 0.3) drawSpiderEyes(ctx, this, t);
+  }
 }
 
 /* ----------------------------------------------------------- stag beetle */
@@ -500,7 +527,8 @@ class BigFood {
     for (const c of this.carriers) {
       if (c.isPlayer) {
         const m = g.input.move;
-        px += m.x * 1.4; py += m.y * 1.4;
+        const pull = 1.4 + 1.6 * g.perk('lifter');
+        px += m.x * pull; py += m.y * pull;
         continue;
       }
       const nest = c.colony.dropPoint(this.x, this.y);

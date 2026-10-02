@@ -26,6 +26,15 @@ function nearestAnt(game, x, y, range, filter) {
   return best;
 }
 
+/* How many ants (of any colony) are crowding a point, soldiers counting more. */
+function antMob(game, x, y, r) {
+  let s = 0;
+  game.hash.query(x, y, r, (o) => {
+    if (o.kind === 'ant' && !o.dead && dist2(x, y, o.x, o.y) < r * r) s += o.isPlayer ? 3 : o.role === 'soldier' ? 2.5 : 1;
+  });
+  return s;
+}
+
 /* Predators pick on ants that have strayed from their sisters. */
 function isolatedAnt(game, x, y, range) {
   let best = null, bs = Infinity;
@@ -45,22 +54,65 @@ class Hunter extends Critter {
     super(game, x, y);
     this.predator = true; this.think = 0; this.home = { x, y };
   }
+  /* prowl along ant scent trails -> creep up on a lone ant -> pounce -> bite;
+     back off to recover when hurt or when too many ants gang up. */
   hunt(dt, opts) {
+    const g = this.game;
     this.hurtT -= dt; this.biteCd -= dt; this.biteT -= dt; this.think -= dt;
-    const tg = this.target;
-    if (this.think <= 0) {
+    const thinkNow = this.think <= 0;
+    if (thinkNow) {
       this.think = 0.4;
-      if (!tg || tg.dead || dist2(this.x, this.y, tg.x, tg.y) > (opts.range * 1.6) ** 2) this.target = isolatedAnt(this.game, this.x, this.y, opts.range);
+      this.mob = antMob(g, this.x, this.y, this.r + 90);
+      const courage = opts.courage ?? (this.fear || 5) * 1.6;
+      if (this.mode !== 'retreat' && (this.hp < this.maxHp * 0.3 || this.mob > courage)) {
+        this.mode = 'retreat'; this.retreatT = rand(5, 8); this.target = null;
+      } else if (this.mode !== 'retreat') {
+        const tg = this.target;
+        if (!tg || tg.dead || tg.inNest || dist2(this.x, this.y, tg.x, tg.y) > (opts.range * 1.6) ** 2) this.target = isolatedAnt(g, this.x, this.y, opts.range);
+        if (!this.target) this.mode = 'prowl';
+        else if (this.mode !== 'pounce') this.mode = 'stalk';
+      }
+    }
+    if (this.mode === 'retreat') {
+      this.retreatT -= dt;
+      this.hp = Math.min(this.maxHp, this.hp + dt * 4);
+      const threat = nearestAnt(g, this.x, this.y, 220);
+      const ang = threat ? Math.atan2(this.y - threat.y, this.x - threat.x) : Math.atan2(this.home.y - this.y, this.home.x - this.x);
+      this.move(ang, opts.speed * 1.05, dt, 5);
+      if (this.retreatT <= 0 && this.hp > this.maxHp * 0.5) this.mode = 'prowl';
+      return;
     }
     const t2 = this.target;
-    if (t2 && !t2.dead) {
+    if ((this.mode === 'stalk' || this.mode === 'pounce') && t2 && !t2.dead) {
       const d = dist(this.x, this.y, t2.x, t2.y), ang = Math.atan2(t2.y - this.y, t2.x - this.x);
-      if (d > this.r + t2.r + (opts.reach || 2)) this.move(ang, opts.speed, dt, opts.turn || 5);
-      else {
+      if (d <= this.r + t2.r + (opts.reach || 2)) {
         this.a += clamp(angDiff(this.a, ang), -6 * dt, 6 * dt); this.speedNow = 0;
         if (this.biteCd <= 0) { this.biteCd = opts.cd; this.biteT = 0.3; t2.damage(opts.dmg, this); }
+        return;
       }
-    } else this.wanderStep(dt, opts.wander, this.home, opts.leash || 500);
+      const pounceR = opts.pounce ?? this.r + 60;
+      if (this.mode === 'stalk' && d < pounceR) { this.mode = 'pounce'; this.pounceT = 0.9; }
+      if (this.mode === 'pounce') {
+        this.pounceT -= dt;
+        if (this.pounceT <= 0) this.mode = 'stalk';
+        this.move(ang, opts.speed * 1.5, dt, 8);
+      } else this.move(ang, opts.speed * 0.45, dt, 4);
+      return;
+    }
+    // prowl: ant scent trails lead to ants, so follow the strongest one nearby
+    if (thinkNow) {
+      let best = 0, bestA = 0;
+      for (let k = -1; k <= 1; k++) {
+        const sa = this.a + k * 0.7, sx = this.x + Math.cos(sa) * 45, sy = this.y + Math.sin(sa) * 45;
+        let v = 0;
+        for (const col of g.activeColonies) v += g.world.sample(col, sx, sy);
+        if (v > best) { best = v; bestA = sa; }
+      }
+      this.trailA = best > 0.4 ? bestA : null;
+    }
+    const leash = opts.leash || 500;
+    if (this.trailA != null && dist2(this.x, this.y, this.home.x, this.home.y) < (leash * 1.8) ** 2) this.move(this.trailA, opts.wander * 1.3, dt, 3);
+    else this.wanderStep(dt, opts.wander, this.home, leash);
   }
   damage(amt, src) {
     if (this.dead || this.invuln) return;
@@ -107,7 +159,12 @@ class Frog extends Critter {
       this.game.world.moveTo(this, this.x + Math.cos(this.hopA) * sp * dt, this.y + Math.sin(this.hopA) * sp * dt);
       if (this.hopP >= 1) {
         this.hopP = -1; this.hop = 0;
-        if (this.fleeing > 0) { this.fleeing--; if (this.fleeing <= 0) this.dead = true; else this.startHop(this.hopA + rand(-0.4, 0.4), 140); }
+        if (this.fleeing > 0) {
+          this.fleeing--;
+          if (this.game.world.waterAt(this.x, this.y)) { this.game.fx.ring(this.x, this.y, 30, 'rgba(220,240,250,', 0.8); this.dead = true; }
+          else if (this.fleeing <= 0) this.dead = true;
+          else this.startHop(this.diveA ?? this.hopA + rand(-0.4, 0.4), 140);
+        }
       }
       return;
     }
@@ -128,6 +185,7 @@ class Frog extends Critter {
     }
     if (this.think <= 0) {
       this.think = 0.25;
+      if (!this.fleeing && antMob(this.game, this.x, this.y, 100) > 10) { this.escape(null); return; }
       const tg = nearestAnt(this.game, this.x, this.y, 150);
       if (tg) {
         this.target = tg;
@@ -146,11 +204,22 @@ class Frog extends Critter {
     if (this.dead || this.invuln) return;
     this.hp -= amt; this.hurtT = 0.15; this.hitFx();
     if (this.hp <= 0) { this.dead = true; this.game.onCritterDeath(this, src); return; }
-    if (this.hp < this.maxHp * 0.35 && !this.fleeing) {
-      this.fleeing = 4;
-      this.startHop(src ? Math.atan2(this.y - src.y, this.x - src.x) : rand(TAU), 140);
-      this.game.fx.text(this.x, this.y - 30, 'ribbit!', '#d8f0a8');
+    if ((this.hp < this.maxHp * 0.45 || antMob(this.game, this.x, this.y, 100) > 10) && !this.fleeing) this.escape(src);
+  }
+  /* Head for the nearest water and dive in; if there is none, just hop away. */
+  escape(src) {
+    this.fleeing = 4;
+    let best = null, bd = Infinity;
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * TAU;
+      for (const r of [80, 160, 260]) {
+        const x = this.x + Math.cos(a) * r, y = this.y + Math.sin(a) * r;
+        if (this.game.world.waterAt(x, y) && r < bd) { bd = r; best = a; break; }
+      }
     }
+    this.diveA = best;
+    this.startHop(best ?? (src ? Math.atan2(this.y - src.y, this.x - src.x) : rand(TAU)), 140);
+    this.game.fx.text(this.x, this.y - 30, 'ribbit!', '#d8f0a8');
   }
   draw(ctx, t) { drawFrog(ctx, this, t); }
 }
@@ -209,7 +278,8 @@ class Bird extends Critter {
         this.timer -= dt;
         const k = 1 - Math.pow(0.02, dt);
         this.x = lerp(this.x, this.lx, k); this.y = lerp(this.y, this.ly, k);
-        this.z = Math.max(0, 240 * (this.timer / 1.4));
+        const f = Math.max(0, this.timer / 1.4);
+        this.z = 240 * f * f;
         if (this.timer <= 0) {
           this.state = 'ground'; this.flying = false; this.z = 0; this.timer = 0;
           g.fx.dust(this.x, this.y, 10);
@@ -218,25 +288,49 @@ class Bird extends Critter {
         break;
       }
       case 'ground': {
+        // robins move in bursts: a few quick hops, a pause to look and listen, then a strike
         this.patience -= dt;
         this.hopT -= dt;
-        const tg = nearestAnt(g, this.x, this.y, 140);
+        if (this.hop) {
+          const h = this.hop;
+          h.p = Math.min(1, h.p + dt / h.dur);
+          const e = h.p * h.p * (3 - 2 * h.p);
+          g.world.moveTo(this, lerp(h.fx, h.tx, e), lerp(h.fy, h.ty, e));
+          this.z = Math.sin(h.p * Math.PI) * 5;
+          if (h.p >= 1) {
+            this.hop = null; this.z = 0;
+            this.burst--;
+            this.hopT = this.burst > 0 ? rand(0.05, 0.12) : rand(0.6, 1.3);
+          }
+          break;
+        }
+        const tg = nearestAnt(g, this.x, this.y, 160);
+        let want = null;
         if (tg) {
           const ang = Math.atan2(tg.y - this.y, tg.x - this.x);
-          this.a += clamp(angDiff(this.a, ang), -5 * dt, 5 * dt);
+          this.a += clamp(angDiff(this.a, ang), -4 * dt, 4 * dt);
           const d = dist(this.x, this.y, tg.x, tg.y);
-          if (d < 52 && this.peckCd <= 0) { this.peckCd = 1.2; this.peckT = 0.18; tg.damage(tg.isPlayer ? 18 : 30, this); g.fx.dust(tg.x, tg.y, 3); }
-          else if (d > 46 && this.hopT <= 0) { this.hopT = 0.7; g.world.moveTo(this, this.x + Math.cos(ang) * 26, this.y + Math.sin(ang) * 26); }
+          if (d < 52 && this.peckCd <= 0 && Math.abs(angDiff(this.a, ang)) < 0.5) {
+            this.peckCd = 1.1; this.peckT = 0.22; tg.damage(tg.isPlayer ? 18 : 30, this); g.fx.dust(tg.x, tg.y, 3);
+          } else if (d > 46) want = ang;
         } else if (this.hopT <= 0) {
-          this.hopT = 1; this.a += rand(-1, 1);
-          g.world.moveTo(this, this.x + Math.cos(this.a) * 24, this.y + Math.sin(this.a) * 24);
+          this.wanderA = (this.wanderA ?? this.a) + rand(-1.2, 1.2);
+          want = this.wanderA;
+          this.a += clamp(angDiff(this.a, want), -3 * dt, 3 * dt);
         }
-        if (this.patience <= 0) { this.state = 'leave'; this.flying = true; }
+        if (want !== null && this.hopT <= 0 && Math.abs(angDiff(this.a, want)) < 0.6) {
+          if (!this.burst || this.burst <= 0) this.burst = randi(2, 4);
+          const len = rand(16, 24);
+          this.hop = { fx: this.x, fy: this.y, tx: this.x + Math.cos(this.a) * len, ty: this.y + Math.sin(this.a) * len, p: 0, dur: rand(0.16, 0.22) };
+        }
+        if (this.patience <= 0) { this.state = 'leave'; this.flying = true; this.hop = null; this.leaveV = 40; }
         break;
       }
       case 'leave':
-        this.z += 180 * dt;
-        this.x += Math.cos(this.a) * 260 * dt; this.y += Math.sin(this.a) * 260 * dt;
+        // take off: speed and height build up over the first second
+        this.leaveV = Math.min(280, (this.leaveV || 40) + 320 * dt);
+        this.z += this.leaveV * 0.65 * dt;
+        this.x += Math.cos(this.a) * this.leaveV * dt; this.y += Math.sin(this.a) * this.leaveV * dt;
         if (this.z > 400) this.dead = true;
         break;
     }
@@ -246,7 +340,7 @@ class Bird extends Critter {
     this.hurtT = 0.15; this.hitFx();
     this.patience -= amt * 0.07;
     if (this.patience <= 0 && this.state === 'ground') {
-      this.state = 'leave'; this.flying = true;
+      this.state = 'leave'; this.flying = true; this.hop = null; this.leaveV = 60;
       if (src) this.a = Math.atan2(this.y - src.y, this.x - src.x);
       this.game.onBirdRepelled(this, src);
     }

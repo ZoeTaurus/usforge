@@ -142,7 +142,7 @@ class UI {
       'minimap', 'biomeName', 'clockText', 'clockDial', 'weatherText', 'rival', 'rivalName', 'rivalBar', 'toasts', 'scentBtn',
       'discover', 'dPortrait', 'dName', 'dLatin', 'dText', 'dCount', 'guide', 'guideGrid', 'guideCount',
       'title', 'speciesGrid', 'spName', 'spLatin', 'spBlurb', 'spStats', 'spAbility', 'spPerk', 'continueBtn', 'continueInfo', 'startBtn',
-      'seasonText', 'upkeep', 'pause', 'over', 'overTitle', 'overText', 'touch', 'joy', 'knob', 'nestPanel', 'npTitle', 'npPips', 'npDesc', 'npNext', 'npBtn', 'npBrood', 'npLayW', 'npLayS', 'npFood', 'tNest'];
+      'seasonText', 'upkeep', 'stamBar', 'perkPick', 'perkGrid', 'perkLevel', 'pause', 'over', 'overTitle', 'overText', 'touch', 'joy', 'knob', 'nestPanel', 'npTitle', 'npPips', 'npDesc', 'npNext', 'npBtn', 'npBrood', 'npLayW', 'npLayS', 'npFood', 'tNest'];
     this.el = {};
     for (const id of ids) this.el[id] = $(id);
     this.el.scent = this.el.scentBtn;
@@ -325,6 +325,29 @@ class UI {
     }
   }
 
+  openPerks(choices) {
+    const g = this.game, el = this.el;
+    this.perkChoices = choices;
+    el.perkLevel.textContent = `Level ${g.level}`;
+    el.perkGrid.innerHTML = '';
+    choices.forEach((k, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'perk';
+      const have = g.perk(k.id);
+      b.innerHTML = `<kbd>${i + 1}</kbd><h3>${k.name}</h3><p>${k.desc}</p><div class="pips">${Array.from({ length: k.max }, (_, j) => `<i class="${j < have ? 'on' : j === have ? 'next' : ''}"></i>`).join('')}</div>`;
+      b.addEventListener('click', () => this.pickPerk(i));
+      el.perkGrid.appendChild(b);
+    });
+    el.perkPick.hidden = false;
+  }
+  pickPerk(i) {
+    const k = this.perkChoices && this.perkChoices[i];
+    if (!k) return;
+    this.el.perkPick.hidden = true;
+    this.perkChoices = null;
+    this.game.choosePerk(k.id);
+  }
+
   achievement(a) {
     const el = this.$('achToast');
     el.hidden = false;
@@ -399,6 +422,7 @@ class UI {
     hold(this.$('tRally'), () => g.input.just.add('KeyQ'));
     hold(this.$('tAbility'), () => g.useAbility());
     hold(this.$('tBeacon'), () => g.placeBeacon());
+    hold(this.$('tDash'), () => g.dash());
     hold(this.$('tTrail'), () => { g.input.touchTrail = true; }, () => { g.input.touchTrail = false; });
     hold(this.el.tNest, () => (g.view === 'nest' ? g.exitNest() : g.enterNest()));
   }
@@ -435,6 +459,8 @@ class UI {
       el.status.textContent = g.over ? 'The colony is gone.' : 'You fell. Waking as another sister…';
     }
     el.lvl.textContent = g.level;
+    el.stamBar.style.transform = `scaleX(${clamp(g.stamina / 100, 0, 1)})`;
+    el.stamBar.classList.toggle('low', g.stamina < 35);
     el.xpBar.style.transform = `scaleX(${clamp(g.xp / g.xpNeed(), 0, 1)})`;
     const cd = Math.max(0, g.abilityCd);
     el.abilityCd.style.transform = `scaleY(${clamp(cd / sp.ability.cd, 0, 1)})`;
@@ -456,12 +482,13 @@ class UI {
     el.goalCount.textContent = `${done}/${OBJECTIVES.length}`;
     // time, weather, place
     const d = g.dayT;
-    el.seasonText.textContent = SEASON_NAMES[g.season];
+    const k = g.seasonK || 0;
+    el.seasonText.textContent = k > 0.08 && k < 0.92 ? `${SEASON_NAMES[g.seasonA]} → ${SEASON_NAMES[g.seasonB]}` : SEASON_NAMES[k >= 0.92 ? g.seasonB : g.seasonA];
     el.upkeep.textContent = `Colony eats ${(h.upkeep || 0).toFixed(1)} food a minute${h.food < 5 && c.home > 3 ? ' · stores nearly empty!' : ''}`;
     el.upkeep.classList.toggle('warn', h.food < 5 && c.home > 3);
     el.clockText.textContent = d < 0.08 ? 'Dawn' : d < 0.3 ? 'Morning' : d < 0.5 ? 'Afternoon' : d < 0.62 ? 'Dusk' : d < 0.92 ? 'Night' : 'Dawn';
     el.clockDial.style.transform = `rotate(${d * 360}deg)`;
-    el.weatherText.textContent = g.weather.k > 0.3 ? (g.season === 3 ? 'Snow' : 'Rain') : '';
+    el.weatherText.textContent = g.weather.k > 0.3 ? (g.sw[3] > 0.5 ? 'Snow' : 'Rain') : '';
     el.biomeName.textContent = BIOME_NAMES[g.biomeHere];
     // nearest rival
     let near = null, nd = Infinity;
@@ -507,6 +534,20 @@ class UI {
       c.strokeStyle = '#ffd0b0'; c.lineWidth = dpr; c.stroke();
     }
     for (const o of g.home.outposts) dot(o.x, o.y, 3.5, '#9ad060');
+    for (const ev of g.events) {
+      if (ev.kind !== 'picnic' || ev.fading) continue;
+      const [ex, ey] = toMap(ev.x, ev.y);
+      if (ex > 8 && ey > 8 && ex < W - 8 && ey < W - 8) {
+        c.fillStyle = '#ff6a5a'; c.fillRect(ex - 4 * dpr, ey - 4 * dpr, 8 * dpr, 8 * dpr);
+        c.strokeStyle = '#fff'; c.lineWidth = dpr; c.strokeRect(ex - 4 * dpr, ey - 4 * dpr, 8 * dpr, 8 * dpr);
+      } else {
+        const a = Math.atan2(ey - W / 2, ex - W / 2), r = W / 2 - 9 * dpr;
+        c.save(); c.translate(W / 2 + Math.cos(a) * r, W / 2 + Math.sin(a) * r); c.rotate(a);
+        c.fillStyle = '#ff6a5a';
+        c.beginPath(); c.moveTo(7 * dpr, 0); c.lineTo(-5 * dpr, -5 * dpr); c.lineTo(-5 * dpr, 5 * dpr); c.closePath(); c.fill();
+        c.restore();
+      }
+    }
     const [hx, hy] = toMap(0, 0);
     if (hx > 6 && hy > 6 && hx < W - 6 && hy < W - 6) {
       c.fillStyle = '#ffd36b'; c.beginPath(); c.arc(hx, hy, 5 * dpr, 0, TAU); c.fill();

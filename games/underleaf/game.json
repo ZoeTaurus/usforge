@@ -2,13 +2,10 @@
   "title": "Underleaf",
   "author": "Taurus",
   "owner": "Taurus",
-  "blurb": "In Development- You are an ant. Help your sisters build a thriving colony. This is very casual, with no real goal.",
+  "blurb": "You are an ant. Help your sisters build a thriving colony. This is a very casual game. The goal is too survive as long as possible.",
   "genres": [
     "Casual",
     "Management",
     "Open world"
-  ],
-  "dev": true,
-  "progress": 80,
-  "next": "Better graphics and mechanics"
+  ]
 }

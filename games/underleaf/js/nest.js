@@ -340,8 +340,10 @@ class NestView {
     // sky and surface
     const dark = g.darkness();
     const sky = ctx.createLinearGradient(0, 0, 0, SURFACE);
-    sky.addColorStop(0, dark > 0.3 ? '#0c1230' : g.season === 3 ? '#b8c8d8' : '#7ab4dc');
-    sky.addColorStop(1, dark > 0.3 ? '#28304e' : g.season === 3 ? '#e4ecf0' : '#d8ecdc');
+    const sw = g.sw || [0, 1, 0, 0];
+    const mixC = (cols) => { const c = [0, 0, 0]; cols.forEach((h, i) => { const r = hexRgb(h); for (let j = 0; j < 3; j++) c[j] += r[j] * sw[i]; }); return `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})`; };
+    sky.addColorStop(0, dark > 0.3 ? '#0c1230' : mixC(['#82bce0', '#6aaee0', '#9ab4c8', '#b8c8d8']));
+    sky.addColorStop(1, dark > 0.3 ? '#28304e' : mixC(['#e0f0d8', '#d8ecdc', '#ecdcc0', '#e4ecf0']));
     ctx.fillStyle = sky; ctx.fillRect(0, 0, NEST_W, SURFACE);
     for (let i = 0; i < 4; i++) {
       const cx = ((i * 290 + t * 6) % (NEST_W + 200)) - 100, cy = 26 + (i % 2) * 18;
@@ -352,7 +354,7 @@ class NestView {
     ctx.beginPath(); ctx.moveTo(0, SURFACE - 18);
     for (let k = 0; k <= 20; k++) ctx.lineTo(k * 50, SURFACE - 18 - Math.sin(k * 1.3) * 10 - Math.sin(k * 0.4) * 8);
     ctx.lineTo(NEST_W, SURFACE); ctx.lineTo(0, SURFACE); ctx.closePath(); ctx.fill();
-    if (g.weather.k > 0.05 && g.season !== 3) {
+    if (g.weather.k > 0.05 && sw[3] < 0.5) {
       ctx.strokeStyle = `rgba(200,220,240,${0.4 * g.weather.k})`; ctx.lineWidth = 1;
       for (let i = 0; i < 60; i++) {
         const rx = (i * 97 + t * 400) % NEST_W, ry = (i * 53 + t * 700) % SURFACE;
@@ -366,13 +368,14 @@ class NestView {
     for (let k = 0; k < 260; k++) {
       const bx = (k * 3.86) % NEST_W + ((k * 13) % 7), h = 8 + ((k * 37) % 17);
       const sway = Math.sin(t * 1.4 + k * 0.7) * 2;
-      ctx.strokeStyle = ['#4e7a2a', '#5e8e32', '#3e6a22', '#6a9a3a'][k % 4]; ctx.lineWidth = 1.6;
+      const grassPal = [['#5e9a32', '#7ab840', '#4a8a28', '#88c84a'], ['#4e7a2a', '#5e8e32', '#3e6a22', '#6a9a3a'], ['#a8902e', '#c0a040', '#8a6a24', '#b88a30'], ['#8a8a6a', '#a09a80', '#7a7a60', '#b0a890']];
+      ctx.strokeStyle = mixC(grassPal.map((p) => p[k % 4])); ctx.lineWidth = 1.6;
       ctx.beginPath(); ctx.moveTo(bx, SURFACE); ctx.quadraticCurveTo(bx + sway * 0.4, SURFACE - h * 0.6, bx + sway, SURFACE - h); ctx.stroke();
     }
     ctx.fillStyle = '#6a4a2a';
     ctx.beginPath(); ctx.ellipse(500, SURFACE + 2, 90, 26, 0, Math.PI, TAU); ctx.fill();
-    if (g.season === 3) {
-      ctx.fillStyle = 'rgba(245,250,255,0.9)';
+    if (sw[3] > 0.02) {
+      ctx.fillStyle = `rgba(245,250,255,${0.9 * sw[3]})`;
       ctx.beginPath(); ctx.moveTo(0, SURFACE - 6);
       for (let k = 0; k <= 50; k++) ctx.lineTo(k * 20, SURFACE - 8 - Math.sin(k * 1.7) * 3);
       ctx.lineTo(NEST_W, SURFACE); ctx.lineTo(0, SURFACE); ctx.closePath(); ctx.fill();

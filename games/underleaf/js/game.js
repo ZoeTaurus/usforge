@@ -3,6 +3,20 @@
 
 const SAVE_KEY = 'underleaf-save-v2';
 
+/* Each level-up offers three of these; picking one again stacks it, up to its max. */
+const PERKS = [
+  { id: 'jaws', name: 'Strong jaws', desc: 'Your bites hit 20% harder.', max: 5 },
+  { id: 'armour', name: 'Thick armour', desc: 'You have 20% more health.', max: 5 },
+  { id: 'legs', name: 'Long legs', desc: 'You walk 10% faster.', max: 3 },
+  { id: 'lifter', name: 'Heavy lifter', desc: 'You pull big food like two more sisters, and walk faster with a load.', max: 2 },
+  { id: 'horn', name: 'Rallying call', desc: 'Rally reaches 40% further and sisters follow you 50% longer.', max: 2 },
+  { id: 'wind', name: 'Second wind', desc: 'Stamina refills 40% faster and dashing costs less.', max: 3 },
+  { id: 'focus', name: 'Focus', desc: 'Your special ability recharges 25% faster.', max: 2 },
+  { id: 'leader', name: 'Leader', desc: 'Sisters following you bite 25% harder.', max: 2 },
+  { id: 'reach', name: 'Keen antennae', desc: 'Pick things up from further away, and heal 50% faster outside the nest.', max: 2 },
+  { id: 'venom', name: 'Venom glands', desc: 'Your bites poison whatever you hit.', max: 1 },
+];
+
 /* UsForge leaderboard: report a finished run's score to the page hosting the game.
    Does nothing when the game is opened on its own. */
 function sendScoreToUsForge(score) {
@@ -70,8 +84,9 @@ class Game {
     this.fx = new FX();
     this.hash = new SpatialHash(64);
     this.foodHash = new SpatialHash(64);
-    this.time = 0; this.dayT = 0.05; this.dayLen = 300; this.days = 0.05; this.lastSeason = 0;
-    this.activeTrees = []; this.activePlants = []; this.activeMounds = []; this.flakes = [];
+    this.time = 0; this.dayT = 0.05; this.dayLen = 300; this.days = 0.25; this.lastSeason = 0;
+    this.sw = [1, 0, 0, 0]; this.seasonA = 0; this.seasonB = 0; this.seasonK = 0; this.leafFall = [];
+    this.activeTrees = []; this.activePlants = []; this.activeMounds = []; this.flakes = []; this.landings = [];
     this.weather = { rain: false, k: 0, t: rand(140, 220) };
     this.weatherSlow = 1;
     this.colonies = new Map();
@@ -82,7 +97,8 @@ class Game {
     this.stats = { playerDelivered: 0, abilityUsed: false, rallied: false, bigDelivered: 0, dug: 0, peak: 0, biomes: new Set(['meadow']), bigKills: 0, nestsDown: 0, delivered: 0, lost: 0, sisters: 1 };
     this.counts = { home: 0, homeSoldiers: 0 };
     this.colCounts = new Map();
-    this.level = 1; this.xp = 0;
+    this.level = 1; this.xp = 0; this.perks = {}; this.perkQueue = 0; this.perkOpen = false;
+    this.stamina = 100; this.events = [];
     this.timers = { manage: 0, discover: 0, bird: rand(70, 120), save: 30, ladybug: 30, hedgehog: rand(40, 90), plants: 0 };
     this.discovered = new Set(['ant:' + species]);
     this.toldOnce = new Set();
@@ -332,14 +348,14 @@ class Game {
       for (let i = 0; i < (data.pop[role] || 0); i++) this.spawnAnt(h, role, rand(-150, 150), rand(-150, 150));
     }
     this.time = data.time || 0; this.dayT = data.dayT || 0.1; this.days = data.days || this.dayT; this.lastSeason = this.season;
-    this.level = data.level || 1; this.xp = data.xp || 0;
+    this.level = data.level || 1; this.xp = data.xp || 0; this.perks = data.perks || {};
     Object.assign(this.stats, data.stats, { biomes: new Set(data.stats.biomes || ['meadow']) });
     this.discovered = new Set(data.discovered || []);
     this.toldOnce = new Set(data.told || []);
     this.destroyed = new Set(data.destroyed || []);
     const p = this.player;
     p.x = data.player.x; p.y = data.player.y;
-    p.makePlayer(this.level);
+    p.makePlayer(this.level, this.perks);
     this.world.prebake(p.x, p.y, 800);
     this.manageWorld(true);
     this.start();
@@ -352,7 +368,7 @@ class Game {
     const pop = { worker: 0, soldier: 0 };
     for (const a of this.ants) if (a.colony === h && !a.isPlayer && !a.dead) pop[a.role]++;
     const data = {
-      v: 2, seed: this.seed, species: this.species, time: this.time, dayT: this.dayT, days: this.days, level: this.level, xp: this.xp,
+      v: 2, seed: this.seed, species: this.species, time: this.time, dayT: this.dayT, days: this.days, level: this.level, xp: this.xp, perks: this.perks,
       stats: { ...this.stats, biomes: [...this.stats.biomes] },
       discovered: [...this.discovered], told: [...this.toldOnce], destroyed: [...this.destroyed],
       home: { food: h.food, leaves: h.leaves, chambers: h.chambers, brood: h.brood, outposts: h.outposts, autoHatch: h.autoHatch },
@@ -380,6 +396,11 @@ class Game {
 
   onKey(code) {
     if (this.mode === 'title') return;
+    if (this.perkOpen) {
+      const i = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
+      if (i !== undefined) this.ui.pickPerk(i);
+      return;
+    }
     if (this.view === 'nest') {
       if (code === 'KeyN' || code === 'Escape') this.exitNest();
       if (code === 'Digit1') this.layEgg('worker');
@@ -428,7 +449,7 @@ class Game {
   frame(now) {
     const dt = Math.min(0.033, (now - this.last) / 1000);
     this.last = now;
-    if (!this.paused && !this.guideOpen) this.update(dt);
+    if (!this.paused && !this.guideOpen && !this.perkOpen) this.update(dt);
     this.render();
     this.input.endFrame();
     requestAnimationFrame((t) => this.frame(t));
@@ -460,6 +481,7 @@ class Game {
     this.time += dt;
     this.dayT = (this.dayT + dt / this.dayLen) % 1;
     this.days += dt / this.dayLen;
+    this.updateSeasonBlend();
     if (this.season !== this.lastSeason) {
       this.lastSeason = this.season;
       if (this.mode === 'play') this.ui.toast(SEASON_NEWS[this.season], this.season === 3 ? 'bad' : 'good');
@@ -469,6 +491,8 @@ class Game {
     if (this.mode === 'play' && this.player && !this.player.dead && !this.player.inNest) this.lifeTime += dt;
     this.updateWeather(dt);
 
+    this.landings = [];
+    for (const c of this.critters) if (c.kind === 'bird' && c.state === 'descend') this.landings.push(c);
     this.hash.clear();
     for (const a of this.ants) if (!a.dead && !a.inNest) this.hash.insert(a);
     for (const c of this.critters) if (!c.dead) this.hash.insert(c);
@@ -548,22 +572,29 @@ class Game {
       w.rain = !w.rain;
       w.t = w.rain ? rand(40, 70) : rand(170, 280);
       if (this.mode === 'play') {
-        if (this.season === 3) this.ui.toast(w.rain ? 'Snow is falling. Everyone moves slowly in the cold.' : 'The snow has stopped.');
+        if (this.sw[3] > 0.5) this.ui.toast(w.rain ? 'Snow is falling. Everyone moves slowly in the cold.' : 'The snow has stopped.');
         else this.ui.toast(w.rain ? 'Rain is falling. Scent trails wash away faster, and earthworms come up.' : 'The rain has stopped.');
       }
     }
     w.k = clamp(w.k + (w.rain ? dt : -dt) * 0.25, 0, 1);
-    this.weatherSlow = (1 - 0.12 * w.k) * (this.season === 3 ? 0.82 : 1);
-    if (this.season === 3 || this.season === 2) {
-      const want = this.season === 3 ? 90 + 120 * w.k : 14;
-      while (this.flakes.length < want) this.flakes.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(30, 70), p: rand(TAU), r: rand(1, 2.6), c: this.season === 3 ? null : pick(['#c8642a', '#e09a3a', '#a85a20', '#d8b040']) });
-      if (this.flakes.length > want) this.flakes.length = Math.round(want);
-      for (const f of this.flakes) {
-        f.y += f.v * dt; f.x += Math.sin(this.time * 0.8 + f.p) * 20 * dt;
-        if (f.y > this.vh + 10) { f.y = -10; f.x = rand(this.vw); }
-      }
-    } else this.flakes.length = 0;
-    if (w.k > 0.02 && this.season !== 3) {
+    const sw = this.sw, snowy = sw[3] > 0.5;
+    this.weatherSlow = (1 - 0.12 * w.k) * (1 - 0.18 * sw[3]);
+    // snowflakes in winter (light flurries even between storms), falling leaves in autumn
+    const wantSnow = Math.round(sw[3] * (snowy ? 50 + 160 * w.k : 0) + sw[3] * 20);
+    while (this.flakes.length < wantSnow) this.flakes.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(30, 70), p: rand(TAU), r: rand(1, 2.6) });
+    if (this.flakes.length > wantSnow) this.flakes.length = wantSnow;
+    const wantLeaves = Math.round(sw[2] * 22 + sw[1] * 2);
+    while (this.leafFall.length < wantLeaves) this.leafFall.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(25, 55), p: rand(TAU), c: pick(['#c8642a', '#e09a3a', '#a85a20', '#d8b040', '#b83a1e']) });
+    if (this.leafFall.length > wantLeaves) this.leafFall.length = wantLeaves;
+    for (const f of this.flakes) {
+      f.y += f.v * dt; f.x += Math.sin(this.time * 0.8 + f.p) * 20 * dt;
+      if (f.y > this.vh + 10) { f.y = -10; f.x = rand(this.vw); }
+    }
+    for (const f of this.leafFall) {
+      f.y += f.v * dt; f.x += Math.sin(this.time * 1.1 + f.p) * 34 * dt;
+      if (f.y > this.vh + 10) { f.y = -10; f.x = rand(this.vw); }
+    }
+    if (w.k > 0.02 && !snowy) {
       const want = Math.round(220 * w.k);
       while (this.raindrops.length < want) this.raindrops.push({ x: rand(-50, this.vw + 50), y: rand(-this.vh, 0), v: rand(700, 1000), l: rand(10, 22) });
       if (this.raindrops.length > want) this.raindrops.length = want;
@@ -596,7 +627,10 @@ class Game {
     const m = inp.move, moving = m.x !== 0 || m.y !== 0;
     const dn = dist(p.x, p.y, 0, 0);
     const nearOutpost = this.home.outposts.some((o) => dist2(p.x, p.y, o.x, o.y) < 90 * 90);
-    p.hp = Math.min(p.maxHp, p.hp + dt * (dn < 170 ? 6 * (1 + inf) : nearOutpost ? 4 : 0.7));
+    p.hp = Math.min(p.maxHp, p.hp + dt * (dn < 170 ? 6 * (1 + inf) : nearOutpost ? 4 : 0.7 * (1 + 0.5 * this.perk('reach'))));
+    p.dodgeT -= dt;
+    if (!(p.dashT > 0)) this.stamina = Math.min(100, this.stamina + dt * 22 * (1 + 0.4 * this.perk('wind')));
+    if (this.perkQueue > 0 && !this.perkOpen && !p.trapped) { this.perkQueue--; this.perkOpen = true; this.ui.openPerks(this.perkChoices()); return; }
 
     if (p.trapped) {
       if (moving) { p.a += clamp(angDiff(p.a, Math.atan2(m.y, m.x)), -10 * dt, 10 * dt); p.gait += dt * 22; p.escape += dt * 0.32; }
@@ -606,6 +640,14 @@ class Game {
     if (p.big) {
       if (inp.pressed('KeyE')) p.leaveBig();
       if (inp.pressed('KeyQ')) this.rally();
+      return;
+    }
+    if (inp.pressed('KeyC')) this.dash();
+    if (p.dashT > 0) {
+      p.dashT -= dt;
+      this.world.moveTo(p, p.x + Math.cos(p.dashA) * p.baseSpeed * 3.4 * dt, p.y + Math.sin(p.dashA) * p.baseSpeed * 3.4 * dt);
+      p.gait += dt * 40; p.speedNow = p.baseSpeed * 3;
+      if (Math.random() < dt * 30) this.fx.dust(p.x - Math.cos(p.dashA) * 8, p.y - Math.sin(p.dashA) * 8, 1);
       return;
     }
     if (p.leapT > 0) {
@@ -623,7 +665,7 @@ class Game {
     }
     if (moving) {
       p.slow = this.slimeAt(p.x, p.y) ? 0.55 : 1;
-      p.steer(Math.atan2(m.y, m.x), p.baseSpeed * (p.carry ? 0.85 : 1), dt, 11);
+      p.steer(Math.atan2(m.y, m.x), p.baseSpeed * (p.carry ? 0.85 + 0.08 * this.perk('lifter') : 1), dt, 11);
     } else p.speedNow = 0;
 
     if (inp.trail) {
@@ -641,7 +683,7 @@ class Game {
       const tg = this.playerBiteTarget();
       if (tg) {
         tg.damage(p.dmg, p);
-        if (ANT_SPECIES[this.species].venom) this.poison(tg, p, 3, 3);
+        if (ANT_SPECIES[this.species].venom || this.perk('venom')) this.poison(tg, p, 3, 3);
         p.lastTarget = tg; p.lastTargetT = 6;
         if (tg.kind !== 'ant' && tg.kind !== 'nest' && !tg.invuln) this.recruit(this.home, tg, p);
       }
@@ -735,7 +777,7 @@ class Game {
         break;
       }
     }
-    if (ok) { this.abilityCd = ab.cd; this.stats.abilityUsed = true; }
+    if (ok) { this.abilityCd = ab.cd * (1 - 0.25 * this.perk('focus')); this.stats.abilityUsed = true; }
   }
 
   contextAction() {
@@ -768,8 +810,9 @@ class Game {
         return { label: 'Stroke the aphid to milk its honeydew', act: () => this.playerMilk(ap) };
       }
     }
-    let f = null, fd = 22 * 22;
-    this.foodHash.query(p.x, p.y, 24, (o) => { const d2 = dist2(p.x, p.y, o.x, o.y); if (!o.taken && d2 < fd) { fd = d2; f = o; } });
+    const pr = 22 + 10 * this.perk('reach');
+    let f = null, fd = pr * pr;
+    this.foodHash.query(p.x, p.y, pr + 2, (o) => { const d2 = dist2(p.x, p.y, o.x, o.y); if (!o.taken && d2 < fd) { fd = d2; f = o; } });
     if (f) return { label: `Pick up the ${f.name}`, act: () => { this.takeFood(f); p.carry = f; p.pickSpot = { x: f.x, y: f.y }; } };
     for (const b of this.bigs) {
       if (dist2(p.x, p.y, b.x, b.y) < (b.r + 18) ** 2) {
@@ -803,17 +846,30 @@ class Game {
     return `Exploring the ${BIOME_NAMES[this.biomeHere].toLowerCase()}`;
   }
 
+  /* A quick dodge: a burst of speed you cannot be hit during. Costs stamina. */
+  dash() {
+    const p = this.player;
+    if (!p || p.dead || p.inNest || p.trapped || p.big) return;
+    const cost = 35 * (1 - 0.15 * this.perk('wind'));
+    if (this.stamina < cost) { this.fx.text(p.x, p.y - 22, 'Too tired to dash', '#e8dcc0'); return; }
+    this.stamina -= cost;
+    const m = this.input.move;
+    p.dashA = m.x || m.y ? Math.atan2(m.y, m.x) : p.a;
+    p.a = p.dashA; p.dashT = 0.22; p.dodgeT = 0.32;
+    this.fx.dust(p.x, p.y, 4);
+  }
+
   rally() {
     const p = this.player;
     if (!p || p.dead || this.rallyCd > 0) return;
     this.rallyCd = 1.5;
     let n = 0;
-    const R = 280;
+    const R = 280 * (1 + 0.4 * this.perk('horn'));
     this.hash.query(p.x, p.y, R, (o) => {
       if (o.kind !== 'ant' || o.colony !== p.colony || o.isPlayer || o.dead || o.trapped) return;
       if (dist2(p.x, p.y, o.x, o.y) > R * R) return;
       if (o.state === 'carry' || o.state === 'rescue') return;
-      o.followT = 30; o.slot = rand(TAU);
+      o.followT = 30 * (1 + 0.5 * this.perk('horn')); o.slot = rand(TAU);
       if (o.state !== 'fight') { if (o.carry) o.dropCarry(); o.releaseClaim(); o.state = 'follow'; }
       n++;
     });
@@ -843,12 +899,29 @@ class Game {
       need = Math.round(30 * Math.pow(this.level, 1.35));
       const p = this.player;
       if (p && !p.dead) {
-        p.maxHp *= 1.08; p.dmg *= 1.08; p.hp = p.maxHp;
+        p.refreshPlayer(this.level, this.perks); p.hp = p.maxHp;
         this.fx.sparkle(p.x, p.y, '#ffe08a', 16);
         this.fx.text(p.x, p.y - 30, `Level ${this.level}!`, '#ffe08a');
       }
-      this.ui.toast(`Level ${this.level}! You are tougher and bite harder.`, 'good');
+      if (this.mode === 'play') this.perkQueue++;
     }
+  }
+
+  perk(id) { return this.perks[id] || 0; }
+
+  /* Offer three perks the player can still take. */
+  perkChoices() {
+    const pool = PERKS.filter((k) => this.perk(k.id) < k.max && !(k.id === 'venom' && ANT_SPECIES[this.species].venom));
+    for (let i = pool.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    return pool.slice(0, 3);
+  }
+  choosePerk(id) {
+    this.perks[id] = this.perk(id) + 1;
+    const p = this.player;
+    if (p && !p.dead) { const f = p.hp / p.maxHp; p.refreshPlayer(this.level, this.perks); p.hp = p.maxHp * f; }
+    this.perkOpen = false;
+    this.ui.toast(`${PERKS.find((k) => k.id === id).name}${this.perks[id] > 1 ? ` ${this.perks[id]}` : ''} learned.`, 'good');
+    this.save();
   }
 
   xpNeed() { return Math.round(30 * Math.pow(this.level, 1.35)); }
@@ -861,7 +934,7 @@ class Game {
       if (d < bd) { bd = d; best = a; }
     }
     if (!best) { this.gameOver(); return; }
-    best.makePlayer(this.level);
+    best.makePlayer(this.level, this.perks);
     this.lifeTime = 0; this.lifeSent = false;
     this.player = best;
     this.stats.sisters++;
@@ -911,7 +984,7 @@ class Game {
     let n = 0;
     this.hash.query(src.x, src.y, 170, (o) => {
       if (n >= 6 || o.kind !== 'ant' || o.colony !== col || o.isPlayer || o.dead || o.trapped) return;
-      if (o.state === 'forage' || o.state === 'guard' || o.state === 'follow' || (o.state === 'return' && !o.carry)) { o.startFight(target); n++; }
+      if (['forage', 'scout', 'herd', 'guard', 'follow'].includes(o.state) || (o.state === 'return' && !o.carry)) { o.startFight(target); n++; }
     });
   }
 
@@ -1049,23 +1122,92 @@ class Game {
 
   /* -------------------------------------------------------- events */
 
+  /* Rival colonies size each other up. A colony that clearly outnumbers a neighbour
+     sends a war party: against you they steal from your stores, against another rival
+     they fight their way into its mound. */
   updateRaids(dt) {
     if (this.mode !== 'play') return;
     for (const col of this.activeColonies) {
-      if (col.isPlayer || dist2(col.x, col.y, 0, 0) > 2600 * 2600) continue;
+      if (col.isPlayer) continue;
       col.raidT -= dt;
       if (col.raidT > 0) continue;
-      col.raidT = rand(160, 240);
-      const pool = this.ants.filter((a) => a.colony === col && !a.carry && !a.big && (a.state === 'guard' || a.state === 'forage'));
+      col.raidT = rand(150, 230);
+      const mine = this.countColony(col);
+      let target = null, bestScore = 0;
+      for (const other of this.activeColonies) {
+        if (other === col || other.dead) continue;
+        const d = dist(col.x, col.y, other.x, other.y);
+        const range = other.isPlayer ? 2600 : 1800;
+        if (d > range) continue;
+        const theirs = this.countColony(other);
+        const ratio = mine / Math.max(1, theirs);
+        if (!other.isPlayer && ratio < 1.3) continue;
+        const score = ratio / (d + 400) * (other.isPlayer ? 1.4 : 1);
+        if (score > bestScore) { bestScore = score; target = other; }
+      }
+      if (!target) continue;
+      const pool = this.ants.filter((a) => a.colony === col && !a.inNest && !a.carry && !a.big && ['guard', 'forage', 'scout'].includes(a.state));
       if (pool.length < 10) continue;
       pool.sort((a, b) => (b.role === 'soldier') - (a.role === 'soldier'));
-      const raiders = pool.slice(0, 7);
-      for (const a of raiders) { a.raider = true; a.state = 'raid'; a.timer = 0; }
-      this.ui.toast(`${raiders.length} ${col.sp.name.toLowerCase()}s are marching on your nest!`, 'bad');
+      const raiders = pool.slice(0, target.isPlayer ? 7 : 12);
+      for (const a of raiders) { a.raider = true; a.raidTarget = target; a.state = 'raid'; a.timer = 0; }
+      if (target.isPlayer) this.ui.toast(`${raiders.length} ${col.sp.name.toLowerCase()}s are marching on your nest!`, 'bad');
+      else if (dist2(this.player.x, this.player.y, col.x, col.y) < 1500 * 1500) this.ui.toast(`The ${col.sp.name.toLowerCase()}s are going to war with the ${target.sp.name.toLowerCase()}s nearby.`);
     }
   }
 
+  /* World events: a picnic left behind, or a swarm of winged termites at dusk. */
+  updateWorldEvents(dt) {
+    const t = this.timers, p = this.player;
+    t.event = (t.event ?? rand(90, 150)) - dt;
+    for (const ev of this.events) {
+      ev.age += dt;
+      if (ev.kind === 'picnic') {
+        let left = 0;
+        this.foodHash.query(ev.x, ev.y, 150, (f) => { if (!f.taken) left++; });
+        for (const b of this.bigs) if (!b.done && dist2(b.x, b.y, ev.x, ev.y) < 150 * 150) left += 3;
+        if ((left === 0 && ev.age > 10) || ev.age > 300) ev.fading = true;
+      } else if (ev.age > 70) ev.fading = true;
+      if (ev.fading) ev.fade = Math.max(0, (ev.fade ?? 1) - dt * 0.4);
+    }
+    this.events = this.events.filter((ev) => !ev.fading || ev.fade > 0);
+    if (t.event > 0 || this.mode !== 'play' || !p || p.dead || p.inNest) return;
+    t.event = rand(150, 240);
+    const dusk = this.dayT > 0.5 && this.dayT < 0.7;
+    if ((dusk || this.weather.k > 0.4) && this.sw[3] < 0.3 && Math.random() < 0.6) this.startTermiteFlight();
+    else if (this.sw[3] < 0.5) this.startPicnic();
+  }
+
+  startPicnic() {
+    const p = this.player;
+    const s = this.spotNear(p.x, p.y, 650, 1150);
+    if (!s) return;
+    const ev = { kind: 'picnic', x: s.x, y: s.y, rot: rand(-0.4, 0.4), age: 0, seed: (Math.random() * 1e9) | 0 };
+    this.events.push(ev);
+    for (let i = 0; i < 46; i++) {
+      const a = rand(TAU), d = Math.sqrt(Math.random()) * 95;
+      const x = s.x + Math.cos(a) * d, y = s.y + Math.sin(a) * d;
+      if (!this.world.wetAt(x, y)) this.addFood(new Food(pick(['crumb', 'crumb', 'crumb', 'seed', 'berry']), x, y));
+    }
+    this.bigs.push(new BigFood(this, 'crust', s.x - 40, s.y + 10));
+    this.bigs.push(new BigFood(this, 'crust', s.x + 35, s.y - 25));
+    this.bigs.push(new BigFood(this, Math.random() < 0.5 ? 'sugar' : 'apple', s.x + 10, s.y + 45));
+    this.ui.toast('Someone left a picnic behind! Crumbs everywhere. Follow the gold arrow.', 'good');
+  }
+
+  startTermiteFlight() {
+    const p = this.player;
+    const ev = { kind: 'swarm', x: p.x, y: p.y, age: 0 };
+    this.events.push(ev);
+    for (let i = 0; i < 22; i++) {
+      const a = rand(TAU), d = rand(80, 520);
+      this.critters.push(new Alate(this, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d));
+    }
+    this.ui.toast('Winged termites are swarming out on their mating flight! They make easy, rich food.', 'good');
+  }
+
   updateEvents(dt) {
+    this.updateWorldEvents(dt);
     const t = this.timers;
     t.ladybug -= dt;
     if (t.ladybug <= 0) {
@@ -1206,7 +1348,7 @@ class Game {
     this.hash.query(v.x, v.y, 220, (o) => {
       if (n >= 3 || o === v || o.kind !== 'ant' || o.colony !== v.colony || o.isPlayer || o.dead || o.trapped) return;
       if (o.state === 'rescue' && o.target === v) { n++; return; }
-      if (!['forage', 'return', 'guard', 'follow', 'greet', 'fetch'].includes(o.state)) return;
+      if (!['forage', 'scout', 'herd', 'return', 'guard', 'follow', 'greet', 'fetch'].includes(o.state)) return;
       if (o.carry) o.dropCarry();
       o.releaseClaim();
       o.state = 'rescue'; o.target = v; n++;
@@ -1218,6 +1360,18 @@ class Game {
   }
 
   get season() { return Math.floor(this.days) % 4; }
+
+  /* Seasons fade into each other over the last and first fifth of each one (about two minutes).
+     sw[i] is how much of season i is showing right now. */
+  updateSeasonBlend() {
+    const pos = ((this.days % 4) + 4) % 4, s = Math.floor(pos), f = pos - s;
+    let a = s, b = s, k = 0;
+    if (f > 0.8) { b = (s + 1) % 4; k = smoothstep(0.8, 1.2, f); }
+    else if (f < 0.2) { a = (s + 3) % 4; k = smoothstep(0.8, 1.2, f + 1); }
+    const w = [0, 0, 0, 0];
+    w[a] += 1 - k; w[b] += k;
+    this.sw = w; this.seasonA = a; this.seasonB = b; this.seasonK = k;
+  }
 
   darkness() {
     const p = this.dayT;
@@ -1288,6 +1442,7 @@ class Game {
   }
 
   render() {
+    if (!this.vw || !this.vh) return;
     if (this.view === 'nest' && this.mode === 'play') { this.nestView.render(this.ctx); this.renderRain(); return; }
     const ctx = this.ctx, cam = this.camera, z = cam.zoom, dpr = this.dpr, t = this.time;
     const vw = this.vw, vh = this.vh;
@@ -1300,6 +1455,8 @@ class Game {
     const v = this.view4;
 
     this.world.drawChunks(ctx, v.x0, v.y0, v.x1, v.y1);
+    if (this.sw[2] > 0.01) this.world.drawSeasonLayer(ctx, v, 'leaves', this.sw[2]);
+    if (this.sw[3] > 0.01) this.world.drawSeasonLayer(ctx, v, 'snow', this.sw[3]);
     this.world.drawPher(ctx, v, this.scentView);
 
     for (const c of this.critters) if (c.kind === 'snail' && this.inView(c, 500)) c.drawTrail(ctx);
@@ -1325,6 +1482,7 @@ class Game {
       ctx.beginPath(); ctx.arc(col.x, col.y, 30 + 50 * k, 0, TAU); ctx.fill();
     }
 
+    for (const ev of this.events) if (ev.kind === 'picnic' && this.inView(ev, 200)) drawPicnic(ctx, ev, t);
     for (const f of this.foods) if (this.inView(f)) drawFood(ctx, f, t);
     for (const p of this.activePatches) if (this.inView(p, 120)) for (const a of p.aphids) a.draw(ctx, t);
     for (const b of this.bigs) if (this.inView(b)) b.draw(ctx, t);
@@ -1333,7 +1491,7 @@ class Game {
     ground.sort((a, b) => a.r - b.r);
     let gi = 0;
     for (; gi < ground.length && ground[gi].r < 14; gi++) ground[gi].draw(ctx, t);
-    for (const a of this.ants) if (!a.isPlayer && this.inView(a)) a.draw(ctx, t);
+    for (const a of this.ants) if (!a.isPlayer && !a.inNest && this.inView(a)) a.draw(ctx, t);
     const p = this.player;
     if (p && !p.dead && !p.inNest) p.draw(ctx, t);
     for (; gi < ground.length; gi++) ground[gi].draw(ctx, t);
@@ -1346,35 +1504,59 @@ class Game {
       }
     }
     drawCanopies(ctx, this, t);
+    const pl = this.player;
+    if (pl && !pl.dead && !pl.inNest) {
+      for (const ev of this.events) {
+        if (ev.kind !== 'picnic' || ev.fading) continue;
+        const d = dist(pl.x, pl.y, ev.x, ev.y);
+        if (d < 260) continue;
+        const a = Math.atan2(ev.y - pl.y, ev.x - pl.x), bob = Math.sin(t * 4) * 3;
+        ctx.save(); ctx.translate(pl.x + Math.cos(a) * (46 + bob), pl.y + Math.sin(a) * (46 + bob)); ctx.rotate(a);
+        ctx.fillStyle = 'rgba(255,214,110,0.9)'; ctx.strokeStyle = 'rgba(60,40,10,0.6)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(-6, -7); ctx.lineTo(-2, 0); ctx.lineTo(-6, 7); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      }
+    }
     this.fx.draw(ctx);
     for (const f of this.flyers) if (this.inView(f, 160)) f.draw(ctx, t);
     for (const c of this.critters) if ((c.flying || c.z > 2) && c.kind !== 'bird' && this.inView(c, 160)) c.draw(ctx, t);
     for (const c of this.critters) if (c.kind === 'bird' && this.inView(c, 400)) c.draw(ctx, t);
     for (const f of this.fireflies) if (this.inView(f)) drawFireflyBody(ctx, f, t);
 
+    this.gradeSeason();
     this.renderNight();
     this.renderRain();
     this.renderSeason();
   }
 
-  renderSeason() {
-    const ctx = this.ctx, s = this.season, f = this.days % 1;
+  /* Colour grading per season, blended by how much of each season is showing. */
+  gradeSeason() {
+    const ctx = this.ctx, w = this.sw;
+    ctx.save();
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    // blend the season tint in and out across the season boundaries
-    const edge = Math.min(1, f / 0.15, (1 - f) / 0.15);
-    const tint = [null, 'rgba(255,220,120,', 'rgba(220,120,40,', 'rgba(230,240,255,'][s];
-    const amt = [0, 0.05, 0.1, 0.24][s] * (0.4 + 0.6 * edge);
-    if (tint && amt > 0) { ctx.fillStyle = tint + amt + ')'; ctx.fillRect(0, 0, this.vw, this.vh); }
-    for (const fl of this.flakes) {
-      if (fl.c) {
-        ctx.save(); ctx.translate(fl.x, fl.y); ctx.rotate(this.time * 2 + fl.p);
-        ctx.fillStyle = fl.c; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.4, 0, 0, TAU); ctx.fill();
-        ctx.restore();
-      } else {
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.beginPath(); ctx.arc(fl.x, fl.y, fl.r, 0, TAU); ctx.fill();
-      }
+    const pass = (op, col, a) => { if (a < 0.005) return; ctx.globalCompositeOperation = op; ctx.globalAlpha = a; ctx.fillStyle = col; ctx.fillRect(0, 0, this.vw, this.vh); };
+    pass('soft-light', '#b4ff8c', 0.22 * w[0]);
+    pass('soft-light', '#ffd270', 0.3 * w[1]);
+    pass('saturation', '#808080', 0.18 * w[2]);
+    pass('soft-light', '#ff7a1e', 0.42 * w[2]);
+    pass('multiply', '#ffe2c0', 0.25 * w[2]);
+    pass('saturation', '#808080', 0.45 * w[3]);
+    pass('screen', '#b4c8e4', 0.12 * w[3]);
+    pass('soft-light', '#dce8ff', 0.22 * w[3]);
+    ctx.restore();
+  }
+
+  renderSeason() {
+    const ctx = this.ctx;
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    for (const fl of this.leafFall) {
+      ctx.save(); ctx.translate(fl.x, fl.y); ctx.rotate(this.time * 2 + fl.p);
+      ctx.scale(1, 0.4 + 0.6 * Math.abs(Math.sin(this.time * 3 + fl.p)));
+      ctx.fillStyle = fl.c; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.4, 0, 0, TAU); ctx.fill();
+      ctx.restore();
     }
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    for (const fl of this.flakes) { ctx.beginPath(); ctx.arc(fl.x, fl.y, fl.r, 0, TAU); ctx.fill(); }
   }
 
   renderRain() {
@@ -1384,7 +1566,7 @@ class Game {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = `rgba(40,60,80,${0.16 * k})`;
     ctx.fillRect(0, 0, this.vw, this.vh);
-    if (this.season === 3) return;
+    if (this.sw[3] > 0.5) return;
     ctx.strokeStyle = `rgba(210,225,240,${0.35 * k})`; ctx.lineWidth = 1;
     ctx.beginPath();
     for (const d of this.raindrops) { ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + d.l * 0.15, d.y - d.l); }
@@ -1401,6 +1583,7 @@ class Game {
     }
     if (dark < 0.01) return;
     const nc = this.nightCtx, w = this.nightC.width, h = this.nightC.height;
+    if (!w || !h || !this.vw || !this.vh) return;
     const sc = w / this.vw, cam = this.camera, z = cam.zoom, t = this.time;
     nc.globalCompositeOperation = 'source-over';
     nc.clearRect(0, 0, w, h);

@@ -222,9 +222,11 @@ function drawAnt(ctx, e, t) {
   for (let side = -1; side <= 1; side += 2) {
     const ph = e.husk ? 0.4 : Math.sin(t * spd + (e.id || 1) * 1.7 + side) * wig;
     const sx = hx + hrx * 0.45, sy = side * hry * 0.5;
-    const a1 = side * (0.95 + ph * 0.4);
+    // grooming: one antenna is drawn down and back through the mouthparts to clean it
+    const groom = e.groomT > 0 && side === (e.groomSide || 1) ? Math.sin(t * 9) * 0.5 + 0.5 : 0;
+    const a1 = side * (0.95 + ph * 0.4 + groom * 0.6);
     const ex = sx + Math.cos(a1) * 4.3 * al, ey = sy + Math.sin(a1) * 4.3 * al;
-    const a2 = side * (0.1 - ph * 0.7);
+    const a2 = groom ? side * (2.1 + groom * 0.5) : side * (0.1 - ph * 0.7);
     const tx = ex + Math.cos(a2) * 5.4 * al, ty = ey + Math.sin(a2) * 5.4 * al;
     ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.lineTo(tx, ty); ctx.stroke();
     ctx.beginPath(); ctx.ellipse(tx, ty, 0.9, 0.6, a2 * side, 0, TAU); ctx.fill();
@@ -338,6 +340,17 @@ function drawSpider(ctx, e, t) {
   if (e.hurtT > 0) {
     ctx.fillStyle = 'rgba(255,240,220,0.35)';
     ctx.beginPath(); ctx.ellipse(-6, 0, 22, 10, 0, 0, TAU); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* Eight eyes glinting from the dark of a burrow. */
+function drawSpiderEyes(ctx, e, t) {
+  const glint = 0.55 + 0.45 * Math.sin(t * 2 + (e.id || 1));
+  ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.a); ctx.scale(e.size, e.size);
+  for (const [x, y, r] of [[6.2, -2.4, 1.55], [6.2, 2.4, 1.55], [3.4, -4.2, 1.05], [3.4, 4.2, 1.05], [8.7, -1.6, 0.6], [8.7, 1.6, 0.6]]) {
+    radialFill(ctx, x, y, r * 3, [[0, `rgba(180,230,140,${0.35 * glint})`], [1, 'rgba(180,230,140,0)']]);
+    ctx.fillStyle = `rgba(230,255,200,${0.8 * glint})`; ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, TAU); ctx.fill();
   }
   ctx.restore();
 }

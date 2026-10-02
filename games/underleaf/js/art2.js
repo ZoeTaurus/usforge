@@ -283,6 +283,9 @@ function drawBird(ctx, e, t) {
   ctx.rotate(e.a);
   const zs = s * (1 + z * 0.0025);
   ctx.scale(zs, zs);
+  // lunge forward when pecking, and bob slightly while standing
+  if (e.peckT > 0) ctx.translate(Math.sin((e.peckT / 0.22) * Math.PI) * 7, 0);
+  else if (!e.flying && !e.hop) ctx.translate(Math.sin(t * 6 + e.id) * 0.6, 0);
   birdShape(ctx, e, t, false, L);
   ctx.restore();
 }

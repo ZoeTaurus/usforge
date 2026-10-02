@@ -327,3 +327,111 @@ Object.assign(CORPSE_DRAW, {
   stick: (c, t) => drawStickInsect(c, { x: 0, y: 0, a: 0, size: 0.8, gait: 0, dead: true }, t),
   termite: (c, t) => drawTermite(c, { x: 0, y: 0, a: 0, size: 1.2, gait: 0, dead: true, role: 'soldier' }, t),
 });
+
+/* ----------------------------------------------- winged termite (alate) */
+
+function drawAlate(ctx, e, t) {
+  const z = e.z || 0;
+  if (e.wings > 0.02) {
+    ctx.save(); ctx.translate(e.x + z * 0.6, e.y + z * 0.9); ctx.rotate(e.a);
+    ctx.fillStyle = `rgba(15,15,5,${0.12 * e.wings})`;
+    ctx.beginPath(); ctx.ellipse(-8, 0, 14, 7, 0, 0, TAU); ctx.fill();
+    ctx.restore();
+  }
+  ctx.save(); ctx.translate(e.x, e.y);
+  const zs = 1 + z * 0.005; ctx.scale(zs, zs); ctx.translate(-e.x, -e.y);
+  drawTermite(ctx, { ...e, role: 'worker', size: 1 }, t);
+  if (e.wings > 0.02) {
+    ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.a);
+    const flap = z > 2 ? 0.5 + 0.5 * Math.abs(Math.sin(t * 40 + e.id)) : 0;
+    for (let side = -1; side <= 1; side += 2) {
+      for (let k = 0; k < 2; k++) {
+        ctx.save(); ctx.translate(1, side * 1.2); ctx.rotate(side * (Math.PI - 0.18 - k * 0.12 - flap * 0.9));
+        ctx.globalAlpha = e.wings;
+        ctx.fillStyle = 'rgba(235,230,215,0.5)'; ctx.strokeStyle = 'rgba(120,100,80,0.55)'; ctx.lineWidth = 0.35;
+        ctx.beginPath(); ctx.ellipse(10, 0, 11, 2.6, 0, 0, TAU); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(20, 0); ctx.stroke();
+        ctx.restore();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ------------------------------------------------------- picnic cloth */
+
+function drawPicnic(ctx, ev, t) {
+  const a = ev.fade ?? 1;
+  if (a <= 0) return;
+  const R = mulberry32(ev.seed);
+  const W = 300, H = 220;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.translate(ev.x, ev.y); ctx.rotate(ev.rot);
+  ctx.fillStyle = 'rgba(15,12,4,0.3)';
+  roundRectPath(ctx, -W / 2 + 8, -H / 2 + 10, W, H, 10); ctx.fill();
+  // a slightly wavy outline, as cloth lying on grass never sits perfectly flat
+  const edge = () => {
+    ctx.beginPath();
+    const pts = [];
+    for (let i = 0; i <= 12; i++) pts.push([-W / 2 + (W * i) / 12, -H / 2 + Math.sin(i * 1.7 + ev.seed) * 3]);
+    for (let i = 0; i <= 9; i++) pts.push([W / 2 + Math.sin(i * 2.1) * 3, -H / 2 + (H * i) / 9]);
+    for (let i = 12; i >= 0; i--) pts.push([-W / 2 + (W * i) / 12, H / 2 + Math.sin(i * 1.3) * 3]);
+    for (let i = 9; i >= 0; i--) pts.push([-W / 2 + Math.sin(i * 1.9) * 3, -H / 2 + (H * i) / 9]);
+    pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])));
+    ctx.closePath();
+  };
+  edge(); ctx.fillStyle = '#f6f0e6'; ctx.fill();
+  ctx.save(); edge(); ctx.clip();
+  // gingham: red stripes both ways, darker where they cross
+  const sq = 20;
+  ctx.fillStyle = 'rgba(200,40,40,0.5)';
+  for (let x = -W / 2; x < W / 2; x += sq * 2) ctx.fillRect(x, -H / 2, sq, H);
+  for (let y = -H / 2; y < H / 2; y += sq * 2) ctx.fillRect(-W / 2, y, W, sq);
+  // folds and creases catch the light on one side
+  for (let i = 0; i < 4; i++) {
+    const fx = -W / 2 + R() * W, fl = 60 + R() * 120, fa = R() * Math.PI;
+    const gr = ctx.createLinearGradient(fx - 14, 0, fx + 14, 0);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, 'rgba(40,20,20,0.18)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.25)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.translate(fx, (R() - 0.5) * H * 0.6); ctx.rotate(fa);
+    ctx.fillStyle = gr; ctx.fillRect(-14, -fl / 2, 28, fl);
+    ctx.restore();
+  }
+  // fabric weave and a few grass blades poking through the edge
+  ctx.strokeStyle = 'rgba(120,80,70,0.08)'; ctx.lineWidth = 0.5;
+  for (let x = -W / 2; x < W / 2; x += 3) { ctx.beginPath(); ctx.moveTo(x, -H / 2); ctx.lineTo(x, H / 2); ctx.stroke(); }
+  const lit = ctx.createLinearGradient(-W / 2, -H / 2, W / 2, H / 2);
+  lit.addColorStop(0, 'rgba(255,250,230,0.15)'); lit.addColorStop(1, 'rgba(40,30,20,0.15)');
+  ctx.fillStyle = lit; ctx.fillRect(-W / 2, -H / 2, W, H);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(160,40,40,0.6)'; ctx.lineWidth = 2;
+  edge(); ctx.stroke();
+  ctx.restore();
+}
+
+/* -------------------------------------------------------- bread crust */
+
+CORPSE_DRAW.crust = (c) => {
+  softShadow(c, 4, 5, 0, 20, 12, 0.35);
+  c.beginPath();
+  c.moveTo(-18, 6); c.quadraticCurveTo(-20, -10, 0, -12); c.quadraticCurveTo(20, -10, 18, 6);
+  c.quadraticCurveTo(10, 0, 0, 0); c.quadraticCurveTo(-10, 0, -18, 6); c.closePath();
+  const gr = c.createLinearGradient(0, -12, 0, 6);
+  gr.addColorStop(0, '#b06a28'); gr.addColorStop(0.5, '#8a4a18'); gr.addColorStop(1, '#5a2a0c');
+  c.fillStyle = gr; c.fill();
+  c.beginPath();
+  c.moveTo(-14, 4); c.quadraticCurveTo(-14, -6, 0, -7); c.quadraticCurveTo(14, -6, 14, 4);
+  c.quadraticCurveTo(8, 1, 0, 1); c.quadraticCurveTo(-8, 1, -14, 4); c.closePath();
+  const crumb = c.createLinearGradient(0, -7, 0, 4);
+  crumb.addColorStop(0, '#f8e8c0'); crumb.addColorStop(1, '#e0c890');
+  c.fillStyle = crumb; c.fill();
+  const R = mulberry32(7);
+  for (let i = 0; i < 18; i++) {
+    c.fillStyle = 'rgba(180,140,80,0.5)';
+    c.beginPath(); c.ellipse(-11 + R() * 22, -5 + R() * 7, 0.6 + R() * 1.2, 0.5 + R() * 0.8, R() * 3, 0, TAU); c.fill();
+  }
+  c.fillStyle = 'rgba(255,240,200,0.35)';
+  c.beginPath(); c.ellipse(-6, -10, 6, 1.4, -0.2, 0, TAU); c.fill();
+};

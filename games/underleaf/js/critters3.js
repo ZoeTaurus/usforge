@@ -283,6 +283,36 @@ class Moth {
   draw(ctx, t) { drawMoth(ctx, this, t); }
 }
 
+/* A winged termite on its mating flight: it flutters down, sheds its wings and wanders. Easy prey. */
+class Alate extends Critter {
+  constructor(game, x, y) {
+    super(game, x, y);
+    this.kind = 'alate'; this.r = 6; this.size = 1; this.prey = true; this.gaitK = 0.6;
+    this.maxHp = this.hp = 8; this.z = rand(60, 140); this.wings = 1; this.life = rand(50, 70);
+  }
+  get flying() { return this.z > 2; }
+  get invuln() { return this.z > 2; }
+  update(dt) {
+    this.hurtT -= dt; this.life -= dt;
+    if (this.life <= 0) { this.dead = true; return; }
+    if (this.z > 0) {
+      this.z = Math.max(0, this.z - dt * 30);
+      this.a += (Math.random() - 0.5) * dt * 4;
+      this.x += Math.cos(this.a) * 30 * dt; this.y += Math.sin(this.a) * 30 * dt;
+      this.gait += dt * 30;
+      return;
+    }
+    this.wings = Math.max(0, this.wings - dt * 0.5);
+    this.wanderStep(dt, 26);
+  }
+  damage(amt, src) {
+    if (this.dead || this.invuln) return;
+    this.hp -= amt; this.hurtT = 0.15; this.hitFx();
+    if (this.hp <= 0) { this.dead = true; this.game.addFood(new Food('termite', this.x, this.y)); this.game.onCritterDeath(this, src); }
+  }
+  draw(ctx, t) { drawAlate(ctx, this, t); }
+}
+
 Object.assign(CRITTER_CLASSES, { wasp: Wasp, earwig: Earwig, slug: Slug, dungbeetle: DungBeetle, cricket: Cricket, stick: StickInsect, hedgehog: Hedgehog });
 SPAWN_TABLE.meadow.push(['wasp', 0.8], ['cricket', 2], ['dungbeetle', 1.2], ['earwig', 1]);
 SPAWN_TABLE.wood.push(['earwig', 2.5], ['slug', 2.5], ['stick', 2], ['wasp', 0.5]);
@@ -291,6 +321,7 @@ SPAWN_TABLE.dry.push(['dungbeetle', 2.5], ['wasp', 0.8], ['cricket', 1.5]);
 SPAWN_TABLE.beach.push(['earwig', 0.5]);
 
 Object.assign(BIG_KINDS, {
+  crust: { needs: 3, value: 16, r: 17, name: 'bread crust' },
   wasp: { needs: 2, value: 12, r: 12, name: 'wasp' },
   earwig: { needs: 2, value: 10, r: 12, name: 'earwig' },
   slug: { needs: 4, value: 22, r: 20, name: 'slug' },

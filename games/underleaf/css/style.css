@@ -342,3 +342,19 @@ body.innest .colony, body.innest .goals, body.innest .mapbox, body.innest .vital
   .homehead { flex-direction: column; text-align: center; }
   .tabs { justify-content: center; }
 }
+
+.stam { height: 4px; border-radius: 2px; background: rgba(0, 0, 0, 0.4); overflow: hidden; }
+#stamBar { height: 100%; background: linear-gradient(90deg, #4a9ab8, #8ad0f0); transform-origin: left; transition: transform 0.1s; }
+#stamBar.low { background: linear-gradient(90deg, #7a6a8a, #a090b0); }
+.perksheet { width: min(760px, 100%); }
+.perkgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+.perk {
+  position: relative; display: grid; gap: 6px; align-content: start; text-align: left; padding: 16px 14px 14px;
+  border-radius: 16px; background: rgba(245, 238, 216, 0.06); border: 1.5px solid var(--edge); transition: transform 0.12s, border-color 0.12s, background 0.12s;
+}
+.perk:hover, .perk:focus-visible { transform: translateY(-3px); border-color: var(--honey); background: rgba(244, 183, 64, 0.12); }
+.perk kbd { position: absolute; top: 10px; right: 10px; margin: 0; }
+.perk h3 { margin: 0; font: 800 17px var(--font-display); color: var(--honey); padding-right: 30px; }
+.perk p { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
+.perk .pips i.next { background: rgba(244, 183, 64, 0.45); }
+@media (max-width: 640px) { .perkgrid { grid-template-columns: 1fr; } }

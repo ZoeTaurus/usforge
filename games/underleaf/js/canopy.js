@@ -9,7 +9,7 @@ function cachedSprite(key, w, h, scale, fn) {
   if (s) return s;
   s = makeSprite(w, h, w / 2, h / 2, scale, fn);
   SPRITES.set(key, s);
-  if (SPRITES.size > 60) SPRITES.delete(SPRITES.keys().next().value);
+  if (SPRITES.size > 100) SPRITES.delete(SPRITES.keys().next().value);
   return s;
 }
 
@@ -19,9 +19,67 @@ const LEAF_GREENS = {
   willow: [['#6a9a48', '#c0e090', '#2a4a1a'], ['#78a852', '#cceaa0', '#30561e']],
 };
 
-function canopySprite(tree) {
+/* Leaf colours through the year. Pines stay green. */
+const SEASON_LEAVES = {
+  oak: [
+    [['#5c8e2c', '#b8e474', '#284a10'], ['#6a9a34', '#c4ec80', '#2e5212']],
+    null,
+    [['#b8641e', '#f0a040', '#5a2a08'], ['#c88a20', '#f8c850', '#6a4008'], ['#9a3a14', '#e07a3a', '#4a1606'], ['#8a8a2a', '#c8c060', '#40400a']],
+  ],
+  birch: [
+    [['#7aaa3a', '#d8f08a', '#34500e']],
+    null,
+    [['#d4a820', '#fae070', '#6a5008'], ['#c89018', '#f0d060', '#604008'], ['#b8a830', '#e8e080', '#5a5010']],
+  ],
+  willow: [
+    [['#80b050', '#d8f0a8', '#36561e']],
+    null,
+    [['#b0a03a', '#e8d878', '#5a5014'], ['#c8a840', '#f0dc80', '#6a5418']],
+  ],
+};
+function seasonPals(kind, season) {
+  const set = SEASON_LEAVES[kind];
+  return (set && set[season]) || LEAF_GREENS[kind] || LEAF_GREENS.oak;
+}
+
+/* Winter: a deciduous tree seen from above is a fan of bare branches, dusted with snow. */
+function bareTreeSprite(tree) {
   const size = tree.cr * 2.3;
-  return cachedSprite('c' + tree.seed, size, size, 0.75, (g) => {
+  return cachedSprite('w2' + tree.seed, size, size, 0.75, (g) => {
+    const R = mulberry32(tree.seed + 3), cr = tree.cr;
+    const wood = tree.kind === 'birch' ? ['#bab4a8', '#e4e0d6'] : ['#3a2c20', '#6a5440'];
+    g.lineCap = 'round';
+    const branch = (x, y, a, len, w, depth) => {
+      const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+      g.strokeStyle = 'rgba(10,8,4,0.25)'; g.lineWidth = w + 1;
+      g.beginPath(); g.moveTo(x + 2, y + 3); g.lineTo(x2 + 2, y2 + 3); g.stroke();
+      g.strokeStyle = wood[0]; g.lineWidth = w;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo((x + x2) / 2 + (R() - 0.5) * len * 0.3, (y + y2) / 2 + (R() - 0.5) * len * 0.3, x2, y2); g.stroke();
+      // a thin line of snow along the top-left of the thicker branches
+      if (w > 2.2) {
+        g.strokeStyle = 'rgba(250,252,255,0.6)'; g.lineWidth = Math.max(0.8, w * 0.28);
+        g.beginPath(); g.moveTo(x - w * 0.35, y - w * 0.4); g.lineTo(x2 - w * 0.35, y2 - w * 0.4); g.stroke();
+      }
+      if (depth > 0) {
+        const n = R() < 0.55 ? 2 : 1;
+        for (let i = 0; i < n; i++) branch(x2, y2, a + (R() - 0.5) * 1.1, len * (0.62 + R() * 0.2), w * 0.66, depth - 1);
+      }
+    };
+    const limbs = 6 + ((R() * 3) | 0);
+    for (let i = 0; i < limbs; i++) branch(0, 0, (i / limbs) * TAU + R() * 0.5, cr * 0.34, tree.tr * 0.34, 4);
+    g.fillStyle = 'rgba(120,80,40,0.7)';
+    for (let i = 0; i < 14; i++) {
+      const a = R() * TAU, d = cr * (0.3 + R() * 0.6);
+      g.beginPath(); g.ellipse(Math.cos(a) * d, Math.sin(a) * d, 3, 1.6, R() * 3, 0, TAU); g.fill();
+    }
+  });
+}
+
+function canopySprite(tree, season = 1) {
+  if (season === 3 && tree.kind !== 'pine') return bareTreeSprite(tree);
+  const pals = seasonPals(tree.kind, season);
+  const size = tree.cr * 2.3;
+  return cachedSprite('c' + tree.seed + '_' + season, size, size, 0.75, (g) => {
     const R = mulberry32(tree.seed), cr = tree.cr;
     const L = { x: -0.5, y: -0.6 };
     if (tree.kind === 'pine') {
@@ -47,12 +105,21 @@ function canopySprite(tree) {
         }
       }
       radialFill(g, -cr * 0.2, -cr * 0.25, cr * 0.9, [[0, 'rgba(255,250,200,0.14)'], [1, 'rgba(255,250,200,0)']]);
+      if (season === 3) {
+        // snow caught on the upper-left of each needle tier
+        g.globalCompositeOperation = 'source-atop';
+        for (let i = 0; i < 160; i++) {
+          const a = -Math.PI * 0.7 + (R() - 0.5) * 2.4, d = cr * (0.2 + R() * 0.8);
+          radialFill(g, Math.cos(a) * d, Math.sin(a) * d, 5 + R() * 9, [[0, 'rgba(250,252,255,0.85)'], [1, 'rgba(250,252,255,0)']]);
+        }
+        g.globalCompositeOperation = 'source-over';
+      }
       return;
     }
     if (tree.kind === 'willow') {
       for (let i = 0; i < 520; i++) {
         const a = R() * TAU, d = cr * (0.15 + R() * 0.85);
-        const pal = LEAF_GREENS.willow[(R() * 2) | 0];
+        const pal = pals[(R() * pals.length) | 0];
         g.strokeStyle = R() < 0.5 ? pal[0] : pal[1]; g.lineWidth = 1.4; g.lineCap = 'round';
         g.beginPath(); g.moveTo(Math.cos(a) * d * 0.5, Math.sin(a) * d * 0.5);
         g.quadraticCurveTo(Math.cos(a + 0.2) * d * 0.8, Math.sin(a + 0.2) * d * 0.8, Math.cos(a + 0.1) * d, Math.sin(a + 0.1) * d);
@@ -60,7 +127,6 @@ function canopySprite(tree) {
       }
       return;
     }
-    const pals = LEAF_GREENS[tree.kind] || LEAF_GREENS.oak;
     const birch = tree.kind === 'birch';
     // silhouette made of many small lobes, so the edge reads as foliage, not a ball
     const lobes = [];
@@ -132,10 +198,17 @@ function brambleLeaf(g, R, x, y, a, size, tint) {
   g.restore();
 }
 
-function bushSprite(f) {
-  return cachedSprite('b5' + f.seed, 150, 150, 1.5, (g) => {
+const BRAMBLE_TINTS = [
+  [['#4e8a2e', '#9cd060', '#22420e'], ['#5a9634', '#acdc6a', '#284a10'], ['#4a7a2c', '#8cc054', '#22420e'], ['#6a8a2a', '#b0c860', '#2e4010']],
+  [['#3e6e26', '#7cb048', '#1c3a10'], ['#4a7a2c', '#8cc054', '#22420e'], ['#5a6a2a', '#a0a848', '#2e3a10'], ['#6a4a2a', '#b07a40', '#3a2410']],
+  [['#9a3a22', '#e07a50', '#4a1408'], ['#b8641e', '#f0a040', '#5a2a08'], ['#7a2a3a', '#c05a70', '#3a0a16'], ['#6a4a2a', '#b07a40', '#3a2410']],
+  [['#6a4a2a', '#a07a50', '#3a2410'], ['#5a4030', '#907060', '#2a1a10'], ['#6a4a2a', '#a07a50', '#3a2410'], ['#5a4030', '#907060', '#2a1a10']],
+];
+function bushSprite(f, season = 1) {
+  return cachedSprite('b5' + f.seed + '_' + season, 150, 150, 1.5, (g) => {
     const R = mulberry32(f.seed);
-    const tints = [['#3e6e26', '#7cb048', '#1c3a10'], ['#4a7a2c', '#8cc054', '#22420e'], ['#5a6a2a', '#a0a848', '#2e3a10'], ['#6a4a2a', '#b07a40', '#3a2410']];
+    const tints = BRAMBLE_TINTS[season];
+    const winter = season === 3;
     const canes = [];
     const nC = 11 + ((R() * 4) | 0);
     for (let i = 0; i < nC; i++) {
@@ -164,16 +237,17 @@ function bushSprite(f) {
         g.closePath(); g.fill();
       }
     }
-    // leaves along the canes, outer ones younger and lighter
+    // leaves along the canes, outer ones younger and lighter; winter strips most of them
     for (const pts of canes) {
       for (let k2 = 1; k2 < pts.length; k2++) {
         const q = pts[k2], side = k2 % 2 ? 1 : -1;
+        if (winter && R() < 0.85) continue;
         const tint = R() < 0.1 ? tints[3] : tints[(R() * 3) | 0];
         brambleLeaf(g, R, q.x, q.y, q.aa + side * (0.8 + R() * 0.5), 9 + R() * 4 + (k2 < 6 ? 3 : 0), tint);
       }
     }
     // a dense leafy heart where the canes crowd together
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < (winter ? 4 : 26); i++) {
       const a = R() * TAU, d = 30 * Math.sqrt(R());
       brambleLeaf(g, R, Math.cos(a) * d, Math.sin(a) * d, R() * TAU, 10 + R() * 4, tints[(R() * 3) | 0]);
     }
@@ -183,8 +257,15 @@ function bushSprite(f) {
     vol.addColorStop(0, 'rgba(255,250,210,0.28)'); vol.addColorStop(0.45, 'rgba(0,0,0,0)'); vol.addColorStop(1, 'rgba(5,15,0,0.55)');
     g.fillStyle = vol; g.fillRect(-75, -75, 150, 150);
     g.globalCompositeOperation = 'source-over';
-    // a few white-pink flowers
-    for (let i = 0; i < 3; i++) {
+    if (winter) {
+      g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1.6; g.lineCap = 'round';
+      for (const pts of canes) for (let k2 = 0; k2 < pts.length - 1; k2 += 2) {
+        g.beginPath(); g.moveTo(pts[k2].x - 1, pts[k2].y - 1.5); g.lineTo(pts[k2 + 1].x - 1, pts[k2 + 1].y - 1.5); g.stroke();
+      }
+      return;
+    }
+    // a few white-pink flowers (spring and summer)
+    for (let i = 0; i < (season < 2 ? 3 : 0); i++) {
       const pts = canes[(R() * canes.length) | 0], q = pts[8 + ((R() * 4) | 0)];
       for (let k = 0; k < 5; k++) {
         const a = (k / 5) * TAU;
@@ -196,24 +277,28 @@ function bushSprite(f) {
   });
 }
 
-function sunflowerSprite(f) {
-  return cachedSprite('s' + f.seed, 110, 110, 1.6, (g) => {
+function sunflowerSprite(f, season = 1) {
+  const autumn = season === 2;
+  return cachedSprite('s' + f.seed + '_' + season, 110, 110, 1.6, (g) => {
     const R = mulberry32(f.seed);
     for (let i = 0; i < 4; i++) {
       const a = R() * TAU;
       g.save(); g.rotate(a);
       g.beginPath(); g.moveTo(10, 0); g.quadraticCurveTo(30, -18, 48, 0); g.quadraticCurveTo(30, 18, 10, 0);
       const gr = g.createLinearGradient(0, -14, 0, 14);
-      gr.addColorStop(0, '#78a840'); gr.addColorStop(1, '#2e5418');
+      gr.addColorStop(0, autumn ? '#a89040' : '#78a840'); gr.addColorStop(1, autumn ? '#5a4418' : '#2e5418');
       g.fillStyle = gr; g.fill();
       g.restore();
     }
-    for (let i = 0; i < 26; i++) {
-      const a = (i / 26) * TAU;
+    // in autumn the petals wither and droop and the head turns to seed
+    const petals = autumn ? 15 : 26, tip = autumn ? 25 : 33;
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * TAU + (autumn ? R() * 0.3 : 0);
       g.save(); g.rotate(a);
-      g.beginPath(); g.moveTo(14, -3); g.quadraticCurveTo(26, -5, 33, 0); g.quadraticCurveTo(26, 5, 14, 3); g.closePath();
-      const gr = g.createLinearGradient(14, 0, 33, 0);
-      gr.addColorStop(0, '#e0a010'); gr.addColorStop(1, i % 2 ? '#ffd23a' : '#ffe060');
+      g.beginPath(); g.moveTo(14, -3); g.quadraticCurveTo(tip * 0.78, -5, tip, 0); g.quadraticCurveTo(tip * 0.78, 5, 14, 3); g.closePath();
+      const gr = g.createLinearGradient(14, 0, tip, 0);
+      if (autumn) { gr.addColorStop(0, '#8a5a18'); gr.addColorStop(1, i % 2 ? '#b07a28' : '#c89040'); }
+      else { gr.addColorStop(0, '#e0a010'); gr.addColorStop(1, i % 2 ? '#ffd23a' : '#ffe060'); }
       g.fillStyle = gr; g.fill();
       g.restore();
     }
@@ -234,17 +319,33 @@ function canopyAlpha(game, x, y, r) {
   return d < r * 0.95 ? lerp(0.28, 0.78, smoothstep(r * 0.4, r * 0.95, d)) : 0.78;
 }
 
+/* Draw a plant's look for the current season, cross-fading into the next one while the seasons turn. */
+function seasonal(game, makeSprite, draw) {
+  const A = game.seasonA ?? 1, B = game.seasonB ?? 1, k = game.seasonK || 0;
+  if (k < 0.02 || A === B) { draw(makeSprite(A), 1); return; }
+  if (k > 0.98) { draw(makeSprite(B), 1); return; }
+  draw(makeSprite(A), 1 - k);
+  draw(makeSprite(B), k);
+}
+
 function drawCanopies(ctx, game, t) {
-  const v = game.view4;
+  const v = game.view4, sw = game.sw || [0, 1, 0, 0];
   for (const f of game.activePlants) {
     if (f.type === 'sundew' || !game.inView(f, 120)) continue;
-    const spr = f.type === 'bush' ? bushSprite(f) : sunflowerSprite(f);
-    const a = canopyAlpha(game, f.x, f.y, f.type === 'bush' ? 60 : 40);
-    ctx.globalAlpha = a;
-    softShadow(ctx, f.x + 10, f.y + 14, 0, spr.w * 0.42, spr.h * 0.38, 0.25);
+    const isBush = f.type === 'bush';
+    // sunflowers die back over winter and come up again in spring
+    const presence = isBush ? 1 : 1 - sw[3];
+    if (presence < 0.03) continue;
+    const a = canopyAlpha(game, f.x, f.y, isBush ? 60 : 40) * presence;
     const sway = Math.sin(t * 0.8 + f.seed) * 1.5;
-    ctx.drawImage(spr.c, f.x - spr.ox + sway, f.y - spr.oy, spr.w, spr.h);
-    if (f.type === 'bush') {
+    seasonal(game, (s) => (isBush ? bushSprite(f, s) : sunflowerSprite(f, s === 3 ? 2 : s)), (spr, w) => {
+      ctx.globalAlpha = a * w;
+      if (w > 0.5) softShadow(ctx, f.x + 10, f.y + 14, 0, spr.w * 0.42, spr.h * 0.38, 0.25);
+      ctx.drawImage(spr.c, f.x - spr.ox + sway, f.y - spr.oy, spr.w, spr.h);
+    });
+    const fruit = 1 - sw[3];
+    if (isBush && fruit > 0.05) {
+      ctx.globalAlpha = a * fruit;
       const R = mulberry32(f.seed + 1);
       for (let i = 0; i < 10; i++) {
         const ang = R() * TAU, d = 10 + R() * 30, ripe = i < f.berries;
@@ -257,10 +358,12 @@ function drawCanopies(ctx, game, t) {
   }
   for (const tr of game.activeTrees) {
     if (tr.x + tr.cr < v.x0 || tr.x - tr.cr > v.x1 || tr.y + tr.cr < v.y0 || tr.y - tr.cr > v.y1) continue;
-    const spr = canopySprite(tr);
-    ctx.globalAlpha = canopyAlpha(game, tr.x, tr.y, tr.cr);
+    const a = canopyAlpha(game, tr.x, tr.y, tr.cr);
     const sway = Math.sin(t * 0.5 + tr.seed) * 3, sy = Math.cos(t * 0.4 + tr.seed) * 2;
-    ctx.drawImage(spr.c, tr.x - spr.ox + sway, tr.y - spr.oy + sy, spr.w, spr.h);
+    seasonal(game, (s) => canopySprite(tr, s), (spr, w) => {
+      ctx.globalAlpha = a * w;
+      ctx.drawImage(spr.c, tr.x - spr.ox + sway, tr.y - spr.oy + sy, spr.w, spr.h);
+    });
   }
   ctx.globalAlpha = 1;
 }

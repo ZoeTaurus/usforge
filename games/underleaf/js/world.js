@@ -585,6 +585,82 @@ class World {
     }
   }
 
+  /* ------------------------------------------------------ season layers */
+
+  /* Fallen leaves for autumn and lying snow for winter, baked per chunk and faded in by season. */
+  bakeSeason(cx, cy, kind) {
+    const s = Math.min(this.bakeScale, 1.25), size = CHUNK + PAD * 2;
+    const c = document.createElement('canvas');
+    c.width = c.height = Math.ceil(size * s);
+    const g = c.getContext('2d');
+    const ox = cx * CHUNK - PAD, oy = cy * CHUNK - PAD;
+    g.setTransform(s, 0, 0, s, -ox * s, -oy * s);
+    // draw this chunk's pieces and its neighbours', so drifts and leaves run across chunk edges
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) this.seasonPieces(g, cx + dx, cy + dy, kind, ox, oy, size);
+    return c;
+  }
+
+  seasonPieces(g, cx, cy, kind, ox, oy, size) {
+    const R = mulberry32(hashInt(cx, cy, this.seed + (kind === 'snow' ? 61 : 62)));
+    const x0 = cx * CHUNK, y0 = cy * CHUNK;
+    const near = (x, y, r) => x + r > ox && x - r < ox + size && y + r > oy && y - r < oy + size;
+    if (kind === 'leaves') {
+      const cols = [['#c86a24', '#f0a050', '#6a2e08'], ['#d8a02a', '#f8d060', '#7a5008'], ['#a8401c', '#e07848', '#4a1406'], ['#8a5a2a', '#c08a50', '#4a2a0e']];
+      for (let i = 0; i < 150; i++) {
+        const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+        const l = 9 + R() * 14, w = l * (0.28 + R() * 0.14), rot = R() * TAU, col = cols[(R() * cols.length) | 0];
+        if (!near(x, y, l) || this.waterVal(x, y) > -0.2) continue;
+        g.save(); g.translate(x, y); g.rotate(rot);
+        g.save(); g.translate(1.5, 2); leafPath(g, l, w); g.fillStyle = 'rgba(20,12,4,0.25)'; g.fill(); g.restore();
+        leafPath(g, l, w);
+        const gr = g.createLinearGradient(0, -w, 0, w);
+        gr.addColorStop(0, col[1]); gr.addColorStop(0.5, col[0]); gr.addColorStop(1, col[2]);
+        g.fillStyle = gr; g.fill();
+        g.strokeStyle = 'rgba(255,230,190,0.35)'; g.lineWidth = 0.5;
+        g.beginPath(); g.moveTo(-l / 2, 0); g.lineTo(l / 2, 0); g.stroke();
+        g.restore();
+      }
+      return;
+    }
+    // patchy drifts: thicker where the noise says so, with bare ground showing between
+    for (let i = 0; i < 150; i++) {
+      const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK, rr = R();
+      const depth = fbm(x / 260, y / 260, this.seed + 71, 2);
+      const r = 14 + rr * 36 * (0.4 + depth);
+      if (!near(x, y, r) || depth < 0.38 || this.waterVal(x, y) > -0.1) continue;
+      const a = clamp((depth - 0.38) * 2.2, 0.12, 0.62);
+      radialFill(g, x + 2, y + 3, r, [[0, `rgba(140,160,190,${a * 0.35})`], [1, 'rgba(140,160,190,0)']]);
+      radialFill(g, x, y, r, [[0, `rgba(248,251,255,${a})`], [0.55, `rgba(240,246,252,${a * 0.7})`], [1, 'rgba(240,246,252,0)']]);
+    }
+    for (let i = 0; i < 160; i++) {
+      const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+      if (!near(x, y, 1)) continue;
+      g.fillStyle = R() < 0.5 ? 'rgba(255,255,255,0.8)' : 'rgba(200,220,255,0.5)';
+      g.fillRect(x, y, 1, 1);
+    }
+  }
+
+  drawSeasonLayer(ctx, v, kind, alpha) {
+    if (!this.sChunks) this.sChunks = new Map();
+    let budget = 1;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, alpha * (kind === 'snow' ? 1 : 1.1));
+    for (let cx = Math.floor(v.x0 / CHUNK); cx <= Math.floor(v.x1 / CHUNK); cx++) {
+      for (let cy = Math.floor(v.y0 / CHUNK); cy <= Math.floor(v.y1 / CHUNK); cy++) {
+        const k = kind + 'v2' + cx * 100000 + ',' + cy;
+        let c = this.sChunks.get(k);
+        if (!c) {
+          if (budget-- <= 0) continue;
+          c = this.bakeSeason(cx, cy, kind);
+          this.sChunks.set(k, c);
+          if (this.sChunks.size > 40) this.sChunks.delete(this.sChunks.keys().next().value);
+        }
+        ctx.drawImage(c, cx * CHUNK - PAD, cy * CHUNK - PAD, CHUNK + PAD * 2, CHUNK + PAD * 2);
+      }
+    }
+    ctx.restore();
+  }
+
   /* -------------------------------------------------------------- scent */
 
   pkey(col, cx, cy) { return col.idx * 1e10 + (cx + 50000) * 1e5 + (cy + 50000); }

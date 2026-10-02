@@ -298,16 +298,28 @@
     d.showModal();
   }
 
-  // ---------- "We need more members!" banner (closable; stays closed in this browser) ----------
-  const BANNER = 'usforge-banner-members-1';   // (change the number to show a new banner to everyone again)
-  addEventListener('DOMContentLoaded', () => {
-    if (pref(BANNER, '') === 'closed' || /\/add(\.html)?$/.test(location.pathname) || /\/404(\.html)?$/.test(location.pathname)) return;
+  // ---------- banners at the top: "We need more members!" and, under it, "Support UsForge" ----------
+  // Each one is closable and stays closed in this browser (change the number in a key to show it to everyone again).
+  const BANNER = 'usforge-banner-members-1', SUPPORT_BANNER = 'usforge-banner-support-1';
+  function makeBanner(key, cls, html) {
     const bar = document.createElement('div');
-    bar.className = 'site-banner'; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Announcement');
-    bar.innerHTML = `<p><b>We need more members!</b> <span>Make games with AI? Join UsForge and share them with everyone.</span> <a href="/add.html#join">How to join →</a></p>
-      <button type="button" class="banner-x" aria-label="Close this message">${window.UsForgeIcon?.('close') || '×'}</button>`;
-    bar.querySelector('.banner-x').onclick = () => { setPref(BANNER, 'closed'); bar.classList.add('closing'); setTimeout(() => bar.remove(), 250); };
-    document.body.prepend(bar);
+    bar.className = 'site-banner ' + cls; bar.setAttribute('role', 'region'); bar.setAttribute('aria-label', 'Announcement');
+    bar.innerHTML = `<p>${html}</p><button type="button" class="banner-x" aria-label="Close this message">${window.UsForgeIcon?.('close') || '×'}</button>`;
+    bar.querySelector('.banner-x').onclick = () => { setPref(key, 'closed'); bar.classList.add('closing'); setTimeout(() => bar.remove(), 250); };
+    return bar;
+  }
+  addEventListener('DOMContentLoaded', () => {
+    const page = location.pathname, skip = re => re.test(page);
+    if (skip(/\/404(\.html)?$/)) return;
+    let top = null;
+    if (pref(BANNER, '') !== 'closed' && !skip(/\/add(\.html)?$/)) {
+      top = makeBanner(BANNER, 'members-banner', `<b>We need more members!</b> <span>Make games with AI? Join UsForge and share them with everyone.</span> <a href="/add.html#join">How to join →</a>`);
+      document.body.prepend(top);
+    }
+    if (supportUrl && pref(SUPPORT_BANNER, '') !== 'closed' && !skip(/\/(support|thanks)(\.html)?$/)) {
+      const bar = makeBanner(SUPPORT_BANNER, 'support-banner', `<b>${window.UsForgeIcon?.('heart') || '♥'} Enjoying UsForge?</b> <span>It’s free with no ads. A small tip helps us keep it running.</span> <a href="/support.html">Support us →</a>`);
+      top ? top.after(bar) : document.body.prepend(bar);
+    }
   });
 
   // ---------- notifications: what happened since your last look (worked out in this browser) ----------

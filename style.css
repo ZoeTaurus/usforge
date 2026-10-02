@@ -613,6 +613,9 @@ body { background: radial-gradient(110% 55% at 50% 118%, var(--glow-bg) 0%, tran
 .banner-x:hover, .banner-x:focus-visible { background: var(--tint-20); color: var(--ink); outline: none; }
 .site-banner.closing { opacity: 0; transform: translateY(-100%); }
 body.playing .site-banner { display: none; }
+.support-banner { background: linear-gradient(90deg, rgba(240, 98, 146, .10), rgba(240, 98, 146, .18), rgba(240, 98, 146, .10)); border-bottom-color: rgba(240, 98, 146, .35); }
+.support-banner b { color: #e8578a; display: inline-flex; align-items: center; gap: 5px; }
+.support-banner b svg { width: 15px; height: 15px; }
 @media (max-width: 600px) { .site-banner span { display: none; } }
 
 /* ---------- who's online panel ---------- */

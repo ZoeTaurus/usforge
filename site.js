@@ -99,7 +99,7 @@
   }
   // Tips: the page people are sent to — a Ko-fi page (https://ko-fi.com/name) or a Stripe Payment Link.
   // While it's empty, every Support button stays hidden. Only those two kinds of link are used.
-  const SUPPORT_URL = '';
+  const SUPPORT_URL = 'https://buy.stripe.com/9B600meembGC9NK0A80x200';
   const supportUrl = /^https:\/\/((buy|donate)\.stripe\.com|ko-fi\.com)\/[A-Za-z0-9_]+$/.test(SUPPORT_URL) ? SUPPORT_URL : '';
   addEventListener('DOMContentLoaded', () => {
     for (const el of document.querySelectorAll('[data-support]')) el.hidden = !supportUrl;

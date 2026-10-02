@@ -346,8 +346,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .ttl-word span {
   display: inline-block; margin: 0 -0.01em;
   -webkit-text-stroke: 0.12em #fff8ea; paint-order: stroke fill;
-  filter: drop-shadow(0.03em 0.07em 0 rgba(60, 35, 15, 0.38));
+  text-shadow: 0.05em 0.1em 0 rgba(60, 35, 15, 0.38);
   transform: rotate(var(--r));
+  will-change: transform; /* animate on the GPU without repainting the letters */
   animation: ttlDrop 0.8s cubic-bezier(0.28, 1.5, 0.5, 1) var(--d) both, ttlBob 3.2s ease-in-out calc(var(--d) + 0.8s) infinite;
 }
 .w-paper { font-size: clamp(64px, 12vw, 170px); color: #4a2f1c; }
@@ -372,7 +373,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 @keyframes ttlFade { from { opacity: 0; transform: translateY(16px) rotate(-1.5deg); } }
 .ttl-hang { display: flex; justify-content: center; }
 .ttl-start {
-  position: relative; display: inline-block; padding-top: 34px; margin-top: -6px; transform-origin: 50% 0;
+  position: relative; display: inline-block; padding-top: 34px; margin-top: -6px; transform-origin: 50% 0; will-change: transform;
   animation: ttlSwing 3.4s ease-in-out 2s infinite, ttlFadeIn 0.6s ease-out 2s both;
 }
 .ttl-start .string { position: absolute; top: 0; height: 40px; width: 2px; background: rgba(80, 60, 40, 0.6); }
@@ -842,27 +843,93 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     ctx.closePath();
   };
 
+  // Polygons never change after they are made, so build each one's path once and reuse it.
+  const hasPath2D = typeof Path2D !== 'undefined';
+  function pathOf(pts) {
+    if (!hasPath2D || typeof pts === 'function') return null;
+    let p = pts._path;
+    if (!p) {
+      p = new Path2D();
+      p.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) p.lineTo(pts[i][0], pts[i][1]);
+      p.closePath();
+      pts._path = p;
+    }
+    return p;
+  }
+
+  // ---- bitmap cache: draw something once, then stamp it with drawImage every frame
+  // `res` is device pixels per game unit; the game sets it from the current render scale.
+  PS.spriteRes = 2;
+  const sprites = new Map();
+  PS.setSpriteRes = function (r) {
+    r = Math.max(0.5, Math.min(3, Math.round(r * 4) / 4));
+    if (r !== PS.spriteRes) {
+      PS.spriteRes = r;
+      sprites.clear();
+    }
+  };
+  // box = [x0, y0, x1, y1] in the drawing's own units
+  PS.sprite = function (key, box, draw, resMul = 1) {
+    const res = Math.max(0.5, PS.spriteRes * resMul);
+    const k = key + '@' + res;
+    let sp = sprites.get(k);
+    if (!sp) {
+      const [x0, y0, x1, y1] = box;
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.ceil((x1 - x0) * res));
+      c.height = Math.max(1, Math.ceil((y1 - y0) * res));
+      const g = c.getContext('2d');
+      g.scale(res, res);
+      g.translate(-x0, -y0);
+      draw(g);
+      sp = { c, x0, y0, w: x1 - x0, h: y1 - y0 };
+      sprites.set(k, sp);
+    }
+    return sp;
+  };
+  PS.blit = (ctx, sp, x, y) => ctx.drawImage(sp.c, x + sp.x0, y + sp.y0, sp.w, sp.h);
+  let uid = 0;
+  PS.uid = (o) => o._uid || (o._uid = ++uid);
+
+  // A soft round glow, much cheaper than canvas shadowBlur.
+  PS.glow = function (ctx, x, y, r, rgb, alpha = 1) {
+    const sp = PS.sprite('glow' + rgb, [-32, -32, 32, 32], (g) => {
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, 32);
+      gr.addColorStop(0, `rgba(${rgb},0.9)`);
+      gr.addColorStop(0.4, `rgba(${rgb},0.35)`);
+      gr.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = gr;
+      g.fillRect(-32, -32, 64, 64);
+    }, 0.5);
+    const a = ctx.globalAlpha;
+    ctx.globalAlpha = a * alpha;
+    ctx.drawImage(sp.c, x - r, y - r, r * 2, r * 2);
+    ctx.globalAlpha = a;
+  };
+
   // Draw a piece of paper: soft drop shadow, flat color, grain, optional edge.
   PS.paper = function (ctx, pts, color, o) {
     o = o || {};
+    const p2 = pathOf(pts);
     if (o.shadow !== false) {
       ctx.save();
       ctx.translate(o.sx ?? 2.5, o.sy ?? 3.5);
-      PS.trace(ctx, pts);
       ctx.fillStyle = o.shadowColor || 'rgba(50,30,10,0.24)';
-      ctx.fill();
+      if (p2) ctx.fill(p2);
+      else { PS.trace(ctx, pts); ctx.fill(); }
       ctx.restore();
     }
-    PS.trace(ctx, pts);
+    if (!p2) PS.trace(ctx, pts);
     ctx.fillStyle = color;
-    ctx.fill();
+    p2 ? ctx.fill(p2) : ctx.fill();
     if (o.tex !== false) {
       let pat;
       if (o.crumple !== false) {
         // shift the creases per piece so neighbouring scraps don't share the same folds
         pat = PS.crumple(ctx);
         if (crumpleMatrix && pat.setTransform) {
-          const h = Array.isArray(pts) ? Math.abs((pts[0][0] * 7.3 + pts[0][1] * 13.1) | 0) : 0;
+          const h = p2 ? Math.abs((pts[0][0] * 7.3 + pts[0][1] * 13.1) | 0) : 0;
           crumpleMatrix.e = (h * 97) % 320;
           crumpleMatrix.f = (h * 61) % 320;
           crumpleMatrix.a = crumpleMatrix.d = o.crumpleScale || 1;
@@ -872,14 +939,14 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
       const a = ctx.globalAlpha;
       ctx.globalAlpha = a * (o.texAlpha ?? 0.55) * (o.crumpleAlpha ?? 1);
       ctx.fillStyle = pat;
-      ctx.fill();
+      p2 ? ctx.fill(p2) : ctx.fill();
       ctx.globalAlpha = a;
     }
     if (o.edge) {
       ctx.strokeStyle = o.edge;
       ctx.lineWidth = o.lw || 1.2;
       ctx.lineJoin = 'round';
-      ctx.stroke();
+      p2 ? ctx.stroke(p2) : ctx.stroke();
     }
   };
 
@@ -1267,10 +1334,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   }
   PS.scribble = scribble;
   function drawScrap(ctx, x, y, sc) {
+    const sp = PS.sprite('scrap' + PS.uid(sc), [-3, -3, sc.w + 6, sc.h + 7], (g) => scrapRaw(g, sc));
     ctx.save();
     ctx.translate(x + sc.w / 2, y + sc.h / 2);
     ctx.rotate(sc.rot);
-    ctx.translate(-sc.w / 2, -sc.h / 2);
+    PS.blit(ctx, sp, -sc.w / 2, -sc.h / 2);
+    ctx.restore();
+  }
+  function scrapRaw(ctx, sc) {
+    ctx.save();
     sc.poly = sc.poly || PS.tornPoly(0, 0, sc.w, sc.h, PS.rng((sc.w * 31 + sc.h * 7) | 0), 2, 8);
     PS.paper(ctx, sc.poly, '#efe6d0', { sx: 2, sy: 3 });
     ctx.strokeStyle = 'rgba(70,55,40,0.55)';
@@ -1285,8 +1357,18 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   }
   PS.drawScrap = drawScrap;
 
-  // A paper leaf: pointed oval with a crease down the middle.
+  // A paper leaf: pointed oval with a crease down the middle. Drawn once per colour into a
+  // bitmap, then stamped rotated and stretched to each leaf's size.
   PS.drawLeaf = function (ctx, x, y, ang, len, w, color, sh = 1) {
+    const sp = PS.sprite('leaf' + color + sh, [-3, -11, 70 + 2 * sh, 11 + 3 * sh], (g) => leafRaw(g, 0, 0, 0, 64, 16, color, sh), sh > 1 ? 2.2 : 1);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.scale(len / 64, w / 16);
+    PS.blit(ctx, sp, 0, 0);
+    ctx.restore();
+  };
+  function leafRaw(ctx, x, y, ang, len, w, color, sh) {
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(ang);
@@ -1310,7 +1392,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     }
     ctx.stroke();
     ctx.restore();
-  };
+  }
 
   // Lazily generated torn rect stored on an object (for small static bits).
   PS.tornRectCached = function (obj, key, x, y, w, h) {
@@ -1319,20 +1401,28 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     return obj._c[key];
   };
 
+  // Background layers are drawn once into wide strips (in chunks) and then just slid sideways;
+  // only the moving bits (windmill sails, waterfalls) are drawn live each frame.
+  const LIVE = { windmill: 1, waterfall: 1 };
+  const STRIP = { 0: [-330, 210], 1: [-370, 170], 2: [-470, 60] };
+  const CHUNK = 560;
   PS.drawBackdrop = function (ctx, bd, theme, camX, camY, vw, vh, time) {
-    const g = ctx.createLinearGradient(0, 0, 0, vh);
-    g.addColorStop(0, theme.sky[0]);
-    g.addColorStop(1, theme.sky[1]);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, vw, vh);
-    PS.crumpleRect(ctx, 0, 0, vw, vh, 2.6, 0.5);
+    const bid = PS.uid(bd);
+    const sky = PS.sprite('sky' + bid + '_' + Math.round(vw) + 'x' + Math.round(vh), [0, 0, vw, vh], (g) => {
+      const gr = g.createLinearGradient(0, 0, 0, vh);
+      gr.addColorStop(0, theme.sky[0]);
+      gr.addColorStop(1, theme.sky[1]);
+      g.fillStyle = gr;
+      g.fillRect(0, 0, vw, vh);
+      PS.crumpleRect(g, 0, 0, vw, vh, 2.6, 0.5);
+    }, 0.6);
+    PS.blit(ctx, sky, 0, 0);
 
     if (theme.night) {
+      ctx.fillStyle = '#fff6d0';
       for (const [sx, sy, sz, ph] of bd.starsBg) {
         ctx.globalAlpha = 0.5 + Math.sin(time * 2 + ph) * 0.4;
-        PS.trace(ctx, PS.starPath(sx * vw, sy * vh, sz * 2, 0.45));
-        ctx.fillStyle = '#fff6d0';
-        ctx.fill();
+        ctx.fillRect(sx * vw, sy * vh, sz * 1.6, sz * 1.6);
       }
       ctx.globalAlpha = 1;
     }
@@ -1340,22 +1430,25 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     // sun or moon
     const sx = vw * 0.66 - camX * 0.02, sy = 130 - (camY - 128) * 0.03;
     if (theme.sun) {
+      const sun = PS.sprite('sun' + theme.sun, [-100, -100, 104, 106], (g) => {
+        for (let i = 0; i < bd.rays; i++) {
+          g.rotate(TAU / bd.rays);
+          PS.paper(g, (c) => { c.moveTo(-11, -58); c.lineTo(0, -92); c.lineTo(11, -58); c.closePath(); }, PS.shade(theme.sun, 0.12), { sx: 1.5, sy: 2 });
+        }
+      }, 0.8);
+      const disc = PS.sprite('sundisc' + theme.sun, [-58, -58, 62, 64], (g) => {
+        PS.paper(g, PS.circle(0, 0, 56), theme.sun, { sx: 3, sy: 4 });
+        PS.paper(g, PS.circle(-6, -6, 40), PS.shade(theme.sun, 0.18), { shadow: false });
+      }, 0.8);
       ctx.save();
       ctx.translate(sx, sy);
       ctx.rotate(time * 0.08);
-      for (let i = 0; i < bd.rays; i++) {
-        ctx.rotate(TAU / bd.rays);
-        PS.paper(ctx, (c) => { c.moveTo(-11, -58); c.lineTo(0, -92); c.lineTo(11, -58); c.closePath(); }, PS.shade(theme.sun, 0.12), { sx: 1.5, sy: 2 });
-      }
+      PS.blit(ctx, sun, 0, 0);
       ctx.restore();
-      PS.paper(ctx, PS.circle(sx, sy, 56), theme.sun, { sx: 3, sy: 4 });
-      PS.paper(ctx, PS.circle(sx - 6, sy - 6, 40), PS.shade(theme.sun, 0.18), { shadow: false });
+      PS.blit(ctx, disc, sx, sy);
     } else if (theme.moon) {
-      ctx.save();
-      ctx.shadowColor = 'rgba(255,240,200,0.6)';
-      ctx.shadowBlur = 40;
+      PS.glow(ctx, sx, sy, 120, '255,240,200', 0.55);
       PS.paper(ctx, PS.circle(sx, sy, 46), theme.moon, { shadow: false });
-      ctx.restore();
       PS.paper(ctx, PS.circle(sx + 18, sy - 10, 38), theme.sky[0], { shadow: false, tex: false });
     }
 
@@ -1363,47 +1456,78 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     for (const cl of bd.clouds) {
       let x = (((cl.x - camX * 0.05 + time * 8) % bd.P) + bd.P) % bd.P - 200;
       if (x > vw + 200) continue;
+      const sp = PS.sprite('cloud' + PS.uid(cl), [-130, -80, 130, 50], (g) => {
+        cl.blobs.forEach((b) => PS.paper(g, b, '#ffffff', { sx: 3, sy: 5, shadowColor: 'rgba(60,80,110,0.15)' }));
+      }, 0.7);
       ctx.save();
       ctx.translate(x, cl.y - (camY - 128) * 0.05);
       ctx.scale(cl.s, cl.s);
       ctx.globalAlpha = theme.night ? 0.35 : 0.95;
-      cl.blobs.forEach((b) => PS.paper(ctx, b, '#ffffff', { sx: 3, sy: 5, shadowColor: 'rgba(60,80,110,0.15)' }));
+      PS.blit(ctx, sp, 0, 0);
       ctx.restore();
     }
 
-    for (const L of bd.layers) {
+    bd.layers.forEach((L, li) => {
       const off = camX * L.par;
       const by = L.base - (camY - 128) * L.par * 0.8;
-      ctx.save();
-      ctx.translate(0, by);
-      if (L.ridge) {
-        const o = ((off % bd.P) + bd.P) % bd.P;
-        for (let rep = -1; rep <= 1; rep++) {
-          const ox = rep * bd.P - o;
-          if (ox > vw || ox + bd.P < 0) continue;
-          ctx.save();
-          ctx.translate(ox, 0);
-          const pts = L.ridge.concat([[bd.P, 600], [0, 600]]);
-          PS.paper(ctx, pts, PS.shade(theme.mid[0], theme.night ? -0.2 : 0.15), { shadow: false });
-          ctx.restore();
+      const [top, bot] = STRIP[li];
+      const o = ((off % bd.P) + bd.P) % bd.P;
+      const nChunks = Math.ceil(bd.P / CHUNK);
+      for (let rep = -1; rep <= 1; rep++)
+        for (let i = 0; i < nChunks; i++) {
+          const x = rep * bd.P + i * CHUNK - o;
+          const cw = Math.min(CHUNK, bd.P - i * CHUNK);
+          if (x > vw || x + cw < 0) continue;
+          const sp = PS.sprite('strip' + bid + '_' + li + '_' + i, [0, top, cw, bot], (g) => drawStripChunk(g, bd, L, theme, i * CHUNK, cw, top, bot), 0.75);
+          PS.blit(ctx, sp, x, by);
         }
+      if (L.ridge) {
+        // the ridge carries on as plain paper below the cached strip
+        ctx.fillStyle = PS.shade(theme.mid[0], theme.night ? -0.2 : 0.15);
+        ctx.fillRect(0, by + bot - 1, vw, Math.max(0, vh - by - bot + 1));
       }
       for (const it of L.items) {
-        let x = (((it.x - off) % bd.P) + bd.P) % bd.P;
+        if (!LIVE[it.t]) continue;
+        const x = (((it.x - off) % bd.P) + bd.P) % bd.P;
         for (const xx of [x - bd.P, x, x + bd.P]) {
           if (xx < -400 || xx > vw + 400) continue;
           ctx.save();
-          ctx.translate(xx, 0);
+          ctx.translate(xx, by);
           drawItem(ctx, it, theme, time);
           ctx.restore();
         }
       }
-      ctx.restore();
-    }
+    });
     // a bit of haze so the play layer pops
     ctx.fillStyle = theme.night ? 'rgba(20,24,50,0.18)' : 'rgba(255,250,235,0.16)';
     ctx.fillRect(0, 0, vw, vh);
   };
+
+  function drawStripChunk(g, bd, L, theme, x0, cw, top, bot) {
+    g.save();
+    g.beginPath();
+    g.rect(0, top, cw, bot - top);
+    g.clip();
+    g.translate(-x0, 0);
+    for (let rep = -1; rep <= 1; rep++) {
+      if (L.ridge && rep * bd.P < x0 + cw && rep * bd.P + bd.P > x0) {
+        g.save();
+        g.translate(rep * bd.P, 0);
+        PS.paper(g, L.ridgePoly || (L.ridgePoly = L.ridge.concat([[bd.P, 600], [0, 600]])), PS.shade(theme.mid[0], theme.night ? -0.2 : 0.15), { shadow: false });
+        g.restore();
+      }
+      for (const it of L.items) {
+        if (LIVE[it.t]) continue;
+        const ix = it.x + rep * bd.P;
+        if (ix + 420 < x0 || ix - 420 > x0 + cw) continue;
+        g.save();
+        g.translate(ix, 0);
+        drawItem(g, it, theme, 0);
+        g.restore();
+      }
+    }
+    g.restore();
+  }
 
   // Crumple a plain rectangle (sky, boards) with big, soft folds.
   PS.crumpleRect = function (ctx, x, y, w, h, sc, alpha) {
@@ -1633,6 +1757,10 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   };
 
   PS.drawThorns = function (ctx, t, T) {
+    const sp = PS.sprite('thorn' + PS.uid(t), [t.x - 8, t.y - 14, t.x + t.w + 8, t.y + t.h + 6], (g) => thornsRaw(g, t, T));
+    PS.blit(ctx, sp, 0, 0);
+  };
+  function thornsRaw(ctx, t, T) {
     ctx.strokeStyle = PS.shade(T.thorn, 0.1);
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -1648,7 +1776,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
         ctx.fill();
       }
     }
-  };
+  }
 
   PS.drawBouncer = function (ctx, b) {
     const sq = b.sq;
@@ -1686,11 +1814,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     }
     ctx.translate(0, 28);
     if (cp.on) {
-      ctx.save();
-      ctx.shadowColor = 'rgba(255,210,100,0.95)';
-      ctx.shadowBlur = 34;
+      PS.glow(ctx, 0, 17, 46, '255,210,100', 0.9);
       PS.paper(ctx, (c) => c.rect(-9, 6, 18, 22), '#ffd56b', { shadow: false });
-      ctx.restore();
     } else PS.paper(ctx, (c) => c.rect(-9, 6, 18, 22), '#8d8064', { shadow: false });
     PS.paper(ctx, (c) => { c.moveTo(-13, 6); c.lineTo(0, -4); c.lineTo(13, 6); c.closePath(); }, '#4a3a2e', { sx: 1, sy: 2 });
     ctx.strokeStyle = '#4a3a2e';
@@ -1748,10 +1873,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   };
 
   PS.drawCoin = function (ctx, c, time) {
-    const sx = Math.cos(time * 3 + c.x * 0.01);
+    const sp = PS.sprite('coin', [-16, -16, 19, 20], coinRaw, 1.3);
     ctx.save();
     ctx.translate(c.x, c.y + Math.sin(time * 2.5 + c.x * 0.05) * 3);
-    ctx.scale(Math.max(0.15, Math.abs(sx)), 1);
+    ctx.scale(Math.max(0.15, Math.abs(Math.cos(time * 3 + c.x * 0.01))), 1);
+    PS.blit(ctx, sp, 0, 0);
+    ctx.restore();
+  };
+  function coinRaw(ctx) {
+    ctx.save();
     PS.paper(ctx, PS.circle(0, 0, 13), '#f0b429', { sx: 2, sy: 3, edge: '#b97d12', lw: 1.5 });
     ctx.strokeStyle = '#b97d12';
     ctx.lineWidth = 2;
@@ -1762,23 +1892,34 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     }
     ctx.stroke();
     ctx.restore();
-  };
+  }
 
   PS.drawStar = function (ctx, s, time) {
+    const sp = PS.sprite('star', [-30, -30, 34, 35], (g) => {
+      PS.paper(g, PS.starPath(0, 0, 26, 0.48), '#ffd84a', { sx: 3, sy: 4, edge: '#d9a514', lw: 2 });
+      PS.paper(g, PS.starPath(-2, -2, 15, 0.48), '#ffe98a', { shadow: false });
+    }, 1.3);
+    const y = s.y + Math.sin(time * 2 + s.t) * 6;
+    PS.glow(ctx, s.x, y, 50, '255,230,120', 0.8);
     ctx.save();
-    ctx.translate(s.x, s.y + Math.sin(time * 2 + s.t) * 6);
+    ctx.translate(s.x, y);
     ctx.rotate(Math.sin(time * 1.3 + s.t) * 0.15);
-    ctx.save();
-    ctx.shadowColor = 'rgba(255,230,120,0.9)';
-    ctx.shadowBlur = 24;
-    PS.paper(ctx, PS.starPath(0, 0, 26, 0.48), '#ffd84a', { sx: 3, sy: 4, edge: '#d9a514', lw: 2 });
-    ctx.restore();
-    PS.paper(ctx, PS.starPath(-2, -2, 15, 0.48), '#ffe98a', { shadow: false });
+    PS.blit(ctx, sp, 0, 0);
     ctx.restore();
   };
 
   // ------------------------------------------------------------ decorations
+  const SWAYS = { daisy: 1, pink: 1, clover: 1, tuft: 1, reed: 1 };
   PS.drawDeco = function (ctx, d, T, time) {
+    const sp = PS.sprite('deco' + d.t + T.key, [-46, -120, 46, 10], (g) => decoRaw(g, { t: d.t, x: 0, y: 0, s: 1, f: 1 }, T, 0), d.s > 1.3 ? 1.7 : 1.15);
+    ctx.save();
+    ctx.translate(d.x, d.y);
+    ctx.scale(d.s * d.f, d.s);
+    if (SWAYS[d.t]) ctx.rotate(Math.sin(time * 1.6 + d.x * 0.02) * 0.06);
+    PS.blit(ctx, sp, 0, 0);
+    ctx.restore();
+  };
+  function decoRaw(ctx, d, T, time) {
     ctx.save();
     ctx.translate(d.x, d.y);
     ctx.scale(d.s * d.f, d.s);
@@ -1866,11 +2007,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
         break;
       case 'lamp': {
         PS.paper(ctx, (c) => c.rect(-3, -80, 6, 80), '#3d3a4a');
-        ctx.save();
-        ctx.shadowColor = 'rgba(255,214,110,0.95)';
-        ctx.shadowBlur = 30;
+        PS.glow(ctx, 0, -87, 34, '255,214,110', 0.9);
         PS.paper(ctx, (c) => { c.moveTo(-10, -96); c.lineTo(10, -96); c.lineTo(7, -78); c.lineTo(-7, -78); c.closePath(); }, '#ffd56b', { shadow: false });
-        ctx.restore();
         PS.paper(ctx, (c) => { c.moveTo(-13, -96); c.lineTo(0, -106); c.lineTo(13, -96); c.closePath(); }, '#3d3a4a', { shadow: false });
         break;
       }
@@ -1884,7 +2022,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
         break;
     }
     ctx.restore();
-  };
+  }
 
   // ------------------------------------------------------------ the snail
   // x, y = bottom centre. o: {dir, t, moving, squash, roll, happy, look}
@@ -2035,11 +2173,18 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
         ctx.moveTo(fx, by);
         ctx.quadraticCurveTo(fx + 12, by - f.h / 2, fx, fy);
         ctx.stroke();
-        for (let i = 0; i < (f.pink ? 6 : 10); i++) {
-          const a = (i / (f.pink ? 6 : 10)) * TAU + time * 0.1;
-          PS.paper(ctx, PS.ellipse(fx + Math.cos(a) * 22, fy + Math.sin(a) * 22, f.pink ? 22 : 20, f.pink ? 15 : 8, a), f.pink ? '#f19ab2' : '#fbf7ee', { sx: 2, sy: 3, edge: f.pink ? '#d9708f' : '#d8d0c0', lw: 1 });
-        }
-        PS.paper(ctx, PS.circle(fx, fy, f.pink ? 12 : 13), f.pink ? '#f6d26a' : '#f2b630', { sx: 1, sy: 2 });
+        const sp = PS.sprite('bigflower' + f.pink, [-48, -48, 52, 54], (g) => {
+          for (let i = 0; i < (f.pink ? 6 : 10); i++) {
+            const a = (i / (f.pink ? 6 : 10)) * TAU;
+            PS.paper(g, PS.ellipse(Math.cos(a) * 22, Math.sin(a) * 22, f.pink ? 22 : 20, f.pink ? 15 : 8, a), f.pink ? '#f19ab2' : '#fbf7ee', { sx: 2, sy: 3, edge: f.pink ? '#d9708f' : '#d8d0c0', lw: 1 });
+          }
+          PS.paper(g, PS.circle(0, 0, f.pink ? 12 : 13), f.pink ? '#f6d26a' : '#f2b630', { sx: 1, sy: 2 });
+        }, 1.4);
+        ctx.save();
+        ctx.translate(fx, fy);
+        ctx.rotate(time * 0.1);
+        PS.blit(ctx, sp, 0, 0);
+        ctx.restore();
       }
       for (const l of it.leaves) {
         const sway = Math.sin(time * 1.2 + it.x + l.a) * 0.04;
@@ -2427,7 +2572,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   const PS = window.PS;
   const $ = (id) => document.getElementById(id);
   const canvas = $('game');
-  const ctx = canvas.getContext('2d');
+  // opaque canvas: every frame paints the whole screen, and the browser can skip blending it
+  const ctx = canvas.getContext('2d', { alpha: false }) || canvas.getContext('2d');
 
   // ------------------------------------------------------------ save data
   const SAVE_KEY = 'paperSnail.save.v1';
@@ -2456,14 +2602,14 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
   // ------------------------------------------------------------ view
   let W = 0, H = 0, DPR = 1, scale = 1, vw = 1280, vh = 720;
+  // Render resolution: at most 2× and about 2.4 million pixels, and lower still if the
+  // device can't keep up (see adaptQuality). Art is cached at a matching sharpness.
+  let dprLimit = 2;
   function resize() {
-    DPR = Math.min(window.devicePixelRatio || 1, 2);
     // Inside an embedded frame the size can briefly be 0 while the page loads; never let the
     // view become zero or infinite (that would make the drawing loops run forever).
     W = Math.max(240, window.innerWidth || document.documentElement.clientWidth || 1280);
     H = Math.max(180, window.innerHeight || document.documentElement.clientHeight || 720);
-    canvas.width = Math.round(W * DPR);
-    canvas.height = Math.round(H * DPR);
     canvas.style.width = W + 'px';
     canvas.style.height = H + 'px';
     scale = H / 720;
@@ -2477,6 +2623,25 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     }
     vw = Math.min(vw, 4000);
     vh = Math.min(vh, 4000);
+    DPR = Math.max(0.5, Math.min(window.devicePixelRatio || 1, dprLimit, Math.sqrt(2.4e6 / (W * H))));
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    PS.setSpriteRes(scale * DPR);
+  }
+
+  // Watch real frame times; if the game runs slow for a couple of seconds, draw at a lower
+  // resolution. It never goes below a still-crisp floor, and only steps down.
+  let emaMs = 16.7, adaptAt = 0;
+  function adaptQuality(now, interval) {
+    if (interval > 250 || document.hidden) return;
+    emaMs = emaMs * 0.94 + interval * 0.06;
+    if (now < adaptAt) return;
+    if (emaMs > 23 && scale * DPR > 0.75) {
+      dprLimit = Math.max(0.5, DPR * 0.8);
+      resize();
+      emaMs = 16.7;
+      adaptAt = now + 3000;
+    }
   }
   // some embedded viewers size the frame after the page starts without firing 'resize'
   if (window.ResizeObserver) new ResizeObserver(() => { resize(); if (typeof layoutPoster === 'function') layoutPoster(); }).observe(document.documentElement);
@@ -2936,15 +3101,17 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   }
 
   function vignette(c, vw, vh) {
-    const g = c.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.45, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
-    g.addColorStop(0, 'rgba(60,40,20,0)');
-    g.addColorStop(1, 'rgba(60,40,20,0.35)');
-    c.fillStyle = g;
-    c.fillRect(0, 0, vw, vh);
-    c.globalAlpha = 0.18;
-    c.fillStyle = PS.tex(c);
-    c.fillRect(0, 0, vw, vh);
-    c.globalAlpha = 1;
+    const sp = PS.sprite('vignette' + Math.round(vw) + 'x' + Math.round(vh), [0, 0, vw, vh], (g) => {
+      const gr = g.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.45, vw / 2, vh / 2, Math.max(vw, vh) * 0.75);
+      gr.addColorStop(0, 'rgba(60,40,20,0)');
+      gr.addColorStop(1, 'rgba(60,40,20,0.35)');
+      g.fillStyle = gr;
+      g.fillRect(0, 0, vw, vh);
+      g.globalAlpha = 0.18;
+      g.fillStyle = PS.tex(g);
+      g.fillRect(0, 0, vw, vh);
+    }, 0.6);
+    PS.blit(c, sp, 0, 0);
   }
 
   // lowest the camera may look: keep the pit floor near the bottom of the screen
@@ -3070,11 +3237,15 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     PS.drawBackdrop(ctx, getBackdrop(0), T, 300 + t * 22, 150, vw, vh, t);
     ctx.restore();
     drawWeather(ctx, T, dt, t, vw, vh);
-    PS.paper(ctx, S.back, '#7db85a', { sx: 0, sy: -4, shadowColor: 'rgba(255,255,255,0.3)' });
-    PS.paper(ctx, S.front, T.body, { sx: 0, sy: -6 });
-    for (const sc of S.scraps) PS.drawScrap(ctx, sc.x, sc.y, sc);
-    PS.paper(ctx, S.grass, T.grass, { sx: 1, sy: 4, shadowColor: 'rgba(30,20,10,0.3)' });
-    for (const l of S.leaves) PS.drawLeaf(ctx, l.x, l.y, l.a, l.len, l.w, l.c);
+    // the hill never changes, so it is drawn once into a bitmap
+    const hill = PS.sprite('titlehill' + Math.round(vw) + 'x' + Math.round(vh), [0, vh * 0.84 - 140, vw, vh], (g) => {
+      PS.paper(g, S.back, '#7db85a', { sx: 0, sy: -4, shadowColor: 'rgba(255,255,255,0.3)' });
+      PS.paper(g, S.front, T.body, { sx: 0, sy: -6 });
+      for (const sc of S.scraps) PS.drawScrap(g, sc.x, sc.y, sc);
+      PS.paper(g, S.grass, T.grass, { sx: 1, sy: 4, shadowColor: 'rgba(30,20,10,0.3)' });
+      for (const l of S.leaves) PS.drawLeaf(g, l.x, l.y, l.a, l.len, l.w, l.c);
+    });
+    PS.blit(ctx, hill, 0, 0);
     for (const d of S.decos) PS.drawDeco(ctx, d, T, t);
 
     // the snail takes its time crossing the hill, leaving a little sparkle trail
@@ -3155,7 +3326,9 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
     }
     requestAnimationFrame(frame);
   }
+  let qualityFrom = performance.now() + 2500; // ignore the start-up frames
   function frameInner(now) {
+    if (now > qualityFrom) adaptQuality(now, now - last);
     let dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     G.time += dt;

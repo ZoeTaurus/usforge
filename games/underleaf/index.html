@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Underleaf</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sniglet:wght@400;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="css/style.css?v=12">
+</head>
+<body>
+<canvas id="game" aria-label="The meadow, seen from above"></canvas>
+<div class="vignette"></div>
+
+<div id="hud" hidden>
+  <section class="panel colony" aria-label="Your colony">
+    <p class="eyebrow" id="colName">Colony</p>
+    <div class="stats">
+      <div><b><span id="sFood">0</span><small id="sCap">/60</small></b><span>food stored</span></div>
+      <div><b id="sWorkers">0</b><span>workers</span></div>
+      <div><b id="sSoldiers">0</b><span>soldiers</span></div>
+      <div><b id="sBrood">0</b><span>brood</span></div>
+    </div>
+    <p class="leafrow" id="leafRow" hidden><b id="sLeaves">0</b> leaf fragments waiting for the fungus garden</p>
+    <div class="hatch">
+      <button id="bWorker" type="button"><kbd>1</kbd>Worker egg<em id="costW">8</em></button>
+      <button id="bSoldier" type="button"><kbd>2</kbd>Soldier egg<em id="costS">20</em></button>
+    </div>
+    <button id="bNest" class="wide" type="button">Enter nest</button>
+    <label class="auto" for="autoHatch"><input type="checkbox" id="autoHatch" checked> Queen lays worker eggs on her own when stores are over 60% full</label>
+  </section>
+
+  <section class="panel goals" aria-label="Colony goals">
+    <p class="eyebrow">Goals <span id="goalCount"></span></p>
+    <ol id="goals"></ol>
+  </section>
+
+  <section class="panel mapbox" aria-label="Map">
+    <canvas id="minimap"></canvas>
+    <div class="maprow">
+      <span id="biomeName" class="biome">Meadow</span>
+      <span class="clock"><span class="dial"><i id="clockDial"></i></span><span id="clockText">Morning</span> <span id="weatherText" class="rain"></span></span>
+    </div>
+    <div class="tools">
+      <button id="scentBtn" type="button" title="Show scent trails (T)">Scent</button>
+      <button id="guideBtn" type="button" title="Field guide (G)">Guide</button>
+      <button id="pauseBtn" type="button" title="Pause (P)">Pause</button>
+    </div>
+    <div class="rival" id="rival" hidden>
+      <span id="rivalName"></span>
+      <div class="bar"><div id="rivalBar"></div></div>
+    </div>
+  </section>
+
+  <section class="panel vitals" aria-label="You">
+    <div class="hprow"><span class="lvl">Lv <b id="lvl">1</b></span><span id="hpText"></span></div>
+    <div class="hp"><div id="hpBar"></div></div>
+    <div class="xp"><div id="xpBar"></div></div>
+    <button id="abilityBtn" type="button"><span class="cd" id="abilityCd"></span><kbd>F</kbd><span id="abilityName">Ability</span></button>
+    <p id="status"></p>
+    <p id="followers"></p>
+  </section>
+
+  <div id="prompt" hidden></div>
+  <div id="toasts" aria-live="polite"></div>
+  <p class="keys"><kbd>WASD</kbd> move <kbd>Space</kbd> bite <kbd>E</kbd> grab <kbd>F</kbd> ability <kbd>Q</kbd> rally <kbd>N</kbd> nest <kbd>Shift</kbd> scent <kbd>G</kbd> guide</p>
+</div>
+
+<aside id="nestPanel" class="panel nestpanel" hidden>
+  <p class="eyebrow">Inside the nest</p>
+  <h2 id="npTitle"></h2>
+  <div class="pips" id="npPips"></div>
+  <p id="npDesc"></p>
+  <p id="npNext" class="sub"></p>
+  <button id="npBtn" class="primary small" type="button">Dig</button>
+  <hr>
+  <p class="eyebrow">Queen and brood</p>
+  <p id="npBrood" class="sub"></p>
+  <p id="npFood" class="sub"></p>
+  <div class="hatch">
+    <button id="npLayW" type="button">Lay worker egg</button>
+    <button id="npLayS" type="button">Lay soldier egg</button>
+  </div>
+  <p class="fine">Tap a chamber to dig or enlarge it.</p>
+  <button id="npExit" class="wide" type="button"><kbd>N</kbd>Leave the nest</button>
+</aside>
+
+<aside id="discover" class="card" hidden>
+  <button id="discoverClose" class="x" type="button" aria-label="Close">×</button>
+  <p class="eyebrow" id="dCount"></p>
+  <canvas id="dPortrait"></canvas>
+  <h3 id="dName"></h3>
+  <p class="latin" id="dLatin"></p>
+  <p id="dText"></p>
+</aside>
+
+<div id="guide" class="overlay" hidden>
+  <div class="sheet wide">
+    <header class="sheethead">
+      <div><h2>Field guide</h2><p id="guideCount" class="sub"></p></div>
+      <button id="guideClose" class="x" type="button" aria-label="Close field guide">×</button>
+    </header>
+    <div id="guideGrid"></div>
+  </div>
+</div>
+
+<div id="title" class="overlay">
+  <div class="sheet titlesheet">
+    <h1>Underleaf</h1>
+    <p class="lede">An endless wild world, seen from an ant's height. Choose your species, raise a colony, and explore meadows, woods, marshes and shores.</p>
+    <div id="speciesGrid" class="speciesgrid" role="group" aria-label="Choose your ant species"></div>
+    <div class="spinfo">
+      <div class="sphead"><h2 id="spName"></h2><p id="spLatin" class="latin"></p></div>
+      <p id="spBlurb" class="sub"></p>
+      <div id="spStats" class="spstats"></div>
+      <p id="spAbility" class="spability"></p>
+      <p id="spPerk" class="spperk"></p>
+    </div>
+    <div class="titlebtns">
+      <button id="continueBtn" class="secondary" type="button" hidden>Continue saved colony</button>
+      <button id="startBtn" class="primary" type="button">Found a colony</button>
+    </div>
+    <p id="continueInfo" class="fine" hidden></p>
+    <p class="fine">WASD move · Space bite · E grab · F ability · Q rally · N nest · Shift scent trail · scroll to zoom</p>
+  </div>
+</div>
+
+<div id="pause" class="overlay" hidden>
+  <div class="sheet">
+    <h2>Paused</h2>
+    <p class="sub">Your colony is saved in this browser.</p>
+    <button id="resumeBtn" class="primary" type="button">Resume</button>
+  </div>
+</div>
+
+<div id="over" class="overlay" hidden>
+  <div class="sheet">
+    <h2 id="overTitle"></h2>
+    <p id="overText" class="sub"></p>
+    <button id="againBtn" class="primary" type="button">Found a new colony</button>
+  </div>
+</div>
+
+<div id="touch" hidden>
+  <div id="joy"><div id="knob"></div></div>
+  <div class="tbtns">
+    <button id="tNest" type="button">Nest</button>
+    <button id="tRally" type="button">Rally</button>
+    <button id="tTrail" type="button">Scent</button>
+    <button id="tAbility" type="button" class="star">Power</button>
+    <button id="tGrab" type="button">Grab</button>
+    <button id="tBite" type="button" class="big">Bite</button>
+  </div>
+</div>
+
+<script src="js/util.js?v=12"></script>
+<script src="js/species.js?v=12"></script>
+<script src="js/art.js?v=12"></script>
+<script src="js/props.js?v=12"></script>
+<script src="js/art2.js?v=12"></script>
+<script src="js/world.js?v=12"></script>
+<script src="js/critters.js?v=12"></script>
+<script src="js/critters2.js?v=12"></script>
+<script src="js/colony.js?v=12"></script>
+<script src="js/ants.js?v=12"></script>
+<script src="js/nest.js?v=12"></script>
+<script src="js/ui.js?v=12"></script>
+<script src="js/game.js?v=12"></script>
+</body>
+</html>

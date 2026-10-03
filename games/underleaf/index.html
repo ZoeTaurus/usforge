@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sniglet:wght@400;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
-<link rel="stylesheet" href="css/style.css?v=33">
+<link rel="stylesheet" href="css/style.css?v=34">
 </head>
 <body>
 <canvas id="game" aria-label="The meadow, seen from above"></canvas>
@@ -46,6 +46,7 @@
     <div class="tools">
       <button id="scentBtn" type="button" title="Show scent trails (T)">Scent</button>
       <button id="guideBtn" type="button" title="Field guide (G)">Guide</button>
+      <button id="soundBtn" type="button" title="Sound on or off (M)">Sound</button>
       <button id="pauseBtn" type="button" title="Pause (P)">Pause</button>
     </div>
     <div class="rival" id="rival" hidden>
@@ -67,7 +68,7 @@
   <div id="prompt" hidden></div>
   <div id="toasts" aria-live="polite"></div>
   <div id="achToast" class="achtoast" hidden><canvas id="achIcon"></canvas><div><p class="eyebrow">Achievement unlocked</p><p id="achName"></p></div></div>
-  <p class="keys"><kbd>WASD</kbd> move <kbd>Space</kbd> bite <kbd>E</kbd> grab <kbd>F</kbd> ability <kbd>Q</kbd> rally <kbd>N</kbd> nest <kbd>R</kbd> beacon <kbd>C</kbd> dash <kbd>Shift</kbd> scent <kbd>G</kbd> guide</p>
+  <p class="keys"><kbd>WASD</kbd> move <kbd>Space</kbd> bite <kbd>E</kbd> grab <kbd>F</kbd> ability <kbd>Q</kbd> rally <kbd>N</kbd> nest <kbd>R</kbd> beacon <kbd>C</kbd> dash <kbd>Shift</kbd> scent <kbd>G</kbd> guide <kbd>M</kbd> sound</p>
 </div>
 
 <aside id="nestPanel" class="panel nestpanel" hidden>
@@ -168,6 +169,7 @@
             <li><kbd>F</kbd><span>Your species' special ability</span></li>
             <li><kbd>Q</kbd><span>Rally nearby sisters to follow you</span></li>
             <li><kbd>R</kbd><span>Drop a beacon where foragers should search</span></li>
+            <li><kbd>M</kbd><span>Turn sound on or off</span></li>
             <li><kbd>C</kbd><span>Dash: a quick dodge you cannot be hit during (uses stamina)</span></li>
             <li><kbd>N</kbd><span>Go inside the nest (at home)</span></li>
             <li><kbd>Shift</kbd><span>Lay a scent trail</span></li>
@@ -229,22 +231,24 @@
   </div>
 </div>
 
-<script src="js/util.js?v=33"></script>
-<script src="js/species.js?v=33"></script>
-<script src="js/art.js?v=33"></script>
-<script src="js/props.js?v=33"></script>
-<script src="js/art2.js?v=33"></script>
-<script src="js/art3.js?v=33"></script>
-<script src="js/canopy.js?v=33"></script>
-<script src="js/world.js?v=33"></script>
-<script src="js/critters.js?v=33"></script>
-<script src="js/critters2.js?v=33"></script>
-<script src="js/critters3.js?v=33"></script>
-<script src="js/meta.js?v=33"></script>
-<script src="js/colony.js?v=33"></script>
-<script src="js/ants.js?v=33"></script>
-<script src="js/nest.js?v=33"></script>
-<script src="js/ui.js?v=33"></script>
-<script src="js/game.js?v=33"></script>
+<script src="js/util.js?v=34"></script>
+<script src="js/audio.js?v=34"></script>
+<script src="js/species.js?v=34"></script>
+<script src="js/art.js?v=34"></script>
+<script src="js/props.js?v=34"></script>
+<script src="js/art2.js?v=34"></script>
+<script src="js/art3.js?v=34"></script>
+<script src="js/canopy.js?v=34"></script>
+<script src="js/world.js?v=34"></script>
+<script src="js/critters.js?v=34"></script>
+<script src="js/critters2.js?v=34"></script>
+<script src="js/critters3.js?v=34"></script>
+<script src="js/critters4.js?v=34"></script>
+<script src="js/meta.js?v=34"></script>
+<script src="js/colony.js?v=34"></script>
+<script src="js/ants.js?v=34"></script>
+<script src="js/nest.js?v=34"></script>
+<script src="js/ui.js?v=34"></script>
+<script src="js/game.js?v=34"></script>
 </body>
 </html>

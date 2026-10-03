@@ -177,18 +177,40 @@ function drawAnt(ctx, e, t) {
     ctx.beginPath(); ctx.moveTo(hx - hrx, 0); ctx.lineTo(hx - hrx * 0.3, 0); ctx.stroke();
   }
   gloss(ctx, hx, 0, hrx, hry * 0.95, L, 0.25);
+  // eyes (army ants are almost blind: just a tiny pale lens)
   for (let side = -1; side <= 1; side += 2) {
+    if (sh.blind) {
+      ctx.fillStyle = 'rgba(255,240,210,0.45)';
+      ctx.beginPath(); ctx.arc(hx + hrx * 0.15, side * hry * 0.74, 0.35, 0, TAU); ctx.fill();
+      continue;
+    }
     ctx.fillStyle = '#050302';
     ctx.beginPath(); ctx.ellipse(hx + hrx * 0.15, side * hry * 0.74, 0.95, 0.65, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.55)';
     ctx.beginPath(); ctx.arc(hx + hrx * 0.05, side * hry * 0.74 - 0.25, 0.28, 0, TAU); ctx.fill();
+  }
+  // harvester ants' "beard": a basket of bristles under the head for carrying sand and seeds
+  if (sh.beard) {
+    ctx.strokeStyle = 'rgba(240,210,170,0.55)'; ctx.lineWidth = 0.35;
+    for (let k = -3; k <= 3; k++) {
+      const by = k * hry * 0.18;
+      ctx.beginPath(); ctx.moveTo(hx + hrx * 0.55, by); ctx.lineTo(hx + hrx * 0.95, by * 1.25); ctx.stroke();
+    }
   }
   // mandibles
   const bite = e.biteT > 0 ? Math.sin((Math.min(e.biteT, 0.25) / 0.25) * Math.PI) : 0;
   ctx.fillStyle = pal.ant; ctx.strokeStyle = pal.ant;
   for (let side = -1; side <= 1; side += 2) {
     const mx = hx + hrx * 0.78;
-    if (trap) {
+    if (sh.mand === 'hook' && soldier) {
+      // army-ant soldier: long sickle jaws curving back to sharp points
+      ctx.save();
+      ctx.translate(hx + hrx * 0.8, side * hry * 0.4);
+      ctx.rotate(side * (0.25 + bite * 0.5));
+      ctx.lineWidth = 1.1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.bezierCurveTo(4, side * 2.5, 8, side * 2.5, 9.5, -side * 1.8); ctx.stroke();
+      ctx.restore();
+    } else if (trap) {
       ctx.save();
       ctx.translate(hx + hrx * 0.85, side * 1.0);
       ctx.rotate(side * (e.biteT > 0 ? bite * 1.3 : 0.12));

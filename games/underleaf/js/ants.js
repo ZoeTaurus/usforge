@@ -14,7 +14,7 @@ const ANT_STATS = {
   soldier: { size: 1.32, hp: 64, speed: 58, dmg: 9, bite: 0.6, sense: 170 },
   player: { size: 1.14, hp: 55, speed: 108, dmg: 8, bite: 0.32, sense: 0 },
 };
-const HERDERS = new Set(['garden', 'fire', 'weaver', 'wood']);
+const HERDERS = new Set(['garden', 'fire', 'weaver', 'wood', 'honeypot', 'carpenter']);
 
 /* How many sisters may pile onto one target before the rest pick another. */
 function attackCap(o) {
@@ -42,7 +42,7 @@ class Ant {
     this.speedNow = 0; this.slow = 1; this.travel = 0; this.alarmCd = 0;
     this.careless = Math.random() < 0.12; this.raider = false; this.dead = false;
     this.lastTarget = null; this.lastTargetT = 0; this.fleeFrom = null;
-    this.swims = false; this.swimming = false; this.inNest = false;
+    this.swims = false; this.swimming = false; this.inNest = false; this.frenzyT = 0; this.gnawT = 0;
   }
 
   applyStats(role, jitter) {
@@ -94,7 +94,7 @@ class Ant {
 
   update(dt) {
     if (this.dead) return;
-    this.biteCd -= dt; this.biteT -= dt; this.hurtT -= dt; this.greetCd -= dt; this.greetT -= dt;
+    this.biteCd -= dt; this.biteT -= dt; this.hurtT -= dt; this.greetCd -= dt; this.greetT -= dt; this.frenzyT -= dt;
     this.alarmCd -= dt; this.pitImmune -= dt;
     if (this.followT > 0) this.followT -= dt;
     if (this.isPlayer) return;
@@ -111,13 +111,13 @@ class Ant {
     if (think) {
       this.think = 0.2 + Math.random() * 0.15;
       this.slow = this.game.slimeAt(this.x, this.y) ? 0.55 : 1;
-      if (this.state !== 'carry' && this.state !== 'greet' && this.state !== 'milk') this.spaceOut();
+      if (!['carry', 'greet', 'milk', 'carried', 'medic', 'allogroom'].includes(this.state)) this.spaceOut();
       // idle ants pause to clean their antennae
       this.groomT = (this.groomT || 0) - 0.3;
       if (this.speedNow < 3 && this.groomT <= 0 && Math.random() < 0.12) { this.groomT = rand(1.2, 2.2); this.groomSide = Math.random() < 0.5 ? -1 : 1; }
       if (this.threat && (this.threat.dead || this.threat.invuln || dist2(this.x, this.y, this.threat.x, this.threat.y) > 260 * 260)) this.threat = null;
       // scatter from where a robin is about to land
-      if (this.state !== 'carry' && this.state !== 'flee') {
+      if (this.state !== 'carry' && this.state !== 'flee' && this.state !== 'carried') {
         for (const b of this.game.landings) {
           if (dist2(this.x, this.y, b.lx, b.ly) < 95 * 95) { this.startFlee({ x: b.lx, y: b.ly, predator: true }); break; }
         }
@@ -125,6 +125,15 @@ class Ant {
       // badly hurt sisters go home to recover instead of fighting on
       if (this.hp < this.maxHp * 0.35 && ['forage', 'scout', 'herd', 'guard', 'fetch', 'flee', 'fight'].includes(this.state) && !(this.state === 'fight' && this.role === 'soldier' && this.hp > this.maxHp * 0.2)) {
         this.releaseClaim(); this.target = null; this.answering = false; this.state = 'heal';
+      }
+      // a free forager that finds a crippled sister picks her up and carries her home
+      if ((this.state === 'forage' || this.state === 'scout') && !this.carry && !this.big && this.hp > this.maxHp * 0.6 && Math.random() < 0.25) {
+        let pt = null;
+        this.game.hash.query(this.x, this.y, 70, (o) => {
+          if (!pt && o.kind === 'ant' && o !== this && o.colony === this.colony && !o.isPlayer && !o.dead && o.state === 'heal' && !o.carriedBy
+            && o.hp < o.maxHp * 0.25 && o.size <= this.size * 1.3 && dist2(o.x, o.y, o.nest.x, o.nest.y) > 220 * 220) pt = o;
+        });
+        if (pt) { this.releaseClaim(); this.patient = pt; pt.carriedBy = this; pt.state = 'carried'; this.state = 'medic'; this.greetT = 0.6; }
       }
     }
     switch (this.state) {
@@ -145,6 +154,9 @@ class Ant {
       case 'raid': this.raid(dt, think); break;
       case 'heal': this.healHome(dt); break;
       case 'tandem': this.tandem(dt, think); break;
+      case 'medic': this.medic(dt); break;
+      case 'carried': this.beCarried(dt); break;
+      case 'allogroom': this.allogroom(dt); break;
       default: this.state = this.defaultState();
     }
   }
@@ -497,7 +509,7 @@ class Ant {
     if (ap.ready && this.timer > 1.2) {
       ap.ready = false; ap.readyT = rand(9, 16); ap.claimed = null;
       this.carry = new Food('honey', ap.x, ap.y);
-      if (this.sp === 'garden') this.carry.value = 3;
+      if (this.sp === 'garden' || this.sp === 'honeypot') this.carry.value = 3;
       this.pickSpot = null; this.reportN = 0; this.travel = 0; this.target = null; this.state = 'return';
       this.game.fx.sparkle(ap.x, ap.y, '#ffd36b', 4);
     } else if (this.timer > 5) { this.releaseClaim(); this.target = null; this.state = this.defaultState(); }
@@ -607,7 +619,7 @@ class Ant {
     this.biteCd = this.biteRate * rand(0.9, 1.15);
     this.biteT = 0.25;
     const lead = this.followT > 0 && this.colony.isPlayer ? 1 + 0.25 * this.game.perk('leader') : 1;
-    o.damage(this.dmg * lead, this);
+    o.damage(this.dmg * lead * (this.frenzyT > 0 ? 1.3 : 1), this);
     if (ANT_SPECIES[this.sp].venom && o.kind !== 'nest') this.game.poison(o, this, 3, 2.5);
     if (o.kind !== 'ant' && o.kind !== 'nest') this.game.recruit(this.colony, o, this);
   }
@@ -659,11 +671,58 @@ class Ant {
       return;
     }
     this.escort = null;
+    if (this.guardAt) {
+      // ring a honey lure, ready to pounce on whatever comes to drink
+      if (!this.game.lure) { this.guardAt = null; this.state = this.defaultState(); return; }
+      const gx = this.guardAt.x + Math.cos(this.slot) * 34, gy = this.guardAt.y + Math.sin(this.slot) * 34;
+      if (dist2(this.x, this.y, gx, gy) < 10 * 10) { this.speedNow = 0; this.face(Math.atan2(this.guardAt.y - this.y, this.guardAt.x - this.x), dt); return; }
+      this.steer(Math.atan2(gy - this.y, gx - this.x), this.baseSpeed, dt, 5, { x: gx, y: gy });
+      return;
+    }
     const c = this.guardPatch && this.game.activePatches.includes(this.guardPatch) ? this.guardPatch : this.nest;
     const rad = c === this.nest ? 112 + (this.id % 5) * 14 : c.r + 30;
     const gx = c.x + Math.cos(this.slot) * rad, gy = c.y + Math.sin(this.slot) * rad;
     if (dist2(this.x, this.y, gx, gy) < 14 * 14) this.slot += 0.5 + Math.random() * 0.5;
     this.steer(Math.atan2(gy - this.y, gx - this.x), this.baseSpeed * 0.55, dt, 3, { x: gx, y: gy });
+  }
+
+  /* Carry a wounded sister home in our jaws, like Matabele ants do after a raid. */
+  medic(dt) {
+    const pt = this.patient;
+    if (!pt || pt.dead || pt.state !== 'carried' || pt.carriedBy !== this) { if (pt && pt.carriedBy === this) { pt.carriedBy = null; if (!pt.dead) pt.state = 'heal'; } this.patient = null; this.state = this.defaultState(); return; }
+    const n = this.colony.dropPoint(this.x, this.y);
+    if (dist2(this.x, this.y, n.x, n.y) > (n.r * 0.5) ** 2) this.steerTo(n.x, n.y, this.baseSpeed * 0.75, dt, 5);
+    else {
+      pt.carriedBy = null; pt.state = 'heal'; this.patient = null; this.state = this.defaultState();
+      if (this.colony.isPlayer) {
+        const g = this.game;
+        g.stats.rescued = (g.stats.rescued || 0) + 1;
+        if (g.player && dist2(g.player.x, g.player.y, this.x, this.y) < 500 * 500) g.fx.text(this.x, this.y - 20, 'Carried a wounded sister home', '#c8f0b0');
+      }
+      return;
+    }
+    const d = this.r + pt.r * 0.9;
+    pt.x = this.x + Math.cos(this.a) * d; pt.y = this.y + Math.sin(this.a) * d;
+    pt.a = this.a + Math.PI * 0.85;
+  }
+
+  /* Hang limp in a sister's jaws, legs tucked in. */
+  beCarried(dt) {
+    this.speedNow = 0;
+    if (!this.carriedBy || this.carriedBy.dead || this.carriedBy.patient !== this || this.carriedBy.state !== 'medic') { this.carriedBy = null; this.state = 'heal'; }
+  }
+
+  /* Lick and clean a resting sister. Grooming spreads the colony scent and clears off fungus spores. */
+  allogroom(dt) {
+    const pt = this.patient;
+    this.timer -= dt;
+    if (!pt || pt.dead || pt.state !== 'heal' || this.timer <= 0) { if (pt && pt.groomer === this) pt.groomer = null; this.patient = null; this.state = this.defaultState(); return; }
+    const sa = this.slot, gx = pt.x + Math.cos(sa) * (pt.r + this.r), gy = pt.y + Math.sin(sa) * (pt.r + this.r);
+    if (dist2(this.x, this.y, gx, gy) > 6 * 6) { this.steerTo(gx, gy, this.baseSpeed * 0.6, dt, 6); return; }
+    this.speedNow = 0;
+    this.face(Math.atan2(pt.y - this.y, pt.x - this.x), dt);
+    this.greetT = 0.3; this.biteT = Math.sin(this.game.time * 9 + this.id) > 0.6 ? 0.1 : 0;
+    pt.hp = Math.min(pt.maxHp, pt.hp + dt * 5);
   }
 
   healHome(dt) {
@@ -673,6 +732,15 @@ class Ant {
       return;
     }
     this.speedNow = 0; this.greetT = 0.2;
+    // a sister nearby comes over to groom the patient
+    if (!this.groomer && Math.random() < dt * 0.8) {
+      let gr = null;
+      this.game.hash.query(this.x, this.y, 110, (o) => {
+        if (!gr && o.kind === 'ant' && o !== this && o.colony === this.colony && !o.isPlayer && !o.dead && !o.carry && !o.big && (o.state === 'guard' || o.state === 'forage') && o.hp > o.maxHp * 0.6) gr = o;
+      });
+      if (gr) { gr.releaseClaim(); gr.patient = this; gr.timer = rand(3, 6); gr.state = 'allogroom'; this.groomer = gr; }
+    }
+    if (this.groomer && (this.groomer.dead || this.groomer.patient !== this)) this.groomer = null;
     this.hp = Math.min(this.maxHp, this.hp + dt * 9);
     if (this.hp >= this.maxHp * 0.95) { this.state = this.defaultState(); this.a += Math.PI; }
   }
@@ -786,6 +854,7 @@ class Ant {
     if (this.isPlayer && this.dodgeT > 0) { this.game.fx.text(this.x, this.y - 18, 'dodged', '#c8f0ff'); return; }
     this.hp -= amt; this.hurtT = 0.2;
     this.game.fx.hit(this.x, this.y, '#ffe0b0');
+    if (this.isPlayer && this.game.mode === 'play') SFX.hurt();
     if (this.hp <= 0) { this.die(src); return; }
     if (!this.isPlayer && src && !src.dead && src.kind !== 'antlion' && !this.trapped) {
       if (src.predator || src.kind === 'ant') this.colony.callHelp(src);

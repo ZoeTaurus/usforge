@@ -192,7 +192,7 @@ class Frog extends Critter {
         const ang = Math.atan2(tg.y - this.y, tg.x - this.x);
         this.a += clamp(angDiff(this.a, ang), -1.2, 1.2);
         if (Math.abs(angDiff(this.a, ang)) < 0.35 && this.tongueCd <= 0) {
-          this.tongueT = 0.4; this.tongueCd = 1.6; this.struck = false; this.tx = tg.x; this.ty = tg.y;
+          this.tongueT = 0.4; this.tongueCd = 1.6; this.struck = false; if (this.game.mode === 'play') SFX.world(this.game, 'croak', this.x, this.y); this.tx = tg.x; this.ty = tg.y;
         }
       }
     }
@@ -271,7 +271,7 @@ class Bird extends Critter {
         const ang = Math.atan2(this.ly - this.y, this.lx - this.x);
         this.a += clamp(angDiff(this.a, ang), -2 * dt, 2 * dt);
         this.x += Math.cos(this.a) * 300 * dt; this.y += Math.sin(this.a) * 300 * dt;
-        if (dist2(this.x, this.y, this.lx, this.ly) < 260 * 260) { this.state = 'descend'; this.timer = 1.4; }
+        if (dist2(this.x, this.y, this.lx, this.ly) < 260 * 260) { this.state = 'descend'; this.timer = 1.4; if (this.game.mode === 'play') SFX.world(this.game, 'robin', this.lx, this.ly); }
         break;
       }
       case 'descend': {

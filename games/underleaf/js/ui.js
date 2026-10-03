@@ -84,6 +84,15 @@ GUIDE.push(
   { id: 'stick', name: 'Stick insect', latin: 'Phasmatodea', scale: 1.1, text: 'Looks, and even sways, like a twig to hide from birds. Many species can lay eggs without mating.', draw: (c, t) => drawStickInsect(c, { x: 4, y: 0, a: -0.3, size: 1, gait: 0, id: 1 }, t) },
   { id: 'termite', name: 'Termite', latin: 'Blattodea', scale: 3, text: 'Termites are really social cockroaches. Workers are soft and blind; soldiers have huge heads for defence. Some ants specialise in raiding them.', draw: (c, t) => drawTermite(c, { x: 0, y: 0, a: -0.4, size: 1, gait: 1, role: 'soldier' }, t) },
 );
+GUIDE.push(
+  { id: 'harvestman', name: 'Harvestman', latin: 'Opiliones', scale: 1.4, text: 'Not a spider: it has one round body, no silk and no venom. It can shed a leg to escape, and the lost leg keeps twitching to distract the attacker.', draw: (c, t) => drawHarvestman(c, { x: 0, y: 0, a: -0.4, size: 1, gait: 1, bobT: 0 }, t) },
+  { id: 'groundbeetle', name: 'Violet ground beetle', latin: 'Carabus violaceus', scale: 2, text: 'A fast night hunter with a metallic sheen. It hides under logs by day and chases down slugs, worms and lone ants after dark.', draw: (c, t) => drawGroundBeetle(c, { x: 0, y: 0, a: -0.4, size: 1, gait: 1, id: 1 }, t) },
+  { id: 'jumper', name: 'Zebra jumping spider', latin: 'Salticus scenicus', scale: 2.6, text: 'Has some of the sharpest eyes of any small animal and will turn to watch you. Instead of a web, it stalks and leaps onto prey many body lengths away.', draw: (c, t) => drawJumper(c, { x: 0, y: 0, a: -0.4, size: 1, gait: 1 }, t) },
+  { id: 'toad', name: 'Common toad', latin: 'Bufo bufo', scale: 0.8, text: 'Drier and wartier than a frog, it walks more than it hops. The glands behind its eyes ooze a bitter poison that puts off predators.', draw: (c, t) => drawFrog(c, { x: 0, y: 0, a: -0.4, size: 1, warty: true, pal: ['#7a5a34', '#c49a64', '#3a2410'], id: 3 }, t) },
+  { id: 'shrew', name: 'Common shrew', latin: 'Sorex araneus', scale: 0.9, text: 'Its heart can beat over 1,000 times a minute. A shrew must eat about its own weight every day, so it hunts almost without rest.', draw: (c, t) => drawShrew(c, { x: 4, y: 0, a: -0.4, size: 1, gait: 1, id: 3, speedNow: 0 }, t) },
+  { id: 'strider', name: 'Pond skater', latin: 'Gerris lacustris', scale: 2.4, text: 'Water-repellent hairs on its feet let it stand on the surface film of ponds. It feels the ripples of insects that fall in and rows across to eat them.', draw: (c, t) => drawStrider(c, { x: 0, y: 0, a: -0.4 }, t) },
+  { id: 'hoverfly', name: 'Hoverfly', latin: 'Syrphidae', scale: 3, text: 'Wears wasp stripes as a disguise but cannot sting. It can hang perfectly still in mid-air, then dart off in a blink.', draw: (c, t) => drawHoverfly(c, { x: 0, y: 0, a: -0.4, z: 0, id: 1 }, t) },
+);
 const plantPortrait = (kind) => (c) => { const spr = canopySprite({ seed: 9000 + kind.length, kind, cr: 60, tr: 12 }); c.drawImage(spr.c, -spr.ox, -spr.oy, spr.w, spr.h); };
 GUIDE.push(
   { id: 'plant:oak', name: 'English oak', latin: 'Quercus robur', scale: 0.55, text: 'A single oak can support hundreds of kinds of insect. In autumn it drops acorns that animals carry off and bury.', draw: plantPortrait('oak') },
@@ -159,6 +168,8 @@ class UI {
     $('resumeBtn').addEventListener('click', () => g.setPaused(false));
     $('againBtn').addEventListener('click', () => location.reload());
     $('guideBtn').addEventListener('click', () => this.toggleGuide());
+    $('soundBtn').addEventListener('click', () => g.toggleSound());
+    this.soundIcon();
     $('guideClose').addEventListener('click', () => this.toggleGuide(false));
     $('pauseBtn').addEventListener('click', () => g.setPaused(true));
     $('npExit').addEventListener('click', () => g.exitNest());
@@ -348,8 +359,14 @@ class UI {
     this.game.choosePerk(k.id);
   }
 
+  soundIcon() {
+    const b = document.getElementById('soundBtn');
+    if (b) { b.textContent = SFX.muted ? 'Muted' : 'Sound'; b.classList.toggle('off', SFX.muted); }
+  }
+
   achievement(a) {
     const el = this.$('achToast');
+    SFX.achievement();
     el.hidden = false;
     this.$('achName').textContent = `${a.name}: ${a.desc}`;
     this.medal(this.$('achIcon'), a, true, 46);

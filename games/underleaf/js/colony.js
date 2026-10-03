@@ -228,7 +228,7 @@ class Colony {
   }
 
   get special() { return this.species === 'leafcutter' ? 'fungus' : 'honeypot'; }
-  get foodCap() { return FOOD_CAP[this.chambers.granary] + this.chambers.honeypot * 100; }
+  get foodCap() { return FOOD_CAP[this.chambers.granary] + this.chambers.honeypot * 100 + (this.species === 'honeypot' ? 80 : 0); }
   get safeFood() { return this.chambers.honeypot * 100; }
   get invuln() { return this.isPlayer || this.dead; }
   get name() { return `${this.sp.name} ${this.sp.nest === 'leafball' ? 'nest' : 'mound'}`; }
@@ -260,6 +260,7 @@ class Colony {
     this.food -= this.costOf(role);
     this.brood.push({ role, t: 0, stage: 'egg', id: UID++ });
     this.queenCd = QUEEN_RATE[this.chambers.royal];
+    if (this.isPlayer && this.game.view === 'nest') SFX.egg();
     return true;
   }
 

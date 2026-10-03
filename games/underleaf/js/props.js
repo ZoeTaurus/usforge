@@ -1048,6 +1048,106 @@ function nestWeaver(g, p) {
   }
 }
 
+/* Army ants: no nest at all, just a living ball of linked bodies hanging under a log or in a hollow. */
+function nestBivouac(g, p) {
+  const R = mulberry32(p.seed), r = 70;
+  castShadow(g, p.x, p.y, r, 0.5);
+  for (let i = 0; i < 14; i++) {
+    const a = R() * TAU, d = r + 20 + R() * 60;
+    propLeaf(g, { x: p.x + Math.cos(a) * d, y: p.y + Math.sin(a) * d, len: 26 + R() * 26, rot: R() * TAU, col: 2 + ((R() * 3) | 0), seed: (R() * 1e9) | 0 });
+  }
+  radialFill(g, p.x, p.y, r, [[0, '#3a1c0a'], [0.8, '#2a1206'], [1, 'rgba(40,18,6,0)']]);
+  const bodies = [];
+  for (let i = 0; i < 520; i++) { const a = R() * TAU, d = r * Math.sqrt(R()); bodies.push([p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, R() * TAU, d]); }
+  bodies.sort((u, v) => v[3] - u[3]);
+  for (const [x, y, a, d] of bodies) {
+    const lit = clamp(0.55 - ((x - p.x) * 0.6 + (y - p.y) * 0.8) / (r * 1.4) + (1 - d / r) * 0.2, 0, 1);
+    g.save(); g.translate(x, y); g.rotate(a);
+    g.strokeStyle = 'rgba(30,12,4,0.8)'; g.lineWidth = 0.5;
+    for (let k = -1; k <= 1; k++) { g.beginPath(); g.moveTo(k * 1.5, -2.5); g.lineTo(k * 1.5 + 1, 2.5); g.stroke(); }
+    g.fillStyle = `rgb(${110 + lit * 110 | 0},${55 + lit * 60 | 0},${20 + lit * 25 | 0})`;
+    g.beginPath(); g.ellipse(-2, 0, 2.1, 1.4, 0, 0, TAU); g.ellipse(1.6, 0, 1.3, 1.1, 0, 0, TAU); g.fill();
+    g.restore();
+  }
+  domeLight(g, p.x, p.y, r, 0.6);
+}
+
+/* Honeypot ants in dry country: a low crater with a small chimney rising at the entrance. */
+function nestTurret(g, p) {
+  const R = mulberry32(p.seed);
+  radialFill(g, p.x, p.y, 110, [[0, 'rgba(180,140,90,0.7)'], [1, 'rgba(180,140,90,0)']]);
+  spoilCrater(g, R, p.x, p.y, 34, ['#c8a070', '#b08858', '#d8b484', '#a07848', '#e0c094']);
+  castShadow(g, p.x, p.y, 16, 0.5);
+  const gr = g.createRadialGradient(p.x - 6, p.y - 7, 1, p.x, p.y, 16);
+  gr.addColorStop(0, '#e8c898'); gr.addColorStop(0.6, '#b8905e'); gr.addColorStop(1, '#7a5a34');
+  g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, 16, 0, TAU); g.fill();
+  for (let i = 0; i < 60; i++) {
+    const a = R() * TAU, d = 9 + R() * 7;
+    g.fillStyle = R() < 0.5 ? 'rgba(90,60,30,0.5)' : 'rgba(250,230,190,0.5)';
+    g.beginPath(); g.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 0.7 + R(), 0, TAU); g.fill();
+  }
+  antHole(g, p.x, p.y, 7);
+}
+
+/* Carpenter ants: a rotting stump, its heart hollowed into galleries, with sawdust spilling out. */
+function nestStump(g, p) {
+  const R = mulberry32(p.seed), r = 62;
+  castShadow(g, p.x, p.y, r * 1.3, 0.45);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * TAU + R() * 0.6;
+    drawRoot(g, R, p.x + Math.cos(a) * r * 0.8, p.y + Math.sin(a) * r * 0.8, a, r * (0.6 + R() * 0.5), r * 0.3, ROOT_COL.oak);
+  }
+  // sawdust ("frass") pushed out of the galleries
+  for (let k = 0; k < 3; k++) {
+    const a = R() * TAU, cx = p.x + Math.cos(a) * (r + 22), cy = p.y + Math.sin(a) * (r + 22);
+    radialFill(g, cx, cy, 26, [[0, 'rgba(230,200,150,0.85)'], [0.7, 'rgba(210,175,120,0.5)'], [1, 'rgba(210,175,120,0)']]);
+    for (let i = 0; i < 70; i++) {
+      g.fillStyle = R() < 0.5 ? '#e8d0a0' : '#c8a070';
+      g.fillRect(cx + (R() - 0.5) * 36, cy + (R() - 0.5) * 30, 1.2, 0.8);
+    }
+  }
+  g.fillStyle = '#4a3424'; g.beginPath(); g.arc(p.x, p.y, r, 0, TAU); g.fill();
+  const top = g.createRadialGradient(p.x - r * 0.3, p.y - r * 0.35, 4, p.x, p.y, r * 0.9);
+  top.addColorStop(0, '#d8b080'); top.addColorStop(0.7, '#a07848'); top.addColorStop(1, '#6a4a2c');
+  g.fillStyle = top; g.beginPath(); g.arc(p.x, p.y, r * 0.86, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(90,60,30,0.45)'; g.lineWidth = 0.8;
+  for (let k = 1; k < 9; k++) { g.beginPath(); g.ellipse(p.x + (R() - 0.5) * 2, p.y + (R() - 0.5) * 2, r * 0.86 * k / 9, r * 0.84 * k / 9, R(), 0, TAU); g.stroke(); }
+  g.strokeStyle = 'rgba(40,25,10,0.5)'; g.lineWidth = 1.2;
+  for (let k = 0; k < 6; k++) { const a = R() * TAU; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x + Math.cos(a) * r * 0.85, p.y + Math.sin(a) * r * 0.85); g.stroke(); }
+  // the rotten, hollowed heart where the colony lives
+  radialFill(g, p.x + 4, p.y + 5, r * 0.42, [[0, '#0a0604'], [0.6, '#2a1a0e'], [1, 'rgba(60,40,20,0)']]);
+  for (let i = 0; i < 4; i++) { const a = R() * TAU, d = r * (0.45 + R() * 0.3); antHole(g, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 4); }
+  for (let i = 0; i < 60; i++) {
+    const a = -Math.PI * 0.3 + (R() - 0.5) * 2, d = r * (0.88 + R() * 0.14);
+    g.fillStyle = R() < 0.5 ? 'rgba(100,140,45,0.85)' : 'rgba(70,110,35,0.85)';
+    g.beginPath(); g.arc(p.x + Math.cos(a) * d, p.y + Math.sin(a) * d, 1 + R() * 2, 0, TAU); g.fill();
+  }
+}
+
+/* Harvester ants clear a bare disc around the nest and pave it with fine gravel. */
+function nestDisc(g, p) {
+  const R = mulberry32(p.seed), r = 130;
+  radialFill(g, p.x, p.y, r, [[0, 'rgba(176,140,96,0.95)'], [0.8, 'rgba(170,134,92,0.85)'], [1, 'rgba(170,134,92,0)']]);
+  for (let i = 0; i < 900; i++) {
+    const a = R() * TAU, d = r * 0.95 * Math.sqrt(R()), s2 = 0.8 + R() * 1.8;
+    const x = p.x + Math.cos(a) * d, y = p.y + Math.sin(a) * d;
+    g.fillStyle = 'rgba(40,25,10,0.3)'; g.beginPath(); g.arc(x + 0.5, y + 0.6, s2, 0, TAU); g.fill();
+    g.fillStyle = ['#d8c4a0', '#b8a080', '#e8dcc0', '#a08868', '#c8b090'][(R() * 5) | 0];
+    g.beginPath(); g.arc(x, y, s2, 0, TAU); g.fill();
+  }
+  // piles of discarded seed husks at the edge of the disc
+  for (let k = 0; k < 3; k++) {
+    const a = R() * TAU, cx = p.x + Math.cos(a) * r * 0.8, cy = p.y + Math.sin(a) * r * 0.8;
+    for (let i = 0; i < 40; i++) {
+      g.save(); g.translate(cx + (R() - 0.5) * 30, cy + (R() - 0.5) * 24); g.rotate(R() * TAU);
+      g.fillStyle = R() < 0.5 ? '#8a6a3a' : '#c8a868';
+      g.beginPath(); g.ellipse(0, 0, 2.6, 1.2, 0, 0, TAU); g.fill();
+      g.restore();
+    }
+  }
+  spoilCrater(g, R, p.x, p.y, 22, ['#a07850', '#b88a5a', '#8a6844']);
+}
+
 function propNest(g, p) {
   switch (ANT_SPECIES[p.species].nest) {
     case 'crater': nestGarden(g, p); break;
@@ -1057,6 +1157,10 @@ function propNest(g, p) {
     case 'litter': nestTrapjaw(g, p); break;
     case 'roots': nestBullet(g, p); break;
     case 'leafball': nestWeaver(g, p); break;
+    case 'bivouac': nestBivouac(g, p); break;
+    case 'turret': nestTurret(g, p); break;
+    case 'stump': nestStump(g, p); break;
+    case 'disc': nestDisc(g, p); break;
   }
 }
 

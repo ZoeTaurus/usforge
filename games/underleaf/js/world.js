@@ -108,8 +108,22 @@ class World {
     mix(GROUND.dry, 1 - smoothstep(0.33, 0.39, m));
     mix(GROUND.beach, 1 - smoothstep(0.38, 0.4, e));
     mix(GROUND.wet, 1 - smoothstep(0.34, 0.36, e));
+    // patchiness: lush clumps and thin, bare soil in grassland; damp hollows in woods
+    const grassy = smoothstep(0.4, 0.42, e) * (1 - smoothstep(0.5, 0.56, m)) * smoothstep(0.3, 0.38, m);
+    if (grassy > 0) {
+      const lush = vnoise(x / 230, y / 230, this.seed + 21), bare = vnoise(x / 120 + 9, y / 120, this.seed + 22);
+      mix([88, 120, 46], grassy * smoothstep(0.55, 0.8, lush) * 0.55);
+      mix([128, 104, 66], grassy * smoothstep(0.62, 0.85, bare) * 0.6);
+    }
+    const woody = smoothstep(0.47, 0.55, m);
+    if (woody > 0) mix([60, 64, 34], woody * smoothstep(0.55, 0.85, vnoise(x / 200, y / 200, this.seed + 23)) * 0.5);
     const n = 0.9 + 0.2 * vnoise(x / 90, y / 90, this.seed + 5);
     return [c[0] * n, c[1] * n, c[2] * n];
+  }
+
+  /* Gentle relief for hillshading: the big elevation field plus little humps and dips. */
+  relief(x, y) {
+    return this.em(x, y)[0] * 260 + vnoise(x / 170, y / 170, this.seed + 31) * 14 + vnoise(x / 55, y / 55, this.seed + 32) * 4;
   }
 
   /* --------------------------------------------------------- chunk data */
@@ -389,6 +403,7 @@ class World {
   }
 
   collide(w) {
+    if (w.gnawT > 0) return;
     const r = w.r * 0.7;
     for (const o of this.collList(Math.floor(w.x / CHUNK), Math.floor(w.y / CHUNK))) {
       const dx = w.x - o.x, dy = w.y - o.y, d2 = dx * dx + dy * dy, m = o.r + r;
@@ -417,18 +432,27 @@ class World {
     const g = c.getContext('2d');
     const x0 = cx * CHUNK, y0 = cy * CHUNK, ox = x0 - PAD, oy = y0 - PAD;
     g.setTransform(s, 0, 0, s, -ox * s, -oy * s);
-    // smooth ground colour field, sampled every 64px on a world-aligned grid
+    // smooth ground colour field, sampled every 16px on a world-aligned grid and hillshaded
+    const ST = 16, N = (CHUNK + 64) / ST + 1, bx = x0 - 32, by = y0 - 32;
+    const H = new Float32Array((N + 2) * (N + 2));
+    for (let j = 0; j < N + 2; j++) for (let i = 0; i < N + 2; i++) H[j * (N + 2) + i] = this.relief(bx + (i - 1) * ST, by + (j - 1) * ST);
     const gc = document.createElement('canvas');
-    gc.width = gc.height = 11;
+    gc.width = gc.height = N;
     const gctx = gc.getContext('2d');
-    const gi = gctx.createImageData(11, 11);
-    for (let j = 0; j < 11; j++) for (let i = 0; i < 11; i++) {
-      const col = this.groundRGB(x0 - 64 + i * 64, y0 - 64 + j * 64), k = (j * 11 + i) * 4;
-      gi.data[k] = col[0]; gi.data[k + 1] = col[1]; gi.data[k + 2] = col[2]; gi.data[k + 3] = 255;
+    const gi = gctx.createImageData(N, N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const wx = bx + i * ST, wy = by + j * ST;
+      const col = this.groundRGB(wx, wy), k = (j * N + i) * 4;
+      const hi = (jj, ii) => H[(j + 1 + jj) * (N + 2) + i + 1 + ii];
+      // light from the top left: slopes facing it brighten, the far sides darken
+      const sx = (hi(0, 1) - hi(0, -1)) / (2 * ST), sy = (hi(1, 0) - hi(-1, 0)) / (2 * ST);
+      const wet = this.wetAt(wx, wy);
+      const shade = wet ? 1 : clamp(1 - (sx + sy) * 0.9, 0.82, 1.16);
+      gi.data[k] = col[0] * shade; gi.data[k + 1] = col[1] * shade; gi.data[k + 2] = col[2] * shade; gi.data[k + 3] = 255;
     }
     gctx.putImageData(gi, 0, 0);
     g.imageSmoothingEnabled = true;
-    g.drawImage(gc, x0 - 96, y0 - 96, 11 * 64, 11 * 64);
+    g.drawImage(gc, bx - ST / 2, by - ST / 2, N * ST, N * ST);
 
     const list = [];
     const inside = (p) => p.x + p.r > ox && p.x - p.r < ox + size && p.y + p.r > oy && p.y - p.r < oy + size;

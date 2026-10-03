@@ -1,5 +1,5 @@
 'use strict';
-/* Ant species. Six are playable; the red wood ant only appears as a rival. */
+/* Ant species. Ten are playable; the red wood ant only appears as a rival. */
 
 const ANT_SPECIES = {
   garden: {
@@ -62,6 +62,46 @@ const ANT_SPECIES = {
     nest: 'leafball', trail: [200, 240, 120],
     blurb: 'Weaver ants pull leaves together and glue them with silk spun by their own larvae, which workers hold in their jaws like living glue guns.',
   },
+  army: {
+    name: 'Army ant', latin: 'Eciton burchellii', playable: true,
+    pal: { g: ['#7a4418', '#d08a48', '#2a1206'], t: ['#8a4c1c', '#dc9450', '#2e1406'], h: ['#9a5420', '#e8a058', '#341606'], leg: '#5a2c10', ant: '#3a1a08' },
+    shape: { size: 1.05, head: 1.05, gaster: 0.85, legs: 1.3, nodes: 2, mand: 'hook', spines: false, hairs: false, slim: 0.85, blind: true },
+    stats: { speed: 1.15, hp: 0.9, dmg: 1.2 }, costW: 7, costS: 18,
+    ability: { id: 'swarm', name: 'Swarm raid', cd: 16, desc: 'Every sister nearby surges at the closest prey and bites 30% harder for 8 seconds.' },
+    perk: 'Raiders: soldiers have huge hooked jaws, and sisters hunt in packs.',
+    nest: 'bivouac', trail: [255, 160, 70],
+    blurb: 'Army ants are nearly blind and never build a nest. They camp in a living ball made of their own linked bodies, then pour out in raids of hundreds of thousands.',
+  },
+  honeypot: {
+    name: 'Honeypot ant', latin: 'Myrmecocystus mexicanus', playable: true,
+    pal: { g: ['#b07a2a', '#f4c870', '#5a3a0a'], t: ['#a8743a', '#e8b878', '#4a2a10'], h: ['#9a6a34', '#e0ae70', '#40240c'], leg: '#6a4420', ant: '#5a3818' },
+    shape: { size: 1, head: 1, gaster: 1.15, legs: 1.15, nodes: 1, mand: 'normal', spines: false, hairs: false, slim: 0.9 },
+    stats: { speed: 1.05, hp: 0.95, dmg: 0.9 }, costW: 8, costS: 20,
+    ability: { id: 'lure', name: 'Honey lure', cd: 18, desc: 'Drop a sweet bead that draws nearby insects in for 12 seconds, right into your sisters’ jaws.' },
+    perk: 'Living larders: the granary holds 80 more food, and honeydew is worth 3.',
+    nest: 'turret', trail: [255, 200, 90],
+    blurb: 'Some workers become living storage jars, called repletes. They hang from the nest ceiling with abdomens swollen with honey, feeding sisters in lean times.',
+  },
+  carpenter: {
+    name: 'Carpenter ant', latin: 'Camponotus herculeanus', playable: true,
+    pal: { g: ['#1a1412', '#5a4a44', '#050302'], t: ['#5a2018', '#a85a48', '#200806'], h: ['#1e1614', '#605048', '#060403'], leg: '#3a1a14', ant: '#140c0a' },
+    shape: { size: 1.35, head: 1.15, gaster: 1.05, legs: 1.1, nodes: 1, mand: 'normal', spines: false, hairs: true, slim: 1 },
+    stats: { speed: 0.95, hp: 1.6, dmg: 1.4 }, costW: 11, costS: 26,
+    ability: { id: 'gnaw', name: 'Gnaw through', cd: 14, desc: 'For 6 seconds you chew straight through logs, stumps and stones.' },
+    perk: 'Big and strong. Does not eat wood, but tunnels through it.',
+    nest: 'stump', trail: [220, 170, 140],
+    blurb: 'Carpenter ants carve galleries in damp, rotting wood. They do not eat it: the sawdust they push out piles up below the nest entrance.',
+  },
+  harvester: {
+    name: 'Harvester ant', latin: 'Pogonomyrmex barbatus', playable: true,
+    pal: { g: ['#7a2a14', '#c86a44', '#2a0c04'], t: ['#8a3018', '#d8764c', '#2e0e04'], h: ['#8e3218', '#dc7a50', '#300e04'], leg: '#5a1e0c', ant: '#4a1806' },
+    shape: { size: 1.12, head: 1.18, gaster: 0.95, legs: 1.05, nodes: 2, mand: 'normal', spines: true, hairs: false, slim: 1, beard: true },
+    stats: { speed: 0.95, hp: 1.15, dmg: 1.2 }, costW: 9, costS: 22, venom: true,
+    ability: { id: 'potent', name: 'Potent sting', cd: 9, desc: 'A sting with one of the strongest venoms of any insect: heavy poison on one target.' },
+    perk: 'Seed gatherers: seeds and sunflower seeds are worth double.',
+    nest: 'disc', trail: [255, 140, 90],
+    blurb: 'Harvester ants clear a bare disc around their nest and store seeds in underground granaries. The bristly "beard" under the head carries sand and seeds.',
+  },
   wood: {
     name: 'Red wood ant', latin: 'Formica rufa', playable: false,
     pal: { g: ['#2d1813', '#7c4a3a', '#0b0503'], t: ['#a83c17', '#f6a066', '#3c1106'], h: ['#933416', '#ee8e58', '#330e05'], leg: '#4d1b0c', ant: '#5c200e' },
@@ -73,4 +113,4 @@ const ANT_SPECIES = {
 };
 
 const PLAYABLE = Object.keys(ANT_SPECIES).filter((k) => ANT_SPECIES[k].playable);
-const RIVALS = ['wood', 'fire', 'leafcutter', 'trapjaw', 'bullet', 'weaver', 'garden', 'wood'];
+const RIVALS = ['wood', 'fire', 'leafcutter', 'trapjaw', 'bullet', 'weaver', 'garden', 'wood', 'army', 'honeypot', 'carpenter', 'harvester'];

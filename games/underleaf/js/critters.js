@@ -28,6 +28,13 @@ class Critter {
     this.wander = clamp(this.wander * (1 - dt * 0.6) + (Math.random() - 0.5) * 5 * dt, -1, 1);
     let desired = this.a + this.wander * dt * 1.2;
     if (home && dist2(this.x, this.y, home.x, home.y) > leash * leash) desired = Math.atan2(home.y - this.y, home.x - this.x);
+    // a honey lure draws small wanderers in from a distance
+    const lu = this.game.lure;
+    if (lu && !this.predator && this.r < 26) {
+      const d2 = dist2(this.x, this.y, lu.x, lu.y);
+      if (d2 < 22 * 22) { this.speedNow = 0; this.a += angDiff(this.a, Math.atan2(lu.y - this.y, lu.x - this.x)) * dt * 3; return; }
+      if (d2 < 480 * 480) desired = Math.atan2(lu.y - this.y, lu.x - this.x);
+    }
     this.move(desired, speed, dt);
   }
   hitFx() { this.game.fx.hit(this.x, this.y, '#fff0d0'); }

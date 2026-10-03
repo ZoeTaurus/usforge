@@ -87,7 +87,7 @@ function drawFrog(ctx, e, t) {
   ctx.rotate(e.a);
   const k = s * (1 + hop * 0.14);
   ctx.scale(k, k);
-  const pal = e.dead ? ['#7a8a5a', '#c0c8a0', '#3a4228'] : FROG_PAL;
+  const pal = e.dead ? ['#7a8a5a', '#c0c8a0', '#3a4228'] : e.pal || FROG_PAL;
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (let side = -1; side <= 1; side += 2) {
     if (hop > 0.3) {
@@ -120,6 +120,15 @@ function drawFrog(ctx, e, t) {
   const R = mulberry32(e.id || 4);
   ctx.fillStyle = 'rgba(30,50,15,0.45)';
   for (let i = 0; i < 9; i++) { ctx.beginPath(); ctx.ellipse(-14 + R() * 26, (R() - 0.5) * 18, 2 + R() * 2.6, 1.6 + R() * 1.8, R() * 3, 0, TAU); ctx.fill(); }
+  if (e.warty) {
+    // a toad's dry, warty skin and the big poison glands behind the eyes
+    for (let i = 0; i < 26; i++) {
+      const wx = -16 + R() * 32, wy = (R() - 0.5) * 22, wr = 0.9 + R() * 1.6;
+      ctx.fillStyle = 'rgba(40,24,10,0.45)'; ctx.beginPath(); ctx.arc(wx + 0.5, wy + 0.6, wr, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgba(220,180,120,0.55)'; ctx.beginPath(); ctx.arc(wx - wr * 0.3, wy - wr * 0.3, wr * 0.55, 0, TAU); ctx.fill();
+    }
+    for (let side = -1; side <= 1; side += 2) shadedEllipse(ctx, 4, side * 10, 6, 3, ['#8a6436', '#c89a60', '#4a3016'], L);
+  }
   ctx.strokeStyle = 'rgba(230,240,180,0.35)'; ctx.lineWidth = 1.2;
   for (let side = -1; side <= 1; side += 2) { ctx.beginPath(); ctx.moveTo(14, side * 8); ctx.quadraticCurveTo(0, side * 12, -15, side * 9); ctx.stroke(); }
   for (let side = -1; side <= 1; side += 2) {
@@ -129,7 +138,7 @@ function drawFrog(ctx, e, t) {
     ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); ctx.arc(12.6, side * 9.4 - 1.2, 0.9, 0, TAU); ctx.fill();
     ctx.fillStyle = '#1a2a0c'; ctx.beginPath(); ctx.arc(22.5, side * 2.6, 0.7, 0, TAU); ctx.fill();
   }
-  gloss(ctx, 0, 0, 22, 15, L, 0.3);
+  gloss(ctx, 0, 0, 22, 15, L, e.warty ? 0.08 : 0.3);
   if (e.hurtT > 0) { ctx.fillStyle = 'rgba(255,240,220,0.3)'; ctx.beginPath(); ctx.ellipse(0, 0, 24, 18, 0, 0, TAU); ctx.fill(); }
   ctx.restore();
   if (e.tongueT > 0 && e.tx !== undefined) {

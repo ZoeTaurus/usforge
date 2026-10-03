@@ -44,6 +44,20 @@ AQ.TUNING = {
 
   speedMaxLevel: 3,
 
+  // Chest upgrades beyond NET and SPD. Both start at level 0 (also for older saves).
+  upgrades: {
+    lanternMax: 3,
+    lanternRadius: [0, 16, 32, 50],   // extra light radius (px) around you in dark places, per lantern level
+    depthMax: 3,
+    // Below this world y the water gets heavy, per depth level 0..3 (null = no limit). The sea surface
+    // is y 96. The trench floor is a rounded U (rim ~1200, lowest ~1290): each level lets you sink a
+    // little further into it, and level 3 reaches the very bottom (the Pressure Tortoise).
+    depthLimitY: [1240, 1256, 1272, null],
+    heavySlow: 0.55,          // swim speed multiplier while in heavy water
+    heavyPush: 140,           // gentle upward nudge (px/s^2), growing a little the deeper past the limit you are
+    heavyHaze: 0.35           // how much the screen softens (0..1)
+  },
+
   bait: { lifetime: 22, sinkSpeed: 7, lureRadius: 95 },
 
   stealth: {
@@ -101,9 +115,22 @@ AQ.TUNING = {
     unlockStars: [2, 3.5, 5]  // tank stars needed for each biome's unlock tiers 1, 2 and 3 (new themed decor)
   },
 
+  // ---- day and night (one clock for the whole game: the sea and the hill's sky follow it; it keeps running in the station)
+  clock: {
+    dayMinutes: 6,            // real minutes for one full day + night
+    startHour: 5,             // a new game (and an older save) starts here: the beginning of the day (dawn)
+    dawnHour: 5, dawnHours: 1.5,   // dawn starts at 5:00 and takes 1.5 game hours to become full day
+    duskHour: 18.5, duskHours: 1.5, // dusk starts at 18:30 and takes 1.5 game hours to become night
+    nightBelow: 0.35,         // night-only creatures come out when daylight drops below this
+    nightDarkness: 0.5,       // how dark the sunlit sea gets at night (deep / cave areas are already darker)
+    skipHours: 3              // the debug time-skip key jumps this many hours
+  },
+
   // ---- getting to the aquarium building (Tide Pools -> the hill -> the UFO -> the building in space)
   debug: {
-    tabOpensAquarium: false   // TESTING ONLY: true lets Tab open the tank screen from anywhere (the old shortcut)
+    tabOpensAquarium: false,  // TESTING ONLY: true lets Tab open the tank screen from anywhere (the old shortcut)
+    timeSkip: false,          // TESTING ONLY: true lets you press N in the sea to skip ahead clock.skipHours
+    timeSkipKey: 'KeyN'
   },
   interactKeys: ['KeyE'],     // "interact" (beam up/down, open a tank, use the directory)
 
@@ -146,6 +173,7 @@ AQ.TUNING = {
     eggMinutes: 4,            // real minutes from egg to baby (egg-laying species)
     cooldownMinutes: 20,      // real minutes a tank rests after a new arrival
     growMinutes: 30,          // real minutes for a baby to grow up
+    variantChance: 0.04,      // chance a newborn is a rare colour variant (bred babies only, never wild)
     checkSeconds: 5           // how often all tanks are checked (cheap; runs anywhere in the game)
   },
 
@@ -160,6 +188,29 @@ AQ.TUNING = {
     zoomSeconds: 0.6,         // how long the zoom in/out takes
     zoomMargin: 10            // space (px) kept around the building when zoomed out
   },       // ladder climbing speed in the aquarium building (px/s)
+
+  // ---- sound and music (all made in code; see src/audio.js, src/sfx.js, src/ambience.js, src/music.js)
+  audio: {
+    master: 0.8,              // overall loudness of everything (0..1)
+    musicVolume: 0.6,         // default MUSIC slider for a new save (0..1; players change it in SOUND)
+    sfxVolume: 0.8,           // default EFFECTS slider for a new save (0..1)
+    ambienceLevel: 0.5,       // place sounds (waves, drips, wind...) relative to the effects slider
+    maxVoices: 14,            // most effects allowed to ring at once (extra ones are skipped)
+    underwaterCutoff: 900,    // how muffled effects + ambience are underwater (Hz; lower = more muffled)
+    musicPace: 1,             // music tempo multiplier (0.8 = slower, 1.2 = quicker)
+    musicRest: 1,             // silence between music phrases multiplier (2 = twice as much quiet)
+    musicAmbient: 1,          // 1 = ambient (slow, a soft pad that never stops, long airy notes, more echo);
+                              // 0 = the livelier, plucky style; anything in between blends
+    nightPace: 0.8,           // night versions of the sea music play this much slower...
+    nightVolume: 0.7,         // ...and this much quieter
+    crossfadeSeconds: 3,      // how long music + ambience take to blend into the next place
+    menuDuck: 0.5,            // music level while the log, map or pause menu is open
+    lookahead: 0.3,           // seconds of music notes scheduled ahead (keeps timing steady, cheap)
+    creatureVoiceEvery: 9,    // average seconds between little creature sounds (higher = rarer)
+    creatureVoiceRange: 120,  // only creatures this close (px) make sounds
+    stepEvery: 20,            // px walked between footsteps (about two steps a second at walking speed)
+    muteKey: 'KeyO'           // quick mute / unmute, anywhere
+  },
 
   save: { key: 'aquadise.save.v1', autosaveEvery: 10 }
 };

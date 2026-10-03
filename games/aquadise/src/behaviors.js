@@ -30,8 +30,11 @@ AQ.Behaviors = (function () {
     const W = AQ.World;
     // a water creature that ended up in the air (after a leap, a knock, a respawn) falls back in
     if (!c.allowAir && W.air(c.x, c.y)) {
-      c.vy = Math.max(c.vy, 0) + 260 * dt; c.y += c.vy * dt; c.x += c.vx * dt * 0.5;
-      if (W.solid(c.x, c.y)) c.y -= c.vy * dt;
+      c.vy = Math.max(c.vy, 0) + 260 * dt;
+      // fall, but never into rock or ice (check each direction on its own)
+      const fx = c.x + c.vx * dt * 0.5, fy = c.y + c.vy * dt;
+      if (!W.solid(fx, c.y)) c.x = fx; else c.vx *= -0.3;
+      if (!W.solid(c.x, fy)) c.y = fy; else c.vy = 0;
       return;
     }
     const nx = c.x + c.vx * dt, ny = c.y + c.vy * dt;
@@ -233,7 +236,7 @@ AQ.Behaviors = (function () {
         if (c.near > (p.relocateAfter || 4)) {
           c.near = 0;
           AQ.FX.puff(c.x, c.y, 'rgba(255,200,180,0.7)', 8);
-          const spot = AQ.Creatures.findSpot(c.def, 'floor', c.hx, 80);
+          const spot = AQ.Creatures.findSpot(c.def, 'floor', c.hx, 80, c.slot && c.slot.sp);
           if (spot) { c.x = spot[0]; c.y = spot[1]; c.hx = spot[0]; c.hy = spot[1]; }
           c.alpha = 0;
         }
@@ -296,6 +299,7 @@ AQ.Behaviors = (function () {
     }
   };
 
+  const inArea = (c, x) => { const a = c.def.spawn && c.def.spawn.area; return !a || (x >= a[0] - 20 && x <= a[1] + 20); };
   // Schools: members follow a shared roaming anchor; the school flees together (except a straggler).
   B.school = {
     init(c) { c.state = 'calm'; },
@@ -303,7 +307,7 @@ AQ.Behaviors = (function () {
       const s = c.school, p = c.p;
       if (!s) return;
       // the school object is updated once per frame by its first member
-      if (s.frame !== AQ.Game.time) { s.frame = AQ.Game.time; this.updateSchool(s, c, ctx, dt); }
+      if (s.frame !== AQ.Creatures.frame) { s.frame = AQ.Creatures.frame; this.updateSchool(s, c, ctx, dt); }
       const a = s.t * 0.6 + c.slotN * 1.7;
       const spread = 9 * (2 - (p.tight || 1) * 0.6) + (c.straggler ? 16 : 0);
       let tx = s.x + Math.cos(a) * spread + c.ox, ty = s.y + Math.sin(a * 1.3) * spread * 0.6 + c.oy;
@@ -339,8 +343,10 @@ AQ.Behaviors = (function () {
       else {
         if (!s.target || Math.hypot(s.target[0] - s.x, s.target[1] - s.y) < 10) {
           const roam = p.roam || 120;
+          const area = c.def.spawn && c.def.spawn.area, ax0 = area ? area[0] : 0, ax1 = area ? area[1] : W.w;   // stay in its own waters
           for (let i = 0; i < 10; i++) {
-            const t = [s.hx + R.range(-roam, roam), U.clamp(s.hy + R.range(-roam * 0.3, roam * 0.3), W.sea + (p.leap ? 6 : 16), W.h)];
+            const ry = p.roamY != null ? p.roamY : roam * 0.3;      // how far up/down it roams (default: a flat band)
+            const t = [U.clamp(s.hx + R.range(-roam, roam), ax0, ax1), U.clamp(s.hy + R.range(-ry, ry), W.sea + (p.leap ? 6 : 16), p.maxY || W.h)];
             if (W.water(t[0], t[1])) { s.target = t; break; }
           }
           if (!s.target) s.target = [s.hx, s.hy];
@@ -350,7 +356,7 @@ AQ.Behaviors = (function () {
       const dx = tx - s.x, dy = ty - s.y, L = Math.hypot(dx, dy) || 1, k = 1 - Math.exp(-2 * dt);
       s.vx += ((dx / L) * sp - s.vx) * k; s.vy += ((dy / L) * sp - s.vy) * k;
       const nx = s.x + s.vx * dt, ny = s.y + s.vy * dt;
-      if (W.water(nx, ny) && W.depthDist(nx, ny + 6) === 0 && W.water(nx, ny - 6)) { s.x = nx; s.y = ny; } else { s.vx *= -0.5; s.vy *= -0.5; s.target = null; }
+      if (W.water(nx, ny) && W.depthDist(nx, ny + 6) === 0 && W.water(nx, ny - 6) && ny <= (p.maxY || W.h) && inArea(c, nx)) { s.x = nx; s.y = ny; } else { s.vx *= -0.5; s.vy *= -0.5; s.target = null; }
     }
   };
 
@@ -508,6 +514,7 @@ AQ.Behaviors = (function () {
     },
     onSwing(c, ctx) {
       if (c.state === 'guard' && ctx.dist < 30) {
+        if (c.p.withdraw) { AQ.FX.text(c.x, c.y - c.r - 4, '...', '#dfe'); AQ.HUD.toast('It pulls into its shell. Wait for it to relax.', '#cfe8ff'); return; }
         ctx.P.knock(ctx.dx || 1, ctx.dy - 4, AQ.TUNING.knockback.light);
         AQ.HUD.toast('Pinched! Wait for it to relax.', '#ffd56b');
       }
@@ -580,6 +587,112 @@ AQ.Behaviors = (function () {
   };
 
   // Barely reacts at all.
+  // MIRROR: while you're near and moving, it dances: it copies your swimming, mirrored left-right.
+  // Hold still for a moment and it relaxes and drifts up to you - then it can be netted.
+  // params: range (px, 70), calmTime (s still before it relaxes, 0.9), approach (px/s, 26), mirror (0..1, 0.9)
+  B.mirror = {
+    update(c, ctx, dt) {
+      const p = c.p, P = ctx.P, range = p.range || 70;
+      c.catchable = false; c.targetAlpha = 1;
+      if (ctx.dist > range) { c.calm = 0; c.icon = null; H.idle(c, dt); return; }
+      const still = Math.hypot(P.vx, P.vy) < 6;
+      c.calm = still ? (c.calm || 0) + dt : 0;
+      if (c.calm >= (p.calmTime || 0.9)) {
+        // relaxed: drift closer and stay a moment
+        c.catchable = true;
+        c.facing = ctx.dx > 0 ? 1 : -1;
+        if (ctx.dist > 14) H.swimTo(c, P.x - Math.sign(ctx.dx || 1) * 12, P.y, p.approach || 26, dt, 3); else H.brake(c, dt);
+        if (c.iconT <= 0) { c.icon = '♥'; c.iconT = 1.2; }
+        return;
+      }
+      // dancing: mirror your movement (your left is its right), staying near its home
+      const k = p.mirror !== undefined ? p.mirror : 0.9, home = p.wanderR || 60;
+      let tx = c.x - P.vx * k * 0.25, ty = c.y + P.vy * k * 0.25;
+      tx = U.clamp(tx, c.hx - home, c.hx + home); ty = U.clamp(ty, Math.max(AQ.World.sea + 8, c.hy - home * 0.6), c.hy + home * 0.6);
+      H.swimTo(c, tx, ty, Math.max(10, Math.hypot(P.vx, P.vy) * k), dt, 6);
+      if (Math.abs(P.vx) > 4) c.facing = P.vx > 0 ? -1 : 1;
+      if (c.iconT <= 0 && !still) { c.icon = '~'; c.iconT = 0.6; }
+    },
+    missText: 'It mirrors you! Stay still and let it come to you.'
+  };
+
+  // LURE: a bright glowing decoy bobs on a stalk; the real creature waits still and dim beside it.
+  // The decoy can't be netted (it just puffs and flickers) and flickers when you get close, as a hint.
+  // Rushing in carelessly makes the real one duck for a second.
+  // params: decoyDist (px, 12), decoyColor ('#d8ff8a'), alpha (real creature visibility, 0.55), glow (light radius, 26)
+  B.lure = {
+    init(c) { c.decoy = { x: c.x, y: c.y, a: 1, flick: 0 }; },
+    update(c, ctx, dt) {
+      const p = c.p, d = c.decoy;
+      H.brake(c, dt);
+      c.moving = false;
+      // the decoy bobs ahead of the creature
+      d.x = c.x + c.facing * (p.decoyDist || 12) + Math.sin(c.t * 1.3 + c.seed) * 2;
+      d.y = c.y - (c.r * 0.6) + Math.sin(c.t * 2.1 + c.seed) * 2.5;
+      const nearD = Math.hypot(ctx.P.x - d.x, ctx.P.y - d.y) < 40;
+      d.flick = Math.max(0, d.flick - dt);
+      d.a = d.flick > 0 ? (Math.sin(c.t * 60) > 0 ? 1 : 0.15) : nearD ? (Math.sin(c.t * 9) > -0.3 ? 1 : 0.35) : 0.85 + 0.15 * Math.sin(c.t * 3);
+      c.duck = Math.max(0, (c.duck || 0) - dt);
+      if (H.careless(c, ctx, 26) && !c.duck) { c.duck = 1; H.alertMark(c, 0.6); }
+      c.catchable = !c.duck;
+      c.targetAlpha = c.duck ? 0.2 : (p.alpha !== undefined ? p.alpha : 0.55);
+    },
+    // the net touched the decoy, not the creature
+    decoyHit(c) { c.decoy.flick = 0.6; AQ.FX.puff(c.decoy.x, c.decoy.y, 'rgba(230,255,180,0.7)', 5); },
+    draw(g, c) {
+      const d = c.decoy, col = c.p.decoyColor || '#d8ff8a';
+      if (!d) return;
+      // a thin stalk from the creature's head to the glowing bulb
+      g.globalAlpha = Math.min(1, c.alpha + 0.3) * 0.8; g.fillStyle = 'rgba(60,70,50,0.9)';
+      const hx = c.x + c.facing * c.r * 0.5, hy = c.y - c.r * 0.5;
+      for (let i = 0; i <= 6; i++) { const t = i / 6; g.fillRect(Math.round(hx + (d.x - hx) * t), Math.round(hy + (d.y - hy) * t - Math.sin(t * Math.PI) * 3), 1, 1); }
+      const x = Math.round(d.x), y = Math.round(d.y);
+      g.globalAlpha = d.a * 0.22; g.fillStyle = col; g.fillRect(x - 4, y - 3, 9, 7); g.fillRect(x - 3, y - 4, 7, 9);
+      g.globalAlpha = d.a * 0.5; g.fillRect(x - 2, y - 2, 5, 5);
+      g.globalAlpha = d.a; g.fillRect(x - 1, y - 1, 3, 3); g.fillRect(x - 2, y, 5, 1); g.fillRect(x, y - 2, 1, 5);
+      g.fillStyle = '#ffffff'; g.fillRect(x, y, 1, 1);
+      g.globalAlpha = 1;
+    },
+    missText: 'Just a glowing decoy! The real one is hiding beside it.'
+  };
+
+  // MID-AIR: cruises just under the surface and leaps out in an arc every few seconds.
+  // It can only be netted while it's in the air.
+  // params: leapEvery ([min, max] s, [2.5, 4.5]), leap (jump speed, 125), speed (cruise, 22), depth (px below surface, 14)
+  B.midair = {
+    init(c) { c.leapT = R.range(1, 3); c.inLeap = false; },
+    update(c, ctx, dt) {
+      const p = c.p, W = AQ.World;
+      c.targetAlpha = 1;
+      if (c.inLeap) {
+        c.vy += 260 * dt; c.x += c.vx * dt; c.y += c.vy * dt;
+        if (W.solid(c.x, c.y)) { c.x -= c.vx * dt; c.y -= c.vy * dt; c.vx *= -0.3; }
+        c.catchable = W.air(c.x, c.y);
+        c.moving = true;
+        if (c.vy > 0 && W.water(c.x, c.y) && c.y > W.sea + 2) {
+          c.inLeap = false; c.allowAir = false; c.vy *= 0.3;
+          AQ.FX.puff(c.x, W.sea, 'rgba(230,250,255,0.8)', 6);
+        }
+        return;
+      }
+      c.catchable = false; c.allowAir = false;
+      // cruise back and forth a little under the surface
+      const ty = W.sea + (p.depth || 14);
+      if (!c.dirX) c.dirX = c.facing || 1;
+      if (Math.abs(c.x - c.hx) > (p.wanderR || 90)) c.dirX = -Math.sign(c.x - c.hx);
+      H.swimTo(c, c.x + c.dirX * 30, ty, p.speed || 22, dt, 3);
+      c.leapT -= dt;
+      if (c.leapT <= 0 && c.y < W.sea + 30) {
+        const e = p.leapEvery || [2.5, 4.5];
+        c.leapT = R.range(e[0], e[1]);
+        c.inLeap = true; c.allowAir = true;
+        c.vy = -(p.leap || 125); c.vx = c.dirX * 45; c.facing = c.dirX;
+        AQ.FX.puff(c.x, W.sea, 'rgba(230,250,255,0.8)', 6);
+      }
+    },
+    missText: 'Too quick underwater. Net it mid-leap!'
+  };
+
   B.easy = {
     update(c, ctx, dt) { c.catchable = true; c.targetAlpha = 1; if (!H.lure(c, ctx, dt, 10)) H.wander(c, dt, c.p.speed || 7, 40); }
   };
@@ -605,7 +718,11 @@ AQ.Behaviors = (function () {
   // Plants: harvested with the net, regrow after a while. drift: floats around the surface.
   B.plant = {
     update(c, ctx, dt) {
-      c.catchable = !c.harvested; c.targetAlpha = c.harvested ? 0.25 : 1;
+      // night-blooming plants (bloom: 'night') are closed buds by day: they can't be harvested then
+      c.closed = c.def.bloom === 'night' && AQ.Clock && !AQ.Clock.isNight();
+      c.catchable = !c.harvested && !c.closed; c.targetAlpha = c.harvested ? 0.25 : 1;
+      const want = c.closed && AQ.Assets.has(c.def.spriteKey + '.closed') ? c.def.spriteKey + '.closed' : c.def.spriteKey;
+      if (c.key !== want) c.key = want;
       if (c.harvested) { c.st -= dt; if (c.st <= 0) { c.harvested = false; AQ.FX.sparkle(c.x, c.y - 4, '#cfffbf', 5); } }
       if (c.p.drift) { c.allowAir = true; c.x = c.hx + Math.sin(c.t * 0.05 + c.seed) * 80; c.y = AQ.World.sea + 1 + Math.sin(c.t * 1.2) * 0.8; c.facing = Math.cos(c.t * 0.05 + c.seed) > 0 ? 1 : -1; }
     }

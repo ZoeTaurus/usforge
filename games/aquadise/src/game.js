@@ -3,11 +3,11 @@ var AQ = (typeof AQ !== 'undefined') ? AQ : {};
 
 AQ.Game = (function () {
   const G = {
-    state: 'loading',     // loading | title | play | pause | aquarium | log | map
+    state: 'loading',     // loading | title | play | pause | aquarium | log | map | soundtest
     scene: 'world',       // where the player is: world | hill | station  (see src/scenes.js)
     time: 0,
     player: null,
-    upgrades: { net: 1, speed: 1 },
+    upgrades: { net: 1, speed: 1, lantern: 0, depth: 0 },
     lights: []
   };
   const STEP = 1 / 60;
@@ -20,6 +20,7 @@ AQ.Game = (function () {
     canvas.width = AQ.TUNING.view.w; canvas.height = AQ.TUNING.view.h;
     AQ.Camera.w = canvas.width; AQ.Camera.h = canvas.height;
     AQ.Input.attach(canvas);
+    AQ.Audio.attach();                          // sound starts on the first click / key press
     AQ.Render.init(canvas);
     fit(); window.addEventListener('resize', fit);
 
@@ -88,7 +89,9 @@ AQ.Game = (function () {
 
     if (G.state === 'play' || G.state === 'map') {
       const frozen = AQ.Transition.blocking(), inWorld = G.scene === 'world';
+      AQ.Clock.update(dt);                         // one day/night clock for everywhere (the sea, the hill, the station)
       if (!frozen) {
+        if (AQ.TUNING.debug.timeSkip && I.wasPressed(AQ.TUNING.debug.timeSkipKey)) { AQ.Clock.set(AQ.Clock.hour() + AQ.TUNING.clock.skipHours); AQ.HUD.toast(`Time skip: ${AQ.HUD.clockText()}`, '#cfe8ff'); }
         if (I.wasPressed('KeyH')) { AQ.HUD.showHelp = true; AQ.HUD.helpT = AQ.HUD.helpT > 0 ? 0 : 12; }
         if (I.wasPressed('KeyM')) { if (inWorld) G.state = G.state === 'map' ? 'play' : 'map'; else AQ.HUD.toast('The map only shows the sea.', '#cfe8ff'); }
         if (I.wasPressed('Tab') && AQ.Aquarium && AQ.TUNING.debug.tabOpensAquarium) { AQ.Aquarium.open(G); I.endFrame(); return; }
@@ -99,6 +102,7 @@ AQ.Game = (function () {
       AQ.HUD.update(dt, G);
       if (AQ.Save) AQ.Save.tick(dt, G);
     } else if (G.state === 'aquarium') {
+      AQ.Clock.update(dt);                         // time keeps passing while you tend a tank
       AQ.Aquarium.update(dt, G);
     } else if (G.state === 'log') {
       AQ.LogUI.update(dt, G);
@@ -106,7 +110,10 @@ AQ.Game = (function () {
       AQ.PauseUI.update(dt, G);
     } else if (G.state === 'title') {
       AQ.Title.update(dt, G);
+    } else if (G.state === 'soundtest') {
+      AQ.SoundTest.update(dt, G);
     }
+    if (AQ.SoundDirector) AQ.SoundDirector.update(dt, G);
     AQ.Transition.update(dt);
     if (AQ.Breeding && G.state !== 'loading') AQ.Breeding.update(dt);   // tanks live on wherever you are
     I.endFrame();
@@ -118,6 +125,7 @@ AQ.Game = (function () {
   }
   function drawScene() {
     const ctx = AQ.Render.ctx, cam = AQ.Camera;
+    if (G.state === 'soundtest') { AQ.SoundTest.draw(ctx); return; }
     if (G.state === 'aquarium' || (G.state === 'log' && AQ.LogUI.from === 'aquarium')) {
       AQ.Aquarium.draw(ctx, G);
       if (G.state === 'log') AQ.LogUI.draw(ctx, G);
@@ -149,6 +157,8 @@ AQ.Game = (function () {
     if (AQ.Terrain.drawFront) AQ.Terrain.drawFront(ctx, cam);
     AQ.Render.surface(cam);
     AQ.Render.lighting(cam, collectLights(), targetDarkness());
+    AQ.Render.twilightTint(cam);
+    AQ.Render.heavyHaze(G.player.heavy || 0);
     AQ.Terrain.drawGlow(ctx, cam);
     if (title) { if (G.state === 'log') AQ.LogUI.draw(ctx, G); else AQ.Title.draw(ctx, G); return; }
     drawOverlays(ctx);
@@ -164,14 +174,19 @@ AQ.Game = (function () {
     const W = AQ.World, cx = AQ.Camera.x, cy = AQ.Camera.y;
     const b = W.biomeAt(cx, cy);
     const depth = AQ.U.clamp((cy - W.sea - 320) / 900, 0, 0.65);
-    return Math.max(b.dark || 0, depth);
+    // night darkens the sunlit sea; places that are already darker (deep water, caves) are unchanged
+    const night = G.state === 'title' ? 0 : (1 - AQ.Clock.daylight()) * AQ.TUNING.clock.nightDarkness;
+    return Math.max(b.dark || 0, depth, night);
   }
 
   function collectLights() {
     const p = G.player, L = G.lights;
     L.length = 0;
     if (G.state === 'title') L.push({ x: AQ.Camera.x, y: AQ.Camera.y, r: 90 });
-    else { L.push({ x: p.x + p.facing * 6, y: p.y, r: 58 }); L.push({ x: p.x, y: p.y, r: 26 }); }
+    else {
+      const extra = AQ.TUNING.upgrades.lanternRadius[G.upgrades.lantern || 0] || 0;   // the LANTERN upgrade
+      L.push({ x: p.x + p.facing * 6, y: p.y, r: 58 + extra }); L.push({ x: p.x, y: p.y, r: 26 + extra * 0.5 });
+    }
     for (const l of AQ.Terrain.lights) L.push(l);
     for (const f of AQ.Terrain.fireflies) L.push({ x: f.x, y: f.y, r: 9, color: '#ffe36b', power: 0.5 });
     if (AQ.Creatures) AQ.Creatures.lights(L);

@@ -167,6 +167,14 @@
     p.shade();
     p.line(cx - 2, cy - ry, cx - 2, cy - ry - 2, o.c); p.line(cx + 2, cy - ry, cx + 2, cy - ry - 2, o.c);
     p.set(cx - 2, cy - ry - 3, BLACK); p.set(cx + 2, cy - ry - 3, BLACK);
+    if (o.bell) {
+      // a bell-shaped shell with a little hollow (and a tiny clapper)
+      const top = cy - ry - H * 0.24, bw = rx * 0.75;
+      for (let y = Math.round(top); y <= cy - 1; y++) { const u = (y - top) / (cy - 1 - top), w = bw * (0.45 + 0.55 * u * u); p.rect(Math.round(cx - w), y, Math.round(w * 2), 1, mix(o.a, WHITE, 0.15)); }
+      p.rect(Math.round(cx - bw - 1), cy - 1, Math.round(bw * 2 + 2), 1, mul(o.a, 0.8));
+      p.ellipse(cx, cy - 2, bw * 0.5, 1.4, mul(o.c, 0.45)); p.set(cx, cy - 1, hex('#f2c14e'));
+      p.set(cx, Math.round(top) - 1, mul(o.a, 0.8));
+    }
     p.outline();
   };
 
@@ -241,6 +249,14 @@
     p.shade();
     eye(p, Math.round(mx - W * 0.12), Math.round(my - 1), W >= 20);
     p.outline();
+    if (o.veins) {
+      // glowing veins along the mantle that pulse brighter frame by frame
+      const glow = mix(o.a, WHITE, 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(ph)));
+      for (let k = -1; k <= 1; k++) for (let i = 0; i < 8; i++) {
+        const u = i / 8, x = mx - W * 0.18 + u * W * 0.4, y = my + k * H * 0.07 + Math.sin(u * 7 + k) * 1;
+        if (p.a(Math.round(x), Math.round(y))) p.set(x, y, glow);
+      }
+    }
     if (o.ghost) for (let i = 0; i < p.d.length; i += 4) if (p.d[i + 3]) p.d[i + 3] = 200;
   };
 
@@ -428,6 +444,7 @@
     p.shade();
     eye(p, Math.round(W * 0.68), Math.round(H * 0.4 - leap * 2), false);
     p.outline();
+    if (o.glow) [[0.42, 0.5], [0.52, 0.46], [0.6, 0.5], [0.36, 0.6]].forEach(([x, y], i) => p.set(W * x, H * y - leap * 2, i % 2 ? WHITE : o.a));
   };
 
   S.otter = function (p, o) {
@@ -735,6 +752,70 @@
     p.shade(0.2); p.outline();
   };
 
+  // ---------- new creatures (day & night update) ----------
+  // Seahorse-like: upright curled body, long snout, flowing ribbon mane.
+  S.seahorse = function (p, o) {
+    const W = p.w, H = p.h, ph = o.t * Math.PI * 2;
+    const spine = [[0.56, 0.24], [0.52, 0.34], [0.48, 0.45], [0.5, 0.57], [0.55, 0.67], [0.52, 0.77], [0.44, 0.83], [0.38, 0.78], [0.41, 0.71]];
+    const rad = [0.11, 0.1, 0.12, 0.12, 0.1, 0.08, 0.06, 0.05, 0.04];
+    // ribbons trail behind (left) and sway
+    for (let k = 0; k < 3; k++) for (let i = 0; i < 9; i++) {
+      const u = i / 9, x = W * (0.46 - u * 0.32), y = H * (0.22 + k * 0.1) + u * H * 0.18 + Math.sin(u * 5 + ph + k) * H * 0.05;
+      p.set(x, y, k === 1 ? mul(o.a, 1.1) : o.a);
+    }
+    spine.forEach(([x, y], i) => p.circle(W * x, H * y, Math.max(0.8, W * rad[i]), o.c));
+    p.line(W * 0.62, H * 0.24, W * 0.84, H * 0.27, o.c); p.line(W * 0.62, H * 0.26, W * 0.84, H * 0.28, mul(o.c, 0.9));   // snout
+    p.shade(0.25);
+    for (let i = 0; i < 4; i++) p.set(W * (0.47 + (i % 2) * 0.04), H * (0.4 + i * 0.08), mul(o.c, 0.8));   // belly rings
+    eye(p, Math.round(W * 0.58), Math.round(H * 0.22), false);
+    p.outline(0.4);
+  };
+  // Candle-like polyps: stalks with glowing blooms at night; closed buds by day (o.closed).
+  S.candlepolyp = function (p, o) {
+    const W = p.w, H = p.h, ph = o.t * Math.PI * 2;
+    p.ellipse(W / 2, H - 2, W * 0.36, 2.2, mul(o.c, 0.8));
+    [[0.3, 0.42], [0.45, 0.22], [0.6, 0.32], [0.74, 0.5]].forEach(([x, t], i) => {
+      const sway = o.closed ? 0 : Math.sin(ph + i) * 0.8, tx = W * x + sway, ty = H * t;
+      p.line(W * x, H - 2, tx, ty, o.c); p.line(W * x + 1, H - 2, tx + 1, ty, mul(o.c, 0.85));
+      if (o.closed) { p.ellipse(tx + 0.5, ty, 1.6, 2.2, mul(o.c, 1.2)); }
+      else { p.circle(tx + 0.5, ty - 1, 2.2, o.a); p.set(tx + 0.5, ty - 1, WHITE); p.set(tx - 1.5, ty - 2, mix(o.a, WHITE, 0.4)); p.set(tx + 2.5, ty - 2, mix(o.a, WHITE, 0.4)); }
+    });
+    p.shade(0.2); p.outline(0.4);
+  };
+  // Flying fish: slim body with big wing-fins that flap.
+  S.flyfish = function (p, o) {
+    const W = p.w, H = p.h, ph = o.t * Math.PI * 2, flap = Math.sin(ph) * (o.moving ? 1 : 0.5);
+    p.tri([W * 0.2, H * 0.5], [W * 0.04, H * 0.3], [W * 0.04, H * 0.7], mul(o.c, 0.9));   // forked tail
+    p.ellipse(W * 0.5, H * 0.52, W * 0.32, H * 0.14, o.c);
+    p.tri([W * 0.52, H * 0.46], [W * 0.26, H * (0.12 - flap * 0.08)], [W * 0.36, H * 0.48], o.a);   // wing
+    p.tri([W * 0.5, H * 0.6], [W * 0.3, H * (0.82 + flap * 0.06)], [W * 0.4, H * 0.58], mul(o.a, 0.85));
+    p.ellipse(W * 0.5, H * 0.58, W * 0.24, H * 0.05, mix(o.c, WHITE, 0.5));             // pale belly
+    p.shade(0.25);
+    eye(p, Math.round(W * 0.74), Math.round(H * 0.48), W >= 20);
+    p.outline();
+  };
+  // Turtle side view. o.sail: a tall sail-like fin on the shell; o.dome: a heavy tortoise dome.
+  S.turtle = function (p, o) {
+    const W = p.w, H = p.h, ph = o.t * Math.PI * 2, paddle = Math.sin(ph) * (o.moving ? 1 : 0.4);
+    const cx = W * 0.47, cy = H * (o.dome ? 0.62 : 0.6), rx = W * (o.dome ? 0.3 : 0.32), ry = H * (o.dome ? 0.3 : 0.22);
+    // flippers / legs
+    if (o.dome) { p.rect(Math.round(cx - rx * 0.6), Math.round(cy + ry * 0.4), 4, Math.round(H * 0.16), mul(o.c, 0.8)); p.rect(Math.round(cx + rx * 0.4), Math.round(cy + ry * 0.4), 4, Math.round(H * 0.16), mul(o.c, 0.8)); }
+    else {
+      p.tri([cx + rx * 0.4, cy], [cx + rx * 0.9, cy + ry * (1.6 + paddle * 0.6)], [cx + rx * 0.1, cy + ry * 0.8], mul(o.c, 0.85));
+      p.tri([cx - rx * 0.5, cy + ry * 0.2], [cx - rx * 1.05, cy + ry * (1.2 - paddle * 0.5)], [cx - rx * 0.2, cy + ry * 0.7], mul(o.c, 0.8));
+    }
+    // head + neck
+    p.ellipse(cx + rx + W * 0.06, cy - ry * (o.dome ? 0.1 : 0.2), W * 0.08, H * 0.1, mix(o.c, WHITE, 0.15));
+    // shell: dome on top, flat belly
+    for (let y = -ry; y <= 0; y++) { const w = rx * Math.sqrt(1 - (y * y) / (ry * ry)); p.rect(Math.round(cx - w), Math.round(cy + y), Math.round(w * 2), 1, o.a); }
+    p.rect(Math.round(cx - rx), Math.round(cy), Math.round(rx * 2), Math.max(2, Math.round(H * 0.08)), mix(o.c, WHITE, 0.3));
+    for (let i = -2; i <= 2; i++) p.line(cx + i * rx * 0.36, cy - 1, cx + i * rx * 0.26, cy - ry * 0.8, mul(o.a, 0.75));   // scutes
+    if (o.sail) p.tri([cx - rx * 0.4, cy - ry * 0.8], [cx + rx * 0.5, cy - ry * 0.8], [cx - rx * 0.05, cy - ry - H * 0.38], mix(o.a, WHITE, 0.35));
+    p.shade(0.2);
+    eye(p, Math.round(cx + rx + W * 0.09), Math.round(cy - ry * (o.dome ? 0.15 : 0.25)), false);
+    p.outline();
+  };
+
   // ---------- themed decorations (aquarium stage 4) ----------
   const CLEAR = [0, 0, 0, 0];
   S.anemonerock = function (p, o) {          // tide-pool rock with anemones + barnacles
@@ -1039,38 +1120,54 @@
     p.outline();
     p.set(14, 2, hex('#fff6a0')); p.set(14, 3, hex('#ffd25a'));   // a tiny lantern
   };
+  // A subtle saucer: a thin, flat dark-navy disc with a soft light edge on top and a glowing ring of
+  // pale lavender light underneath (no dome, no coloured bulbs).
   S.ufo = function (p, o) {
-    const cx = 32, metal = hex('#c8ced8'), dark = hex('#7a8496'), glass = hex('#9fe6f2');
-    p.ellipse(cx, 12, 11, 8, glass);
-    p.rect(cx - 12, 13, 24, 4, [0, 0, 0, 0]);
-    p.ellipse(cx, 19, 30, 6, metal);
-    p.rect(cx - 30, 19, 60, 1, mul(metal, 0.85));
-    p.ellipse(cx, 22, 18, 3, dark);
-    p.ellipse(cx, 24, 6, 1.6, hex('#bff6ff'));
-    p.shade(0.18); p.outline(0.35);
-    p.set(cx - 5, 7, WHITE); p.set(cx - 4, 6, WHITE); p.set(cx - 6, 9, mul(glass, 1.2));     // dome glint
-    p.set(cx + 2, 10, hex('#7fd0a0')); p.set(cx + 3, 10, hex('#7fd0a0')); p.set(cx + 2, 9, hex('#7fd0a0')); // a little someone inside
-    for (let i = 0; i < 8; i++) {                                                             // chasing rim lights
-      const x = cx - 26 + i * 7.4, on = (i + o.frame) % 4 === 0;
-      p.set(x, 20, on ? hex('#fff3a0') : i % 2 ? hex('#ff9fd0') : hex('#9feff0'));
-      p.set(x + 1, 20, on ? hex('#fff3a0') : mul(i % 2 ? hex('#ff9fd0') : hex('#9feff0'), 0.8));
+    const cx = 32, cy = 14, rx = 29, ry = 4.2;
+    const top = hex('#24408a'), mid = hex('#132658'), bot = hex('#0a1636'), edge = hex('#8eaef0');
+    for (let y = -5; y <= 5; y++) for (let x = -30; x <= 30; x++) {
+      const e = (x * x) / (rx * rx) + (y * y) / (ry * ry);
+      if (e > 1) continue;
+      const t = (y + ry) / (2 * ry);
+      p.set(cx + x, cy + y, t < 0.35 ? lerpC(top, mid, t / 0.35) : lerpC(mid, bot, (t - 0.35) / 0.65));
+    }
+    // the light edge along the top of the rim, brightest in the middle
+    for (let x = -27; x <= 27; x++) {
+      const y = Math.round(cy - ry * Math.sqrt(Math.max(0, 1 - (x * x) / (rx * rx))));
+      p.set(cx + x, y, lerpC(edge, top, Math.abs(x) / 30));
+    }
+    // glowing ring underneath (slowly breathing)
+    const glow = 0.85 + 0.15 * Math.sin(o.frame / 4 * Math.PI * 2);
+    const rr = 17, rry = 2.4, gy = cy + 3;
+    for (let y = -4; y <= 4; y++) for (let x = -22; x <= 22; x++) {
+      const e = Math.sqrt((x * x) / (rr * rr) + (y * y) / (rry * rry));
+      const ring = Math.max(0, 1 - Math.abs(e - 1) * 2.2), inner = e < 1 ? 0.35 : 0;
+      const a = Math.min(1, ring + inner) * glow;
+      if (a < 0.08) continue;
+      const c = ring > 0.6 ? [244, 240, 255] : ring > 0.25 ? [196, 186, 255] : [170, 168, 240];
+      p.set(cx + x, gy + y, [c[0], c[1], c[2], Math.round(a * 255)]);
     }
   };
+  // The beam: a soft lavender cone that widens downward, with faint brighter blue edges, fading out
+  // towards the ground. Drawn additively, stretched to the beam's size.
   S.beam = function (p, o) {
     const W = p.w, H = p.h;
     for (let y = 0; y < H; y++) {
-      const half = 6 + (y / H) * (W / 2 - 6);
-      const band = ((y + (3 - o.frame) * 6) % 24) < 3 ? 40 : 0;
+      const v = y / H, half = 7 + v * (W / 2 - 7.5);
+      const fade = (1 - v * 0.55) * Math.min(1, (H - y) / (H * 0.3));
+      const ripple = 1 + 0.08 * Math.sin((y + o.frame * 6) * 0.26);
       for (let x = 0; x < W; x++) {
         const d = Math.abs(x + 0.5 - W / 2) / half;
         if (d > 1) continue;
-        const a = (1 - d * d) * 120 + band * (1 - d) + (d > 0.82 ? 30 : 0);
-        p.set(x, y, [200 + 55 * (1 - d), 250, 255, Math.min(255, a)]);
+        const core = (1 - d * d) * 80, rim = d > 0.78 ? (1 - Math.abs(d - 0.9) / 0.12) * 90 : 0;
+        const a = Math.max(0, (core + Math.max(0, rim)) * fade * ripple);
+        const c = d > 0.75 ? [150, 178, 255] : [220, 206, 255];
+        if (a >= 4) p.set(x, y, [c[0], c[1], c[2], Math.min(255, Math.round(a))]);
       }
     }
-    for (let i = 0; i < 9; i++) {                                                             // rising sparkles
-      const sy = Math.floor((hash(i, 1, 7) * H + H - o.frame * 7) % H), sx = Math.round(W / 2 + (hash(i, 2, 7) - 0.5) * (8 + sy / H * 18));
-      p.set(sx, sy, [255, 255, 255, 230]);
+    for (let i = 0; i < 4; i++) {                                                             // a few slow motes
+      const sy = Math.floor((hash(i, 1, 7) * H + H - o.frame * 5) % H), sx = Math.round(W / 2 + (hash(i, 2, 7) - 0.5) * (8 + sy / H * 16));
+      p.set(sx, sy, [240, 236, 255, 140]);
     }
   };
   S.beampad = function (p, o) {
@@ -1215,6 +1312,24 @@
     put(cx - 1, top + 1, crest); put(cx, top + 1, crest); put(cx + 1, top + 1, crest); put(cx, top, tip); put(cx, top + 2, crest);
   }
 
+  // Rare colour variants (bred babies only): every colour rotated around the colour wheel by `deg`.
+  function hueShift(p, deg) {
+    const d = p.d, k = deg / 360;
+    for (let i = 0; i < d.length; i += 4) {
+      if (!d[i + 3]) continue;
+      let r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2;
+      if (mx - mn < 0.04) continue;                                 // greys / outlines stay
+      const dd = mx - mn, s = l > 0.5 ? dd / (2 - mx - mn) : dd / (mx + mn);
+      let h = mx === r ? (g - b) / dd + (g < b ? 6 : 0) : mx === g ? (b - r) / dd + 2 : (r - g) / dd + 4;
+      h = (h / 6 + k) % 1;
+      const q = l < 0.5 ? l * (1 + s) : l + s - l * s, pp = 2 * l - q;
+      const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? pp + (q - pp) * 6 * t : t < 0.5 ? q : t < 2 / 3 ? pp + (q - pp) * (2 / 3 - t) * 6 : pp; };
+      d[i] = f(h + 1 / 3) * 255; d[i + 1] = f(h) * 255; d[i + 2] = f(h - 1 / 3) * 255;
+    }
+  }
+  PH.hueShift = hueShift;
+
   // Juveniles: a lighter, softer version of the adult colours.
   function lighten(p, k) {
     const d = p.d;
@@ -1251,6 +1366,7 @@
           fn(p, opts);
           if (art.male) maleMark(p);
           if (art.baby) lighten(p, 0.3);
+          if (art.hue) hueShift(p, art.hue);
           // offset of the frame's origin inside this padded buffer (drawing area centred / bottom-aligned)
           const fx0 = M - Math.floor((fw - vw) / 2), fy0 = M - (bottomAnchored ? fh - vh : Math.floor((fh - vh) / 2));
           for (let y = 0; y < p.bh; y++) for (let x = 0; x < p.bw; x++) if (p.d[(y * p.bw + x) * 4 + 3]) {

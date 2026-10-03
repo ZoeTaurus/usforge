@@ -6,7 +6,7 @@ AQ.data = AQ.data || {};
 
 AQ.data.world = {
   width: 6800,
-  height: 1280,
+  height: 1440,
   seaLevel: 96,
   seed: 7,
   playerStart: [120, 76],
@@ -28,13 +28,13 @@ AQ.data.world = {
     [2800, 804, 2], [2850, 772, 2], [2905, 806, 2], [2985, 806, 3], [3030, 768, 2], [3080, 806, 2],
     [3165, 806, 3], [3210, 776, 2], [3255, 806, 2], [3290, 806, 2],
     // Deep trench (steep walls)
-    [3320, 830, 4], [3335, 900, 6], [3350, 1000, 6], [3370, 1120, 6], [3400, 1200, 5], [3500, 1222, 4], [3650, 1218, 4],
-    [3800, 1224, 4], [3850, 1200, 5], [3880, 1100, 6], [3900, 980, 6], [3920, 840, 6], [3940, 700, 6], [3955, 560, 5], [3968, 440, 4],
+    [3320, 830, 4], [3335, 900, 6], [3350, 1000, 6], [3370, 1120, 6], [3410, 1196, 4], [3470, 1240, 3], [3540, 1268, 3], [3600, 1284, 2], [3654, 1290, 2],
+    [3710, 1284, 2], [3770, 1266, 3], [3830, 1232, 3], [3862, 1186, 4], [3880, 1100, 6], [3900, 980, 6], [3920, 840, 6], [3940, 700, 6], [3955, 560, 5], [3968, 440, 4],
     // Kelp forest + mangrove roots on the shallower seabed
     [3990, 388, 3], [4200, 384, 4], [4450, 390, 4], [4700, 384, 4], [4880, 388, 4],
     // Mangrove: a shallow, muddy flat (real mangroves grow in shallow water)
-    [4930, 320, 4], [4980, 230, 3], [5040, 190, 3], [5200, 194, 3], [5350, 188, 3], [5500, 196, 3], [5600, 190, 3],
-    [5650, 250, 3], [5690, 388, 3],
+    [4930, 350, 4], [4980, 300, 3], [5040, 278, 3], [5200, 282, 3], [5350, 276, 3], [5500, 284, 3], [5600, 278, 3],
+    [5650, 320, 3], [5690, 388, 3],
     // Ice shelf / polar waters
     [5760, 392, 3], [5900, 396, 4], [6100, 392, 4], [6300, 398, 4], [6500, 394, 4], [6700, 396, 4], [6800, 396, 0]
   ],
@@ -65,29 +65,29 @@ AQ.data.world = {
         { type: 'crystal', at: 'ceiling', n: 5, colors: ['#6fd6e8', '#9f7fe8'] },
         { type: 'pebbles', at: 'floor', n: 6 }
       ] },
-    { id: 'trench', name: 'Deep Trench', short: 'Trench', rect: [3320, 640, 660, 640],
+    { id: 'trench', name: 'Deep Trench', short: 'Trench', rect: [3320, 640, 660, 800],
       palette: { top: ['#2c3448', '#252c3d', '#1e2433'], rock: ['#1b2130', '#161b27', '#11151f'], accent: '#3c6b7a', style: 'strata' }, water: '#050c1c', waterMix: 0.4, dark: 0.74,
       props: [
-        { type: 'spire', at: 'floor', n: 10, y: [1150, 1260] },
-        { type: 'bones', at: 'floor', n: 3, y: [1150, 1260] },
-        { type: 'rock', at: 'floor', n: 14 },
-        { type: 'tubeworms', at: 'floor', n: 6 }
+        { type: 'spire', at: 'floor', n: 10, y: [1150, 1300] },
+        { type: 'bones', at: 'floor', n: 3, y: [1150, 1300] },
+        { type: 'rock', at: 'floor', n: 14, y: [0, 1300] },
+        { type: 'tubeworms', at: 'floor', n: 10, y: [1150, 1300] }
       ] },
-    { id: 'vents', name: 'Volcanic Vents', short: 'Vents', rect: [2560, 600, 760, 680],
+    { id: 'vents', name: 'Volcanic Vents', short: 'Vents', rect: [2560, 600, 760, 840],
       palette: { top: ['#4a3f44', '#3d3338', '#33292e'], rock: ['#2f282c', '#272124', '#1f1a1d'], accent: '#ff8a3a', style: 'strata', embers: true }, water: '#3a2230', waterMix: 0.25, dark: 0.55,
       props: [
         { type: 'ventcrack', at: 'floor', n: 3, y: [790, 820] },
         { type: 'tubeworms', at: 'floor', n: 6 },
         { type: 'rock', at: 'floor', n: 5, color: '#4a3f44' }
       ] },
-    { id: 'open_ocean', name: 'Open Ocean', short: 'Open Ocean', rect: [2420, 0, 1550, 1280],
+    { id: 'open_ocean', name: 'Open Ocean', short: 'Open Ocean', rect: [2420, 0, 1550, 1440],
       palette: { top: ['#6d7c88', '#5d6b78', '#4f5c68'], rock: ['#46525e', '#3c4652', '#323b46'], accent: '#8da3b0' }, water: '#1f5fa8', waterMix: 0.2, dark: 0,
       props: [
         { type: 'rock', at: 'floor', n: 16 },
         { type: 'seagrass', at: 'floor', n: 8, y: [0, 420] },
         { type: 'anemone', at: 'floor', n: 5, y: [0, 500] }
       ] },
-    { id: 'tide_pools', name: 'Tide Pools', short: 'Tide Pools', rect: [0, 0, 720, 1280],
+    { id: 'tide_pools', name: 'Tide Pools', short: 'Tide Pools', rect: [0, 0, 720, 1440],
       palette: { top: ['#ecd9a0', '#d9c084', '#c4a86c'], rock: ['#8c8178', '#766b63', '#5f564f'], accent: '#6fa35a' }, water: '#58d0cf', waterMix: 0.25, dark: 0,
       props: [
         { type: 'algae', at: 'floor', n: 34, air: true, area: [0, 520] },
@@ -100,7 +100,7 @@ AQ.data.world = {
         { type: 'anemone', at: 'floor', n: 5, area: [480, 760] },
         { type: 'urchin', at: 'floor', n: 3, area: [520, 760] },
       ] },
-    { id: 'coral', name: 'Coral Shelf', short: 'Coral', rect: [720, 0, 1180, 1280],
+    { id: 'coral', name: 'Coral Shelf', short: 'Coral', rect: [720, 0, 1180, 1440],
       palette: { top: ['#f3e2b6', '#e6cf9a', '#d4b984'], rock: ['#c4a58a', '#a98b72', '#8d725d'], accent: '#ef8aa0' }, water: '#3fc0d8', waterMix: 0.25, dark: 0,
       props: [
         { type: 'coral', at: 'floor', n: 90 },
@@ -111,7 +111,7 @@ AQ.data.world = {
         { type: 'shell', at: 'floor', n: 6 },
         { type: 'urchin', at: 'floor', n: 4 }
       ] },
-    { id: 'ruins', name: 'Sunken Ruins', short: 'Ruins', rect: [1900, 0, 520, 1280],
+    { id: 'ruins', name: 'Sunken Ruins', short: 'Ruins', rect: [1900, 0, 520, 1440],
       palette: { top: ['#a6a283', '#928e70', '#7d7a5f'], rock: ['#6d6b5c', '#5c5a4d', '#4b4a40'], accent: '#a5643a' }, water: '#4a8f8a', waterMix: 0.3, dark: 0.05,
       props: [
         { type: 'plank', at: 'floor', n: 7 },
@@ -124,7 +124,7 @@ AQ.data.world = {
         { type: 'seagrass', at: 'floor', n: 10, colors: ['#6f8a3e', '#5b7333', '#86a04a'] },
         { type: 'rock', at: 'floor', n: 8 }
       ] },
-    { id: 'kelp', name: 'Kelp Forest', short: 'Kelp', rect: [3970, 0, 930, 1280],
+    { id: 'kelp', name: 'Kelp Forest', short: 'Kelp', rect: [3970, 0, 930, 1440],
       palette: { top: ['#bfae7c', '#a8976a', '#8f8059'], rock: ['#6e705f', '#5c5e4f', '#4a4c40'], accent: '#7a9a3a' }, water: '#2f8a6a', waterMix: 0.3, dark: 0.08,
       props: [
         { type: 'kelp', at: 'floor', every: 32, chance: 0.85, area: [3990, 4900] },
@@ -132,7 +132,7 @@ AQ.data.world = {
         { type: 'seagrass', at: 'floor', n: 18 },
         { type: 'kelp', at: 'floor', every: 110, chance: 0.5, layer: 'front', sparse: true, alpha: 150, colors: ['#3f5a1c', '#33491a', '#4d6b22'], area: [3990, 4900] }
       ] },
-    { id: 'mangrove', name: 'Mangrove Roots', short: 'Mangrove', rect: [4900, 0, 800, 1280],
+    { id: 'mangrove', name: 'Mangrove Roots', short: 'Mangrove', rect: [4900, 0, 800, 1440],
       palette: { top: ['#6e5a3c', '#5c4b32', '#4a3c29'], rock: ['#4e4234', '#41372b', '#342c23'], accent: '#7d8f3c' }, water: '#5c7a3a', waterMix: 0.4, dark: 0.12,
       props: [
         { type: 'mangrove', at: 'floor', every: 115, area: [4930, 5660] },
@@ -140,7 +140,7 @@ AQ.data.world = {
         { type: 'rock', at: 'floor', n: 10, color: '#5c4b32' },
         { type: 'algae', at: 'floor', n: 15, color: '#6b5a2f' }
       ] },
-    { id: 'ice', name: 'Ice Shelf', short: 'Ice', rect: [5700, 0, 1100, 1280], zones: [{ name: 'Icy', x0: 5700, x1: 6250 }, { name: 'Glaciers', x0: 6250, x1: 6800 }],
+    { id: 'ice', name: 'Ice Shelf', short: 'Ice', rect: [5700, 0, 1100, 1440], zones: [{ name: 'Icy', x0: 5700, x1: 6250 }, { name: 'Glaciers', x0: 6250, x1: 6800 }],
       palette: { top: ['#eef8ff', '#d2ebf7', '#b4d8ea'], rock: ['#5e6976', '#4f5966', '#424a55'], accent: '#9fd3ee' }, water: '#7fc6e6', waterMix: 0.35, dark: 0.05,
       props: [
         { type: 'icicle', at: 'ceiling', n: 26 },

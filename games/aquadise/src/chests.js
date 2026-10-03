@@ -17,7 +17,11 @@ AQ.Chests = (function () {
     const biomes = AQ.World.biomes;
     for (let tries = 0; tries < 30; tries++) {
       const b = R.pick(biomes);
-      const spot = AQ.Creatures.findSpot({ id: 'chest', biome: b.id, is_plant: true, spriteKey: 'chest', spawn: {} }, 'floor');
+      // never deeper than you can currently dive (DEEP upgrade), or the chest would be out of reach
+      const U2 = AQ.TUNING.upgrades, lvl = (game.upgrades && game.upgrades.depth) || 0;
+      const lim = U2.depthLimitY[Math.min(lvl, U2.depthLimitY.length - 1)];
+      const sp = lim != null ? { y: [0, lim - 8] } : {};
+      const spot = AQ.Creatures.findSpot({ id: 'chest', biome: b.id, is_plant: true, spriteKey: 'chest', spawn: sp }, 'floor');
       if (!spot) continue;
       const P = game.player;
       if (!initial && Math.hypot(spot[0] - P.x, spot[1] - P.y) < T().minPlayerDist) continue;
@@ -32,9 +36,11 @@ AQ.Chests = (function () {
     const up = game.upgrades, opts = [];
     if (up.net < AQ.TUNING.net.maxLevel) opts.push('net');
     if (up.speed < AQ.TUNING.speedMaxLevel) opts.push('speed');
+    if ((up.lantern || 0) < AQ.TUNING.upgrades.lanternMax) opts.push('lantern');
+    if ((up.depth || 0) < AQ.TUNING.upgrades.depthMax) opts.push('depth');
     if (!opts.length) return null;
     const pick = R.pick(opts);
-    up[pick]++;
+    up[pick] = (up[pick] || 0) + 1;
     if (pick === 'speed') game.player.speedLevel = up.speed;
     AQ.Save && AQ.Save.dirty();
     return pick;
@@ -52,9 +58,12 @@ AQ.Chests = (function () {
           const what = reward(game);
           AQ.FX.sparkle(c.x, c.y - 8, '#ffe36b', 18);
           AQ.Audio.play('chest');
+          if (what) AQ.Audio.play({ net: 'up_net', speed: 'up_speed', lantern: 'up_lantern', depth: 'up_depth' }[what], { delay: 0.75 });
           if (what === 'net') AQ.HUD.toast(`BIGGER NET! (LV ${game.upgrades.net})`, '#ffe36b', 3.5);
           else if (what === 'speed') AQ.HUD.toast(`SWIM SPEED UP! (LV ${game.upgrades.speed})`, '#7ef0c0', 3.5);
-          else AQ.HUD.toast('Empty... your gear is already the best.', '#cfe8ff');
+          else if (what === 'lantern') AQ.HUD.toast(`BRIGHTER LANTERN! (LV ${game.upgrades.lantern})`, '#ffe9a8', 3.5);
+          else if (what === 'depth') AQ.HUD.toast(`DEEPER DIVES! (DEPTH LV ${game.upgrades.depth})`, '#9fd8ff', 3.5);
+          else AQ.HUD.toast('Empty... all four upgrades are already the best.', '#cfe8ff');
         } else if (c.t > c.life) { AQ.FX.puff(c.x, c.y - 4, 'rgba(220,210,180,0.6)', 8); remove(i); }
       } else if (c.t > 2.5) remove(i);
     }

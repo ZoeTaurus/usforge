@@ -13,12 +13,15 @@ AQ.Creatures = (function () {
       def.params = def.params || {};
       def.spriteKey = (def.is_plant ? 'plant.' : 'creature.') + def.id;
       if (!AQ.World.biomeById[def.biome]) { console.warn('[creatures] unknown biome', def.biome, def.id); continue; }
-      const n = (def.spawn && def.spawn.n) || 1;
-      for (let i = 0; i < n; i++) {
-        const slot = { def, timer: 0, members: [] };
-        C.slots.push(slot);
-        spawnSlot(slot);
-      }
+      // spawn.extra: more places this creature also lives, each { n, at, area, y } like spawn itself
+      const groups = [def.spawn || { at: 'water' }].concat((def.spawn && def.spawn.extra) || []);
+      groups.forEach((sp, gi) => {
+        for (let i = 0; i < (sp.n || 1); i++) {
+          const slot = { def, timer: 0, members: [], sp: gi ? sp : null };
+          C.slots.push(slot);
+          spawnSlot(slot);
+        }
+      });
     }
   };
 
@@ -63,10 +66,11 @@ AQ.Creatures = (function () {
   }
 
   function spawnSlot(slot) {
-    const def = slot.def, sp = def.spawn || { at: 'water' };
+    const def = slot.def, sp = slot.sp || def.spawn || { at: 'water' };
+    if (AQ.Clock && !AQ.Clock.activeFor(def)) { slot.timer = 8; return; }   // night-only (or day-only): wait for its hours
     if (def.rare !== undefined && R() > def.rare) { slot.timer = 60; return; }
     if (def.catch_behavior === 'school') {
-      const spot = C.findSpot(def, sp.at);
+      const spot = C.findSpot(def, sp.at, undefined, undefined, sp);
       if (!spot) { slot.timer = 10; return; }
       const size = R.int(def.params.size ? def.params.size[0] : 5, def.params.size ? def.params.size[1] : 7);
       const school = { x: spot[0], y: spot[1], hx: spot[0], hy: spot[1], vx: 0, vy: 0, t: 0, fleeT: 0, members: [] };
@@ -81,7 +85,7 @@ AQ.Creatures = (function () {
       }
       return;
     }
-    const spot = C.findSpot(def, sp.at);
+    const spot = C.findSpot(def, sp.at, undefined, undefined, sp);
     if (!spot) { slot.timer = 15; return; }
     slot.members.push(makeCreature(def, spot[0], spot[1], slot));
   }
@@ -101,8 +105,8 @@ AQ.Creatures = (function () {
   }
 
   // Returns a creature-centre position for placement kind `at`, or null.
-  C.findSpot = function (def, at, nearX, radius) {
-    const W = AQ.World, b = W.biomeById[def.biome], sp = def.spawn || {};
+  C.findSpot = function (def, at, nearX, radius, spawn) {
+    const W = AQ.World, b = W.biomeById[def.biome], sp = spawn || def.spawn || {};
     const r = spriteR(def);
     const [bx, by, bw, bh] = b.rect;
     let x0 = Math.max(bx, (sp.area && sp.area[0]) || bx), x1 = Math.min(bx + bw, (sp.area && sp.area[1]) || bx + bw);
@@ -153,22 +157,38 @@ AQ.Creatures = (function () {
         if (W.water(x, y) && W.water(x + 8, y) && W.water(x - 8, y) && W.water(x, y + 8) && W.water(x, y - 8)) return [x, y];
       }
     }
-    if (at === 'ice_top') return C.findSpot(def, 'surface', nearX, radius);
+    if (at === 'ice_top') return C.findSpot(def, 'surface', nearX, radius, spawn);
     return null;
   };
 
   // ---------------------------------------------------------------- update
   const ctx = {};
+  // Safety net: a visible swimmer that somehow ended up inside rock (a knock, a leap) is moved to
+  // the nearest open water instead of staying stuck there.
+  function unstick(c) {
+    const W = AQ.World;
+    for (let r = 2; r <= 40; r += 2) for (let a = 0; a < 16; a++) {
+      const x = c.x + Math.cos(a / 16 * Math.PI * 2) * r, y = c.y + Math.sin(a / 16 * Math.PI * 2) * r;
+      if (W.water(x, y)) { c.x = x; c.y = y; c.vx = c.vy = 0; c.target = null; return; }
+    }
+  }
+  C.frame = 0;
   C.update = function (dt, game) {
+    C.frame++;
     const P = game.player, simR = AQ.TUNING.creatures.simRadius;
     ctx.P = P; ctx.noise = P.noise(); ctx.bait = AQ.Catching ? AQ.Catching.bait : null;
-    for (const c of C.list) {
+    for (const c of C.list.slice()) {
       const dx = P.x - c.x, dy = P.y - c.y;
-      if (Math.abs(dx) > simR || Math.abs(dy) > simR) continue;
+      const far = Math.abs(dx) > simR || Math.abs(dy) > simR;
+      // out of its hours and nowhere near you: it has simply gone home
+      if (far && c.def.active && AQ.Clock && !AQ.Clock.activeFor(c.def)) { C.remove(c); if (c.slot) c.slot.timer = 8; continue; }
+      if (far) continue;
       ctx.dx = dx; ctx.dy = dy; ctx.dist = Math.hypot(dx, dy);
       c.t += dt; c.iconT -= dt; c.hitCD -= dt;
       c.bhv.update(c, ctx, dt);
-      c.alpha += (c.targetAlpha - c.alpha) * Math.min(1, dt * 5);
+      if (c.def.active && AQ.Clock && !AQ.Clock.activeFor(c.def)) leave(c, dt);
+      if (c.movement === 'swim' && !c.hidden && AQ.World.solid(c.x, c.y)) unstick(c);
+      c.alpha += (c.targetAlpha - c.alpha) * Math.min(1, dt * (c.leaving ? 1 : 5));
       if (c.hostileActive && c.hitCD <= 0 && ctx.dist < c.r + 7) {
         const k = AQ.TUNING.knockback[c.def.knockback === 'strong' ? 'strong' : 'light'];
         P.knock(dx || 1, dy - 2, k);
@@ -185,6 +205,16 @@ AQ.Creatures = (function () {
       if (s.timer <= 0) spawnSlot(s);
     }
   };
+
+  // Out of its hours (e.g. a night creature at dawn): it can't be netted any more and slowly fades
+  // away: swimmers drift off and down, crawlers and plants sink into the ground (burrow / close up).
+  function leave(c, dt) {
+    if (!c.leaving) { c.leaving = true; c.leaveDir = R.chance(0.5) ? 1 : -1; }
+    c.catchable = false; c.pryable = false; c.targetAlpha = 0; c.hostileActive = false;
+    if (c.movement === 'swim') { c.x += c.leaveDir * 10 * dt; c.y += 4 * dt; c.facing = c.leaveDir; }
+    else c.y += 2 * dt;
+    if (c.alpha < 0.04) { C.remove(c); if (c.slot) c.slot.timer = 8; }
+  }
 
   // Removes a caught creature and schedules its slot to respawn once empty.
   C.remove = function (c) {
@@ -211,6 +241,7 @@ AQ.Creatures = (function () {
       if (c.p.home && AQ.Assets.has(c.p.home)) AQ.Assets.draw(g, c.p.home, 'idle', c.hx, c.hy + c.foot);
       if (c.alpha < 0.02) continue;
       AQ.Assets.draw(g, c.key || c.def.spriteKey, c.moving ? 'move' : 'idle', c.x, c.y, { t: c.t, flip: c.facing < 0, flipY: c.flipY, alpha: Math.min(1, c.alpha) });
+      if (c.bhv.draw) c.bhv.draw(g, c);          // extras (e.g. a lure's glowing decoy)
     }
   };
   C.drawFront = function (g) {
@@ -234,9 +265,11 @@ AQ.Creatures = (function () {
   C.lights = function (L) {
     const cam = AQ.Camera, l = cam.left() - 60, t = cam.top() - 60;
     for (const c of C.list) {
+      if (c.decoy && c.x > l && c.x < l + cam.w + 120 && c.y > t && c.y < t + cam.h + 120) L.push({ x: c.decoy.x, y: c.decoy.y, r: c.p.glow || 26, color: c.p.decoyColor || '#d8ff8a', power: c.decoy.a * Math.max(0.5, c.alpha) });
       const lt = c.def.light;
       if (!lt || c.harvested || c.x < l || c.x > l + cam.w + 120 || c.y < t || c.y > t + cam.h + 120) continue;
       if (lt.pulse && !c.glow) continue;
+      if (c.closed) continue;                    // a night bloom closed for the day
       const yy = c.def.is_plant ? c.y - 5 : c.y;
       L.push({ x: c.x + (c.def.art && c.def.art.lure ? c.facing * c.r : 0), y: yy, r: lt.r, color: lt.color, power: Math.max(0.4, c.alpha) });
     }

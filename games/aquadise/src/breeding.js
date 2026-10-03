@@ -75,9 +75,12 @@ AQ.Breeding = (function () {
     const d = defOf(id), e = { uid: AQ.U.uid(), id, bornAt: now };
     const sex = AQ.Sex.random(d);
     if (sex) e.sex = sex;
+    const rare = Math.random() < cfg().variantChance;           // a rare colour variant (only ever bred)
+    if (rare) { e.variant = true; AQ.Sex.logOf(id).variant = true; }
     tank.creatures.push(e);
     AQ.Sex.logOf(id).bred = true;
-    announce(`A baby ${d.name} was born in the ${tankName(tankId)} tank!`, tankId);
+    AQ.Audio.play('baby');
+    announce(rare ? `A rare-coloured baby ${d.name} was born in the ${tankName(tankId)} tank!` : `A baby ${d.name} was born in the ${tankName(tankId)} tank!`, tankId);
     return e;
   }
 
@@ -109,6 +112,7 @@ AQ.Breeding = (function () {
         if (why === 'resting' || Math.random() > c.startChance) continue;
         const p = pairs[Math.floor(Math.random() * pairs.length)];
         tank.court = { a: p[0].uid, b: p[1].uid, id: p[0].id, progress: 0 };
+        AQ.Audio.play('court');
         changed = true;
         continue;
       }

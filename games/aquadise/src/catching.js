@@ -110,13 +110,20 @@ AQ.Catching = (function () {
         }
         continue;
       }
-      if (Math.hypot(cx - net.x, cy - net.y) > net.r + c.r * 0.8) continue;
+      const onBody = Math.hypot(cx - net.x, cy - net.y) <= net.r + c.r * 0.8;
+      // a lure's glowing decoy: netting it only makes it puff and flicker
+      if (!onBody && c.decoy && c.bhv.decoyHit && Math.hypot(c.decoy.x - net.x, c.decoy.y - net.y) <= net.r + 3) {
+        s.hits.add(c); c.bhv.decoyHit(c);
+        if (!s.msg) { s.msg = true; AQ.HUD.toast(c.bhv.missText, '#cfe8ff'); }
+        continue;
+      }
+      if (!onBody) continue;
       s.hits.add(c);
       if (c.def.is_plant) { harvest(game, c); continue; }
       if (c.catchable) tryCatch(game, c);
       else if (!s.msg) {
         s.msg = true;
-        AQ.HUD.toast(c.hidden ? (c.pryable ? 'It\'s wedged in! Hold the net to pry.' : 'It\'s hiding out of reach.') : 'It slipped away!', '#cfe8ff');
+        AQ.HUD.toast(c.hidden ? (c.pryable ? 'It\'s wedged in! Hold the net to pry.' : 'It\'s hiding out of reach.') : (c.bhv.missText && !c.decoy) ? c.bhv.missText : 'It slipped away!', '#cfe8ff');
         AQ.FX.puff(cx, cy, 'rgba(255,255,255,0.5)', 3);
       }
     }
@@ -124,6 +131,7 @@ AQ.Catching = (function () {
 
   function harvest(game, c) {
     if (c.harvested) return;
+    if (c.closed) { AQ.HUD.toast(`The ${c.def.name} is closed tight. Come back at night.`, '#cfe8ff'); AQ.FX.puff(c.x, c.y - 4, 'rgba(255,255,255,0.4)', 3); return; }
     const ctx = ctxFor(game, c);
     if (c.p.sting && ctx.noise > AQ.TUNING.stealth.carelessNoise) {
       game.player.knock(ctx.dx || 1, ctx.dy - 3, AQ.TUNING.knockback.light);
@@ -152,7 +160,7 @@ AQ.Catching = (function () {
     AQ.FX.sparkle(c.x, c.y, '#fff7c2', 12);
     AQ.FX.text(c.x, c.y - 8, pried ? 'PRIED!' : 'GOT IT!', '#ffe36b');
     AQ.HUD.toast(`Caught ${c.def.name}!${isNew ? '  NEW!' : ''}`, isNew ? '#ffe36b' : '#ffffff', 3);
-    AQ.Audio.play('catch');
+    AQ.Audio.play('catch', { rare: !!c.def.rare });
   }
 
   K.draw = function (g, game) {

@@ -832,6 +832,11 @@ body.playing .site-banner { display: none; }
 .wheel-acts .play-btn { margin: 0; }
 .detail > div.shots { grid-column: 1; grid-row: 2; }   /* (more specific than the text column's rule, which also matches divs) */
 @media (max-width: 760px) { .detail > div.shots { grid-column: auto; grid-row: auto; } }
+/* the left column (cover, screenshots, leaderboard) stays packed at the top: the last row soaks up the tall text column's extra height */
+@media (min-width: 761px) {
+  .detail { grid-template-rows: auto auto 1fr; }
+  .detail > div:not(.cover):not(.shots) + .board { grid-row: 2; }   /* no screenshots: the leaderboard goes right under the cover */
+}
 /* "N online now": its separator dot sat inside the green highlight — keep the highlight on the words only */
 .stat-live.live-clickable { margin: 0; }
 .stat-live::before { display: none; }

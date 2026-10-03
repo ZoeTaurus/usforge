@@ -28,7 +28,7 @@ npx http-server -c-1 .      # or: python3 -m http.server
 | interact (beam up/down, open a tank) | E                         |
 | climb a ladder      | W / S (or Up / Down) on a ladder         |
 | building: whole-view toggle | V                                |
-| collection log      | L                                        |
+| collection log      | L (Left/Right: tabs, Q/E: biome, Up/Down or wheel: scroll) |
 | map                 | M                                        |
 | pause / home / reset | Esc                                     |
 | help overlay        | H                                        |
@@ -41,6 +41,18 @@ it to remove it. **X** flips the held or hovered piece, **Z** moves it in front 
 Click a creature for its info card. Hover the stars for what's helping and what's missing. The
 **FISH** tray moves creatures between the tank and storage.
 
+**Photo mode** (tank screen: the PHOTO button or **P**): the buttons, trays, hints and info cards
+hide and a camera frame shows. **Space** or a click in the tank takes a picture: a shutter sound, a
+quick white flash, and a PNG downloads at 3x the game's pixels (nearest-neighbour, no blurring), named
+like `Aquadise-TidePools-2026-10-03.png`, with a small "Saved!" preview. **Z** freezes the creatures
+so you can pose a shot, **I** hides or shows hearts and mood icons, **F** cycles the frame (none,
+pixel border, polaroid) and **C** turns the caption (tank name, stars, date) on for the first two
+(the polaroid always has one). **P** or **Esc** leaves. Works on every tank, predator tanks included.
+Tuning: `AQ.TUNING.photo` (key, scale, default frame, flash, preview time). When the game is opened
+straight from disk (file://) the sprites load from `assets/sprites-embedded.js` (kept in sync by
+`tools/gen-placeholders.js`, or run `node tools/embed-sprites.js` after replacing art), because
+browsers won't let a page save pictures made from file:// images.
+
 ## How it plays
 
 - **Title screen (home):** the world drifts by behind the logo. Continue, New Game (asks to
@@ -49,6 +61,10 @@ Click a creature for its info card. Hover the stars for what's helping and what'
 - **Catching.** Creatures react to how close and how fast you are. Sneak, or drop bait to lure
   them out, then net them. Each species uses a reusable catch behaviour (hides, darts, schools,
   camouflage, timing windows, patrols, needs coaxing, and so on). The log lists a tip for every species.
+- **Collection log tabs:** SPECIES (each biome's species, families grouped under a heading),
+  VARIANTS (every rare colour variant, grouped by biome, with a "VARIANTS n/total" count) and NOTES
+  (field notes from message bottles). Left/Right arrows or a click switch tabs; Q/E or the < >
+  buttons switch biome. All counts are worked out from the data.
 - **Tide Pools are dry land** (merged from the Milestone 2 prototype): you walk and jump on the
   shore and only swim once the water is deep enough to submerge you. Shallow pools are splashed
   through and deep ones can be swum in. Tap a pool with the net to try for a Glasswinged Minnow.
@@ -61,10 +77,35 @@ Click a creature for its info card. Hover the stars for what's helping and what'
 - **New catch behaviours:** `mirror` (copies your swimming mirrored; hold still and it drifts in),
   `lure` (a glowing decoy on a stalk; net the dim creature beside it, not the light) and `midair`
   (leaps out of the water; only nettable in the air). See the header of data/creatures.js.
-- **Nine new creatures (70 in all):** Auroravein Squid (ice, night), Moonshell Crab (tide pools,
+- **Nine new creatures:** Auroravein Squid (ice, night), Moonshell Crab (tide pools,
   night), Ribbonmane (kelp, mirror), Candlepolyp (coral plant, blooms at night), Skyleap Flyfish
   (open ocean, mid-air), Sail Turtle (open ocean), Pressure Tortoise (bottom of the trench, depth 3),
   Bellcrab (ruins) and Firefly Frog (mangrove, night, lure). Existing creatures have no new gates.
+- **Axolotls (Lush Cave):** five natural colours, each its own species with its own log entry,
+  sexes and breeding: Azalea (pink), Aurum (gold), Pluvia (cyan), Viridis (green) and Navious (blue).
+  A pair always has babies of its own colour. They share a `family: 'axolotl'` tag, so the log groups
+  them under an AXOLOTL heading. Azalea and Viridis are common, Pluvia and Navious uncommon and Aurum
+  rare: the weights (and how many axolotls are out at once) are `AQ.data.families.axolotl` in
+  `data/creatures.js`. Their rare bred variant is a pattern (white with gold speckles), not a hue
+  shift, so it never looks like one of the five colours. Older saves: the pale pink lush-cave species
+  they replace becomes the Azalea Axolotl (catches, log, tanks, storage, eggs and courting pairs).
+- **Message bottles + field notes:** one bottle per species, lying on the seabed, on the Tide Pools
+  shore or bobbing at the surface in that species' biome. They glint softly; swim (or walk) into one
+  to pick it up, like a chest. Found bottles are saved and never come back. Each holds a field
+  researcher's notes on its species (`data/lore.js`): an epithet, an invented scientific name and a
+  few lines of biology. The species' name only appears once you've caught it ("this creature"
+  until then). Read them on a species' entry page (ENTER or click in the SPECIES tab, in its Field
+  Notes section) or in the NOTES tab, grouped by biome. The log header shows "BOTTLES FOUND n/total".
+  Placement is the same every time (seeded), never inside terrain, and every bottle can be reached
+  without any upgrade (checked with the sea scene's own "can the player be here" test and a flood
+  fill from the start that stops at the level-0 depth limit). Tuning: `AQ.TUNING.bottles`
+  (pickup radius, glint, glow, spacing, share floating at the surface).
+- **Distant seagulls:** wherever the sky shows (the sea surface, the Tide Pools shore and the hill),
+  a small flock of 1-4 tiny V-shaped gulls now and then drifts slowly across, flapping between two
+  wing frames and moving less than the camera so they feel far away. Day, dawn and dusk only (they
+  fade away at night), tinted to suit the sky; scenery only. A very faint, rate-limited gull cry plays
+  as a flock passes, through the ambience volume (and mute). Tuning: `AQ.TUNING.gulls` (how often,
+  most flocks at once, flock size, speed, parallax, flap speed, cry volume and gap).
 - **No fail state.** Hostile creatures only knock you back. Air is unlimited.
 - **Progression** comes only from chests: a bigger net (3 levels) and faster swimming (3 levels).
   Six chests exist at a time, and they despawn and respawn around the world.
@@ -98,7 +139,8 @@ Click a creature for its info card. Hover the stars for what's helping and what'
   `active: 'night'` only come out at night and fade away at dawn. Testing: set
   `debug.timeSkip: true` and press **N** in the sea to jump ahead `clock.skipHours`.
 - **Rare colour variants.** A baby born in a tank has a small chance (`breeding.variantChance`, 4%) to
-  be a rare colour variant (✦). Only bred babies, never wild ones. The log has a ✦ slot per species.
+  be a rare colour variant (✦). Only bred babies, never wild ones. The log's VARIANTS tab lists every
+  species that can have one (every animal) and which ones you've bred, with a count.
 - **Aquarium.** One tank per biome, and a creature can only live in its own biome's tank.
   Nothing ever dies and nothing is punished:
   - **Tank vibe (0-5 stars):** decor variety and amount, biome-themed pieces, plants, being fed
@@ -174,12 +216,16 @@ src/miniworld.js      small collision maps for side scenes (ladders, one-way pla
 src/hill.js           the hill scene with the UFO and its beam
 src/station.js        the aquarium building in space (tanks on the walls, directory, beam pad)
 src/ui.js             collection log, map, pause
+src/gulls.js          distant seagull flocks in the sky (sea + hill)
+src/bottles.js        message bottles: deterministic, reachable placement, pickup, glint
+assets/sprites-embedded.js   base64 copy of the sprites for file:// (tools/embed-sprites.js)
 src/audio.js          audio engine: mixer, voice limit, underwater filter, settings, file mapping
 src/sfx.js            every sound effect recipe (registered by id)
 src/ambience.js       the looping place sounds + their crossfading director
 src/music.js          generative music engine + director (pieces in data/music.js)
 src/sounddirector.js  per-frame sound hooks: steps, splashes, beam, chimes, creature voices
 src/soundtest.js      SOUND settings panel and the SOUND TEST screen
+data/lore.js          field notes, one per species (found in message bottles)
 data/music.js         music pieces, scales, motif, creature voice map, audio file mapping
 assets/audio/         recorded sounds (+ embedded.js, generated by tools/embed-audio.js)
 tools/gen-placeholders.js   writes placeholder PNGs + manifest from the data files

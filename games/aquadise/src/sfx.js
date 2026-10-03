@@ -141,6 +141,32 @@ var AQ = (typeof AQ !== 'undefined') ? AQ : {};
     H.noise(c, o, t, { f: 4000, f2: 1600, q: 0.8, a: 0.03, d: 0.14, v: 0.05 });
     return H.bell(c, o, t + 0.06, m(81), 0.03, 0.4) + 0.06;
   }, { important: true });
+  reg('bottle', 'world', 'BOTTLE PICKUP', (c, o, t) => {
+    H.tone(c, o, t, { f: 520, f2: 260, glide: 0.05, d: 0.06, v: 0.12 });                 // cork pop
+    H.noise(c, o, t, { ft: 'highpass', f: 2500, a: 0.002, d: 0.03, v: 0.05 });
+    return run(c, o, t + 0.1, [88, 95, 100], 0.07, 0.045, 1.1) + 0.1;                       // glass chime
+  }, { important: true, minGap: 0.3 });
+  reg('shutter', 'aquarium', 'CAMERA SHUTTER', (c, o, t) => {
+    H.noise(c, o, t, { ft: 'highpass', f: 2800, a: 0.001, d: 0.025, v: 0.09 });          // click
+    H.tone(c, o, t + 0.005, { type: 'triangle', f: 900, f2: 500, d: 0.04, v: 0.04 });
+    H.noise(c, o, t + 0.07, { ft: 'highpass', f: 3200, a: 0.001, d: 0.02, v: 0.06 });     // the blades close
+    return H.noise(c, o, t + 0.03, { f: 1500, q: 0.8, a: 0.02, d: 0.08, v: 0.03 }) + 0.05;   // soft whirr
+  }, { important: true, minGap: 0.2 });
+  // a very faint, far-off gull cry as a flock passes: played through the AMBIENCE bus (ambience
+  // volume + mute apply), rate-limited by AQ.TUNING.gulls.cryMinGap
+  reg('gull_far', 'world', 'DISTANT GULLS', (c, o, t) => {
+    const n = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < n; i++) {
+      const f = 1350 + Math.random() * 250;
+      H.tone(c, o, t + i * 0.34, { type: 'triangle', f, f2: f * 0.7, glide: 0.24, a: 0.03, d: 0.24, v: 0.035, lp: 2200 });
+      H.tone(c, o, t + i * 0.34 + 0.12, { type: 'triangle', f: f * 0.95, f2: f * 0.68, glide: 0.18, a: 0.02, d: 0.16, v: 0.02, lp: 2000 });
+    }
+    return 0.4 + n * 0.34;
+  }, { bus: 'amb', minGap: AQ.TUNING.gulls.cryMinGap });
+  reg('page_turn', 'menus', 'PAGE TURN', (c, o, t) => {
+    H.noise(c, o, t, { f: 1800, f2: 3600, q: 0.7, a: 0.03, d: 0.12, v: 0.06 });      // paper swish
+    return H.noise(c, o, t + 0.09, { ft: 'lowpass', f: 600, a: 0.005, d: 0.05, v: 0.04 }) + 0.09;   // soft settle
+  }, { minGap: 0.08, important: true });
   reg('toast', 'menus', 'TOAST BLIP', (c, o, t) => H.bell(c, o, t, m(91), 0.025, 0.25), { minGap: 0.35 });
 
   // ---------------------------------------------------------------- upgrades (after the chest jingle)

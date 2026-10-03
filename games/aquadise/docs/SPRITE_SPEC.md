@@ -91,7 +91,10 @@ same size, rows and anchor as the normal ones:
 - `creatures/<id>_baby_v.png` (key `creature.<id>.baby.v`): the variant juvenile
 
 The placeholders are the normal sheets with every colour rotated around the colour wheel (a fixed
-amount per species, 100–260°). Real art can paint any variant it likes, such as albino, golden or
+amount per species, 100–260°). A family can override this with a pattern instead
+(`AQ.data.families.<family>.variantArt` in `data/creatures.js`, using the placeholder `speckle` option):
+the axolotls' rare variant is white with gold speckles, so it never matches one of the five natural
+colours (pink, gold, cyan, green, blue). Real art can paint any variant it likes, such as albino, golden or
 dusk-coloured. Draw it on the same frames, and the game picks it up automatically. A missing variant
 sheet falls back to the normal one.
 
@@ -133,6 +136,7 @@ All live in `assets/sprites/scene/`. Replace a PNG with real art of the same siz
 | `misc.ufo`           | 64 × 32  | 4 @ 6 fps         | centre        | hovers over the hilltop |
 | `misc.beam`          | 32 × 96  | 4 @ 8 fps         | top-centre    | drawn translucent ("lighter" blend), stretched to the beam's width and length |
 | `misc.beampad`       | 40 × 12  | 4 @ 6 fps         | bottom-centre | the beam pad in the building |
+| `misc.bottle`        | 12 × 14  | 4 @ 4 fps         | bottom-centre | message bottle (drawn upright: the game tips it over on the seabed and bobs it at the surface); a glint slides down the glass |
 | `misc.console`       | 20 × 28  | 4 @ 6 fps         | bottom-centre | the tank directory |
 | `misc.tank_frame`    | 64 × 44  | 1                 | bottom-centre | keep the window (x 4..59, y 4..35) transparent: the live tank shows through it |
 | `bg.hill_sky`        | 320 × 180| 1                 | top-left      | fixed backdrop behind the hill |
@@ -147,3 +151,9 @@ The player sheet also has row 7 `climb` (2 frames @ 6 fps), shown while on a lad
 The hill's shape comes from `AQ.TUNING.hill`, and the building's layout from `data/scenes.js`, so the
 art only supplies textures and props.
 
+## Embedded copy for file://
+
+`assets/sprites-embedded.js` holds a base64 copy of every sprite in the manifest. The game only uses
+it when `index.html` is opened straight from disk (file://), so tank photos can be saved there
+(browsers block saving canvases drawn from file:// images). `tools/gen-placeholders.js` refreshes it
+automatically; after replacing PNGs by hand, run `node tools/embed-sprites.js`.

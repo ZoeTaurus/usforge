@@ -189,6 +189,38 @@ AQ.TUNING = {
     zoomMargin: 10            // space (px) kept around the building when zoomed out
   },       // ladder climbing speed in the aquarium building (px/s)
 
+  // ---- distant seagulls in the sky (sea surface, Tide Pools shore, the hill); day, dawn + dusk only
+  gulls: {
+    everySeconds: [35, 80],   // a new flock now and then, after this many seconds (random in the range)
+    maxFlocks: 2,             // most flocks in the sky at once
+    flockSize: [1, 4],        // birds per flock
+    speed: [5, 9],            // how fast they drift across the sky (screen px/s): slow and far away
+    parallax: 0.12,           // how much they shift with the camera (small = far away)
+    flapSeconds: 0.7,         // time per wing frame (slow flaps)
+    cryVolume: 0.6,           // their faint cry, on top of the ambience volume
+    cryMinGap: 25             // at most one cry every this many seconds
+  },
+
+  // ---- photo mode on the tank screen (PHOTO button or the key below)
+  photo: {
+    key: 'KeyP',              // enter / leave photo mode
+    scale: 3,                 // saved PNG is this many times the game's pixels (crisp, no blurring)
+    defaultFrame: 2,          // 0 = no frame, 1 = pixel border, 2 = polaroid with a caption
+    flashSeconds: 0.25,       // the white camera flash
+    previewSeconds: 2.5       // how long the little "Saved!" preview stays
+  },
+
+  // ---- message bottles (one per species, holding its field notes; see src/bottles.js, data/lore.js)
+  bottles: {
+    pickupRadius: 12,         // how close (px) you get to pick one up
+    glintPerSecond: 1.2,      // how often a bottle sparkles while it's on screen
+    glowRadius: 14,           // soft light around a bottle in dark places
+    minSpacing: 60,           // bottles are kept at least this far apart (px)
+    scanStep: 3,              // placement search step (px); smaller = more candidate spots
+    airBand: 30,              // dry-land bottles only this close above the waterline (the shore), never the sky
+    floatShare: 0.4           // share of bottles floating at the surface (the rest lie on the seabed / shore)
+  },
+
   // ---- sound and music (all made in code; see src/audio.js, src/sfx.js, src/ambience.js, src/music.js)
   audio: {
     master: 0.8,              // overall loudness of everything (0..1)

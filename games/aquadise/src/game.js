@@ -43,6 +43,7 @@ AQ.Game = (function () {
     G.upgrades = AQ.State.upgrades;
     G.player.speedLevel = G.upgrades.speed;
 
+    if (AQ.Bottles) AQ.Bottles.init();           // before the doors exist: shut doors open by themselves anyway
     if (AQ.Doors) AQ.Doors.init();
     if (AQ.Creatures) AQ.Creatures.init(G);
     if (AQ.Chests) AQ.Chests.init(G);
@@ -99,6 +100,7 @@ AQ.Game = (function () {
         if (I.wasPressed('Escape')) { if (G.state === 'map') G.state = 'play'; else { G.state = 'pause'; I.endFrame(); return; } }
       }
       AQ.Scenes.cur(G).update(dt, G, frozen ? NO_INPUT : I);
+      if (AQ.Gulls) AQ.Gulls.update(dt, G);         // distant seagulls in the sky (sea + hill)
       AQ.HUD.update(dt, G);
       if (AQ.Save) AQ.Save.tick(dt, G);
     } else if (G.state === 'aquarium') {
@@ -140,10 +142,12 @@ AQ.Game = (function () {
     }
     AQ.Render.background(cam);
     if (G.state === 'title') AQ.Title.drawBack(ctx);
+    else if (AQ.Gulls) AQ.Gulls.draw(ctx, G);       // far behind everything, just after the sky
     AQ.Terrain.draw(ctx, cam);
     ctx.save();
     ctx.translate(-cam.left(), -cam.top());
     if (AQ.Chests) AQ.Chests.draw(ctx, G);
+    if (AQ.Bottles && !title) AQ.Bottles.draw(ctx);
     if (!title) AQ.Scenes.drawEntranceCue(ctx, G);
     if (AQ.Doors) AQ.Doors.draw(ctx);
     if (AQ.Creatures) AQ.Creatures.drawBack(ctx, G);
@@ -191,6 +195,7 @@ AQ.Game = (function () {
     for (const f of AQ.Terrain.fireflies) L.push({ x: f.x, y: f.y, r: 9, color: '#ffe36b', power: 0.5 });
     if (AQ.Creatures) AQ.Creatures.lights(L);
     if (AQ.Chests) AQ.Chests.lights(L);
+    if (AQ.Bottles && G.state !== 'title') AQ.Bottles.lights(L);
     return L;
   }
 

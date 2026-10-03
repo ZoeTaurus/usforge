@@ -8,6 +8,10 @@
     "cover": "games/underleaf/cover.png",
     "pixel": false,
     "url": null,
+    "whatsnew": {
+      "text": "Better ant behaviour, and more!",
+      "at": 1791012505
+    },
     "genres": [
       "Casual",
       "Management",
@@ -19,7 +23,7 @@
     "build": true,
     "added": 1790957949,
     "leaderboard": true,
-    "updated": 1790973839
+    "updated": 1791012505
   },
   {
     "slug": "lab-madness",

@@ -7,5 +7,9 @@
     "Casual",
     "Management",
     "Open world"
-  ]
+  ],
+  "whatsnew": {
+    "text": "Better ant behaviour, and more!",
+    "at": 1791012505
+  }
 }

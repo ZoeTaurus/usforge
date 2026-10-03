@@ -23,7 +23,8 @@ function sendScoreToUsForge(score) {
   if (window.parent === window) return;
   if (!Number.isFinite(score) || score < 0 || score >= 1e12) return;
   try {
-    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'seconds' }, '*');
+    // unit 'time' makes UsForge show the score as a clock, e.g. 5:12
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'time' }, '*');
   } catch (e) { /* ignore */ }
 }
 const XP_FOR = { hedgehog: 200, wasp: 15, slug: 8, earwig: 6, dungbeetle: 10, termite: 1, spider: 30, crab: 40, frog: 40, lizard: 35, mouse: 35, scorpion: 30, centipede: 20, mantis: 20, beetle: 15, caterpillar: 8, worm: 8, grasshopper: 6, bee: 4 };
@@ -1060,10 +1061,11 @@ class Game {
 
   onAntDeath(ant, src) {
     if (ant.isPlayer && this.mode === 'play') { META.best('longestLife', Math.floor(this.lifeTime)); META.add('lives'); }
-    // A run is one ant's life. Only the default species is ranked, so scores are comparable.
-    if (ant.isPlayer && this.mode === 'play' && !this.lifeSent && this.species === 'garden') {
+    // A run is one ant's life: report how long it lasted, whatever the species.
+    // Lives shorter than 3 seconds are skipped so an instant death doesn't pop up the score box.
+    if (ant.isPlayer && this.mode === 'play' && !this.lifeSent) {
       this.lifeSent = true;
-      sendScoreToUsForge(Math.floor(this.lifeTime));
+      if (this.lifeTime >= 3) sendScoreToUsForge(Math.floor(this.lifeTime));
     }
     if (ant.colony === this.home) this.stats.lost++;
     else if (src && src.colony === this.home && src.isPlayer) this.gainXp(1);

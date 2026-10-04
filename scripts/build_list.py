@@ -9,6 +9,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 GAMES = ROOT / 'games'
 COVERS = ('cover.png', 'cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif')
 # the genres a game can be tagged with (up to 3) — the same list lives in site.js and worker/index.js
+# the languages a game can say it supports — the same list lives in site.js and worker/index.js
+LANGS = ['en', 'pt', 'es', 'fr', 'de', 'it', 'nl', 'pl', 'ru', 'uk', 'tr', 'zh', 'ja', 'ko', 'ar', 'hi']
 GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Crafting', 'Endless runner', 'Exploration', 'Fighting', 'Idle', 'Management', 'Open world', 'Physics', 'Platformer', 'Puzzle', 'Racing', 'Rhythm', 'Roguelike', 'RPG', 'Sandbox', 'Shooter', 'Simulation', 'Sports', 'Stealth', 'Strategy', 'Survival', 'Tower defense', 'Board game', 'Card game', 'Educational', 'Multiplayer', 'Party', 'Quiz', 'Text-based', 'Word game', 'Comedy', 'Fantasy', 'Horror', 'Mystery', 'Pixel art', 'Sci-fi', 'Space', 'Story']
 
 
@@ -92,6 +94,9 @@ for folder in sorted(p for p in GAMES.iterdir() if p.is_dir() and not p.name.sta
     shots = sorted(f'games/{folder.name}/shots/{p.name}' for p in (folder / 'shots').glob('*') if p.suffix.lower() in ('.png', '.jpg', '.jpeg', '.webp', '.gif')) if (folder / 'shots').is_dir() else []
     if shots:
         games[-1]['shots'] = shots[:4]
+    langs = [c for c in LANGS if c in {str(x).lower() for x in info.get('languages') or []}]
+    if langs:
+        games[-1]['languages'] = langs   # the languages the game itself can be played in
     wn = info.get('whatsnew')
     if isinstance(wn, dict) and wn.get('text'):
         games[-1]['whatsnew'] = {'text': str(wn['text'])[:120], 'at': int(wn.get('at') or 0)}

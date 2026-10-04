@@ -13,6 +13,8 @@ const BLOB_BATCH = 30, BLOB_BATCH_BYTES = 12 * 1024 * 1024, MAX_ONE_FILE = 25 * 
 const TEXT = /\.(html?|js|mjs|css|json|txt|md|svg|csv|xml|glsl|frag|vert|map)$/i;
 const COVERS = ['cover.png', 'cover.jpg', 'cover.jpeg', 'cover.webp', 'cover.gif'];
 // the genres a game can be tagged with (up to 3) — the same list lives in site.js and scripts/build_list.py
+// the languages a game can say it supports — the same list lives in site.js and scripts/build_list.py
+const LANGS = ['en', 'pt', 'es', 'fr', 'de', 'it', 'nl', 'pl', 'ru', 'uk', 'tr', 'zh', 'ja', 'ko', 'ar', 'hi'];
 const GENRES = ['Action', 'Adventure', 'Arcade', 'Boss rush', 'Casual', 'Crafting', 'Endless runner', 'Exploration', 'Fighting', 'Idle', 'Management', 'Open world', 'Physics', 'Platformer', 'Puzzle', 'Racing', 'Rhythm', 'Roguelike', 'RPG', 'Sandbox', 'Shooter', 'Simulation', 'Sports', 'Stealth', 'Strategy', 'Survival', 'Tower defense', 'Board game', 'Card game', 'Educational', 'Multiplayer', 'Party', 'Quiz', 'Text-based', 'Word game', 'Comedy', 'Fantasy', 'Horror', 'Mystery', 'Pixel art', 'Sci-fi', 'Space', 'Story'];
 
 export default {
@@ -272,6 +274,8 @@ async function upload(req, env) {
   if (link && !/^https:\/\/[^\s"<>]+$/.test(link)) throw fail(400, 'The link must start with https://');
   const picked = form.getAll('genre').map(g => String(g).toLowerCase());
   const genres = GENRES.filter(g => picked.includes(g.toLowerCase())).slice(0, 3);
+  const wantLangs = form.getAll('lang').map(x => String(x).toLowerCase());
+  const languages = LANGS.filter(c => wantLangs.includes(c));   // which languages the game itself can be played in
   const dev = form.get('dev') === 'true';   // still in development
   const progress = dev && form.get('progress') !== null && form.get('progress') !== '' ? Math.max(0, Math.min(100, Math.round(+form.get('progress') || 0))) : null;
   const next = dev ? String(form.get('next') || '').trim().slice(0, 100) : '';
@@ -353,7 +357,7 @@ async function upload(req, env) {
   if (!playable && !link && !dev) throw fail(400, 'Choose your game’s folder (or HTML file), or give a link — or tick “Still in development” to post it as coming soon.');
   const owner = before?.owner || (before?.author && who.admin ? before.author : who.name);
   const info = { title, author: before?.author && who.admin ? before.author : who.name, owner, blurb, ...(pixel ? { pixel: true } : {}), ...(link && !playable ? { url: link } : {}),
-    ...(genres.length ? { genres } : {}), ...(dev ? { dev: true, ...(progress !== null ? { progress } : {}), ...(next ? { next } : {}) } : {}) };
+    ...(genres.length ? { genres } : {}), ...(languages.length ? { languages } : {}), ...(dev ? { dev: true, ...(progress !== null ? { progress } : {}), ...(next ? { next } : {}) } : {}) };
   const now = Math.floor(Date.now() / 1000), list = await readJson(env, 'games.json', head);
   const whatsnew = before && whatsnewText ? { text: whatsnewText, at: now } : before?.whatsnew || null;   // (kept until the next note)
   if (whatsnew) info.whatsnew = whatsnew;
@@ -362,7 +366,7 @@ async function upload(req, env) {
   const shots = [...all].filter(p => isShot(p) && /\.(png|jpe?g|webp|gif)$/i.test(p)).sort();
   const entry = { slug, title, author: info.author, owner, blurb, cover: cover ? `games/${slug}/${cover}` : null, pixel, url: info.url || null,
     ...(shots.length ? { shots } : {}), ...(whatsnew ? { whatsnew } : {}),
-    genres, dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now,
+    genres, ...(languages.length ? { languages } : {}), dev, progress: dev ? progress : null, next, build: playable || !!info.url, added: (list || []).find(g => g.slug === slug)?.added || now,
     ...((replacing ? files.some(f => f.text !== undefined && /usforge['"]?\s*:\s*['"]score/.test(f.text)) : (list || []).find(g => g.slug === slug)?.leaderboard) ? { leaderboard: true } : {}),
     ...((before && (replacing || coverPath)) ? { updated: now } : (list || []).find(g => g.slug === slug)?.updated ? { updated: (list || []).find(g => g.slug === slug).updated } : {}) };
   // updates to games already on the site, and anything a founder uploads, go live straight away

@@ -9,9 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=51">
+<link rel="stylesheet" href="style.css?v=52">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
+<script src="i18n.js?v=2"></script>
 <script src="site.js?v=37"></script>
 </head>
 <body>
@@ -49,6 +50,11 @@
     <p>UsForge can show a top-10 leaderboard on your game’s page. When a round ends, your game just sends its score with one line of code:</p>
     <pre><code>parent.postMessage({ usforge: 'score', score: 1234 }, '*');</code></pre>
     <p class="dim">Fewest wins, like golf or a speedrun time? Add <code>order: 'low'</code>. Want a label? Add <code>unit: 'points'</code>. For a time, send whole seconds with <code>unit: 'time'</code> and UsForge shows it as a clock (like 38:12). The player then gets asked for a nickname. Made your game with Claude? Just ask it: <em>“When the game ends, send the score to UsForge with parent.postMessage({ usforge: 'score', score: SCORE }, '*').”</em></p>
+
+    <h2 id="languages">Make your game speak more languages</h2>
+    <p>UsForge can be read in English, Português, Español, Français, Deutsch and 中文, and players from all over can find your game. A game with a language menu reaches far more of them. When UsForge opens your game, it adds the player’s language to the address, like <code>?lang=pt</code>:</p>
+    <pre><code>const lang = new URLSearchParams(location.search).get('lang') || 'en';</code></pre>
+    <p class="dim">Then tick the languages your game has on the Upload page, and they show on your game’s page. Players whose language isn’t there see a friendly heads-up. Made your game with Claude? Just ask it: <em>“Add a language menu with English and Português, and start in the language from the ?lang= part of the address.”</em></p>
 
     <h2>House rules</h2>
     <ol>

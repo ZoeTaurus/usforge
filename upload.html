@@ -10,9 +10,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=51">
+<link rel="stylesheet" href="style.css?v=52">
 <script>/* THEME_BOOT: pick light/dark before the page paints (site.js does the rest) */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
+<script src="i18n.js?v=2"></script>
 <script src="site.js?v=37"></script>
 </head>
 <body>
@@ -104,6 +105,13 @@
         <fieldset>
           <legend>Genres <span class="hint">pick up to 3</span></legend>
           <div id="fGenres"></div>
+        </fieldset>
+
+        <fieldset class="lang-field">
+          <legend>Languages <span class="hint">which languages can your game be played in?</span></legend>
+          <p class="lang-pitch">Players can switch UsForge to their own language, and games in more languages reach more players: friends, family, and people in other countries. Even adding one more language makes a big difference!</p>
+          <div id="fLangs" class="genre-pick"></div>
+          <p class="hint lang-tip">Tip: your game is opened with the player’s language in its address, like <code>?lang=pt</code>. Read it with <code>new URLSearchParams(location.search).get('lang')</code>. Made your game with Claude? Ask it: <i>“Add a language menu with English and Português, and start in the language from the ?lang= part of the address.”</i></p>
         </fieldset>
 
         <fieldset>
@@ -404,7 +412,7 @@
     const g = games.find(x => x.slug === slug); if (!g) return;
     editing = slug;
     $('fTitle').value = g.title; $('fSlug').value = g.slug; $('fSlug').readOnly = true; $('fBlurb').value = g.blurb || ''; countBlurb(); $('fPixel').checked = !!g.pixel; $('fUrl').value = g.url || '';
-    setGenres(g.genres || []); $('fDev').checked = !!g.dev; $('fProgress').value = g.progress ?? 50; $('fNext').value = g.next || ''; devShow();
+    setGenres(g.genres || []); setLangs(g.languages || []); $('fDev').checked = !!g.dev; $('fProgress').value = g.progress ?? 50; $('fNext').value = g.next || ''; devShow();
     $('formTitle').textContent = `Update ${g.title}`; $('send').textContent = 'Save update'; $('cancelEdit').hidden = false;
     chosen = []; showPicked('Choose new files to replace the game, or leave empty to change only the name, description or cover.');
     $('fCover').value = ''; setCover(null, g.cover);
@@ -412,7 +420,7 @@
     $('formTitle').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function endEdit() {
-    editing = null; $('up').reset(); countBlurb(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); devShow(); setShots([]); $('whatsnewRow').hidden = true;
+    editing = null; $('up').reset(); countBlurb(); $('fSlug').readOnly = false; chosen = []; showPicked(); setCover(null); setGenres([]); setLangs(['en']); devShow(); setShots([]); $('whatsnewRow').hidden = true;
     $('formTitle').textContent = 'Add a game'; $('send').textContent = 'Upload'; $('cancelEdit').hidden = true;
   }
   $('cancelEdit').onclick = endEdit;
@@ -441,6 +449,11 @@
   const limitGenres = () => { const n = genreBoxes().filter(b => b.checked).length; for (const b of genreBoxes()) b.disabled = !b.checked && n >= 3; };
   function setGenres(list) { const want = list.map(x => x.toLowerCase()); for (const b of genreBoxes()) b.checked = want.includes(b.value.toLowerCase()); limitGenres(); }
   $('fGenres').addEventListener('change', limitGenres);
+  // languages the game supports (English is ticked for a new game; untick it if your game isn't in English)
+  $('fLangs').innerHTML = (window.UsForgeI18n?.ALL || [['en', 'English']]).map(([c, n]) => `<label class="gpick notranslate"><input type="checkbox" value="${c}"><span>${esc(n)}</span></label>`).join('');
+  const langBoxes = () => [...$('fLangs').querySelectorAll('input')];
+  function setLangs(list) { for (const b of langBoxes()) b.checked = list.includes(b.value); }
+  setLangs(['en']);
   function devShow() { $('devFields').hidden = !$('fDev').checked; $('fProgressN').textContent = $('fProgress').value + '%'; }
   $('fDev').onchange = devShow; $('fProgress').oninput = devShow;
   function askRemove(slug, btn) {   // a two-step confirm, right in the row
@@ -540,6 +553,7 @@
     fd.append('slug', $('fSlug').value.trim()); fd.append('title', $('fTitle').value.trim()); fd.append('blurb', $('fBlurb').value.trim());
     fd.append('pixel', String($('fPixel').checked)); fd.append('url', $('fUrl').value.trim());
     for (const b of genreBoxes()) if (b.checked) fd.append('genre', b.value);
+    for (const b of langBoxes()) if (b.checked) fd.append('lang', b.value);
     fd.append('dev', String($('fDev').checked));
     if ($('fDev').checked) { fd.append('progress', $('fProgress').value); fd.append('next', $('fNext').value.trim()); }
     if (coverPick) fd.append('cover', coverPick, coverPick.name);

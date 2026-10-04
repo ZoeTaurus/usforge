@@ -9,9 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=51">
+<link rel="stylesheet" href="style.css?v=52">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
+<script src="i18n.js?v=2"></script>
 <script src="site.js?v=37"></script>
 </head>
 <body>
@@ -80,6 +81,7 @@
           ${g.dev && g.progress != null ? `<div class="devprog"><span class="progress"><i style="width:${g.progress}%"></i></span><span class="progress-n">${g.progress}% done</span></div>` : ''}
           ${g.dev && g.next ? `<p class="next"><span>Next up:</span> ${esc(g.next)}</p>` : ''}
           <div class="facts"><span>${ago(g.added)}</span>${g.updated ? `<span>${ago(g.updated).replace('Added', 'Updated')}</span>` : ''}<span id="pickFact" hidden></span><span class="live-fact" data-live="${esc(g.slug)}" data-now hidden></span><span id="plays" hidden></span><span id="stokes" hidden></span>${g.dev ? '' : `<span>Game ${rel.length - rel.indexOf(g)} of ${rel.length}</span>`}${g.url ? '<span>Opens on another site</span>' : ''}</div>
+          ${langNote(g)}
           ${g.whatsnew?.text ? `<p class="whatsnew"><b>What’s new:</b> ${esc(g.whatsnew.text)} <time>${ago(g.whatsnew.at).replace('Added', 'Updated')}</time></p>` : ''}
           <div class="acts">
             ${g.build === false ? `<span class="soon">Nothing to play yet. ${esc(g.author)} is still making it.</span>` : g.url ? `<a class="big-play" href="${esc(g.url)}" target="_blank" rel="noopener">Play ↗</a>` : `<button class="big-play" id="playBtn" type="button">${UsForgeIcon('play')} ${g.dev ? 'Play early build' : 'Play'}</button>`}
@@ -225,6 +227,17 @@
   // ---------- play time (while the game is open and the tab is visible) ----------
   setInterval(() => { if (frame && !document.hidden && game) UsForge.addTime(game.slug, 10); }, 10000);
 
+  // ---------- languages: which ones the game has, and a heads-up if yours isn't one of them ----------
+  function langNote(g) {
+    const I = window.UsForgeI18n; if (!I || g.build === false) return '';
+    const t = I.t, mine = I.lang, list = g.languages || [];
+    const chips = list.length ? `<div class="lang-list notranslate" aria-label="${esc(t('Languages'))}">${list.map(c => `<span class="lang-chip${c === mine ? ' on' : ''}">${esc(I.nameOf(c))}</span>`).join('')}</div>` : '';
+    let warn = '';
+    if (list.length && !list.includes(mine)) warn = t('This game isn’t available in {lang}. It’s in {list}.').replace('{lang}', I.nameOf(mine)).replace('{list}', list.map(I.nameOf).join(', '));
+    else if (!list.length && mine !== 'en') warn = t('This game doesn’t have language selection, so it may only be in English.');
+    return chips + (warn ? `<p class="lang-warn notranslate">${UsForgeIcon('globe')}<span>${esc(warn)}</span></p>` : '');
+  }
+
   // ---------- leaderboard ----------
   // unit 'time' = seconds, shown as a clock (38:12, or 1:02:05)
   const clock = s => { s = Math.max(0, Math.round(s)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = String(s % 60).padStart(2, '0'); return h ? `${h}:${String(m).padStart(2, '0')}:${x}` : `${m}:${x}`; };
@@ -270,7 +283,7 @@
   function play() {
     const g = game; if (!g || g.url || g.build === false) return;
     countPlay(); UsForge.played(g.slug); UsForge.setPlaying(g.slug);
-    const src = `games/${encodeURIComponent(g.slug)}/`;
+    const src = `games/${encodeURIComponent(g.slug)}/?lang=${encodeURIComponent(window.UsForgeI18n?.lang || 'en')}`;   // (games can read ?lang= to start in your language)
     $('title').innerHTML = `<b>${esc(g.title)}</b> by ${esc(g.author)}`;
     $('alone').href = src;
     if (!frame) {

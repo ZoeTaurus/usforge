@@ -9,8 +9,8 @@
     "pixel": false,
     "url": null,
     "whatsnew": {
-      "text": "More insects, including playable ants, and sounds",
-      "at": 1791014602
+      "text": "Better ant behaviour.",
+      "at": 1791099846
     },
     "genres": [
       "Casual",
@@ -23,7 +23,7 @@
     "build": true,
     "added": 1790957949,
     "leaderboard": true,
-    "updated": 1791014842
+    "updated": 1791099846
   },
   {
     "slug": "lab-madness",

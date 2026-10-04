@@ -284,31 +284,122 @@ class Moth {
 }
 
 /* A winged termite on its mating flight: it flutters down, sheds its wings and wanders. Easy prey. */
+/* A winged termite on its mating flight. It climbs out of an exit hole, flutters up into the
+   swarm, spirals with it for a while, drifts down, snaps off its wings, finds a partner and
+   runs in tandem with it before the pair digs in to start a colony of their own. */
 class Alate extends Critter {
-  constructor(game, x, y) {
+  constructor(game, x, y, ev) {
     super(game, x, y);
     this.kind = 'alate'; this.r = 6; this.size = 1; this.prey = true; this.gaitK = 0.6;
-    this.maxHp = this.hp = 8; this.z = rand(60, 140); this.wings = 1; this.life = rand(50, 70);
+    this.maxHp = this.hp = 8; this.z = 0; this.wings = 1; this.ev = ev;
+    this.state = 'emerge'; this.timer = rand(0.6, 1.6); this.appear = 0;
+    this.orbitR = rand(50, 170); this.orbitA = rand(TAU); this.orbitV = rand(0.5, 1.1) * (Math.random() < 0.5 ? 1 : -1);
+    this.zMax = rand(45, 120); this.partner = null; this.leader = false; this.alpha = 1;
   }
   get flying() { return this.z > 2; }
-  get invuln() { return this.z > 2; }
+  get invuln() { return this.z > 2 || this.state === 'emerge'; }
   update(dt) {
-    this.hurtT -= dt; this.life -= dt;
-    if (this.life <= 0) { this.dead = true; return; }
-    if (this.z > 0) {
-      this.z = Math.max(0, this.z - dt * 30);
-      this.a += (Math.random() - 0.5) * dt * 4;
-      this.x += Math.cos(this.a) * 30 * dt; this.y += Math.sin(this.a) * 30 * dt;
-      this.gait += dt * 30;
-      return;
+    const g = this.game, ev = this.ev || { cx: this.x, cy: this.y };
+    this.hurtT -= dt; this.timer -= dt;
+    this.appear = Math.min(1, this.appear + dt * 2.5);
+    switch (this.state) {
+      case 'emerge':
+        // crawl out of the hole and spread the wings
+        this.move(this.a, 16, dt, 2);
+        if (this.timer <= 0) { this.state = 'rise'; this.timer = rand(9, 18); }
+        return;
+      case 'rise':
+      case 'fly': {
+        // flutter up, then swirl around the drifting centre of the swarm
+        this.z = Math.min(this.zMax, this.z + dt * (this.state === 'rise' ? 32 : 0)) + Math.sin(g.time * 3 + this.id) * dt * 6;
+        if (this.state === 'rise' && this.z >= this.zMax - 1) this.state = 'fly';
+        this.orbitA += this.orbitV * dt;
+        this.orbitR += Math.sin(g.time * 0.7 + this.id) * dt * 10;
+        const tx = ev.cx + Math.cos(this.orbitA) * this.orbitR, ty = ev.cy + Math.sin(this.orbitA) * this.orbitR * 0.7;
+        const want = Math.atan2(ty - this.y, tx - this.x) + Math.sin(g.time * 5 + this.id) * 0.5;
+        this.a += clamp(angDiff(this.a, want), -4 * dt, 4 * dt);
+        const sp = Math.min(70, dist(this.x, this.y, tx, ty) * 1.2 + 20);
+        this.x += Math.cos(this.a) * sp * dt; this.y += Math.sin(this.a) * sp * dt;
+        this.gait += dt * 30;
+        if (this.timer <= 0) {
+          // pick somewhere to come down, away from the crowd
+          for (let k = 0; k < 6; k++) {
+            const a = rand(TAU), d = rand(120, 420), lx = ev.cx + Math.cos(a) * d, ly = ev.cy + Math.sin(a) * d;
+            if (!g.world.waterAt(lx, ly)) { this.lx = lx; this.ly = ly; break; }
+          }
+          if (this.lx === undefined) { this.lx = this.x; this.ly = this.y; }
+          this.state = 'land';
+        }
+        return;
+      }
+      case 'land': {
+        const want = Math.atan2(this.ly - this.y, this.lx - this.x) + Math.sin(g.time * 4 + this.id) * 0.3;
+        this.a += clamp(angDiff(this.a, want), -4 * dt, 4 * dt);
+        this.x += Math.cos(this.a) * 45 * dt; this.y += Math.sin(this.a) * 45 * dt;
+        this.z = Math.max(0, this.z - dt * 22);
+        this.gait += dt * 30;
+        if (this.z <= 0) {
+          if (g.world.waterAt(this.x, this.y)) { this.dead = true; return; }
+          this.state = 'shed'; this.timer = 0.8;
+        }
+        return;
+      }
+      case 'shed':
+        // twist the wings off at their weak seam; they stay lying where they fell
+        this.speedNow = 0;
+        this.wings = Math.max(0, this.timer / 0.8);
+        this.a += Math.sin(g.time * 18) * dt * 2;
+        if (this.timer <= 0) {
+          (g.wingLitter ||= []).push(...[0, 1, 2, 3].map((k) => ({ x: this.x + rand(-8, 8), y: this.y + rand(-8, 8), a: rand(TAU), t: g.time, s: rand(0.9, 1.1) })));
+          if (g.wingLitter.length > 400) g.wingLitter.splice(0, g.wingLitter.length - 400);
+          this.wings = 0; this.state = 'single'; this.timer = rand(25, 40);
+        }
+        return;
+      case 'single': {
+        // look for a mate among the others that have landed
+        if (!this.partner && Math.random() < dt * 3) {
+          let best = null, bd = 160 * 160;
+          for (const o of g.critters) {
+            if (o === this || o.kind !== 'alate' || o.dead || o.partner || o.state !== 'single') continue;
+            const d2 = dist2(this.x, this.y, o.x, o.y);
+            if (d2 < bd) { bd = d2; best = o; }
+          }
+          if (best) { this.partner = best; best.partner = this; this.leader = true; best.leader = false; this.state = best.state = 'tandem'; this.timer = best.timer = rand(18, 30); return; }
+        }
+        this.wanderStep(dt, 30);
+        if (this.timer <= 0) this.state = 'dig';
+        return;
+      }
+      case 'tandem': {
+        const pt = this.partner;
+        if (!pt || pt.dead) { this.partner = null; this.state = 'single'; this.timer = 15; return; }
+        if (this.leader) this.wanderStep(dt, 34);
+        else {
+          // follow so close that the antennae touch her abdomen
+          const bx = pt.x - Math.cos(pt.a) * 11, by = pt.y - Math.sin(pt.a) * 11, d = dist(this.x, this.y, bx, by);
+          if (d > 2) this.move(Math.atan2(by - this.y, bx - this.x), Math.min(60, 20 + d * 3), dt, 8);
+          else this.speedNow = 0;
+        }
+        if (this.timer <= 0) this.state = 'dig';
+        return;
+      }
+      case 'dig':
+        // the royal pair burrow in together and are gone
+        this.speedNow = 0; this.gait += dt * 20;
+        this.alpha = Math.max(0, this.alpha - dt * 0.4);
+        if (Math.random() < dt * 6) g.fx.dust(this.x, this.y, 1);
+        if (this.alpha <= 0) this.dead = true;
+        return;
     }
-    this.wings = Math.max(0, this.wings - dt * 0.5);
-    this.wanderStep(dt, 26);
   }
   damage(amt, src) {
     if (this.dead || this.invuln) return;
     this.hp -= amt; this.hurtT = 0.15; this.hitFx();
-    if (this.hp <= 0) { this.dead = true; this.game.addFood(new Food('termite', this.x, this.y)); this.game.onCritterDeath(this, src); }
+    if (this.hp <= 0) {
+      this.dead = true;
+      if (this.partner) { this.partner.partner = null; this.partner = null; }
+      this.game.addFood(new Food('termite', this.x, this.y)); this.game.onCritterDeath(this, src);
+    }
   }
   draw(ctx, t) { drawAlate(ctx, this, t); }
 }

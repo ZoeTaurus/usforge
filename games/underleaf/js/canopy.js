@@ -45,9 +45,9 @@ function seasonPals(kind, season) {
 /* Winter: a deciduous tree seen from above is a fan of bare branches, dusted with snow. */
 function bareTreeSprite(tree) {
   const size = tree.cr * 2.3;
-  return cachedSprite('w2' + tree.seed, size, size, 0.75, (g) => {
+  return cachedSprite('w5' + tree.seed, size, size, 0.75, (g) => {
     const R = mulberry32(tree.seed + 3), cr = tree.cr;
-    const wood = tree.kind === 'birch' ? ['#bab4a8', '#e4e0d6'] : ['#3a2c20', '#6a5440'];
+    const wood = tree.kind === 'birch' ? ['#9a948a', '#e4e0d6'] : ['#2e2219', '#6a5440'];
     g.lineCap = 'round';
     const branch = (x, y, a, len, w, depth) => {
       const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
@@ -56,9 +56,28 @@ function bareTreeSprite(tree) {
       g.strokeStyle = wood[0]; g.lineWidth = w;
       g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo((x + x2) / 2 + (R() - 0.5) * len * 0.3, (y + y2) / 2 + (R() - 0.5) * len * 0.3, x2, y2); g.stroke();
       // a thin line of snow along the top-left of the thicker branches
-      if (w > 2.2) {
-        g.strokeStyle = 'rgba(250,252,255,0.6)'; g.lineWidth = Math.max(0.8, w * 0.28);
-        g.beginPath(); g.moveTo(x - w * 0.35, y - w * 0.4); g.lineTo(x2 - w * 0.35, y2 - w * 0.4); g.stroke();
+      if (tree.kind === 'birch' && w > 1.6) {
+        // the black diamond marks of birch bark
+        g.strokeStyle = 'rgba(30,24,20,0.75)'; g.lineWidth = Math.max(0.6, w * 0.22);
+        const n = Math.ceil(len / 9);
+        for (let k = 1; k < n; k++) {
+          if (R() < 0.4) continue;
+          const f = k / n, px = x + (x2 - x) * f, py = y + (y2 - y) * f, nx = -Math.sin(a), ny = Math.cos(a), h = w * (0.2 + R() * 0.25);
+          g.beginPath(); g.moveTo(px - nx * h, py - ny * h); g.lineTo(px + nx * h, py + ny * h); g.stroke();
+        }
+      }
+      if (w > 1.1) {
+        // snow lying along the top of the branch, thickest on the big limbs
+        const sw = Math.max(0.7, w * 0.3), ox = -w * 0.38, oy = -w * 0.44;
+        g.strokeStyle = 'rgba(150,170,205,0.5)'; g.lineWidth = sw + 0.8;
+        g.beginPath(); g.moveTo(x + ox + 0.4, y + oy + 0.5); g.lineTo(x2 + ox + 0.4, y2 + oy + 0.5); g.stroke();
+        g.strokeStyle = 'rgba(252,253,255,0.95)'; g.lineWidth = sw;
+        g.beginPath(); g.moveTo(x + ox, y + oy); g.lineTo(x2 + ox, y2 + oy); g.stroke();
+        if (w > 3 && R() < 0.5) {
+          const gr = g.createRadialGradient(x2 - 1, y2 - 1.5, 0, x2, y2, w * 0.9);
+          gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.75, '#e8eef8'); gr.addColorStop(1, 'rgba(200,215,235,0)');
+          g.fillStyle = gr; g.beginPath(); g.arc(x2, y2, w * 0.9, 0, TAU); g.fill();
+        }
       }
       if (depth > 0) {
         const n = R() < 0.55 ? 2 : 1;
@@ -79,7 +98,7 @@ function canopySprite(tree, season = 1) {
   if (season === 3 && tree.kind !== 'pine') return bareTreeSprite(tree);
   const pals = seasonPals(tree.kind, season);
   const size = tree.cr * 2.3;
-  return cachedSprite('c' + tree.seed + '_' + season, size, size, 0.75, (g) => {
+  return cachedSprite('c2' + tree.seed + '_' + season, size, size, 0.75, (g) => {
     const R = mulberry32(tree.seed), cr = tree.cr;
     const L = { x: -0.5, y: -0.6 };
     if (tree.kind === 'pine') {
@@ -108,9 +127,14 @@ function canopySprite(tree, season = 1) {
       if (season === 3) {
         // snow caught on the upper-left of each needle tier
         g.globalCompositeOperation = 'source-atop';
-        for (let i = 0; i < 160; i++) {
-          const a = -Math.PI * 0.7 + (R() - 0.5) * 2.4, d = cr * (0.2 + R() * 0.8);
-          radialFill(g, Math.cos(a) * d, Math.sin(a) * d, 5 + R() * 9, [[0, 'rgba(250,252,255,0.85)'], [1, 'rgba(250,252,255,0)']]);
+        for (let i = 0; i < 120; i++) {
+          const a = R() * TAU, d = cr * (0.15 + R() * 0.85), x = Math.cos(a) * d, y = Math.sin(a) * d, r = 4 + R() * 8;
+          // clumps settle on the sunlit, upper-left side of each tier
+          if (Math.cos(a - Math.PI * 1.25) < -0.3 && R() < 0.6) continue;
+          g.fillStyle = 'rgba(90,110,150,0.35)'; g.beginPath(); g.ellipse(x + 1.5, y + 2, r, r * 0.7, a, 0, TAU); g.fill();
+          const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, 0, x, y, r);
+          gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.7, '#eef3fb'); gr.addColorStop(1, '#c8d6ea');
+          g.fillStyle = gr; g.beginPath(); g.ellipse(x, y, r, r * 0.7, a, 0, TAU); g.fill();
         }
         g.globalCompositeOperation = 'source-over';
       }
@@ -205,7 +229,7 @@ const BRAMBLE_TINTS = [
   [['#6a4a2a', '#a07a50', '#3a2410'], ['#5a4030', '#907060', '#2a1a10'], ['#6a4a2a', '#a07a50', '#3a2410'], ['#5a4030', '#907060', '#2a1a10']],
 ];
 function bushSprite(f, season = 1) {
-  return cachedSprite('b5' + f.seed + '_' + season, 150, 150, 1.5, (g) => {
+  return cachedSprite('b6' + f.seed + '_' + season, 150, 150, 1.5, (g) => {
     const R = mulberry32(f.seed);
     const tints = BRAMBLE_TINTS[season];
     const winter = season === 3;
@@ -258,10 +282,18 @@ function bushSprite(f, season = 1) {
     g.fillStyle = vol; g.fillRect(-75, -75, 150, 150);
     g.globalCompositeOperation = 'source-over';
     if (winter) {
-      g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 1.6; g.lineCap = 'round';
-      for (const pts of canes) for (let k2 = 0; k2 < pts.length - 1; k2 += 2) {
+      g.lineCap = 'round';
+      for (const pts of canes) for (let k2 = 0; k2 < pts.length - 1; k2 += 1) {
+        const w2 = Math.max(1, pts[k2].w * 0.6);
+        g.strokeStyle = 'rgba(140,160,200,0.45)'; g.lineWidth = w2 + 0.8;
+        g.beginPath(); g.moveTo(pts[k2].x - 0.6, pts[k2].y - 0.8); g.lineTo(pts[k2 + 1].x - 0.6, pts[k2 + 1].y - 0.8); g.stroke();
+        g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineWidth = w2;
         g.beginPath(); g.moveTo(pts[k2].x - 1, pts[k2].y - 1.5); g.lineTo(pts[k2 + 1].x - 1, pts[k2 + 1].y - 1.5); g.stroke();
       }
+      // a mound of snow heaped in the middle of the bramble
+      const gr = g.createRadialGradient(-6, -8, 2, 0, 0, 26);
+      gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.6, 'rgba(238,244,252,0.9)'); gr.addColorStop(1, 'rgba(210,222,240,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(0, 0, 26, 0, TAU); g.fill();
       return;
     }
     // a few white-pink flowers (spring and summer)

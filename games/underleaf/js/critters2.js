@@ -35,14 +35,18 @@ function antMob(game, x, y, r) {
   return s;
 }
 
-/* Predators pick on ants that have strayed from their sisters. */
-function isolatedAnt(game, x, y, range) {
+/* Predators pick on ants that have strayed from their sisters, and prefer easy meals:
+   a forager weighed down with food, or one that's already hurt. They avoid the nest itself. */
+function isolatedAnt(game, x, y, range, ignore) {
   let best = null, bs = Infinity;
   game.hash.query(x, y, range, (o) => {
-    if (o.kind !== 'ant' || o.dead || o.inNest) return;
+    if (o.kind !== 'ant' || o.dead || o.inNest || o === ignore) return;
     const d = dist(x, y, o.x, o.y);
     if (d > range) return;
-    const s = d + game.countAllies(o, 60) * 35;
+    let s = d + game.countAllies(o, 60) * 35;
+    if (o.carry || o.big) s -= 30;
+    s -= (1 - o.hp / o.maxHp) * 50;
+    if (dist2(o.x, o.y, o.nest.x, o.nest.y) < 170 * 170) s += 140;
     if (s < bs) { bs = s; best = o; }
   });
   return best;
@@ -59,6 +63,8 @@ class Hunter extends Critter {
   hunt(dt, opts) {
     const g = this.game;
     this.hurtT -= dt; this.biteCd -= dt; this.biteT -= dt; this.think -= dt;
+    this.fullT = (this.fullT || 0) - dt; this.ignoreT = (this.ignoreT || 0) - dt;
+    if (this.ignoreT <= 0) this.ignore = null;
     const thinkNow = this.think <= 0;
     if (thinkNow) {
       this.think = 0.4;
@@ -66,9 +72,16 @@ class Hunter extends Critter {
       const courage = opts.courage ?? (this.fear || 5) * 1.6;
       if (this.mode !== 'retreat' && (this.hp < this.maxHp * 0.3 || this.mob > courage)) {
         this.mode = 'retreat'; this.retreatT = rand(5, 8); this.target = null;
+        // remember where the ants were too many for us, and stay away for a while
+        this.badSpot = { x: this.x, y: this.y, t: g.time };
       } else if (this.mode !== 'retreat') {
         const tg = this.target;
-        if (!tg || tg.dead || tg.inNest || dist2(this.x, this.y, tg.x, tg.y) > (opts.range * 1.6) ** 2) this.target = isolatedAnt(g, this.x, this.y, opts.range);
+        const hungry = !(this.fullT > 0) || (tg && this.lastHurt && g.time - this.lastHurt < 4);
+        if (!hungry) this.target = null;
+        else if (!tg || tg.dead || tg.inNest || tg === this.ignore || dist2(this.x, this.y, tg.x, tg.y) > (opts.range * 1.6) ** 2) {
+          this.target = isolatedAnt(g, this.x, this.y, opts.range, this.ignore);
+          this.chaseT = 0;
+        }
         if (!this.target) this.mode = 'prowl';
         else if (this.mode !== 'pounce') this.mode = 'stalk';
       }
@@ -85,19 +98,52 @@ class Hunter extends Critter {
     const t2 = this.target;
     if ((this.mode === 'stalk' || this.mode === 'pounce') && t2 && !t2.dead) {
       const d = dist(this.x, this.y, t2.x, t2.y), ang = Math.atan2(t2.y - this.y, t2.x - this.x);
+      this.chaseT = (this.chaseT || 0) + dt;
       if (d <= this.r + t2.r + (opts.reach || 2)) {
         this.a += clamp(angDiff(this.a, ang), -6 * dt, 6 * dt); this.speedNow = 0;
-        if (this.biteCd <= 0) { this.biteCd = opts.cd; this.biteT = 0.3; t2.damage(opts.dmg, this); }
+        if (this.biteCd <= 0) {
+          this.biteCd = opts.cd; this.biteT = 0.3; this.chaseT = 0;
+          t2.damage(opts.dmg, this);
+          // a meal: rest and digest for a while before hunting again
+          if (t2.dead) { this.fullT = rand(18, 35); this.target = null; this.mode = 'prowl'; }
+        }
         return;
       }
+      // a long fruitless chase is tiring: give up on this one and pick another later
+      if (this.chaseT > 8) { this.ignore = t2; this.ignoreT = 10; this.target = null; this.mode = 'prowl'; this.idleT = rand(1, 2.5); return; }
       const pounceR = opts.pounce ?? this.r + 60;
       if (this.mode === 'stalk' && d < pounceR) { this.mode = 'pounce'; this.pounceT = 0.9; }
       if (this.mode === 'pounce') {
         this.pounceT -= dt;
         if (this.pounceT <= 0) this.mode = 'stalk';
-        this.move(ang, opts.speed * 1.5, dt, 8);
-      } else this.move(ang, opts.speed * 0.45, dt, 4);
+        // lead the target a little: aim where it's going
+        const lead = Math.min(0.5, d / (opts.speed * 1.5 + 1));
+        const px = t2.x + Math.cos(t2.a) * (t2.speedNow || 0) * lead, py = t2.y + Math.sin(t2.a) * (t2.speedNow || 0) * lead;
+        this.move(Math.atan2(py - this.y, px - this.x), opts.speed * 1.5, dt, 8);
+      } else {
+        // creep round behind the ant, where it can't see us coming
+        let sa = ang;
+        if (d > pounceR + 20) {
+          const bx = t2.x - Math.cos(t2.a) * (pounceR * 0.8), by = t2.y - Math.sin(t2.a) * (pounceR * 0.8);
+          sa = Math.atan2(by - this.y, bx - this.x);
+        }
+        this.move(sa, opts.speed * 0.45, dt, 4);
+      }
       return;
+    }
+    // stay clear of the spot where the ants mobbed us
+    const bs = this.badSpot;
+    if (bs && g.time - bs.t < 60 && dist2(this.x, this.y, bs.x, bs.y) < 260 * 260) {
+      this.move(Math.atan2(this.y - bs.y, this.x - bs.x), opts.wander * 1.2, dt, 3);
+      return;
+    }
+    // full: doze near home instead of prowling
+    if (this.fullT > 0) { this.wanderStep(dt, opts.wander * 0.5, this.home, Math.min(200, opts.leash || 500)); return; }
+    // the nest mound is swarming with ants: prowl the trails, not the doorstep
+    for (const col of g.activeColonies) {
+      if (col.dead) continue;
+      const n = col.nest;
+      if (dist2(this.x, this.y, n.x, n.y) < 230 * 230) { this.move(Math.atan2(this.y - n.y, this.x - n.x), opts.wander * 1.1, dt, 3); return; }
     }
     // prowl: ant scent trails lead to ants, so follow the strongest one nearby
     if (thinkNow) {
@@ -117,7 +163,7 @@ class Hunter extends Critter {
   damage(amt, src) {
     if (this.dead || this.invuln) return;
     this.hp -= amt; this.hurtT = 0.15; this.hitFx();
-    if (src && src.kind === 'ant') this.target = src;
+    if (src && src.kind === 'ant') { this.target = src; this.chaseT = 0; }
     if (this.hp <= 0) { this.dead = true; this.game.onCritterDeath(this, src); }
   }
 }

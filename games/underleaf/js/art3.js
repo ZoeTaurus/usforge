@@ -330,33 +330,96 @@ Object.assign(CORPSE_DRAW, {
 
 /* ----------------------------------------------- winged termite (alate) */
 
+/* One termite wing: long and narrow, rounded at the tip, smoky and finely veined. */
+function alateWing(ctx, len, alpha) {
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(len * 0.25, -2.2, len * 0.8, -2.6, len, -0.6);
+  ctx.quadraticCurveTo(len + 1.2, 0.6, len * 0.95, 1.6);
+  ctx.bezierCurveTo(len * 0.7, 2.6, len * 0.25, 1.8, 0, 0);
+  ctx.fillStyle = `rgba(214,204,186,${0.5 * alpha})`; ctx.fill();
+  ctx.strokeStyle = `rgba(110,90,70,${0.55 * alpha})`; ctx.lineWidth = 0.35; ctx.stroke();
+  ctx.strokeStyle = `rgba(90,70,50,${0.6 * alpha})`; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(0, -0.3); ctx.quadraticCurveTo(len * 0.5, -2, len * 0.97, -0.7); ctx.stroke();
+  ctx.strokeStyle = `rgba(110,90,70,${0.3 * alpha})`; ctx.lineWidth = 0.3;
+  for (const f of [0.3, 0.55]) { ctx.beginPath(); ctx.moveTo(len * 0.1, 0.3); ctx.quadraticCurveTo(len * 0.5, f * 2.4, len * 0.9, f * 1.6); ctx.stroke(); }
+  ctx.fillStyle = `rgba(255,255,255,${0.25 * alpha})`;
+  ctx.beginPath(); ctx.ellipse(len * 0.55, -0.8, len * 0.25, 0.5, 0, 0, TAU); ctx.fill();
+}
+
+/* A winged termite: a dark body with proper eyes, and four long wings that lie flat along
+   the back when it walks and blur into a fan when it flies. */
 function drawAlate(ctx, e, t) {
-  const z = e.z || 0;
-  if (e.wings > 0.02) {
-    ctx.save(); ctx.translate(e.x + z * 0.6, e.y + z * 0.9); ctx.rotate(e.a);
-    ctx.fillStyle = `rgba(15,15,5,${0.12 * e.wings})`;
-    ctx.beginPath(); ctx.ellipse(-8, 0, 14, 7, 0, 0, TAU); ctx.fill();
-    ctx.restore();
+  const z = e.z || 0, k = (e.appear ?? 1) * (e.alpha ?? 1);
+  if (k <= 0.01) return;
+  const L = localLight(e.a);
+  const flyK = clamp(z / 8, 0, 1);
+  // shadow on the ground, further away the higher it flies
+  ctx.save(); ctx.translate(e.x + z * 0.6, e.y + z * 0.9); ctx.rotate(e.a);
+  ctx.fillStyle = `rgba(15,15,5,${(0.22 - flyK * 0.1) * k})`;
+  ctx.beginPath(); ctx.ellipse(-3, 0, 8 + e.wings * 8, 3 + flyK * e.wings * 9, 0, 0, TAU); ctx.fill();
+  ctx.restore();
+  ctx.save(); ctx.translate(e.x, e.y - z * 0.15); ctx.rotate(e.a);
+  const zs = 1 + z * 0.005; ctx.scale(zs, zs);
+  ctx.globalAlpha = k;
+  const wingLen = 21;
+  // wings under the body when folded, so the body sits on top of them
+  if (e.wings > 0.02 && flyK < 0.5) {
+    const drop = 1 - e.wings;
+    for (let pair = 1; pair >= 0; pair--) for (const side of [-1, 1]) {
+      ctx.save(); ctx.translate(2 - drop * 6, side * (0.6 + pair * 0.5) + side * drop * 6);
+      ctx.rotate(Math.PI + side * (0.05 + pair * 0.06 + drop * 0.6));
+      alateWing(ctx, wingLen - pair * 1.2, e.wings * (1 - flyK * 2));
+      ctx.restore();
+    }
   }
-  ctx.save(); ctx.translate(e.x, e.y);
-  const zs = 1 + z * 0.005; ctx.scale(zs, zs); ctx.translate(-e.x, -e.y);
-  drawTermite(ctx, { ...e, role: 'worker', size: 1 }, t);
-  if (e.wings > 0.02) {
-    ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.a);
-    const flap = z > 2 ? 0.5 + 0.5 * Math.abs(Math.sin(t * 40 + e.id)) : 0;
-    for (let side = -1; side <= 1; side += 2) {
-      for (let k = 0; k < 2; k++) {
-        ctx.save(); ctx.translate(1, side * 1.2); ctx.rotate(side * (Math.PI - 0.18 - k * 0.12 - flap * 0.9));
-        ctx.globalAlpha = e.wings;
-        ctx.fillStyle = 'rgba(235,230,215,0.5)'; ctx.strokeStyle = 'rgba(120,100,80,0.55)'; ctx.lineWidth = 0.35;
-        ctx.beginPath(); ctx.ellipse(10, 0, 11, 2.6, 0, 0, TAU); ctx.fill(); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(20, 0); ctx.stroke();
+  // legs (tucked up in flight)
+  ctx.strokeStyle = '#6a4a2a'; ctx.lineCap = 'round'; ctx.lineWidth = 0.7;
+  const tuck = flyK;
+  for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
+    const sw = Math.sin((e.gait || 0) + i * 2 + (side > 0 ? Math.PI : 0)) * 0.3 * (1 - tuck);
+    const a = side * (0.9 + i * 0.6 + sw) * (1 - tuck * 0.4), l = 5 * (1 - tuck * 0.5);
+    ctx.beginPath(); ctx.moveTo(1 - i * 1.4, side * 1.2); ctx.lineTo(1 - i * 1.4 + Math.cos(a) * l, side * 1.2 + Math.sin(a) * l); ctx.stroke();
+  }
+  // abdomen in segments, thorax, head
+  const body = ['#4a2e18', '#8a6040', '#1a0e06'];
+  for (let i = 4; i >= 0; i--) shadedEllipse(ctx, -3.5 - i * 1.6, 0, 2.3 - i * 0.12, 2.4 - i * 0.2, body, L);
+  ctx.strokeStyle = 'rgba(230,200,150,0.35)'; ctx.lineWidth = 0.4;
+  for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(-4.3 - i * 1.6, -2); ctx.lineTo(-4.3 - i * 1.6, 2); ctx.stroke(); }
+  shadedEllipse(ctx, 0.5, 0, 2.2, 2.1, body, L);
+  shadedEllipse(ctx, 3.6, 0, 2.3, 2.3, ['#3a2210', '#7a5434', '#120804'], L);
+  ctx.fillStyle = '#0a0604';
+  for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(4.2, side * 1.7, 0.8, 0, TAU); ctx.fill(); }
+  ctx.fillStyle = 'rgba(255,255,255,0.5)'; for (const side of [-1, 1]) { ctx.beginPath(); ctx.arc(4, side * 1.9, 0.25, 0, TAU); ctx.fill(); }
+  // beaded antennae
+  ctx.fillStyle = '#8a6a48';
+  for (const side of [-1, 1]) for (let b = 1; b <= 6; b++) { ctx.beginPath(); ctx.arc(5.4 + b * 0.9, side * (1 + b * 0.55), 0.38, 0, TAU); ctx.fill(); }
+  // spread wings when flying: a blur between the up and down strokes
+  if (e.wings > 0.02 && flyK >= 0.5) {
+    const beat = Math.sin(t * 38 + (e.id || 0) * 1.7);
+    for (const side of [-1, 1]) {
+      // the sweep of the beating wings, as a soft translucent fan
+      const a0 = side * (Math.PI / 2 - 0.15), a1 = side * (Math.PI / 2 + 0.75);
+      const fan = ctx.createRadialGradient(0, 0, 3, 0, 0, wingLen);
+      fan.addColorStop(0, `rgba(225,215,195,${0.28 * e.wings})`); fan.addColorStop(1, 'rgba(225,215,195,0)');
+      ctx.fillStyle = fan;
+      ctx.beginPath(); ctx.moveTo(0.5, side * 0.8); ctx.arc(0.5, side * 0.8, wingLen, Math.min(a0, a1), Math.max(a0, a1)); ctx.closePath(); ctx.fill();
+      // and the wings themselves, caught mid-beat
+      for (let pair = 0; pair < 2; pair++) {
+        ctx.save(); ctx.translate(0.5 - pair * 1.2, side * 0.8);
+        ctx.rotate(side * (Math.PI / 2 + 0.3 + pair * 0.18 + beat * 0.3));
+        alateWing(ctx, wingLen - pair * 1.5, 0.75 * e.wings);
         ctx.restore();
       }
     }
-    ctx.globalAlpha = 1;
-    ctx.restore();
   }
+  ctx.restore();
+}
+
+/* Wings snapped off after the mating flight, lying where they fell. */
+function drawShedWing(ctx, w, alpha) {
+  ctx.save(); ctx.translate(w.x, w.y); ctx.rotate(w.a); ctx.scale(w.s, w.s);
+  alateWing(ctx, 20, alpha);
   ctx.restore();
 }
 

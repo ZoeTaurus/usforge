@@ -170,7 +170,10 @@ class Ant {
   }
 
   steer(desired, speed, dt, turn = 5, goal = null) {
-    if (!this.isPlayer) desired = navigate(this.game.world, this, desired, this.r + 14, !this.careless && this.state !== 'rescue', dt, speed, goal);
+    if (!this.isPlayer) {
+      desired = navigate(this.game.world, this, desired, this.r + 14, !this.careless && this.state !== 'rescue', dt, speed, goal);
+      if (goal && this.nav.unreach) this.giveUp(goal);
+    }
     const d = angDiff(this.a, desired);
     this.a += clamp(d, -turn * dt, turn * dt);
     let sp = speed * this.slow * (1 - Math.min(0.55, (Math.abs(d) / Math.PI) * 0.55)) * this.game.weatherSlow;
@@ -257,7 +260,13 @@ class Ant {
     // no lead: follow fresh scent outward, otherwise wander, staying within reach of home
     const awayA = Math.atan2(this.y - n.y, this.x - n.x);
     let best = 0, bestA = 0, desired;
-    for (let k = -1; k <= 1; k++) {
+    const now = this.game.time;
+    // ant-mill guard: count how much we've turned while trail-following; a full loop means
+    // the scent is leading us in circles, so ignore it for a while and strike out from home
+    const turned = angDiff(this.millA ?? this.a, this.a);
+    this.millA = this.a;
+    this.millTurn = (this.millTurn || 0) * (1 - dt * 0.08);
+    if (!(this.scentOff > now)) for (let k = -1; k <= 1; k++) {
       const sa = this.a + k * 0.6;
       const v = w.sample(col, this.x + Math.cos(sa) * 26, this.y + Math.sin(sa) * 26);
       if (v > 0.05) {
@@ -265,8 +274,11 @@ class Ant {
         if (score > best) { best = score; bestA = sa; }
       }
     }
-    if (best > 0.06) desired = bestA + (Math.random() - 0.5) * 0.3;
-    else {
+    if (best > 0.06) {
+      this.millTurn += turned;
+      if (Math.abs(this.millTurn) > TAU * 1.1) { this.scentOff = now + rand(6, 10); this.millTurn = 0; this.a = awayA + rand(-0.8, 0.8); this.wander = 0; }
+      desired = bestA + (Math.random() - 0.5) * 0.3;
+    } else {
       this.wander = clamp(this.wander * (1 - dt * 0.6) + (Math.random() - 0.5) * 6 * dt, -1.2, 1.2);
       desired = this.a + this.wander * dt * 0.9;
     }
@@ -334,7 +346,22 @@ class Ant {
   }
 
   /* Skip food on the far side of water: check a few points along the way. */
+  /* The planner found no way to the goal: drop it, and tell sisters not to bother for a while. */
+  giveUp(goal) {
+    this.nav.unreach = false; this.nav.fails = 0;
+    if (this.scoutGoal) { if (this.scoutGoal.s !== undefined) this.colony.sectors[this.scoutGoal.s] = this.game.time; this.scoutGoal = null; }
+    this.slot += 1.5 + Math.random();
+    if (goal.kind !== 'nest' && goal !== this.nest && !(goal.r && this.colony.dropPoints().includes(goal))) goal.unreachT = this.game.time + 45;
+    if (this.target === goal || ['fetch', 'milk', 'fight', 'guard', 'tandem', 'follow'].includes(this.state)) {
+      if (this.target && this.target.claimed === this) this.target.claimed = null;
+      this.releaseClaim(); this.target = null; this.answering = false;
+      if (this.state === 'fight' || this.state === 'fetch' || this.state === 'milk') this.state = this.defaultState();
+      if (this.site && dist2(this.site.x, this.site.y, goal.x, goal.y) < 120 * 120) { this.colony.depleted(this.site); this.site = null; }
+    }
+  }
+
   reachable(f) {
+    if (f.unreachT > this.game.time) return false;
     if (this.swims) return true;
     const w = this.game.world;
     for (const k of [0.33, 0.66]) if (w.wetAt(lerp(this.x, f.x, k), lerp(this.y, f.y, k))) return false;
@@ -555,6 +582,7 @@ class Ant {
   pickTarget(foes) {
     let best = null, bs = Infinity;
     for (const o of foes) {
+      if (o.unreachT > this.game.time && dist2(this.x, this.y, o.x, o.y) > 40 * 40) continue;
       const atk = this.colony.attackersOn(o);
       if (atk >= attackCap(o)) continue;
       const d = dist(this.x, this.y, o.x, o.y);

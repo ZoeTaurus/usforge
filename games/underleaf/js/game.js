@@ -27,8 +27,8 @@ function sendScoreToUsForge(score) {
     window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'time' }, '*');
   } catch (e) { /* ignore */ }
 }
-const XP_FOR = { shrew: 45, toad: 35, groundbeetle: 14, jumper: 12, harvestman: 5, hedgehog: 200, wasp: 15, slug: 8, earwig: 6, dungbeetle: 10, termite: 1, spider: 30, crab: 40, frog: 40, lizard: 35, mouse: 35, scorpion: 30, centipede: 20, mantis: 20, beetle: 15, caterpillar: 8, worm: 8, grasshopper: 6, bee: 4 };
-const BIG_PREDATORS = new Set(['shrew', 'toad', 'hedgehog', 'wasp', 'spider', 'crab', 'frog', 'lizard', 'scorpion', 'centipede', 'mantis', 'mouse']);
+const XP_FOR = { mole: 70, vole: 30, newt: 20, assassin: 14, rove: 8, shrew: 45, toad: 35, groundbeetle: 14, jumper: 12, harvestman: 5, hedgehog: 200, wasp: 15, slug: 8, earwig: 6, dungbeetle: 10, termite: 1, spider: 30, crab: 40, frog: 40, lizard: 35, mouse: 35, scorpion: 30, centipede: 20, mantis: 20, beetle: 15, caterpillar: 8, worm: 8, grasshopper: 6, bee: 4 };
+const BIG_PREDATORS = new Set(['mole', 'shrew', 'toad', 'hedgehog', 'wasp', 'spider', 'crab', 'frog', 'lizard', 'scorpion', 'centipede', 'mantis', 'mouse']);
 
 class Game {
   constructor() {
@@ -262,7 +262,7 @@ class Game {
       if (bb === 'sea') continue;
       const kind = this.weather.rain && this.season !== 3 && Math.random() < 0.4 ? 'worm' : weighted(Math.random, SPAWN_TABLE[bb]);
       if (kind === 'spider' || kind === 'hedgehog') continue;
-      if (this.season === 3 && ['wasp', 'grasshopper', 'cricket', 'bee', 'mantis', 'caterpillar', 'toad', 'jumper', 'harvestman'].includes(kind)) continue;
+      if (this.season === 3 && ['wasp', 'grasshopper', 'cricket', 'bee', 'mantis', 'caterpillar', 'toad', 'jumper', 'harvestman', 'newt', 'assassin'].includes(kind)) continue;
       this.critters.push(new CRITTER_CLASSES[kind](this, x, y));
       n++;
     }
@@ -601,15 +601,25 @@ class Game {
     w.k = clamp(w.k + (w.rain ? dt : -dt) * 0.25, 0, 1);
     const sw = this.sw, snowy = sw[3] > 0.5;
     this.weatherSlow = (1 - 0.12 * w.k) * (1 - 0.18 * sw[3]);
+    // deep winter freezes the streams: ants can walk straight across the ice
+    const frozen = sw[3] > 0.8;
+    if (frozen !== this.world.frozen) {
+      this.world.frozen = frozen;
+      if (frozen && this.mode === 'play' && !this.toldOnce.has('ice')) { this.toldOnce.add('ice'); this.ui.toast('The streams have frozen. You can walk across the ice until spring.'); }
+      if (!frozen) for (const c of this.critters) if (c.kind === 'strider') c.dead = true;
+    }
+    this.updateTracks(dt);
     // snowflakes in winter (light flurries even between storms), falling leaves in autumn
     const wantSnow = Math.round(sw[3] * (snowy ? 50 + 160 * w.k : 0) + sw[3] * 20);
-    while (this.flakes.length < wantSnow) this.flakes.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(30, 70), p: rand(TAU), r: rand(1, 2.6) });
+    while (this.flakes.length < wantSnow) { const z = Math.pow(Math.random(), 1.6) * 1.3 + 0.3; this.flakes.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(26, 44) * z, p: rand(TAU), r: z * 1.9, z }); }
     if (this.flakes.length > wantSnow) this.flakes.length = wantSnow;
     const wantLeaves = Math.round(sw[2] * 22 + sw[1] * 2);
     while (this.leafFall.length < wantLeaves) this.leafFall.push({ x: rand(this.vw), y: rand(-this.vh, this.vh), v: rand(25, 55), p: rand(TAU), c: pick(['#c8642a', '#e09a3a', '#a85a20', '#d8b040', '#b83a1e']) });
     if (this.leafFall.length > wantLeaves) this.leafFall.length = wantLeaves;
+    const gust = Math.sin(this.time * 0.13) * 30 + Math.sin(this.time * 0.41) * 12;
     for (const f of this.flakes) {
-      f.y += f.v * dt; f.x += Math.sin(this.time * 0.8 + f.p) * 20 * dt;
+      f.y += f.v * dt; f.x += (Math.sin(this.time * 0.8 + f.p) * 20 + gust) * f.z * dt;
+      if (f.x < -20) f.x += this.vw + 40; else if (f.x > this.vw + 20) f.x -= this.vw + 40;
       if (f.y > this.vh + 10) { f.y = -10; f.x = rand(this.vw); }
     }
     for (const f of this.leafFall) {
@@ -1250,6 +1260,9 @@ class Game {
         this.foodHash.query(ev.x, ev.y, 150, (f) => { if (!f.taken) left++; });
         for (const b of this.bigs) if (!b.done && dist2(b.x, b.y, ev.x, ev.y) < 150 * 150) left += 3;
         if ((left === 0 && ev.age > 10) || ev.age > 300) ev.fading = true;
+      } else if (ev.kind === 'swarm') {
+        this.updateSwarm(ev, dt);
+        if (ev.age > 120) ev.fading = true;
       } else if (ev.age > 70) ev.fading = true;
       if (ev.fading) ev.fade = Math.max(0, (ev.fade ?? 1) - dt * 0.4);
     }
@@ -1278,15 +1291,50 @@ class Game {
     this.ui.toast('Someone left a picnic behind! Crumbs everywhere. Follow the gold arrow.', 'good');
   }
 
+  /* Winged termites pour out of exit holes for a few seconds, rise into a drifting cloud,
+     then come down, shed their wings and pair off. It builds up gradually, near a mound if there is one. */
   startTermiteFlight() {
     const p = this.player;
-    const ev = { kind: 'swarm', x: p.x, y: p.y, age: 0 };
-    this.events.push(ev);
-    for (let i = 0; i < 22; i++) {
-      const a = rand(TAU), d = rand(80, 520);
-      this.critters.push(new Alate(this, p.x + Math.cos(a) * d, p.y + Math.sin(a) * d));
+    let src = null, bd = 1100 * 1100;
+    for (const m of this.activeMounds || []) { const d2 = dist2(p.x, p.y, m.x, m.y); if (d2 < bd) { bd = d2; src = m; } }
+    let x, y;
+    if (src) { x = src.x; y = src.y; }
+    else { const sp = this.spotNear(p.x, p.y, 260, 480); if (!sp) return; x = sp.x; y = sp.y; }
+    const holes = [];
+    const hr = src ? 70 : 22;
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * TAU + rand(-0.4, 0.4), d = hr * rand(0.7, 1.1);
+      const hx = x + Math.cos(a) * d, hy = y + Math.sin(a) * d;
+      if (!this.world.wetAt(hx, hy)) holes.push({ x: hx, y: hy, a });
     }
-    this.ui.toast('Winged termites are swarming out on their mating flight! They make easy, rich food.', 'good');
+    if (!holes.length) return;
+    const ev = { kind: 'swarm', x, y, cx: x, cy: y, age: 0, left: 36, emitT: 2.5, holes, wind: rand(TAU), seed: (Math.random() * 1e9) | 0 };
+    this.events.push(ev);
+    // soldiers come up first to guard the exits
+    for (const h of holes.slice(0, 3)) {
+      const so = new Termite(this, { x: h.x, y: h.y }, 'soldier');
+      so.x = h.x + Math.cos(h.a) * 8; so.y = h.y + Math.sin(h.a) * 8;
+      so.mound = { x: h.x, y: h.y };
+      this.critters.push(so);
+    }
+    const dir = Math.atan2(y - p.y, x - p.x), compass = ['east', 'south-east', 'south', 'south-west', 'west', 'north-west', 'north', 'north-east'][Math.round((((dir % TAU) + TAU) % TAU) / (TAU / 8)) % 8];
+    this.ui.toast(`Termites are about to swarm, just to the ${compass}! Winged termites make easy, rich food once they land.`, 'good');
+  }
+
+  updateSwarm(ev, dt) {
+    // the cloud drifts slowly downwind
+    ev.cx += Math.cos(ev.wind) * 9 * dt; ev.cy += Math.sin(ev.wind) * 9 * dt;
+    ev.emitT -= dt;
+    while (ev.emitT <= 0 && ev.left > 0) {
+      const h = pick(ev.holes);
+      const al = new Alate(this, h.x, h.y, ev);
+      al.a = h.a + rand(-0.8, 0.8);
+      this.critters.push(al);
+      ev.left--;
+      // a trickle that builds to a rush, then tails off
+      const k = 1 - ev.left / 36;
+      ev.emitT += k < 0.2 ? rand(0.4, 0.8) : k < 0.8 ? rand(0.08, 0.25) : rand(0.3, 0.7);
+    }
   }
 
   updateEvents(dt) {
@@ -1539,10 +1587,10 @@ class Game {
 
     this.world.drawChunks(ctx, v.x0, v.y0, v.x1, v.y1);
     if (this.sw[2] > 0.01) this.world.drawSeasonLayer(ctx, v, 'leaves', this.sw[2]);
-    if (this.sw[3] > 0.01) this.world.drawSeasonLayer(ctx, v, 'snow', this.sw[3]);
+    if (this.sw[3] > 0.01) { this.world.drawSeasonLayer(ctx, v, 'snow', this.sw[3]); this.renderTracks(ctx); }
     this.world.drawPher(ctx, v, this.scentView);
 
-    for (const c of this.critters) if (c.kind === 'snail' && this.inView(c, 500)) c.drawTrail(ctx);
+    for (const c of this.critters) if (c.drawTrail && (c.kind === 'snail' || c.kind === 'mole') && this.inView(c, 600)) c.drawTrail(ctx);
     for (const pit of this.world.activePits) {
       if (!this.inView(pit)) continue;
       if (pit.kind === 'sundew') { pit.curl = pit.jawVis; drawSundew(ctx, pit, t); }
@@ -1572,7 +1620,25 @@ class Game {
       ctx.beginPath(); ctx.arc(col.x, col.y, 30 + 50 * k, 0, TAU); ctx.fill();
     }
 
-    for (const ev of this.events) if (ev.kind === 'picnic' && this.inView(ev, 200)) drawPicnic(ctx, ev, t);
+    for (const ev of this.events) {
+      if (ev.kind === 'picnic' && this.inView(ev, 200)) drawPicnic(ctx, ev, t);
+      else if (ev.kind === 'swarm' && this.inView(ev, 200)) {
+        // the exit holes the workers opened for the flight, with a ring of fresh soil
+        const a = ev.fade ?? 1;
+        ctx.globalAlpha = a;
+        for (const h of ev.holes) {
+          const R = mulberry32((h.x * 13 + h.y) | 0);
+          for (let i = 0; i < 26; i++) { const aa = R() * TAU, d = 5 + R() * 7; soilGrain(ctx, h.x + Math.cos(aa) * d, h.y + Math.sin(aa) * d, 0.8 + R() * 1.2, ['#8a6a48', '#6a4a2a', '#a88458'][(R() * 3) | 0], R() * 3); }
+          antHole(ctx, h.x, h.y, 4);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+    if (this.wingLitter && this.wingLitter.length) {
+      const v = this.view4;
+      this.wingLitter = this.wingLitter.filter((w) => this.time - w.t < 60);
+      for (const w of this.wingLitter) if (w.x > v.x0 - 30 && w.x < v.x1 + 30 && w.y > v.y0 - 30 && w.y < v.y1 + 30) drawShedWing(ctx, w, Math.min(1, (60 - (this.time - w.t)) / 10));
+    }
     for (const f of this.foods) if (this.inView(f)) drawFood(ctx, f, t);
     for (const p of this.activePatches) if (this.inView(p, 120)) for (const a of p.aphids) a.draw(ctx, t);
     for (const b of this.bigs) if (this.inView(b)) b.draw(ctx, t);
@@ -1618,6 +1684,54 @@ class Game {
     this.renderNight();
     this.renderRain();
     this.renderSeason();
+  }
+
+  /* Footprints in the snow: anything walking leaves a trail that slowly fills in. */
+  updateTracks(dt) {
+    const tr = this.tracks || (this.tracks = []);
+    const snow = this.sw[3];
+    if (snow < 0.3) { tr.length = 0; return; }
+    this.trackAcc = (this.trackAcc || 0) + dt;
+    while (tr.length && this.time - tr[0].t > 30) tr.shift();
+    if (this.trackAcc < 0.12) return;
+    this.trackAcc = 0;
+    const cam = this.camera, R = 900 * 900;
+    const add = (e, size, kind) => {
+      if (e.dead || e.inNest || e.flying || (e.z || 0) > 2 || !(e.speedNow > 4) || dist2(e.x, e.y, cam.x, cam.y) > R) return;
+      if (this.world.snowDepth(e.x, e.y) < 0.35 || this.world.waterAt(e.x, e.y)) return;
+      tr.push({ x: e.x, y: e.y, a: e.a, t: this.time, s: size, k: kind, f: (e.trackF = !e.trackF) });
+    };
+    for (const a of this.ants) add(a, a.size, 'ant');
+    for (const c of this.critters) add(c, c.size * (c.r > 20 ? 2.2 : c.r > 10 ? 1.4 : 1), c.r > 20 ? 'paw' : c.kind === 'snail' || c.kind === 'slug' || c.kind === 'worm' ? 'slide' : 'ant');
+    if (tr.length > 3500) tr.splice(0, tr.length - 3500);
+  }
+
+  renderTracks(ctx) {
+    const tr = this.tracks;
+    if (!tr || !tr.length) return;
+    const v = this.view4, snow = this.sw[3];
+    for (const p of tr) {
+      if (p.x < v.x0 || p.x > v.x1 || p.y < v.y0 || p.y > v.y1) continue;
+      const age = (this.time - p.t) / 30, al = (1 - age) * snow;
+      const c = Math.cos(p.a), s2 = Math.sin(p.a), side = p.f ? 1 : -1;
+      if (p.k === 'slide') {
+        ctx.fillStyle = `rgba(110,130,165,${0.22 * al})`;
+        ctx.beginPath(); ctx.ellipse(p.x, p.y, 5 * p.s, 2.5 * p.s, p.a, 0, TAU); ctx.fill();
+      } else if (p.k === 'paw') {
+        const px = p.x - s2 * side * 6 * p.s, py = p.y + c * side * 6 * p.s;
+        ctx.fillStyle = `rgba(100,120,160,${0.35 * al})`;
+        ctx.beginPath(); ctx.ellipse(px, py, 3 * p.s, 2.4 * p.s, p.a, 0, TAU); ctx.fill();
+        for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.arc(px + c * 4 * p.s - s2 * k * 2 * p.s, py + s2 * 4 * p.s + c * k * 2 * p.s, 1 * p.s, 0, TAU); ctx.fill(); }
+      } else {
+        // tiny paired dots from six little feet
+        ctx.fillStyle = `rgba(95,115,155,${0.3 * al})`;
+        for (let k = -1; k <= 1; k++) {
+          const ox = c * k * 3 * p.s, oy = s2 * k * 3 * p.s;
+          const lx = -s2 * side * 3.4 * p.s, ly = c * side * 3.4 * p.s;
+          ctx.fillRect(p.x + ox + lx - 0.6, p.y + oy + ly - 0.6, 1.2, 1.2);
+        }
+      }
+    }
   }
 
   /* Big soft cloud shadows drifting across the ground on sunny days. */
@@ -1667,8 +1781,22 @@ class Game {
       ctx.fillStyle = fl.c; ctx.beginPath(); ctx.ellipse(0, 0, 5, 2.4, 0, 0, TAU); ctx.fill();
       ctx.restore();
     }
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    for (const fl of this.flakes) { ctx.beginPath(); ctx.arc(fl.x, fl.y, fl.r, 0, TAU); ctx.fill(); }
+    if (this.flakes.length) {
+      // soft round flakes: near ones big and blurred, far ones small and sharp
+      if (!this.flakeSpr) {
+        const c = document.createElement('canvas'); c.width = c.height = 32;
+        const g = c.getContext('2d'), gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+        gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.85)'); gr.addColorStop(1, 'rgba(235,242,255,0)');
+        g.fillStyle = gr; g.fillRect(0, 0, 32, 32);
+        this.flakeSpr = c;
+      }
+      for (const fl of this.flakes) {
+        const r = fl.r * 2.2 * (0.85 + 0.15 * Math.sin(this.time * 3 + fl.p));
+        ctx.globalAlpha = fl.z > 1.1 ? 0.6 : 0.9;
+        ctx.drawImage(this.flakeSpr, fl.x - r, fl.y - r, r * 2, r * 2);
+      }
+      ctx.globalAlpha = 1;
+    }
   }
 
   renderRain() {

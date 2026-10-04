@@ -22,11 +22,46 @@ class Critter {
     this.speedNow = speed;
     this.gait += speed * dt * this.gaitK;
   }
+  /* Everyday life for a small animal: keep to its hours, feel the cold, look for something
+     to eat, bolt for cover when ants gang up, and keep clear of ant nests. */
   wanderStep(dt, speed, home, leash) {
+    const g = this.game, eco = ECOLOGY[this.kind] || ECO_DEFAULT;
+    // time of day, temperature and rain set how lively we are
+    const night = g.darkness() > 0.25;
+    let pace = 1;
+    if (eco.active === 'night') pace *= night ? 1.15 : 0.45;
+    else if (eco.active === 'day') pace *= night ? 0.35 : 1;
+    if (eco.cold) pace *= 1 - 0.6 * (g.sw ? g.sw[3] : 0);
+    if (eco.rain && g.weather) pace *= 1 + 0.7 * g.weather.k;
+    speed *= pace;
+    this.eTh = (this.eTh || 0) - dt;
+    if (this.eTh <= 0) {
+      this.eTh = 0.4 + Math.random() * 0.2;
+      this.thinkEco(eco, home);
+    }
+    if (this.fleeT > 0) {
+      this.fleeT -= dt; this.idleT = 0; this.feedT = 0;
+      const tg = this.cover;
+      const a = tg && dist2(this.x, this.y, tg.x, tg.y) > (tg.r || 20) ** 2 ? Math.atan2(tg.y - this.y, tg.x - this.x) : this.fleeA;
+      this.move(a, Math.max(speed, 20) * (eco.flee || 1.6), dt, 6);
+      return;
+    }
+    if (this.frozenT > 0) { this.frozenT -= dt; this.speedNow = 0; return; }
+    if (this.feedT > 0) {
+      // nibbling at a plant: stay put, head bobbing
+      this.feedT -= dt; this.speedNow = 0; this.gait += dt * 2;
+      return;
+    }
     if (this.idleT > 0) { this.idleT -= dt; this.speedNow = 0; return; }
-    if (Math.random() < dt * 0.08) { this.idleT = rand(1, 4); return; }
+    if (Math.random() < dt * (0.08 / Math.max(0.3, pace))) { this.idleT = rand(1, 4) / Math.max(0.4, pace); return; }
     this.wander = clamp(this.wander * (1 - dt * 0.6) + (Math.random() - 0.5) * 5 * dt, -1, 1);
     let desired = this.a + this.wander * dt * 1.2;
+    const fg = this.forageGoal;
+    if (fg) {
+      if (dist2(this.x, this.y, fg.x, fg.y) < 16 * 16) { this.forageGoal = null; this.feedT = rand(3, 8); }
+      else desired = Math.atan2(fg.y - this.y, fg.x - this.x);
+    }
+    if (this.avoid) desired = this.avoid;
     if (home && dist2(this.x, this.y, home.x, home.y) > leash * leash) desired = Math.atan2(home.y - this.y, home.x - this.x);
     // a honey lure draws small wanderers in from a distance
     const lu = this.game.lure;
@@ -37,8 +72,89 @@ class Critter {
     }
     this.move(desired, speed, dt);
   }
-  hitFx() { this.game.fx.hit(this.x, this.y, '#fff0d0'); }
+  hitFx() { this.game.fx.hit(this.x, this.y, '#fff0d0'); this.lastHurt = this.game.time; }
+
+  /* The slower half of the prey brain, run a couple of times a second. */
+  thinkEco(eco, home) {
+    const g = this.game;
+    this.avoid = null;
+    if (this.predator || this.flying) return;
+    // threats: ants close by, or any ant at all if we were just bitten
+    if (eco.wary > 0 && !(this.fleeT > 0)) {
+      let n = 0, c = 0, sx = 0, sy = 0;
+      const R = eco.wary + (this.r || 8);
+      g.hash.query(this.x, this.y, R, (o) => {
+        if (o.kind !== 'ant' || o.dead || o.inNest || dist2(this.x, this.y, o.x, o.y) > R * R) return;
+        n += o.isPlayer ? 2 : 1; c++; sx += o.x; sy += o.y;
+      });
+      const stung = g.time - (this.lastHurt ?? -99) < 3;
+      if (c && (n >= (eco.nerve || 2) || stung)) {
+        if (eco.freeze && !stung) { this.frozenT = rand(2, 4); return; }
+        this.fleeA = Math.atan2(this.y - sy / c, this.x - sx / c);
+        this.fleeT = rand(1.2, 2.4);
+        // run for the nearest cover that lies away from the ants
+        this.cover = null;
+        let bd = 260 * 260;
+        const consider = (c, r) => {
+          const d2 = dist2(this.x, this.y, c.x, c.y);
+          if (d2 > bd) return;
+          if (Math.cos(angDiff(Math.atan2(c.y - this.y, c.x - this.x), this.fleeA)) < 0.2) return;
+          bd = d2; this.cover = { x: c.x, y: c.y, r };
+        };
+        for (const tr of g.activeTrees) consider(tr, tr.tr + 20);
+        for (const f of g.activePlants) if (f.type === 'bush') consider(f, 30);
+        return;
+      }
+    }
+    // keep away from ant nests: that's where the ants are thickest
+    for (const col of g.activeColonies) {
+      if (col.dead) continue;
+      const n = col.nest, d2 = dist2(this.x, this.y, n.x, n.y);
+      if (d2 < 260 * 260) { this.avoid = Math.atan2(this.y - n.y, this.x - n.x); this.forageGoal = null; return; }
+    }
+    // look for food: plant-eaters head for flowers and brambles
+    if (eco.diet === 'plant' && !this.forageGoal && !(this.feedT > 0) && Math.random() < 0.15) {
+      let best = null, bd = 320 * 320;
+      for (const f of g.world.flowersNear(this.x, this.y)) { const d2 = dist2(this.x, this.y, f.x, f.y); if (d2 < bd) { bd = d2; best = f; } }
+      for (const f of g.activePlants) { if (f.type === 'sundew') continue; const d2 = dist2(this.x, this.y, f.x, f.y); if (d2 < bd) { bd = d2; best = { x: f.x + rand(-20, 20), y: f.y + rand(-20, 20) }; } }
+      if (best && (!home || dist2(best.x, best.y, home.x, home.y) < 600 * 600)) this.forageGoal = { x: best.x, y: best.y };
+    }
+    // seed-eaters steal crumbs and seeds lying on the ground
+    if (eco.diet === 'seed' && !this.forageGoal && Math.random() < 0.3) {
+      let best = null, bd = 260 * 260;
+      g.foodHash.query(this.x, this.y, 260, (f) => { if (f.taken || f.kind === 'leafbit') return; const d2 = dist2(this.x, this.y, f.x, f.y); if (d2 < bd) { bd = d2; best = f; } });
+      if (best) this.forageGoal = best;
+    }
+    if (eco.diet === 'seed' && this.forageGoal && this.forageGoal.kind && !this.forageGoal.taken && dist2(this.x, this.y, this.forageGoal.x, this.forageGoal.y) < 18 * 18) {
+      g.takeFood(this.forageGoal); this.forageGoal = null; this.feedT = rand(1.5, 3);
+    }
+  }
 }
+
+/* Each animal's habits: when it's active, what it eats, how jumpy it is.
+   wary = how close ants may come before it reacts; nerve = how many ants it will tolerate. */
+const ECO_DEFAULT = { wary: 50, nerve: 2, flee: 1.6, cold: true };
+const ECOLOGY = {
+  beetle: { diet: 'plant', active: 'night', cold: true, wary: 55, nerve: 3, flee: 1.5 },
+  pillbug: { diet: 'litter', active: 'night', cold: true, wary: 0 },
+  caterpillar: { diet: 'plant', active: 'day', cold: true, wary: 45, flee: 1.4 },
+  snail: { diet: 'plant', active: 'night', rain: true, cold: true, wary: 0 },
+  slug: { diet: 'plant', active: 'night', rain: true, cold: true, wary: 0 },
+  grasshopper: { diet: 'plant', active: 'day', cold: true, wary: 90, nerve: 1 },
+  cricket: { diet: 'plant', active: 'night', cold: true, wary: 80, nerve: 1 },
+  millipede: { diet: 'litter', active: 'night', cold: true, wary: 45, nerve: 3 },
+  worm: { diet: 'litter', rain: true, cold: true, wary: 40, flee: 1.3 },
+  earwig: { diet: 'litter', active: 'night', cold: true, wary: 0 },
+  dungbeetle: { diet: 'litter', active: 'day', cold: true, wary: 55, nerve: 3 },
+  stick: { diet: 'plant', cold: true, wary: 70, nerve: 1, freeze: true },
+  harvestman: { diet: 'litter', active: 'night', cold: true, wary: 0 },
+  mouse: { diet: 'seed', active: 'night', wary: 120, nerve: 2, flee: 1.3 },
+  vole: { diet: 'seed', wary: 110, nerve: 2, flee: 1.4 },
+  termite: { diet: 'litter', cold: true, wary: 0 },
+  ladybug: { diet: 'plant', active: 'day', cold: true, wary: 0 },
+  alate: { wary: 0 },
+  mole: { diet: 'litter', wary: 0 },
+};
 
 /* ----------------------------------------------------------- wolf spider */
 

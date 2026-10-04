@@ -85,6 +85,7 @@ class World {
   waterAt(x, y) { return this.waterVal(x, y) > 0; }
   /* Water a walker cannot cross: open water that is not spanned by a log bridge. */
   wetAt(x, y) {
+    if (this.frozen) return false;
     if (this.waterVal(x, y) <= 0) return false;
     const d = this.getData(Math.floor(x / CHUNK), Math.floor(y / CHUNK));
     for (const b of d.nearBridges || this.bridgeList(d)) if (segDist2(x, y, b) < (b.w / 2) ** 2) return false;
@@ -413,7 +414,7 @@ class World {
 
   /* Move to (nx, ny) unless that is water the walker cannot cross; slide along shores. */
   moveTo(e, nx, ny) {
-    if (!e.swims && this.wetAt(nx, ny)) {
+    if (!e.swims && this.wetAt(nx, ny) && !this.wetAt(e.x, e.y)) {
       if (!this.wetAt(nx, e.y)) ny = e.y;
       else if (!this.wetAt(e.x, ny)) nx = e.x;
       else { this.collide(e); return false; }
@@ -612,7 +613,152 @@ class World {
   /* ------------------------------------------------------ season layers */
 
   /* Fallen leaves for autumn and lying snow for winter, baked per chunk and faded in by season. */
+  /* How deep the snow lies here (0 = bare ground, 1 = thick drift). Shared by the
+     snow layer, footprints and anything else that needs to know. */
+  snowDepth(x, y) {
+    const d = fbm(x / 340, y / 340, this.seed + 71, 3) * 0.75 + vnoise(x / 70, y / 70, this.seed + 72) * 0.25;
+    return smoothstep(0.36, 0.44, d) * (0.7 + 0.3 * smoothstep(0.48, 0.7, d));
+  }
+
+  /* A crisp snow blanket: a fine world-aligned field of depth, shaded by its own drifts,
+     with ice over open water, rocks poking through with caps of snow, and sparkle. */
+  bakeSnow(cx, cy) {
+    const c = document.createElement('canvas');
+    c.width = c.height = CHUNK + 4;
+    const g = c.getContext('2d');
+    g.translate(2, 2);
+    const x0 = cx * CHUNK, y0 = cy * CHUNK, ST = 4, M = 6, N = CHUNK / ST + M * 2 + 1;
+    const D = new Float32Array(N * N), Wt = new Float32Array(N * N);
+    // water changes slowly: sample it every other cell and fill in
+    for (let j = 0; j < N; j += 2) for (let i = 0; i < N; i += 2) {
+      const wv = this.waterVal(x0 + (i - M) * ST, y0 + (j - M) * ST);
+      for (let b = 0; b < 2 && j + b < N; b++) for (let a = 0; a < 2 && i + a < N; a++) Wt[(j + b) * N + i + a] = wv;
+    }
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) D[j * N + i] = this.snowDepth(x0 + (i - M) * ST, y0 + (j - M) * ST);
+    const gc = document.createElement('canvas'); gc.width = gc.height = N;
+    const gx = gc.getContext('2d'), img = gx.createImageData(N, N);
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const k = j * N + i, d = D[k];
+      const dl = D[j * N + Math.max(0, i - 1)], dr = D[j * N + Math.min(N - 1, i + 1)];
+      const du = D[Math.max(0, j - 1) * N + i], dd = D[Math.min(N - 1, j + 1) * N + i];
+      // light from the top left: drift faces turned towards it glow, lee sides go blue
+      const sh = clamp(1 + ((dl - dr) + (du - dd)) * 0.9, 0.86, 1.06);
+      const wv = Wt[k];
+      let r, gg, b, a;
+      if (wv > 0) {
+        // ice: pale blue-green, clearer in the middle of the stream
+        const deep = smoothstep(0.0, 1.2, wv);
+        r = 196 - deep * 30; gg = 222 - deep * 18; b = 236 - deep * 6;
+        a = 0.88 - deep * 0.18 + d * 0.1;
+        if (wv < 0.15) { r = 236; gg = 244; b = 252; a = 0.92; }
+      } else {
+        // cool, slightly blue snow; thin snow at the edges lets the ground tint through
+        const grain = (hashInt(i + x0 / ST, j + y0 / ST, 5) % 1000) / 1000 * 0.04 - 0.02;
+        r = (236 + grain * 255) * sh; gg = (242 + grain * 255) * sh; b = 252 * Math.min(1.03, sh + 0.05);
+        if (sh < 1) { r -= (1 - sh) * 70; gg -= (1 - sh) * 36; }
+        a = smoothstep(0.04, 0.2, d) * (0.82 + 0.16 * smoothstep(0.2, 0.6, d));
+        // between the drifts the ground is frosted: dead straw-grey grass, flowers gone over
+        const fa = 0.5 * (1 - a);
+        const fr = 150 + grain * 300, fg = 144 + grain * 300, fb = 126 + grain * 300;
+        const tot = a + fa;
+        r = (r * a + fr * fa) / tot; gg = (gg * a + fg * fa) / tot; b = (b * a + fb * fa) / tot;
+        a = tot;
+      }
+      img.data[k * 4] = r; img.data[k * 4 + 1] = gg; img.data[k * 4 + 2] = b; img.data[k * 4 + 3] = a * 255;
+    }
+    gx.putImageData(img, 0, 0);
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+    // a slight blur turns the sampled grid into smooth, rounded drift edges
+    g.filter = 'blur(2.5px)';
+    g.drawImage(gc, -M * ST - ST / 2, -M * ST - ST / 2, N * ST, N * ST);
+    g.filter = 'none';
+    // the drifts cast a thin shadow onto the ground at their edges, which gives the snow thickness
+    const sh = document.createElement('canvas'); sh.width = sh.height = c.width;
+    const sg = sh.getContext('2d');
+    sg.drawImage(c, 0, 0);
+    sg.globalCompositeOperation = 'source-in'; sg.fillStyle = 'rgb(40,55,80)'; sg.fillRect(0, 0, sh.width, sh.height);
+    g.save(); g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'destination-over'; g.globalAlpha = 0.3; g.filter = 'blur(2px)';
+    g.drawImage(sh, 2.5, 3.5);
+    g.restore();
+    g.translate(-x0, -y0);
+    const R = mulberry32(hashInt(cx, cy, this.seed + 61));
+    const depthAt = (x, y) => { const i = Math.round((x - x0) / ST) + M, j = Math.round((y - y0) / ST) + M; return i >= 0 && j >= 0 && i < N && j < N ? D[j * N + i] : 0; };
+    const iceAt = (x, y) => { const i = Math.round((x - x0) / ST) + M, j = Math.round((y - y0) / ST) + M; return i >= 0 && j >= 0 && i < N && j < N && Wt[j * N + i] > 0.1; };
+    // wind-carved ripples across deep snow
+    g.lineCap = 'round';
+    for (let i = 0; i < 70; i++) {
+      const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+      if (depthAt(x, y) < 0.6 || iceAt(x, y)) continue;
+      const l = 10 + R() * 22;
+      g.strokeStyle = 'rgba(150,170,205,0.28)'; g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + l * 0.5, y - 3, x + l, y + 1); g.stroke();
+      g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(x, y - 1.2); g.quadraticCurveTo(x + l * 0.5, y - 4.2, x + l, y - 0.2); g.stroke();
+    }
+    // long low streaks of reflected sky across the ice
+    for (let i = 0; i < 18; i++) {
+      const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+      if (!iceAt(x, y)) continue;
+      const l = 30 + R() * 50;
+      const gr = g.createLinearGradient(x - l, y + l * 0.4, x + l, y - l * 0.4);
+      gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.strokeStyle = gr; g.lineWidth = 2 + R() * 3;
+      g.beginPath(); g.moveTo(x - l, y + l * 0.4); g.lineTo(x + l, y - l * 0.4); g.stroke();
+    }
+    // cracks and trapped bubbles in the ice
+    for (let i = 0; i < 26; i++) {
+      let x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+      if (!iceAt(x, y)) continue;
+      g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 0.7;
+      g.beginPath(); g.moveTo(x, y);
+      let a = R() * TAU;
+      for (let k = 0; k < 5; k++) { a += (R() - 0.5) * 1.2; x += Math.cos(a) * (8 + R() * 14); y += Math.sin(a) * (8 + R() * 14); g.lineTo(x, y); }
+      g.stroke();
+      g.fillStyle = 'rgba(255,255,255,0.45)';
+      for (let k = 0; k < 4; k++) { g.beginPath(); g.arc(x + (R() - 0.5) * 20, y + (R() - 0.5) * 20, 0.8 + R() * 1.4, 0, TAU); g.fill(); }
+    }
+    // rocks, logs and nests poke through, each with a cap of snow on top
+    const pokes = [];
+    for (const o of this.collList(cx, cy)) if (o.x + o.r > x0 && o.x - o.r < x0 + CHUNK && o.y + o.r > y0 && o.y - o.r < y0 + CHUNK) pokes.push({ x: o.x, y: o.y, r: o.r, cap: true });
+    const nests = [...this.extraProps];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (const p of this.getData(cx + dx, cy + dy).props) if (p.type === 'nest' || p.type === 'termound') nests.push(p);
+    for (const p of nests) if ((p.type === 'nest' || p.type === 'termound') && Math.abs(p.x - x0 - CHUNK / 2) < CHUNK && Math.abs(p.y - y0 - CHUNK / 2) < CHUNK) pokes.push({ x: p.x, y: p.y, r: p.type === 'nest' ? 85 : 50, cap: p.type === 'termound' });
+    g.globalCompositeOperation = 'destination-out';
+    for (const o of pokes) radialFill(g, o.x, o.y, o.r * 1.12, [[0, 'rgba(0,0,0,1)'], [0.78, 'rgba(0,0,0,0.95)'], [1, 'rgba(0,0,0,0)']]);
+    g.globalCompositeOperation = 'source-over';
+    for (const o of pokes) {
+      if (!o.cap || o.r < 12) continue;
+      const cxp = o.x - o.r * 0.18, cyp = o.y - o.r * 0.24, rr = o.r * 0.68;
+      radialFill(g, cxp + o.r * 0.12, cyp + o.r * 0.16, rr, [[0, 'rgba(120,140,180,0.25)'], [1, 'rgba(120,140,180,0)']]);
+      g.save(); g.translate(cxp, cyp);
+      g.beginPath();
+      for (let k = 0; k <= 16; k++) { const a = (k / 16) * TAU, w = rr * (0.85 + 0.15 * Math.sin(a * 3 + o.x)); k ? g.lineTo(Math.cos(a) * w, Math.sin(a) * w * 0.82) : g.moveTo(Math.cos(a) * w, Math.sin(a) * w * 0.82); }
+      const gr = g.createRadialGradient(-rr * 0.3, -rr * 0.35, 1, 0, 0, rr);
+      gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.7, '#eef3fb'); gr.addColorStop(1, '#c4d2e8');
+      g.fillStyle = gr; g.fill();
+      g.restore();
+    }
+    // glints of frost that catch the low winter sun
+    for (let i = 0; i < 260; i++) {
+      const x = x0 + R() * CHUNK, y = y0 + R() * CHUNK;
+      if (depthAt(x, y) < 0.3) {
+        // hoar frost glinting on the bare ground
+        if (R() < 0.5) { g.fillStyle = 'rgba(240,248,255,0.55)'; g.fillRect(x, y, 1, 1); }
+        continue;
+      }
+      const big = R() < 0.08;
+      g.fillStyle = big ? 'rgba(255,255,255,0.95)' : R() < 0.5 ? 'rgba(255,255,255,0.75)' : 'rgba(180,205,255,0.6)';
+      if (big) { g.fillRect(x - 1.5, y - 0.25, 3, 0.5); g.fillRect(x - 0.25, y - 1.5, 0.5, 3); }
+      else g.fillRect(x, y, 0.9, 0.9);
+    }
+    // a soft grey line where a snow edge meets bare ground, so drifts read as having depth
+    return c;
+  }
+
   bakeSeason(cx, cy, kind) {
+    if (kind === 'snow') return this.bakeSnow(cx, cy);
     const s = Math.min(this.bakeScale, 1.25), size = CHUNK + PAD * 2;
     const c = document.createElement('canvas');
     c.width = c.height = Math.ceil(size * s);
@@ -671,7 +817,7 @@ class World {
     ctx.globalAlpha = Math.min(1, alpha * (kind === 'snow' ? 1 : 1.1));
     for (let cx = Math.floor(v.x0 / CHUNK); cx <= Math.floor(v.x1 / CHUNK); cx++) {
       for (let cy = Math.floor(v.y0 / CHUNK); cy <= Math.floor(v.y1 / CHUNK); cy++) {
-        const k = kind + 'v2' + cx * 100000 + ',' + cy;
+        const k = kind + 'v7' + cx * 100000 + ',' + cy;
         let c = this.sChunks.get(k);
         if (!c) {
           if (budget-- <= 0) continue;
@@ -679,7 +825,11 @@ class World {
           this.sChunks.set(k, c);
           if (this.sChunks.size > 40) this.sChunks.delete(this.sChunks.keys().next().value);
         }
-        ctx.drawImage(c, cx * CHUNK - PAD, cy * CHUNK - PAD, CHUNK + PAD * 2, CHUNK + PAD * 2);
+        if (kind === 'snow') ctx.drawImage(c, 2, 2, CHUNK, CHUNK, cx * CHUNK, cy * CHUNK, CHUNK, CHUNK);
+        else {
+          const sc = c.width / (CHUNK + PAD * 2), p = PAD * sc;
+          ctx.drawImage(c, p, p, c.width - p * 2, c.height - p * 2, cx * CHUNK, cy * CHUNK, CHUNK, CHUNK);
+        }
       }
     }
     ctx.restore();

@@ -841,3 +841,22 @@ body.playing .site-banner { display: none; }
 .stat-live.live-clickable { margin: 0; }
 .stat-live::before { display: none; }
 .stat-live { margin-left: 6px; }
+
+/* ---------- the gentle thank-you card after a long play ---------- */
+.nudge { display: flex; gap: 14px; align-items: flex-start; margin-top: 22px; padding: 16px 18px; border-radius: 14px; background: linear-gradient(135deg, rgba(240, 98, 146, .10), rgba(240, 98, 146, .04)); border: 1px solid rgba(240, 98, 146, .3); animation: rise .35s ease both; transition: opacity .25s, transform .25s; }
+.nudge.closing { opacity: 0; transform: translateY(-6px); }
+.nudge-ico { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(240, 98, 146, .16); color: #e8578a; }
+.nudge-ico .ico { width: 18px; height: 18px; }
+.nudge b { font-size: 16px; }
+.nudge p { margin: 4px 0 12px; font-size: 14px; line-height: 1.5; color: var(--dim); }
+.nudge-acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.big-play.small { padding: 8px 16px; font-size: 14px; }
+.big-play.small .ico { color: #ffd0de; }
+/* support page: what tips help with */
+.support ul.tip-uses { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; max-width: 560px; }
+.support ul.tip-uses li { display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 12px; background: var(--card); border: 1px solid var(--line); }
+.support ul.tip-uses li::before { content: none; }
+.tip-uses b { font: 700 18px var(--mono); color: #e8578a; text-align: center; }
+.tip-uses span { font-size: 14px; line-height: 1.45; }
+.support h2 { margin: 30px 0 0; font-size: 20px; }
+.support .kind { margin: 14px 0 0; color: var(--dim); font-size: 14px; max-width: 560px; }

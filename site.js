@@ -101,6 +101,13 @@
   // While it's empty, every Support button stays hidden. Only those two kinds of link are used.
   const SUPPORT_URL = 'https://buy.stripe.com/9B600meembGC9NK0A80x200';
   const supportUrl = /^https:\/\/((buy|donate)\.stripe\.com|ko-fi\.com)\/[A-Za-z0-9_]+$/.test(SUPPORT_URL) ? SUPPORT_URL : '';
+  // gentle asking: someone who has tipped isn't asked again for a long while, and nudges are spaced out
+  const DAY = 864e5;
+  const tippedRecently = () => { try { return Date.now() - (+localStorage.getItem('usforge-tipped') || 0) < 120 * DAY; } catch (e) { return false; } };
+  const markTipped = () => { try { localStorage.setItem('usforge-tipped', String(Date.now())); } catch (e) {} };
+  const canNudge = () => { if (!supportUrl || tippedRecently()) return false; try { return Date.now() - (+localStorage.getItem('usforge-nudged') || 0) > 10 * DAY; } catch (e) { return false; } };
+  const markNudged = () => { try { localStorage.setItem('usforge-nudged', String(Date.now())); } catch (e) {} };
+  const totalTime = () => { try { return Object.values(JSON.parse(localStorage.getItem('usforge-time')) || {}).reduce((a, b) => a + b, 0); } catch (e) { return 0; } };
   addEventListener('DOMContentLoaded', () => {
     for (const el of document.querySelectorAll('[data-support]')) el.hidden = !supportUrl;
     for (const el of document.querySelectorAll('[data-support-go]')) el.href = supportUrl || 'support.html';
@@ -316,7 +323,7 @@
       top = makeBanner(BANNER, 'members-banner', `<b>We need more members!</b> <span>Make games with AI? Join UsForge and share them with everyone.</span> <a href="/add.html#join">How to join →</a>`);
       document.body.prepend(top);
     }
-    if (supportUrl && pref(SUPPORT_BANNER, '') !== 'closed' && !skip(/\/(support|thanks)(\.html)?$/)) {
+    if (supportUrl && !tippedRecently() && pref(SUPPORT_BANNER, '') !== 'closed' && !skip(/\/(support|thanks)(\.html)?$/)) {
       const bar = makeBanner(SUPPORT_BANNER, 'support-banner', `<b>${window.UsForgeIcon?.('heart') || '♥'} Enjoying UsForge?</b> <span>It’s free with no ads. A small tip helps us keep it running.</span> <a href="/support.html">Support us →</a>`);
       top ? top.after(bar) : document.body.prepend(bar);
     }
@@ -388,6 +395,6 @@
   }
   const levelChip = lv => `<span class="level lv-${lv.i}" title="${lv.points.toLocaleString()} points${lv.next ? ` · ${lv.toNext.toLocaleString()} more to ${lv.next}` : ' · top level!'}">${window.UsForgeIcon?.(lv.icon) || ''} ${lv.name}</span>`;
 
-  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, LEVELS, makerPoints, levelOf, levelChip, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast, store, favs, isFav, toggleFav, addTime, flag };
+  window.UsForge = { accentHue: hueOf(rgbOf(accent)), DEFAULT_ACCENT, get accent() { return accent; }, setAccent: hex => { setPref('usforge-accent', hex && okHex(hex) && hex.toLowerCase() !== DEFAULT_ACCENT ? hex.toLowerCase() : null); applyAccent(hex || DEFAULT_ACCENT); }, setTheme: m => { set(m); apply(); }, get theme() { return get(); }, pref, setPref, supportUrl, canNudge, markNudged, markTipped, totalTime, refreshScroll: () => dispatchEvent(new Event('scroll')), install, get installMode() { return installMode(); }, LEVELS, makerPoints, levelOf, levelChip, GENRES, GENRE_GROUPS, TEAM, live: LIVE, paintLive, setPlaying: slug => { playingNow = slug || ''; beat(); }, stats, recent, played, stoked, stoke, FLAME, toast, store, favs, isFav, toggleFav, addTime, flag };
   document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mount) : mount();
 })();

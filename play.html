@@ -9,10 +9,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;600&display=swap">
-<link rel="stylesheet" href="style.css?v=50">
+<link rel="stylesheet" href="style.css?v=51">
 <script>/* THEME_BOOT */try{var m=localStorage.getItem('usforge-theme')||'auto',h=new Date().getHours();document.documentElement.dataset.theme=m==='auto'?(h>=7&&h<19?'light':'dark'):m}catch(e){}</script>
 <script src="icons.js?v=3"></script>
-<script src="site.js?v=36"></script>
+<script src="site.js?v=37"></script>
 </head>
 <body>
 
@@ -283,9 +283,25 @@
       frame.src = src;
       $('stage').append(frame);
     }
+    if (!playStart) playStart = Date.now();
     $('player').hidden = false; document.body.classList.add('playing'); frame.focus(); window.UsForge?.refreshScroll();
   }
+  // after a good long play, a soft thank-you card on the game page (never during a game, at most every 10 days)
+  let playStart = 0;
+  function maybeNudge() {
+    const secs = playStart ? (Date.now() - playStart) / 1000 : 0; playStart = 0;
+    if (secs < 180 || UsForge.totalTime() < 600 || !UsForge.canNudge() || document.querySelector('.nudge')) return;
+    UsForge.markNudged();
+    const card = document.createElement('div'); card.className = 'nudge'; card.setAttribute('role', 'status');
+    card.innerHTML = `<span class="nudge-ico">${UsForgeIcon('heart')}</span><div><b>Glad you played ${esc(game.title)}!</b>
+      <p>UsForge is free, with no ads, made by four friends and a community of game makers. If you’d like to say thanks, a small tip helps keep it going.</p>
+      <span class="nudge-acts"><a class="big-play small" href="support.html">Leave a tip ${UsForgeIcon('heart')}</a><button type="button" class="btn-l" id="nudgeX">Maybe later</button></span></div>`;
+    document.querySelector('.detail .acts')?.after(card);
+    $('nudgeX').onclick = () => { card.classList.add('closing'); setTimeout(() => card.remove(), 250); };
+    for (const el of document.querySelectorAll('.tipline')) el.hidden = true;   // (one ask at a time)
+  }
   function stop() {   // back to the game page (the game is removed so it stops making noise)
+    if (frame) setTimeout(maybeNudge, 400);
     $('player').hidden = true; document.body.classList.remove('playing');
     frame?.remove(); frame = null; window.UsForge?.refreshScroll(); UsForge.setPlaying(null);
     setTimeout(() => $('playBtn')?.focus(), 50);

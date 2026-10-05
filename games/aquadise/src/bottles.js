@@ -74,12 +74,14 @@ AQ.Bottles = (function () {
   B.init = function () {
     const t0 = performance.now();
     const canReach = reachable(), all = candidates(canReach), placed = [];
+    B.spots = all;                                   // also where falling stars may land (src/starfall.js)
     const seed0 = (AQ.data.world.seed || 1) * 7919;
     B.list = [];
     for (const d of AQ.data.creatures) {
       if (!AQ.data.lore || !AQ.data.lore[d.id]) continue;
-      const pool = all[d.biome] || [];
-      if (!pool.length) { console.warn('[bottles] no reachable spot in', d.biome, 'for', d.id); continue; }
+      const where = d.bottle || d.biome;            // creatures with no sea biome (Starfall) name one with `bottle`
+      const pool = all[where] || [];
+      if (!pool.length) { console.warn('[bottles] no reachable spot in', where, 'for', d.id); continue; }
       let h = seed0; for (const ch of d.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
       const rng = U.rng(h);
       // mostly on the seabed / shore, sometimes floating (cfg().floatShare), when the biome has both
@@ -115,6 +117,7 @@ AQ.Bottles = (function () {
     b.taken = 0.001;
     AQ.FX.sparkle(b.x, drawY(b) - 4, '#fff7c2', 10);
     AQ.Audio.play('bottle');
+    if (AQ.Tips) AQ.Tips.event('bottle');
     const d = AQ.Creatures.defs[b.id], p = B.progress();
     AQ.HUD.toast(`Message in a bottle! Field notes on ${AQ.Collection.has(b.id) ? d.name : 'a mystery creature'} (L)`, '#ffe9a8', 4);
     AQ.HUD.toast(`Bottles found ${p.found}/${p.total}`, '#cfe8ff', 3);

@@ -106,7 +106,7 @@ AQ.Behaviors = (function () {
     } else { c.feeding = true; H.brake(c, dt); c.facing = b.x > c.x ? 1 : -1; if (R.chance(dt * 1.2)) AQ.FX.text(c.x, c.y - c.r - 4, '♥', '#ff9fc0'); }
     return true;
   };
-  H.alertMark = (c, t = 0.8) => { c.iconT = t; c.icon = '!'; };
+  H.alertMark = (c, t = 0.8) => { c.iconT = t; c.icon = '!'; if (AQ.Tips) AQ.Tips.event('noticed'); };
   // Calm idle movement shared by many behaviours.
   H.idle = function (c, dt) {
     const p = c.p;
@@ -631,7 +631,7 @@ AQ.Behaviors = (function () {
       d.y = c.y - (c.r * 0.6) + Math.sin(c.t * 2.1 + c.seed) * 2.5;
       const nearD = Math.hypot(ctx.P.x - d.x, ctx.P.y - d.y) < 40;
       d.flick = Math.max(0, d.flick - dt);
-      d.a = d.flick > 0 ? (Math.sin(c.t * 60) > 0 ? 1 : 0.15) : nearD ? (Math.sin(c.t * 9) > -0.3 ? 1 : 0.35) : 0.85 + 0.15 * Math.sin(c.t * 3);
+      d.a = d.flick > 0 ? (AQ.U.calm() ? 0.55 + 0.4 * Math.sin(c.t * 4) : Math.sin(c.t * 60) > 0 ? 1 : 0.15) : nearD ? (Math.sin(c.t * 9) > -0.3 ? 1 : 0.35) : 0.85 + 0.15 * Math.sin(c.t * 3);
       c.duck = Math.max(0, (c.duck || 0) - dt);
       if (H.careless(c, ctx, 26) && !c.duck) { c.duck = 1; H.alertMark(c, 0.6); }
       c.catchable = !c.duck;

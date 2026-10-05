@@ -28,11 +28,35 @@ npx http-server -c-1 .      # or: python3 -m http.server
 | interact (beam up/down, open a tank) | E                         |
 | climb a ladder      | W / S (or Up / Down) on a ladder         |
 | building: whole-view toggle | V                                |
+| field guide         | I (Left/Right: turn the page, Esc: close)  |
 | collection log      | L (Left/Right: tabs, WASD or Up/Down: move, Q/E or the dots: biome, wheel: scroll, Enter: open entry, then Left/Right: prev/next species, Esc: back / close) |
 | map                 | M                                        |
 | pause / home / reset | Esc                                     |
 | help overlay        | H                                        |
 | mute / unmute sound | O (anywhere)                             |
+
+### Touch screens (phones, tablets)
+
+Touch controls turn on by themselves with the first touch (**SETTINGS > TOUCH > TOUCH CONTROLS**:
+AUTO / ON / OFF, saved). Hold the device sideways: in portrait a "Rotate your device" screen shows and
+the game waits. The game fills the screen (keeping its shape, clear of notches and the home bar),
+and the controls sit in the black side bars where there's room, or over the game's edges:
+
+| action | touch |
+|---|---|
+| swim / walk / climb ladders | the joystick: put a thumb down anywhere in the lower part of the left side and slide (it appears under your thumb; a small push does nothing) |
+| jump | **JUMP** (up arrow), or push the joystick far up on land |
+| sneak | **SNEAK** (footprints) turns it on / off; it lights up and SNEAKING shows in the HUD |
+| net | tap the game where you want to swing; keep the finger down after the swing to pry. A quick tap in the joystick area swings there too |
+| drop bait | **BAIT** (sea only) |
+| interact (beam up/down, a tank, the directory) | **INTERACT** (a hand) shows up whenever the game shows a prompt |
+| log, map, guide, help, mute, pause, settings | **MENU** (top corner) opens a panel with all of them |
+
+Keyboard and mouse keep working at the same time. **SWAP SIDES** (same settings tab) puts the
+joystick on the right and the buttons on the left. The controls fade when you haven't touched them
+for a few seconds. Sizes, positions, fading and the joystick's feel are in `AQ.TUNING.touch`. To try
+them on a computer, set `AQ.TUNING.debug.forceTouch: true`: the controls show and the mouse acts as a
+finger (drag in the joystick area, click the buttons).
 
 In the aquarium: **Q/E** switch tanks, **F** feeds, **T** (or TANKS) shows every tank at a glance.
 Drag a tray item into the tank (or click it, then click in the tank). Drag a placed item to move it;
@@ -97,7 +121,8 @@ browsers won't let a page save pictures made from file:// images.
   researcher's notes on its species (`data/lore.js`): an epithet, an invented scientific name and a
   few lines of biology. The species' name only appears once you've caught it ("this creature"
   until then). Read them on a species' entry page (ENTER or click in the SPECIES tab, in its Field
-  Notes section) or in the NOTES tab, grouped by biome. The log header shows "BOTTLES FOUND n/total".
+  Notes section) or in the NOTES tab, grouped by biome. The log header shows "BOTTLES FOUND n/total". Pickup toasts (and every other toast)
+  sit just above the controls hint at the bottom of the screen while it is showing, never on top of it.
   Placement is the same every time (seeded), never inside terrain, and every bottle can be reached
   without any upgrade (checked with the sea scene's own "can the player be here" test and a flood
   fill from the start that stops at the level-0 depth limit). Tuning: `AQ.TUNING.bottles`
@@ -108,6 +133,13 @@ browsers won't let a page save pictures made from file:// images.
   fade away at night), tinted to suit the sky; scenery only. A very faint, rate-limited gull cry plays
   as a flock passes, through the ambience volume (and mute). Tuning: `AQ.TUNING.gulls` (how often,
   most flocks at once, flock size, speed, parallax, flap speed, cry volume and gap).
+- **Shooting stars (scenery):** at night (the shared day/night clock) a thin bright streak with a short
+  fading trail now and then crosses the sky wherever it shows: the sea surface, the Tide Pools shore and
+  the hill. Under the surface you see a faint glow sliding through the water instead (fading with
+  depth). In the aquarium building, which is in space, a streak now and then passes outside a porthole
+  you can see, day or night. Each streak has a very soft whoosh on the ambience volume (and mute);
+  it's in the Sound Test as SHOOTING STAR. Tuning: `AQ.TUNING.shootingStars` (how often, speed, trail
+  length, angle, tints, underwater glow, sound volume).
 - **No fail state.** Hostile creatures only knock you back. Air is unlimited.
 - **Progression** comes only from chests: a bigger net (3 levels) and faster swimming (3 levels).
   Six chests exist at a time, and they despawn and respawn around the world.
@@ -121,6 +153,102 @@ browsers won't let a page save pictures made from file:// images.
   The hill and the building are their own scenes and never appear on the world map. The game
   saves which scene you're in. Caught creatures still go straight to their tank. (The old Tab
   shortcut is a test-only setting: `AQ.TUNING.debug.tabOpensAquarium`, off by default.)
+- **One-time tips (optional, never blocking).** Short, friendly tips pop up the first time something
+  happens: a creature notices you, your first bait, first catch, closing the log for the first time,
+  your first chest, heavy deep water, the first evening, a message bottle, a falling star or meteor
+  shower, the hill's UFO beam, the aquarium building, your first tank, a new star level or unlock, a
+  ♂/♀ pair sharing a tank, the first courtship and baby, and a creature's first bump. One at a time,
+  with a quiet gap between them, in a small box where nothing else draws (out in the world: the top
+  centre under the area name; on the tank screen: the bottom-left, over the sand). They never show
+  mid-netting, during a transition, in photo mode or in a menu, and any key or click closes one (Esc
+  and clicks on the box don't do anything else). Each shows once; seen tips are saved. HINTS ON/OFF and
+  RESET TIPS are in the Sound settings (pause menu or title). Older saves skip every tip their own
+  progress shows they already know. Text: `data/tutorial.js` (key names are filled in from the real
+  bindings, see below). Sounds: NEW TIP and STEP COMPLETE in the Sound Test. Tuning: `AQ.TUNING.tips`.
+- **Optional guided first dive.** NEW GAME on a fresh save asks "Want a quick guided dive?" (YES /
+  NO THANKS; Esc is no thanks, and the answer is saved). It's a short checklist shown one step at a
+  time in the top-left corner (STEP n OF 9), with a soft glowing ring and arrow near the thing to do:
+  walk, hop onto the rocks, wade into the deep water and swim, sneak up on a little minnow, swing the
+  net, catch it (a very easy Glasswinged Minnow waits in the water for you: it's a real catch), drop
+  bait, open the log, done. Each step completes when you actually do it (a soft chime), nothing ever
+  pauses or takes your controls, and if you wander off it just waits (it dims, and hides away from the
+  sea). SKIP skips a step, STOP ALL ends it. Restart it any time from the pause menu (TUTORIAL); it
+  never changes your progress. Text: `data/tutorial.js` (dive). Tuning: `AQ.TUNING.dive`. Testing: set
+  `debug.tutorialReset: true` and press **R** to restart the dive and reset every tip
+  (`debug.tutorialResetKey`).
+- **The GUIDE.** A small paged field-guide book: from the title screen (GUIDE), the pause menu
+  (GUIDE) or the help line's key (**I** by default, `keys.guide`). Left/right, A/D or the arrows turn
+  the page; Esc or the guide key closes it. Ten short pages, each with a picture: moving, swimming and
+  sneaking; catching (the net, bait and how creatures behave); upgrades and chests; day, night and
+  night events; getting to the aquarium; tanks; sexes, breeding and rare colors; the log and message
+  bottles; photo mode; sound and settings. A page (or line) about a feature the build doesn't have is
+  left out. Text: `data/tutorial.js` (guide); key names and numbers like the day length or the
+  rare-color odds are filled in live from the bindings and config.js (`{k:...}`, `{c:...}`, `{inv:...}`).
+- **REDUCE FLASHING.** In SETTINGS > OPTIONS (pause menu or title), saved with your other settings.
+  When it's on: the photo camera flash becomes a faint, slow fade instead of a white flash; shooting
+  stars, the underwater glow and falling stars are dimmer and slower (and meteor-shower skies calmer);
+  a falling star lands with a soft glow instead of a sparkle burst; the UFO beam, its lights and the
+  beam pad hold still instead of animating and pulsing (and the station beam eases up instead of
+  jumping bright); scene fades are smooth instead of stepped; and fast blinking is held steady: your
+  stun blink, the firefly frog's flickering decoy, the map's "you" dot and star marker, the HUD star,
+  the meteor-shower sparkle, tank nervous drops, the photo REC dot, NEW labels, the selected-creature
+  marker and the Variants outline. A one-time tip mentions it the first time a flash plays; the
+  Guide's Sound page too. Tuning: `AQ.TUNING.calm`.
+- **Save files and safety.** EXPORT SAVE and IMPORT SAVE are on the title screen and in the pause
+  menu. Export downloads your save as `Aquadise-save-YYYY-MM-DD.json` (it works even when the browser
+  won't let the game save). Import lets you pick a file, checks it carefully (an Aquadise save, the
+  right structure, a version this game understands) and refuses anything else with a friendly message,
+  then asks before replacing your save; the imported save loads through the normal loading and
+  migration, just like an old save, and your previous save becomes the backup. Saves carry a version
+  number (`AQ.Save.VERSION`, now 2; the original v1 saves still load). Before every save the previous
+  good one is kept as a backup. If your save can't be read, the title asks whether to restore the
+  backup (or import a file) or start fresh, and the unreadable save is never overwritten: starting
+  fresh keeps it aside (`aquadise.save.v1.unreadable`). If the browser blocks saving (e.g. private
+  browsing), the game keeps running, says so once, and the title / pause screens show a small note.
+  Tuning: `saveFile.maxImportBytes`.
+- **Key bindings in one place:** `AQ.TUNING.keys` in config.js (plus `interactKeys`, `audio.muteKey`,
+  `photo.key`, `station.zoomKey`). The game reads them, and the help line, the title's CONTROLS panel
+  and every tip show key names from them (`src/keys.js`), so changing a key changes the text too.
+- **Falling stars and meteor showers.** Some nights a star visibly falls and lands somewhere in the
+  sea or on the shore: always a spot you can reach at upgrade level 0 (the same scan and checks as the
+  message bottles), with a clear drop from the sky (never in a cave), never inside terrain, past the
+  depth limit or on top of you. It lands with a burst and a soft descending chime, and a soft light
+  column rises from the spot so you can find it from far away. In open water a small group of Starfall
+  Minnows appears; on the shore or the sandy seabed, an Aerolite Crab. They glow, wait a few real
+  minutes (`lingerMinutes`, default 3) and then fade out slowly (once faint they can't be netted).
+  They're caught like anything else and follow the usual ♂/♀ balancing (the sex you're missing is more
+  likely). A toast says where it fell ("A shooting star fell near the Kelp Forest!"), the map (M) shows
+  a sparkling star at the spot, and a little star sits next to the HUD moon while something is waiting.
+  - **Meteor showers:** on rarer nights (about one in 5-6) the sky fills with shooting stars all night
+    and 2-4 stars land at different spots; each landing may also bring a Comet Ray. It's announced at
+    dusk ("The sky is full of falling stars tonight") with a gentle shimmering music cue and a small
+    sparkle next to the HUD moon. The cue (METEOR SHOWER) and the landing chime (STAR LANDS) are in the
+    Sound Test.
+  - **Schedule:** nights are counted at dusk and each night's plan is seeded from the world seed and
+    the night number and saved, so reloading never re-rolls it. Catch-up: a star always falls at least
+    every 3 nights. Stars only fall at night and only in the sea, but it all keeps going wherever you
+    are (the hill, the building, a tank): come back and the star may still be waiting. Waiting stars
+    are saved too.
+  - Tuning: `AQ.TUNING.starfall` (star / shower chances, catch-up, stars per shower, Comet Ray chance,
+    when in the night they fall, water vs shore, group size, how long they wait and fade, distances,
+    the light column, chime volume).
+  - Testing: set `debug.starKeys: true` in config.js; then (any time, even by day) **G** makes a
+    star fall right now and **J** starts a meteor shower right now (2-4 stars over the next ~20 s).
+    The keys are `debug.fallStarKey` / `debug.showerKey`.
+- **Starfall tank and its three creatures.** The building's 3rd floor has a new tank, STARFALL: deep
+  indigo water, drifting twinkling star motes and a faint glow welling up from the middle. It's in every
+  list of tanks (the DIRECTORY / TANKS overview, the whole-building view, Q/E switching, vibe tooltips,
+  photo mode). Four themed decorations: Stardust Patch (always available), Meteorite Rock, Crater Bowl
+  and Star Lantern (unlock at its 1st, 2nd and 3rd star tiers). Its creatures have no wild spawn; they
+  only appear through night events (falling stars and meteor showers):
+  - **Starfall Minnow** (fish, darts): tiny and glowing, in small groups where a star lands in water.
+  - **Aerolite Crab** (crustacean, wary): a shell like a space rock, where a star lands on the shore or sand.
+  - **Comet Ray** (fish, curious): larger, with a glowing tail; only during meteor showers, the rarest.
+  They follow the same rules as everything else (♂/♀, breeding, rare variants, likes, moods, photo
+  mode). The log gives them their own STARFALL page with "FALLING STARS ONLY" / "METEOR SHOWERS ONLY"
+  tags. Each has field notes in a message bottle: the minnow's on the Open Ocean seabed, the crab's
+  on the Tide Pools shore, the ray's on the Coral Reef seabed (set by `bottle` in `data/creatures.js`).
+  Data: `AQ.data.specialTanks` + `tankStyles.starfall` (data/aquarium.js), the creatures' `event` field.
 - **Predator wing.** The building's 4th floor holds 5 predator tanks (Reef, Open-Water, Deep, Cave
   and Swamp Hunters). Every creature marked `predator` lives there instead of in its biome's tank;
   the grouping is data in `data/aquarium.js` (`predatorTanks`). Each floor has 5 tank slots
@@ -135,7 +263,8 @@ browsers won't let a page save pictures made from file:// images.
   is nervous and there's room. Then an egg appears (a baby for mammals) and later hatches; babies
   grow up over `breeding.growMinutes`. It all runs on real time, wherever you are in the game. The
   log marks species you've bred with a ♥. Nothing requires it.
-- **Day and night.** The sea has a calm clock (`clock.dayMinutes`, 6 real minutes per day by default)
+- **Day and night.** A new game starts in the bright mid-morning (10:00, `clock.startHour`); saves keep
+  their own time. The sea has a calm clock (`clock.dayMinutes`, 6 real minutes per day by default)
   with dawn, day, dusk and night; nights are darker and bluer near the surface, while deep and cave
   areas look the same as before. The HUD shows a sun, sunrise or moon. Creatures with
   `active: 'night'` only come out at night and fade away at dawn. Testing: set
@@ -222,6 +351,13 @@ src/hill.js           the hill scene with the UFO and its beam
 src/station.js        the aquarium building in space (tanks on the walls, directory, beam pad)
 src/ui.js             collection log, map, pause
 src/gulls.js          distant seagull flocks in the sky (sea + hill)
+src/shootingstars.js  night shooting-star streaks (sky, underwater glow, station portholes)
+src/keys.js           key bindings: pressed / held checks and key names for the text
+src/tips.js           one-time tips: events, queue, safe placement, saved as seen
+src/dive.js           the optional guided first dive: prompt, steps, checklist, markers
+src/guide.js          the GUIDE: a paged field-guide book (title, pause menu, help-line key)
+src/savefile.js       EXPORT / IMPORT SAVE, import checks + confirm, the save-recovery choice
+src/starfall.js       falling stars + meteor showers: nightly plan, landings, light columns, map/HUD marks
 src/bottles.js        message bottles: deterministic, reachable placement, pickup, glint
 assets/sprites-embedded.js   base64 copy of the sprites for file:// (tools/embed-sprites.js)
 src/audio.js          audio engine: mixer, voice limit, underwater filter, settings, file mapping
@@ -229,8 +365,10 @@ src/sfx.js            every sound effect recipe (registered by id)
 src/ambience.js       the looping place sounds + their crossfading director
 src/music.js          generative music engine + director (pieces in data/music.js)
 src/sounddirector.js  per-frame sound hooks: steps, splashes, beam, chimes, creature voices
-src/soundtest.js      SOUND settings panel and the SOUND TEST screen
+src/soundtest.js      the SETTINGS panel (SOUND / OPTIONS / TOUCH tabs) and the SOUND TEST screen
+src/touch.js          touch controls: pointers, joystick, on-screen buttons, MENU panel, rotate screen
 data/lore.js          field notes, one per species (found in message bottles)
+data/tutorial.js      tutorial text: help line, controls panel, one-time tips, guided dive, Guide pages
 data/music.js         music pieces, scales, motif, creature voice map, audio file mapping
 assets/audio/         recorded sounds (+ embedded.js, generated by tools/embed-audio.js)
 tools/gen-placeholders.js   writes placeholder PNGs + manifest from the data files

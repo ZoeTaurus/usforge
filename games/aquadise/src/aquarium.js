@@ -32,6 +32,7 @@ AQ.Aquarium = (function () {
     AQ.FX.list.length = 0;
     A.rebuild();
     AQ.Audio.music('aquarium');
+    if (AQ.Tips) AQ.Tips.event('tank');
   };
   A.close = function (game) {
     putBack();
@@ -44,7 +45,7 @@ AQ.Aquarium = (function () {
   A.refreshVibe = function () {
     const before = A.vibe && A.vibeOf === A.biome ? A.vibe.stars : null;
     A.vibe = AQ.Vibe.evaluate(A.biome); A.vibeOf = A.biome;
-    if (before != null && Math.floor(A.vibe.stars) > Math.floor(before)) AQ.Audio.play('star');   // a whole new star
+    if (before != null && Math.floor(A.vibe.stars) > Math.floor(before)) { AQ.Audio.play('star'); if (AQ.Tips) AQ.Tips.event('tankstar'); }   // a whole new star
     A.vibeT = AQ.TUNING.aquarium.recomputeEvery;
     A.fish.forEach(updateMood);
     A.fish.forEach(setAge);
@@ -104,6 +105,7 @@ AQ.Aquarium = (function () {
     for (let i = 0; i < 5; i++) AQ.FX.sparkle(88 + i * 8, 6, '#fff3b0', 4);
     A.tray = 'decor'; A.trayScroll = 0; A.trayPos = 0;
     AQ.Audio.play('unlock');
+    if (AQ.Tips) AQ.Tips.event('unlock');
     AQ.Audio.play('fanfare', { delay: 0.6 });
     if (AQ.Music) AQ.Music.stinger('reward');
   }
@@ -494,18 +496,18 @@ AQ.Aquarium = (function () {
     if (A.photo.on) { updatePhoto(dt, game, tank); return; }
     A.t += dt;
     if (A.view === 'overview') { updateOverview(dt, game); return; }
-    if (I.wasPressed('KeyT')) { openOverview(); return; }
+    if (AQ.Keys.pressed('tanks')) { openOverview(); return; }
     if (I.wasPressed(AQ.TUNING.photo.key)) { enterPhoto(); return; }
     A.ui = layout();
     if (I.wasPressed('Escape') && A.card && !A.holding) A.card = null;
     else if (I.wasPressed('Tab') || (I.wasPressed('Escape') && !A.holding)) { A.close(game); return; }
-    if (I.wasPressed('KeyL')) { AQ.LogUI.open(game, 'aquarium'); return; }
-    if (I.wasPressed('KeyQ', 'ArrowLeft')) switchTank(-1);
-    if (I.wasPressed('KeyE', 'ArrowRight')) switchTank(1);
-    if (I.wasPressed('KeyF')) feed();
-    if (I.wasPressed('KeyU') || (I.wasPressed('KeyZ') && I.isDown('ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight'))) undo(tank);
-    else if (I.wasPressed('KeyZ')) cycleLayer(tank);
-    if (I.wasPressed('KeyX')) flipIt(tank);
+    if (AQ.Keys.pressed('log')) { AQ.LogUI.open(game, 'aquarium'); return; }
+    if (AQ.Keys.pressed('prevTank')) switchTank(-1);
+    if (AQ.Keys.pressed('nextTank')) switchTank(1);
+    if (AQ.Keys.pressed('feed')) feed();
+    if (AQ.Keys.pressed('undo') || (I.wasPressed('KeyZ') && I.isDown('ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight'))) undo(tank);
+    else if (AQ.Keys.pressed('layer')) cycleLayer(tank);
+    if (AQ.Keys.pressed('flip')) flipIt(tank);
     if (A.clearArm > 0) A.clearArm -= dt;
     for (let i = A.notes.length - 1; i >= 0; i--) if ((A.notes[i].t += dt) > A.notes[i].life) A.notes.splice(i, 1);
     if (m.wheelPx) { A.trayScroll += m.wheelPx / 80; A.trayIdle = 0; }  // ~one item per wheel notch, smooth on trackpads
@@ -858,6 +860,12 @@ AQ.Aquarium = (function () {
     if (icons) AQ.FX.draw(g);                       // hearts, sparkles, crumbs
     drawParticles(g, st.particles);
     if (st.dark > 0) drawDarkness(g, st, tank);
+    if (st.glow) {                                  // a faint glow welling up from the middle of the tank (Starfall)
+      const c = U.hex(st.glow), cx = TANK.x + TANK.w / 2, cy = TANK.y + TANK.h * 0.62, pulse = 0.14 + 0.04 * Math.sin(A.t * 0.7);
+      const rg = g.createRadialGradient(cx, cy, 0, cx, cy, TANK.w * 0.5);
+      rg.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},${pulse.toFixed(3)})`); rg.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+      g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = rg; g.fillRect(TANK.x, TANK.y, TANK.w, TANK.h); g.restore();
+    }
     // soft vignette in the tank corners
     for (let i = 0; i < 6; i++) {
       g.fillStyle = `rgba(4,16,30,${(0.12 - i * 0.018).toFixed(3)})`;
@@ -946,11 +954,11 @@ AQ.Aquarium = (function () {
       else if (id === 'p_snap') snap(tank);
       if (id !== 'p_snap' && id !== 'p_exit') AQ.Audio.play('menu_move');
     };
-    if (I.wasPressed('KeyZ')) act('p_freeze');
-    if (I.wasPressed('KeyI')) act('p_icons');
-    if (I.wasPressed('KeyF')) act('p_frame');
-    if (I.wasPressed('KeyC')) act('p_caption');
-    if (I.wasPressed('Space')) act('p_snap');
+    if (AQ.Keys.pressed('photoFreeze')) act('p_freeze');
+    if (AQ.Keys.pressed('photoIcons')) act('p_icons');
+    if (AQ.Keys.pressed('photoFrame')) act('p_frame');
+    if (AQ.Keys.pressed('photoCaption')) act('p_caption');
+    if (AQ.Keys.pressed('photoSnap')) act('p_snap');
     if (m.pressed[0]) { if (P.hover) act(P.hover.id); else if (inTank(m)) act('p_snap'); }
   }
   const dateText = () => { const d = new Date(), z = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`; };
@@ -996,7 +1004,9 @@ AQ.Aquarium = (function () {
   function snap(tank) {
     const P = A.photo, b = AQ.Tanks.get(A.biome);
     AQ.Audio.play('shutter');
-    P.flash = pcfg().flashSeconds;
+    P.flash = AQ.U.calm() ? AQ.TUNING.calm.photoFlashSeconds : pcfg().flashSeconds;   // REDUCE FLASHING: a soft, slow fade
+    P.flashLen = P.flash;
+    if (!AQ.U.calm() && AQ.Tips) AQ.Tips.event('flash');
     let shot;
     try { shot = composePhoto(b, tank); } catch (e) { note('The photo could not be taken.', '#ffb08a'); return; }
     const file = `Aquadise-${shot.name.replace(/[^A-Za-z0-9]/g, '')}-${shot.date}.png`;
@@ -1027,13 +1037,13 @@ AQ.Aquarium = (function () {
     for (const [x, y, dx, dy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
       g.fillRect(Math.min(x, x + dx * L), y, L, 1); g.fillRect(x, Math.min(y, y + dy * L), 1, L);
     }
-    if (Math.floor(t * 2) % 2 && !P.paused) { g.fillStyle = '#ff5a6a'; g.fillRect(x1 - 12, y0 + 3, 3, 3); }
+    if ((AQ.U.calm() || Math.floor(t * 2) % 2) && !P.paused) { g.fillStyle = '#ff5a6a'; g.fillRect(x1 - 12, y0 + 3, 3, 3); }
     if (P.paused) F().draw(g, 'FROZEN', x1 - 4, y0 + 5, '#9fe8ff', { align: 'right' });
     F().draw(g, FRAMES[P.frame] + (P.frame !== 2 && P.caption ? ' + CAPTION' : ''), x0 + 4, y0 + 5, 'rgba(255,255,255,0.8)');
     // the toolbar + key hints (never in the picture)
     for (const r of P.ui) button(g, r, P.hover === r);
-    F().draw(g, 'SPACE / CLICK: SNAP     Z: FREEZE     I: HEARTS + MOOD ICONS', 8, 153, '#8fb6cc');
-    F().draw(g, 'F: FRAME STYLE     C: CAPTION     P / ESC: LEAVE PHOTO MODE', 8, 162, '#8fb6cc');
+    F().draw(g, AQ.Keys.fill('{k:photoSnap} / CLICK: SNAP     {k:photoFreeze}: FREEZE     {k:photoIcons}: HEARTS + MOOD ICONS'), 8, 153, '#8fb6cc');
+    F().draw(g, AQ.Keys.fill('{k:photoFrame}: FRAME STYLE     {k:photoCaption}: CAPTION     {k:photo} / ESC: LEAVE PHOTO MODE'), 8, 162, '#8fb6cc');
     F().draw(g, `PHOTOS SAVE AS PNG DOWNLOADS (${pcfg().scale}X PIXELS)`, 8, 171, '#5f7f96');
     // after a shot: a tiny preview with "Saved!"
     if (P.previewT > 0 && P.preview) {
@@ -1044,12 +1054,17 @@ AQ.Aquarium = (function () {
       F().draw(g, P.saved || 'SAVED!', px + pw / 2, py - 8, P.saved === 'SAVED!' ? '#8ff0b0' : '#ffb08a', { align: 'center' });
       g.globalAlpha = 1;
     }
-    if (P.flash > 0) { g.fillStyle = `rgba(255,255,255,${(P.flash / pcfg().flashSeconds * 0.9).toFixed(3)})`; g.fillRect(0, 0, 320, 180); }
+    if (P.flash > 0) {
+      const k = P.flash / (P.flashLen || pcfg().flashSeconds);
+      // normal: a quick white flash; REDUCE FLASHING: a faint glow that rises and fades gently (never sudden)
+      const a = AQ.U.calm() ? Math.sin(k * Math.PI) * AQ.TUNING.calm.photoFlashAlpha : k * 0.9;
+      g.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`; g.fillRect(0, 0, 320, 180);
+    }
   }
 
   // ---------------------------------------------------------------- creature info card
   function selectMark(g, f) {
-    if (Math.floor(A.t * 3) % 3 === 2) return;
+    if (!AQ.U.calm() && Math.floor(A.t * 3) % 3 === 2) return;
     const r = Math.round(f.r) + 2, x = Math.round(f.x), y = Math.round(f.y - (f.hop || 0));
     g.fillStyle = '#ffe9a8';
     for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { g.fillRect(x + sx * r - (sx > 0 ? 1 : 0), y + sy * r - (sy > 0 ? 1 : 0), 1, 1); g.fillRect(x + sx * r - (sx > 0 ? 2 : -1), y + sy * r - (sy > 0 ? 1 : 0), 1, 1); g.fillRect(x + sx * r - (sx > 0 ? 1 : 0), y + sy * r - (sy > 0 ? 2 : -1), 1, 1); }
@@ -1100,7 +1115,7 @@ AQ.Aquarium = (function () {
       AQ.Assets.draw(g, f.key, 'idle', 0, e.anchor[1] - e.fh / 2, { t: A.t });
       g.restore();
     }
-    const tx = x + 33, b = AQ.World.biomeById[f.def.biome];
+    const tx = x + 33, b = AQ.World.biomeById[f.def.biome] || AQ.Tanks.get(f.def.biome);
     F().draw(g, f.def.name.toUpperCase(), tx, y + 4, '#ffe9a8', { shadow: false });
     if (f.sex) F().draw(g, AQ.Sex.SYMBOL[f.sex], tx + F().width(f.def.name.toUpperCase()) + 3, y + 4, AQ.Sex.COLOR[f.sex], { shadow: false });
     if (f.variant) F().draw(g, '✦ RARE COLOR', tx + F().width(f.def.name.toUpperCase()) + (f.sex ? 11 : 3), y + 4, '#ffd25a', { shadow: false });
@@ -1115,7 +1130,7 @@ AQ.Aquarium = (function () {
       lx += F().width(w) + 4;
     });
     F().draw(g, 'FROM:', tx, y + 28, '#8fb6cc', { shadow: false });
-    F().draw(g, ((b && b.name) || f.def.biome).toUpperCase(), tx + 24, y + 28, '#cfe8ff', { shadow: false });
+    F().draw(g, (f.def.event ? (f.def.event === 'shower' ? 'METEOR SHOWERS' : 'FALLING STARS') : ((b && b.name) || f.def.biome)).toUpperCase(), tx + 24, y + 28, '#cfe8ff', { shadow: false });
     F().draw(g, 'SEX:', x + 4, y + 35, '#8fb6cc', { shadow: false });
     const sexTxt = f.sex ? `${AQ.Sex.NAME[f.sex]} ${AQ.Sex.SYMBOL[f.sex]}` : 'NONE';
     F().draw(g, sexTxt, x + 24, y + 35, f.sex ? AQ.Sex.COLOR[f.sex] : '#cfe8ff', { shadow: false });
@@ -1141,7 +1156,7 @@ AQ.Aquarium = (function () {
     const cyc = (A.t + f.moodPh) % cfg.moodIconEvery < cfg.moodIconShow;
     const always = f.stress || f.state === 'enjoy' || hovered;
     if (!(cyc || always) || f.moodName === 'CONTENT') return;
-    if (f.stress && Math.floor(A.t * 2 + f.t) % 2) return;          // nervous drop blinks
+    if (f.stress && !AQ.U.calm() && Math.floor(A.t * 2 + f.t) % 2) return;          // nervous drop blinks (steady with REDUCE FLASHING)
     const ic = ICONS[f.moodName]; if (!ic) return;
     const x = Math.round(f.x + 2), y = Math.round(f.y - f.r - 5 - (f.hop || 0) + (f.moodName === 'DELIGHTED' ? Math.sin(A.t * 3) * 0.6 : 0));
     g.fillStyle = 'rgba(4,12,24,0.45)';
@@ -1178,7 +1193,7 @@ AQ.Aquarium = (function () {
     const I = AQ.Input, m = I.mouse;
     A.ovT += dt;
     if (A.ovT > 1) { A.ovT = 0; A.overview = overviewSlots(); }
-    if (I.wasPressed('Escape', 'KeyT')) { A.view = 'tank'; return; }
+    if (I.wasPressed('Escape') || AQ.Keys.pressed('tanks')) { A.view = 'tank'; return; }
     if (I.wasPressed('Tab')) { A.view = 'tank'; A.close(game); return; }
     A.ovHover = null;
     A.overview.forEach((o) => { if (o.b && hit(cardRect(o), m)) A.ovHover = o.i; });
@@ -1226,7 +1241,7 @@ AQ.Aquarium = (function () {
         g.save(); g.translate(cx, cy); g.scale(sc, sc);
         AQ.Assets.draw(g, key, 'idle', 0, 0, { t: A.t + k, flip: k % 2 === 1 });
         g.restore();
-        if (tank.creatures.some((e2) => e2.id === id && stressed.has(e2.uid)) && Math.floor(A.t * 2) % 2 === 0) { g.fillStyle = '#9fd8ff'; g.fillRect(cx + 3, cy - 6, 1, 2); g.fillRect(cx + 2, cy - 4, 3, 1); }
+        if (tank.creatures.some((e2) => e2.id === id && stressed.has(e2.uid)) && (AQ.U.calm() || Math.floor(A.t * 2) % 2 === 0)) { g.fillStyle = '#9fd8ff'; g.fillRect(cx + 3, cy - 6, 1, 2); g.fillRect(cx + 2, cy - 4, 3, 1); }
       });
       g.save(); g.beginPath(); g.rect(r.x, r.y, r.w, r.h); g.clip();
       F().draw(g, (b.short || b.name).toUpperCase(), r.x + 2, r.y + 2, cur ? '#ffe9a8' : '#e8fbff', { shadow: false });
@@ -1264,6 +1279,15 @@ AQ.Aquarium = (function () {
         const x = TANK.x + ((i * 47 + Math.sin(A.t * 0.9 + i) * 4 + 400) % TANK.w), y = TANK.sandTop - ((i * 29 + A.t * (5 + (i % 4) * 2)) % H);
         g.fillStyle = Math.sin(A.t * 6 + i) > 0 ? '#ffb070' : '#ff7a3a'; g.globalAlpha = 0.45 + (i % 3) * 0.15;
         g.fillRect(Math.round(x), Math.round(y), 1, 1); g.globalAlpha = 1;
+      }
+    } else if (kind === 'stars') {
+      // star motes: slow drifting specks that twinkle, a few with tiny cross glints
+      for (let i = 0; i < 30; i++) {
+        const x = TANK.x + ((i * 61 + A.t * (1.2 + (i % 3) * 0.5) + Math.sin(A.t * 0.3 + i) * 5 + 400) % TANK.w), y = top + ((i * 43 + Math.sin(A.t * 0.2 + i * 1.7) * 6 + 400) % H);
+        const tw = 0.5 + 0.5 * Math.sin(A.t * (1.5 + (i % 4) * 0.6) + i * 2.3);
+        g.fillStyle = i % 5 === 0 ? `rgba(255,243,176,${(0.3 + tw * 0.6).toFixed(2)})` : `rgba(220,226,255,${(0.2 + tw * 0.5).toFixed(2)})`;
+        g.fillRect(Math.round(x), Math.round(y), 1, 1);
+        if (i % 7 === 0 && tw > 0.8) { g.fillStyle = 'rgba(220,226,255,0.35)'; g.fillRect(Math.round(x) - 1, Math.round(y), 3, 1); g.fillRect(Math.round(x), Math.round(y) - 1, 1, 3); }
       }
     } else if (kind === 'fireflies') {
       for (let i = 0; i < 12; i++) {
@@ -1361,6 +1385,7 @@ AQ.Aquarium = (function () {
       else if (theme === 'ice') { const h = r.range(14, 40); for (let y = 0; y < h; y++) { const w = (1 - y / h) * 5; for (let i = -w; i <= w; i++) set(Math.round(x + i), base - y, [205, 235, 248], 70); } }
       else if (theme === 'vents') { const h = r.range(12, 30); for (let y = 0; y < h; y++) { const w = 2 + (1 - y / h) * 4; for (let i = -w; i <= w; i++) set(Math.round(x + i), base - y, sil, 100); } }
       else if (theme === 'mangrove') { const reach = r.range(10, 24); stroke(x, base - 60, x - reach, base, 90); stroke(x, base - 60, x + reach, base, 90); stroke(x, base - 60, x, base - 100, 90); }
+      else if (theme === 'starfall') { const R2 = r.range(5, 11); for (let a = Math.PI; a < Math.PI * 2; a += 0.1) stroke(x - R2, base, x + Math.cos(a) * R2, base + Math.sin(a) * R2 * 0.5, 70); }
       else if (theme === 'ruins') { const h = r.range(14, 34); for (let y = 0; y < h; y++) for (let i = -2; i <= 2; i++) set(Math.round(x + i), base - y, sil, 90); }
       else { const h = r.range(8, 24); for (let y = 0; y < h; y++) set(Math.round(x), base - y, sil, 80); }
     }
@@ -1407,6 +1432,7 @@ AQ.Aquarium = (function () {
   function tip(g, text, x, y, col) {
     const w = F().width(text);
     const tx = U.clamp(Math.round(x - w / 2), 3, 317 - w);
+    if (AQ.Tips && AQ.Tips.overlaps(tx - 1, y - 1, w + 2, 7)) return;      // a tutorial tip is there: step aside
     g.globalAlpha = 0.9;
     F().draw(g, text, tx, y, col, { shadow: 'rgba(4,12,24,0.85)' });
     g.globalAlpha = 1;
@@ -1425,6 +1451,7 @@ AQ.Aquarium = (function () {
     }
     const w = Math.max(...lines.map((l) => F().width(l[0]))) + 8, h = lines.length * 7 + 5;
     const x = U.clamp(Math.round(it.x + it.w / 2 - w / 2), 2, 318 - w), y = TRAY_Y - h - 3;
+    if (AQ.Tips && AQ.Tips.overlaps(x, y, w, h)) return;                   // a tutorial tip is there: step aside
     g.fillStyle = 'rgba(6,18,34,0.94)'; g.fillRect(x, y, w, h);
     g.fillStyle = '#5fc6d9'; g.fillRect(x, y, w, 1);
     lines.forEach(([t, c], i) => F().draw(g, t, x + 4, y + 3 + i * 7, c, { shadow: false }));
@@ -1468,7 +1495,7 @@ AQ.Aquarium = (function () {
         }
         if (r.id === 'item' && !r.locked && r.loved && r.loved.length) F().draw(g, '♥', r.x + 2, r.y + 2, '#ff9fc0', { shadow: false });
         if (r.id === 'item' && !r.locked && r.theme) { g.fillStyle = '#7ef0c0'; g.fillRect(r.x + r.w - 4, r.y + 2, 2, 2); }
-        if (r.fresh && Math.floor(A.t * 3) % 2 === 0) F().draw(g, 'NEW', r.x + r.w / 2, r.y + 1, '#ffe08a', { align: 'center' });
+        if (r.fresh && (AQ.U.calm() || Math.floor(A.t * 3) % 2 === 0)) F().draw(g, 'NEW', r.x + r.w / 2, r.y + 1, '#ffe08a', { align: 'center' });
         if (r.id === 'fish' && r.sex) F().draw(g, AQ.Sex.SYMBOL[r.sex], r.x + 2, r.y + 2, AQ.Sex.COLOR[r.sex], { shadow: false });
         if (r.id === 'fish' && r.variant) F().draw(g, '✦', r.x + r.w - 7, r.y + 2, '#ffd25a', { shadow: false });
         if (r.id === 'fish') F().draw(g, r.where === 'tank' ? 'IN' : 'OUT', r.x + r.w / 2, r.y + 23, r.where === 'tank' ? '#7ef0c0' : '#a8b8c8', { align: 'center' });

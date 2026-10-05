@@ -124,6 +124,10 @@
     if (o.fan) { p.tri([cx - 2, cy + 1], [cx - 7, cy + h * 0.9 + wig], [cx + 2, cy + h * 0.7], o.a); p.tri([cx - 4, cy - h / 2], [cx + 4, cy - h / 2], [cx - 2, cy - h * 1.2], o.a); }
     p.shade();
     if (o.wing) { p.line(cx - 1, cy, cx - 6, cy - h * 0.8 - wig, alpha(WHITE, 200)); p.line(cx, cy, cx - 5, cy - h * 0.7 - wig, alpha(WHITE, 160)); }
+    if (o.starry) {                     // a row of tiny belly lamps + a twinkle on the tail (Starfall Minnow)
+      for (let i = -1; i <= 1; i++) p.set(Math.round(cx + i * len * 0.2), Math.round(cy + h * 0.28), (o.frame + i + 3) % 4 === 0 ? WHITE : o.a);
+      p.set(Math.round(tailX - tailL * 0.8), Math.round(cy + wig * 0.5), o.frame % 2 ? WHITE : o.a);
+    }
     if (o.blackEye) { const ex = Math.round(cx + len * 0.27), ey = Math.round(cy - h * 0.12); p.rect(ex, ey, W >= 20 ? 2 : 1, W >= 20 ? 2 : 1, BLACK); }
     else if (!o.eyeless) eye(p, Math.round(cx + len * 0.27), Math.round(cy - h * 0.12), W >= 20);
     p.outline();
@@ -167,6 +171,11 @@
     p.shade();
     p.line(cx - 2, cy - ry, cx - 2, cy - ry - 2, o.c); p.line(cx + 2, cy - ry, cx + 2, cy - ry - 2, o.c);
     p.set(cx - 2, cy - ry - 3, BLACK); p.set(cx + 2, cy - ry - 3, BLACK);
+    if (o.rocky) {                      // a pitted space-rock shell with faint glowing cracks (Aerolite Crab)
+      p.ellipse(cx, cy - ry * 0.55, rx * 0.95, ry * 1.25, mix(o.c, WHITE, 0.08));
+      [[-0.45, -0.5], [0.3, -0.75], [0.05, -0.15], [0.55, -0.25]].forEach(([u, v]) => p.set(Math.round(cx + u * rx), Math.round(cy + v * ry * 1.4), mul(o.c, 0.62)));
+      p.line(cx - rx * 0.5, cy - ry * 0.3, cx - rx * 0.05, cy - ry * 0.9, o.a); p.set(Math.round(cx + rx * 0.25), Math.round(cy - ry * 0.4), o.a);
+    }
     if (o.bell) {
       // a bell-shaped shell with a little hollow (and a tiny clapper)
       const top = cy - ry - H * 0.24, bw = rx * 0.75;
@@ -754,6 +763,65 @@
 
   // ---------- new creatures (day & night update) ----------
   // Seahorse-like: upright curled body, long snout, flowing ribbon mane.
+  // A ray seen from the side-ish: wide flat wings that flap slowly, a small head and a long glowing
+  // comet tail trailing behind (Comet Ray). Faces right like every creature.
+  S.ray = function (p, o) {
+    const W = p.w, H = p.h, ph = o.t * Math.PI * 2, flap = Math.sin(ph) * (o.moving ? 3 : 1.6);
+    const cx = W * 0.6, cy = H * 0.5, bw = W * 0.24, bh = H * 0.16;
+    // the long tail: a thin line that fades to a glowing tip
+    const tail = hex('#bfe8ff');
+    for (let i = 0; i < W * 0.5; i++) {
+      const x = cx - bw - i, y = cy + Math.sin(ph + i * 0.25) * (i / (W * 0.5)) * 1.5;
+      p.set(x, y, i < W * 0.12 ? mul(o.c, 0.9) : mix(o.c, tail, Math.min(1, i / (W * 0.4))));
+    }
+    p.circle(cx - bw - W * 0.5, cy + Math.sin(ph + W * 0.125) * 1.5, 1, WHITE);
+    // wings (up and down) and the body disc
+    p.tri([cx - bw * 0.6, cy], [cx + bw * 0.5, cy], [cx - bw * 0.1, cy - H * 0.36 - flap], o.c);
+    p.tri([cx - bw * 0.6, cy], [cx + bw * 0.5, cy], [cx - bw * 0.1, cy + H * 0.3 + flap * 0.6], mul(o.c, 0.85));
+    p.ellipse(cx, cy, bw, bh, o.c);
+    p.ellipse(cx + 1, cy + bh * 0.4, bw - 2, bh * 0.45, mix(o.c, WHITE, 0.35));
+    p.ellipse(cx + bw * 0.85, cy, bw * 0.35, bh * 0.75, mul(o.c, 1.08));           // head
+    p.shade();
+    for (let i = 0; i < 4; i++) p.set(Math.round(cx - bw * 0.5 + i * bw * 0.35), Math.round(cy - bh * 0.3), (o.frame + i) % 4 === 0 ? WHITE : o.a);   // star spots
+    eye(p, Math.round(cx + bw * 0.95), Math.round(cy - bh * 0.25), W >= 20);
+    p.outline();
+  };
+  // ---- Starfall tank decor
+  S.stardust = function (p, o) {                // a low mound of dark sand sprinkled with glinting dust
+    const W = p.w, H = p.h, r = mkRand(7);
+    p.ellipse(W / 2, H - 2.5, W * 0.45, 2.6, o.c);
+    p.shade(0.2); p.outline();
+    for (let i = 0; i < 10; i++) { const x = Math.round(W * 0.15 + r() * W * 0.7), y = Math.round(H - 2 - r() * 3); if (p.a(x, y)) p.set(x, y, i % 3 ? o.a : WHITE); }
+    p.set(Math.round(W * 0.35), H - 7, o.a); p.set(Math.round(W * 0.62), H - 8, WHITE); p.set(Math.round(W * 0.5), H - 10, alpha(o.a, 180));
+  };
+  S.meteorite = function (p, o) {               // a dark pitted space rock with warm glowing cracks
+    const W = p.w, H = p.h, r = mkRand(13);
+    p.ellipse(W / 2, H * 0.66, W * 0.4, H * 0.32, o.c);
+    p.ellipse(W * 0.42, H * 0.52, W * 0.24, H * 0.22, mul(o.c, 1.08));
+    p.shade(0.22);
+    for (let i = 0; i < 7; i++) { const x = Math.round(W * 0.2 + r() * W * 0.6), y = Math.round(H * 0.45 + r() * H * 0.4); if (p.a(x, y) && p.a(x + 1, y)) { p.set(x, y, mul(o.c, 0.65)); p.set(x + 1, y, mul(o.c, 0.8)); } }
+    p.line(W * 0.3, H * 0.62, W * 0.48, H * 0.78, o.a); p.line(W * 0.48, H * 0.78, W * 0.62, H * 0.66, mul(o.a, 0.85));
+    p.set(Math.round(W * 0.66), H * 0.5, o.a);
+    p.outline();
+  };
+  S.crater = function (p, o) {                  // a shallow crater bowl: a raised rim with a dark hollow
+    const W = p.w, H = p.h;
+    p.ellipse(W / 2, H - 4, W * 0.46, H * 0.3, o.c);
+    p.shade(0.25); p.outline();
+    p.ellipse(W / 2, H - 5, W * 0.3, H * 0.14, mul(o.c, 0.45));
+    p.ellipse(W / 2, H - 4.5, W * 0.24, H * 0.08, mul(o.c, 0.32));
+    for (const u of [0.22, 0.5, 0.78]) p.set(Math.round(W * u), Math.round(H - 4 - H * 0.26), o.a);
+  };
+  S.starlantern = function (p, o) {             // a slim post holding a glowing five-point star
+    const W = p.w, H = p.h, cx = Math.floor(W / 2), metal = o.c;
+    p.rect(cx - 3, H - 2, 6, 2, metal); p.rect(cx, H * 0.4, 1, H * 0.6, metal);
+    const sy = Math.round(H * 0.28), star = o.a;
+    p.rect(cx - 1, sy - 1, 3, 3, star); p.set(cx, sy - 3, star); p.set(cx, sy - 2, star);
+    p.set(cx - 3, sy, star); p.set(cx - 2, sy, star); p.set(cx + 2, sy, star); p.set(cx + 3, sy, star);
+    p.set(cx - 2, sy + 2, star); p.set(cx + 2, sy + 2, star); p.set(cx - 2, sy + 3, star); p.set(cx + 2, sy + 3, star);
+    p.outline(0.3);
+    p.set(cx, sy, WHITE);
+  };
   S.seahorse = function (p, o) {
     const W = p.w, H = p.h, ph = o.t * Math.PI * 2;
     const spine = [[0.56, 0.24], [0.52, 0.34], [0.48, 0.45], [0.5, 0.57], [0.55, 0.67], [0.52, 0.77], [0.44, 0.83], [0.38, 0.78], [0.41, 0.71]];
@@ -1182,6 +1250,70 @@
     p.rect(cx - 1, H - 8, 2, 5, hex('#f2e6c4')); p.set(cx, H - 7, hex('#c9b78f'));       // the rolled note
     const gy = H - 9 + (o.frame * 2) % 8;                                                // glint
     p.set(cx + 1, gy, WHITE); if (gy + 1 < H - 1) p.set(cx + 1, gy + 1, [255, 255, 255, 170]);
+  };
+  // Small UI icons for the tutorial tips, one per frame (12 x 12): 0 alert (!), 1 moon, 2 star, 3 heart,
+  // 4 open book, 5 footprints (sneak), 6 sparkle. Soft, bright colours with a dark outline.
+  S.uiicons = function (p, o) {
+    const W = p.w, cx = Math.floor(W / 2), Y = hex('#ffe9a8'), B = hex('#d8e4ff'), P = hex('#ff9fc0');
+    const f = o.frame;
+    if (f === 0) { p.rect(cx - 1, 1, 2, 7, Y); p.rect(cx - 1, 9, 2, 2, Y); }
+    else if (f === 1) { p.circle(cx, 6, 4.5, B); p.circle(cx + 2, 4.5, 3.6, [0, 0, 0, 0]); for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) { const i = p.idx(x, y); if (i >= 0 && p.d[i + 3] && p.d[i] === 0 && p.d[i + 1] === 0) p.d[i + 3] = 0; } }
+    else if (f === 2) { p.tri([cx, 0], [cx - 2, 5], [cx + 2, 5], Y); p.tri([0, 4], [W - 1, 4], [cx, 8], Y); p.tri([cx, 6], [2, 11], [cx - 1, 7], Y); p.tri([cx, 6], [W - 2, 11], [cx + 1, 7], Y); }
+    else if (f === 3) { p.circle(cx - 2, 4, 2.6, P); p.circle(cx + 2, 4, 2.6, P); p.tri([1, 5], [W - 1, 5], [cx, 11], P); }
+    else if (f === 4) { p.rect(1, 2, 4, 8, hex('#f2e6c4')); p.rect(7, 2, 4, 8, hex('#f2e6c4')); p.rect(5, 2, 2, 9, hex('#c9a46a')); for (let y = 4; y < 9; y += 2) { p.rect(2, y, 2, 1, hex('#8a7a5a')); p.rect(8, y, 2, 1, hex('#8a7a5a')); } }
+    else if (f === 5) { p.ellipse(3.5, 7.5, 1.6, 2.4, B); p.ellipse(8, 4, 1.6, 2.4, B); p.set(3, 4, B); p.set(8, 1, B); }
+    else { p.rect(cx, 0, 1, 12, Y); p.rect(0, 6, 12, 1, Y); p.rect(cx - 1, 5, 3, 3, hex('#ffffff')); p.set(2, 2, B); p.set(9, 9, B); p.set(9, 2, B); }
+    p.outline(0.3);
+  };
+  // Guided-dive markers: a soft glowing ring that pulses (16 x 16, 4 frames) and a small arrow that bobs
+  // (8 x 8, 4 frames), both a pale warm gold.
+  S.uimarker = function (p, o) {
+    const W = p.w, c = W / 2, r = 4.5 + [0, 0.8, 1.6, 0.8][o.frame], col = hex('#fff1b0');
+    // a dark edge just outside and inside the bright ring, so it reads on bright sand and sky as well as at night
+    for (const rr of [r - 1, r + 1]) for (let a = 0; a < Math.PI * 2; a += 0.05) p.set(c + Math.cos(a) * rr - 0.5, c + Math.sin(a) * rr - 0.5, [40, 34, 24, 170]);
+    for (let a = 0; a < Math.PI * 2; a += 0.05) p.set(c + Math.cos(a) * r - 0.5, c + Math.sin(a) * r - 0.5, col);
+  };
+  S.uiarrow = function (p, o) {
+    const dy = [0, 1, 2, 1][o.frame], col = hex('#fff1b0');
+    p.tri([0, 2 + dy], [p.w, 2 + dy], [p.w / 2, p.h - 1 + dy * 0], col);
+    p.rect(p.w / 2 - 1, dy, 2, 3, col);
+    p.outline(0.35);
+  };
+  // Touch controls (screen buttons, drawn big and semi-transparent). ui.touch, 16 x 16: frame 0 is the
+  // round button base, the rest are icons drawn on top of it: 1 jump, 2 bait, 3 sneak, 4 interact,
+  // 5 menu, 6 close, 7 back, 8 view, 9 shutter, 10 left, 11 right. ui.stick, 32 x 32: 0 ring, 1 knob.
+  S.uitouch = function (p, o) {
+    const f = o.frame, Wh = hex('#eaf8ff'), Y = hex('#ffe9a8'), c = 7.5;
+    if (f === 0) {
+      p.ellipse(c, c, 7.4, 7.4, [8, 24, 44, 150]);
+      for (let a = 0; a < Math.PI * 2; a += 0.04) p.set(c + Math.cos(a) * 7 , c + Math.sin(a) * 7, [190, 240, 255, 230]);
+      for (let a = 0; a < Math.PI * 2; a += 0.04) p.set(c + Math.cos(a) * 6, c + Math.sin(a) * 6, [20, 50, 80, 200]);
+      return;
+    }
+    if (f === 1) { p.tri([c, 3], [3.5, 9], [12.5, 9], Wh); p.rect(6, 9, 4, 4, Wh); }                         // up arrow
+    else if (f === 2) { p.circle(c, 9, 3, hex('#f2b27a')); p.circle(c - 1, 8, 1, hex('#ffe0c0')); p.rect(7, 3, 2, 3, hex('#f2b27a')); }   // a bait pellet
+    else if (f === 3) { p.ellipse(5.5, 9.5, 1.8, 2.8, Wh); p.ellipse(10, 6, 1.8, 2.8, Wh); p.set(5, 5, Wh); p.set(10, 2, Wh); }   // footprints
+    else if (f === 4) { p.rect(4, 6, 8, 7, Y); p.rect(5, 3, 1, 4, Y); p.rect(7, 2, 1, 5, Y); p.rect(9, 3, 1, 4, Y); p.rect(11, 4, 1, 3, Y); }   // an open hand
+    else if (f === 5) { for (let i = 0; i < 3; i++) p.rect(4, 4 + i * 3, 8, 2, Wh); }                       // three bars
+    else if (f === 6) { for (let i = 0; i < 7; i++) { p.rect(4 + i, 4 + i, 2, 1, Wh); p.rect(10 - i, 4 + i, 2, 1, Wh); } }   // x
+    else if (f === 7) { p.tri([3, c], [8, 3], [8, 12], Wh); p.rect(8, 6, 5, 3, Wh); }                       // back arrow
+    else if (f === 8) { p.ellipse(c, c, 5, 3, Wh); p.circle(c, c, 1.8, [20, 50, 80, 255]); }                 // an eye (view)
+    else if (f === 9) { p.rect(3, 5, 10, 7, Wh); p.rect(6, 4, 4, 1, Wh); p.circle(c, 8.5, 2, [20, 50, 80, 255]); }   // a camera
+    else if (f === 10) p.tri([4, c], [10, 3], [10, 12], Wh);                                                  // left
+    else p.tri([11, c], [5, 3], [5, 12], Wh);                                                                // right
+    p.outline(0.35);
+  };
+  S.uistick = function (p, o) {
+    const c = 15.5;
+    if (o.frame === 0) {
+      p.ellipse(c, c, 15, 15, [8, 24, 44, 90]);
+      for (let a = 0; a < Math.PI * 2; a += 0.02) p.set(c + Math.cos(a) * 14.5, c + Math.sin(a) * 14.5, [190, 240, 255, 200]);
+      for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) p.set(c + Math.cos(a) * 11, c + Math.sin(a) * 11, [190, 240, 255, 160]);   // four little direction dots
+    } else {
+      p.ellipse(c, c, 8, 8, [150, 225, 245, 220]);
+      p.ellipse(c - 1.5, c - 1.5, 5, 5, [215, 248, 255, 235]);
+      for (let a = 0; a < Math.PI * 2; a += 0.03) p.set(c + Math.cos(a) * 8, c + Math.sin(a) * 8, [20, 50, 80, 230]);
+    }
   };
   S.beampad = function (p, o) {
     const W = p.w, H = p.h, cx = W / 2, metal = hex('#8a96a6');

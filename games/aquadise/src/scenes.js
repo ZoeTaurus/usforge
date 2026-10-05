@@ -22,6 +22,7 @@ AQ.Scenes = (function () {
     const prev = S.cur(game);
     if (prev && prev !== sc && prev.leave) prev.leave(game);
     game.scene = sc.id;
+    if (sc.id === 'station') { AQ.State.flags = AQ.State.flags || {}; AQ.State.flags.visitedStation = true; }
     const P = game.player;
     P.vx = 0; P.vy = 0; P.climbing = null; P.stun = 0;
     if (sc.enter) sc.enter(game, spawn);
@@ -51,8 +52,10 @@ AQ.Scenes = (function () {
   S.keyName = () => AQ.TUNING.interactKeys[0].replace('Key', '');
 
   // Shared little "press E" prompt over the player's head.
+  // (touch: the INTERACT button shows while a prompt is up, labelled with its text: S.promptAt)
   S.prompt = function (ctx, x, y, text) {
-    const F = AQ.Font, label = `${S.keyName()}: ${text}`, w = F.width(label) + 6;
+    S.promptAt = { t: AQ.Render.t, text };
+    const F = AQ.Font, label = AQ.Touch && AQ.Touch.active() ? text : `${S.keyName()}: ${text}`, w = F.width(label) + 6;
     const t = (AQ.Render.t * 2) % 2 < 1 ? 0 : 1;
     ctx.fillStyle = 'rgba(6,18,34,0.82)'; ctx.fillRect(Math.round(x - w / 2), Math.round(y - 3 - t), w, 10);
     ctx.fillStyle = '#9feff0'; ctx.fillRect(Math.round(x - w / 2), Math.round(y - 3 - t), w, 1);

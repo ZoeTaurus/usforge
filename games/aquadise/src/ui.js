@@ -19,7 +19,8 @@ AQ.LogUI = (function () {
   const biomes = () => {
     const order = ['tide_pools', 'coral', 'ruins', 'open_ocean', 'vents', 'trench', 'kelp', 'mangrove', 'ice', 'cave', 'lush_cave'];
     const all = AQ.World.biomes.slice();
-    return all.sort((a, b) => (order.indexOf(a.id) + 99) % 99 - (order.indexOf(b.id) + 99) % 99);
+    // special tanks (Starfall) get a page of their own, after the sea biomes
+    return all.sort((a, b) => (order.indexOf(a.id) + 99) % 99 - (order.indexOf(b.id) + 99) % 99).concat(AQ.data.specialTanks || []);
   };
   // a biome's species, with each family (AQ.data.families) kept together where its first member is
   const entries = (b) => {
@@ -117,6 +118,7 @@ AQ.LogUI = (function () {
   // ---------------------------------------------------------------- open / close
   L.open = function (game, from) {
     AQ.Audio.play('log_open');
+    if (AQ.Dive) AQ.Dive.event('log');
     L.from = from || game.state;
     game.state = 'log';
     const here = from === 'aquarium' ? AQ.Aquarium.biome : from === 'title' || game.scene !== 'world' ? 'tide_pools' : AQ.World.biomeAt(game.player.x, game.player.y).id;
@@ -125,6 +127,7 @@ AQ.LogUI = (function () {
   };
   L.close = function (game) {
     AQ.Audio.play('log_close');
+    if (AQ.Tips) AQ.Tips.event('logClosed');      // its tip waits until you're back out (no tips inside menus)
     if (L.from === 'title') { AQ.Title.open(game); return; }
     game.state = L.from === 'aquarium' ? 'aquarium' : 'play';
   };
@@ -371,6 +374,7 @@ AQ.LogUI = (function () {
       F().draw(g, has ? d.name.toUpperCase() : '???', 9, 131, has ? C.title : C.dim);
       const tags = [CAT_LABEL[d.category] || d.category, d.is_plant ? 'harvest' : '', d.requires_upgraded_net ? 'needs net lv2' : '',
         d.active === 'night' || d.bloom === 'night' ? 'night only' : d.active === 'day' ? 'day only' : '',
+        d.event === 'star' ? 'falling stars only' : d.event === 'shower' ? 'meteor showers only' : '',
         d.requires_depth ? 'needs depth ' + d.requires_depth : '', d.rare ? 'rare' : '', d.hostile ? 'hostile' : '', d.draft ? 'draft' : ''].filter(Boolean).join(' - ');
       F().draw(g, tags.toUpperCase(), 311, 131, C.info, { align: 'right' });
       const tip = (d.active === 'night' ? 'Comes out at night. ' : d.bloom === 'night' ? 'Opens at night. ' : d.active === 'day' ? 'Only out by day. ' : '') + (d.requires_depth ? `Lives deep: needs the depth upgrade (level ${d.requires_depth}). ` : '') + (d.hint || '');
@@ -453,7 +457,7 @@ AQ.LogUI = (function () {
       else if (st.stage === 3) F().draw(g, '♥', mid, wy + 6 - (Math.floor(performance.now() / 400) % 2), '#ff9fc0', { align: 'center', shadow: false });
       else F().draw(g, '?', mid, wy + 6, '#5a5030', { align: 'center', shadow: false });
     }
-    outline(g, { x: vx, y: wy, w: ww, h: wh }, bred ? '#ffd25a' : st.stage === 3 && Math.floor(performance.now() / 500) % 2 ? '#a08a40' : '#3a3420');
+    outline(g, { x: vx, y: wy, w: ww, h: wh }, bred ? '#ffd25a' : st.stage === 3 && (AQ.U.calm() || Math.floor(performance.now() / 500) % 2) ? '#a08a40' : '#3a3420');
     F().draw(g, fitText(has ? d.name.toUpperCase() : '???', r.w - 4), r.x + r.w / 2, r.y + 22, bred ? '#ffe9a8' : has ? (sel ? '#ffffff' : C.text) : '#5a7a90', { align: 'center', shadow: false });
     if (sel) outline(g, r, '#5fc6d9');
     else if (L.hover === r) outline(g, r, '#2f6684');
@@ -506,6 +510,7 @@ AQ.LogUI = (function () {
   // and the Field Notes on the right; < > browse the biome's species
   function drawEntry(g, d) {
     const has = AQ.Collection.has(d.id), lg = logOf(d.id), biome = (biomes().find((b) => b.id === d.biome) || {}).name || '';
+    const bottleIn = (biomes().find((b) => b.id === (d.bottle || d.biome)) || {}).name || biome;   // where its message bottle lies
     const list = entries(biomes()[L.biomeIdx]);
     g.fillStyle = C.panel; g.fillRect(4, 17, 312, 149);
     // portrait
@@ -535,7 +540,7 @@ AQ.LogUI = (function () {
     else {
       AQ.Assets.draw(g, 'misc.bottle', 'idle', X + W / 2, 108, { t: performance.now() / 1000, alpha: 0.5 });
       F().draw(g, 'NOT FOUND YET', X + W / 2, 116, C.dim, { align: 'center' });
-      wrap(`A message bottle somewhere in the ${biome} holds these notes.`, Math.floor(W / 4)).forEach((l, i) => F().draw(g, l, X + W / 2, 126 + i * 8, C.hint, { align: 'center', shadow: false }));
+      wrap(`A message bottle somewhere in the ${bottleIn} holds these notes.`, Math.floor(W / 4)).forEach((l, i) => F().draw(g, l, X + W / 2, 126 + i * 8, C.hint, { align: 'center', shadow: false }));
     }
     footer(g, [['LEFT/RIGHT', 'PREV / NEXT SPECIES'], ['ESC', 'BACK TO THE LIST']]);
   }
@@ -570,10 +575,12 @@ AQ.MapUI = (function () {
         F().draw(g, text, x, y, '#e8fbff', { shadow: 'rgba(0,0,0,0.9)' });
       });
       if (AQ.Chests) for (const c of AQ.Chests.list) { g.fillStyle = '#ffd56b'; g.fillRect(Math.round(ox + c.x / S) - 1, Math.round(oy + c.y / S) - 1, 2, 2); }
+      if (AQ.Starfall) AQ.Starfall.drawMap(g, ox, oy, S, game.time);
       const P = game.player;
-      if (Math.floor(game.time * 4) % 2) { g.fillStyle = '#ff5a7a'; g.fillRect(Math.round(ox + P.x / S) - 1, Math.round(oy + P.y / S) - 1, 3, 3); }
+      if (AQ.U.calm() || Math.floor(game.time * 4) % 2) { g.fillStyle = '#ff5a7a'; g.fillRect(Math.round(ox + P.x / S) - 1, Math.round(oy + P.y / S) - 1, 3, 3); }
       F().draw(g, 'YOU', ox + P.x / S, oy + P.y / S + 4, '#ff9fb0', { align: 'center' });
-      F().draw(g, 'GOLD = CHESTS   M / ESC: CLOSE', 160, 160, '#8aa4b8', { align: 'center' });
+      const fallen = AQ.Starfall && AQ.Starfall.waiting().length;
+      F().draw(g, `GOLD = CHESTS${fallen ? '   SPARKLE = FALLEN STAR' : ''}   M / ESC: CLOSE`, 160, 160, '#8aa4b8', { align: 'center' });
     }
   };
 })();
@@ -585,13 +592,15 @@ AQ.PauseUI = (function () {
     const I = AQ.Input, m = I.mouse;
     if (P.panel === 'sound') { AQ.SoundUI.update(game, () => { P.panel = null; }, () => AQ.SoundTest.open(game, 'pause')); return; }
     P.confirm = Math.max(0, P.confirm - dt);
-    P.ui = [
-      { id: 'resume', x: 110, y: 54, w: 100, h: 14, label: 'RESUME' },
-      { id: 'help', x: 110, y: 72, w: 100, h: 14, label: 'SHOW CONTROLS' },
-      { id: 'sound', x: 110, y: 90, w: 100, h: 14, label: 'SOUND' },
-      { id: 'home', x: 110, y: 108, w: 100, h: 14, label: 'HOME' },
-      { id: 'reset', x: 110, y: 132, w: 100, h: 14, label: P.confirm > 0 ? 'CLICK AGAIN TO WIPE' : 'RESET SAVE' }
-    ];
+    if (AQ.SaveFile && AQ.SaveFile.update(game)) return;        // a save-file panel (import confirm, messages) is up
+    const rows = [['resume', 'RESUME'], ['help', 'SHOW CONTROLS'], ['guide', 'GUIDE'], ['tutorial', AQ.Dive && AQ.Dive.active() ? 'RESTART TUTORIAL' : 'TUTORIAL'], ['sound', 'SETTINGS'], ['files'], ['home', 'HOME']];
+    P.ui = [];
+    rows.forEach(([id, label], i) => {
+      const y = 38 + i * 14;
+      if (id === 'files') { P.ui.push({ id: 'export', x: 110, y, w: 49, h: 12, label: 'EXPORT SAVE' }, { id: 'import', x: 161, y, w: 49, h: 12, label: 'IMPORT SAVE' }); return; }
+      P.ui.push({ id, x: 110, y, w: 100, h: 12, label });
+    });
+    P.ui.push({ id: 'reset', x: 110, y: 38 + rows.length * 14 + 4, w: 100, h: 12, label: P.confirm > 0 ? 'CLICK AGAIN TO WIPE' : 'RESET SAVE' });
     if (I.wasPressed('Escape')) { game.state = 'play'; return; }
     const prev = P.hover;
     P.hover = P.ui.find((r) => m.x >= r.x && m.y >= r.y && m.x < r.x + r.w && m.y < r.y + r.h);
@@ -600,6 +609,10 @@ AQ.PauseUI = (function () {
       AQ.Audio.play('menu_select');
       if (P.hover.id === 'resume') game.state = 'play';
       if (P.hover.id === 'help') { AQ.HUD.helpT = 12; game.state = 'play'; }
+      if (P.hover.id === 'guide') AQ.Guide.open(game, 'pause');
+      if (P.hover.id === 'export') AQ.SaveFile.exportSave(game);
+      if (P.hover.id === 'import') AQ.SaveFile.pickImport(game);
+      if (P.hover.id === 'tutorial') { game.state = 'play'; if (game.scene !== 'world') AQ.HUD.toast('The guided dive starts when you are back in the sea.', '#cfe8ff', 4); AQ.Dive.start(game); }
       if (P.hover.id === 'sound') { P.panel = 'sound'; AQ.SoundUI.open(); }
       if (P.hover.id === 'home') { AQ.Save.save(game); AQ.Title.open(game); }
       if (P.hover.id === 'reset') { if (P.confirm > 0) AQ.Save.reset(); else P.confirm = 3; }
@@ -608,9 +621,11 @@ AQ.PauseUI = (function () {
   P.draw = function (g) {
     g.fillStyle = 'rgba(4,12,24,0.75)'; g.fillRect(0, 0, 320, 180);
     if (P.panel === 'sound') { AQ.SoundUI.draw(g); return; }
-    F().draw(g, 'PAUSED', 160, 38, '#ffe9a8', { align: 'center' });
+    F().draw(g, 'PAUSED', 160, 26, '#ffe9a8', { align: 'center' });
     for (const r of P.ui) AQ.Aquarium.button(g, r, P.hover === r);
-    F().draw(g, 'PROGRESS SAVES AUTOMATICALLY', 160, 160, '#8aa4b8', { align: 'center' });
+    const warn = AQ.SaveFile && AQ.SaveFile.statusLine();
+    F().draw(g, warn || 'PROGRESS SAVES AUTOMATICALLY', 160, 162, warn ? '#ffcf8a' : '#8aa4b8', { align: 'center' });
+    if (AQ.SaveFile) AQ.SaveFile.draw(g);
   };
   return P;
 })();

@@ -117,6 +117,44 @@ row. Floating pieces (`kind: 'float'`, like the buoy and lily pad) hang from the
 `data/decorations.js` sets how many pixels of the sprite dip below the waterline. Pieces with a `glow`
 colour light up dark tanks around them, so leave their bright parts bright.
 
+## Starfall (falling-star creatures and their tank)
+
+These follow every rule above (sizes, rows, anchors, ♂ / juvenile / rare-variant sheets); they're
+listed here because their placeholder shapes are new.
+
+| key | size class | placeholder | notes |
+|---|---|---|---|
+| `creature.starfall_minnow` | tiny (12 × 12) | `fish` + `starry` | pale, with a row of tiny belly lamps that twinkle frame to frame |
+| `creature.aerolite_crab` | small (16 × 16) | `crab` + `rocky` | a pitted grey space-rock shell with faint warm (orange) cracks |
+| `creature.comet_ray` | widelarge (48 × 24) | `ray` (new) | wide flapping wings, small head, star spots; a long thin tail ending in a white glowing tip (keep the tail inside the frame) |
+| `decor.stardust_patch` | small (16 × 16) | `stardust` | a low mound of dark sand with glinting specks (`glow`) |
+| `decor.meteorite_rock` | medium (24 × 24) | `meteorite` | dark pitted rock with glowing orange cracks (`glow`) |
+| `decor.crater_bowl` | wide (32 × 16) | `crater` | a shallow crater: raised rim, dark hollow (a hideout) |
+| `decor.star_lantern` | tall (16 × 32) | `starlantern` | a slim post with a glowing five-point star on top (`glow`) |
+
+The creatures glow in the sea (`light` in `data/creatures.js`), so keep their bright parts bright.
+
+## Tutorial UI
+
+| key | frame | frames | anchor | notes |
+|---|---|---|---|---|
+| `ui.icons` | 12 × 12 | 7 (one picture per frame, drawn by frame number) | centre | small icons on the tip boxes: 0 alert (!), 1 moon, 2 star, 3 heart, 4 open book, 5 footprints (sneak), 6 sparkle. Soft bright colours with a dark outline; they sit on a dark navy box. |
+
+| `ui.marker` | 16 × 16 | 4 @ 5 fps (a pulse) | centre | the guided dive's glowing ring around the thing to do: a thin pale-gold ring with a soft dark edge on both sides (so it reads on bright sand and in the dark), growing and shrinking a little |
+| `ui.arrow` | 8 × 8 | 4 @ 5 fps (a bob) | centre | the small pale-gold arrow pointing down at the marker (or at you, for "drop bait") |
+
+## Touch controls
+
+Drawn big (about 50-80 screen pixels across), at whole-pixel scale, semi-transparent over the game or
+in the black side bars, so keep shapes bold and simple with a dark outline.
+
+| key | frame | frames | anchor | notes |
+|---|---|---|---|---|
+| `ui.touch` | 16 × 16 | 12 (one picture per frame, drawn by frame number) | centre | frame 0 is the round button base (a dark see-through disc with a pale rim), drawn under every icon; icons: 1 jump (up arrow), 2 bait (a pellet), 3 sneak (footprints), 4 interact (an open hand), 5 menu (three bars), 6 close (x), 7 back (arrow), 8 view (an eye), 9 shutter (a camera), 10 left, 11 right. Icons in pale white (interact in warm yellow), inside the rim. |
+| `ui.stick` | 32 × 32 | 2 | centre | the joystick: 0 the ring (thin pale rim, faint dark fill, four small direction dots), 1 the knob (a pale blue ball, half the ring's size) |
+
+The tip box itself is drawn in code (a dark navy panel with a warm yellow top edge and a small ×).
+
 ## Using a different layout
 
 If a generated sheet needs a different frame size or frame count, edit its entry in

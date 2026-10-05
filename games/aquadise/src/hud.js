@@ -75,6 +75,7 @@ AQ.HUD = (function () {
     }
     // the time of day (sea only): sun, sunrise/sunset or moon
     if (game.scene !== 'station') drawClockIcon(ctx, vw - 12, 12);   // (the station floats in space: no sun there)
+    if (AQ.Starfall) AQ.Starfall.drawHud(ctx, vw - 20, 13, game.time);   // a star waiting / a meteor-shower night
     // collection progress (top-right)
     if (AQ.Collection) {
       const c = AQ.Collection.progress();
@@ -84,16 +85,17 @@ AQ.HUD = (function () {
     }
     if (game.player.sneaking) { ctx.globalAlpha = 0.8; F.draw(ctx, 'SNEAKING', 4, 34, '#9fe8ff', { shadow: SH }); ctx.globalAlpha = 1; }
     // toasts: at most two, newest at the bottom
-    const shown = H.toasts.slice(-2);
+    const shown = game.state === 'pause' ? [] : H.toasts.slice(-2), helpOn = H.showHelp && H.helpT > 0;   // (paused: the pause screen speaks)
+    const base = helpOn ? vh - 28 : vh - 20;                     // above the controls hint while it's showing
     shown.forEach((t, i) => {
       ctx.globalAlpha = Math.min(1, t.t * 5, (t.life - t.t) * 2.5);
-      F.draw(ctx, t.text, vw / 2, vh - 20 - (shown.length - 1 - i) * 8, t.color, { align: 'center', shadow: SH });
+      F.draw(ctx, t.text, vw / 2, base - (shown.length - 1 - i) * 8, t.color, { align: 'center', shadow: SH });
       ctx.globalAlpha = 1;
     });
     // help (first moments only, or when H is pressed)
-    if (H.showHelp && H.helpT > 0) {
+    if (H.showHelp && H.helpT > 0 && game.state !== 'pause') {
       ctx.globalAlpha = Math.min(1, H.helpT) * 0.9;
-      const lines = ['MOVE WASD  JUMP SPACE  SNEAK SHIFT  NET LEFT CLICK (HOLD TO PRY)', 'BAIT B / RIGHT CLICK   INTERACT E   LOG L   MAP M   HELP H   MUTE O'];
+      const tut = AQ.data.tutorial, lines = (AQ.Touch && AQ.Touch.active() && tut.touchHelpLines ? tut.touchHelpLines : tut.helpLines).map(AQ.Keys.fill);    // data/tutorial.js; key names from the bindings
       lines.forEach((l, i) => F.draw(ctx, l, vw / 2, vh - 15 + i * 7, '#d8f3ff', { align: 'center', shadow: SH }));
       ctx.globalAlpha = 1;
     }

@@ -20,9 +20,11 @@ AQ.Game = (function () {
     canvas.width = AQ.TUNING.view.w; canvas.height = AQ.TUNING.view.h;
     AQ.Camera.w = canvas.width; AQ.Camera.h = canvas.height;
     AQ.Input.attach(canvas);
-    AQ.Audio.attach();                          // sound starts on the first click / key press
+    AQ.Audio.attach();                          // sound starts on the first click / key press / touch
     AQ.Render.init(canvas);
+    if (AQ.Touch) AQ.Touch.attach(canvas);      // touch controls (src/touch.js)
     fit(); window.addEventListener('resize', fit);
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
 
     setLoading('Loading sprites...');
     await AQ.Assets.load((p) => setLoading(`Loading sprites... ${Math.round(p * 100)}%`));
@@ -40,6 +42,8 @@ AQ.Game = (function () {
     const start = AQ.data.world.playerStart;
     G.player = new AQ.Player(start[0], start[1]);
     if (save) AQ.Save.apply(save, G);
+    // a brand-new game has tutorial progress from the start, so its saves are never mistaken for an older save
+    if (!AQ.State.tutorial) AQ.State.tutorial = { seen: {} };
     G.upgrades = AQ.State.upgrades;
     G.player.speedLevel = G.upgrades.speed;
 
@@ -47,22 +51,30 @@ AQ.Game = (function () {
     if (AQ.Doors) AQ.Doors.init();
     if (AQ.Creatures) AQ.Creatures.init(G);
     if (AQ.Chests) AQ.Chests.init(G);
+    if (AQ.Starfall) AQ.Starfall.init();           // stars still waiting from last time (after the creatures)
     AQ.Scenes.restore(G, G.scene, G.player.x, G.player.y);
     document.getElementById('loading').style.display = 'none';
     AQ.Title.open(G);
+    if (AQ.Save && AQ.Save.blocked && AQ.SaveFile) AQ.SaveFile.openRecover();   // the save couldn't be read: ask, never overwrite silently
     requestAnimationFrame(loop);
   };
 
   function setLoading(t) { const el = document.getElementById('loading-text'); if (el) el.textContent = t; }
   const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 
+  // Scale the 320 x 180 game to the window. Keyboard + mouse: whole-number steps (crisp pixels).
+  // Touch: the biggest size that fits inside the safe area (phones have small screens), keeping the shape.
   function fit() {
     const canvas = document.getElementById('game');
     const vw = AQ.TUNING.view.w, vh = AQ.TUNING.view.h;
-    const s = Math.max(1, Math.floor(Math.min(window.innerWidth / vw, window.innerHeight / vh)));
-    canvas.style.width = vw * s + 'px'; canvas.style.height = vh * s + 'px';
+    const sf = (AQ.Touch && AQ.Touch.safe) || { t: 0, r: 0, b: 0, l: 0 };
+    const aw = window.innerWidth - sf.l - sf.r, ah = window.innerHeight - sf.t - sf.b;
+    const fill = Math.min(aw / vw, ah / vh);
+    const s = AQ.Touch && AQ.Touch.active() ? Math.max(0.5, fill) : Math.max(1, Math.floor(fill));
+    canvas.style.width = Math.floor(vw * s) + 'px'; canvas.style.height = Math.floor(vh * s) + 'px';
     document.documentElement.style.setProperty('--px', s + 'px');
   }
+  G.fit = fit;
 
   function loop(ts) {
     const dt = Math.min(0.1, (ts - last) / 1000 || 0);
@@ -72,6 +84,7 @@ AQ.Game = (function () {
     // Safety net: an error in one frame is logged, but never stops the game (or leaves it stuck on
     // a black transition screen).
     try {
+      if (AQ.Touch && AQ.Touch.portrait) { acc = 0; AQ.Input.endFrame(); }   // "rotate your device" is up: the game waits
       while (acc >= STEP && n < 6) { update(STEP); acc -= STEP; n++; }
       if (n === 6) acc = 0;
       draw();
@@ -87,24 +100,39 @@ AQ.Game = (function () {
     const I = AQ.Input;
     G.time += dt;
     AQ.Render.t = G.time;
+    if (AQ.Touch) AQ.Touch.update(dt, G);
 
-    if (G.state === 'play' || G.state === 'map') {
+    if (AQ.Touch && AQ.Touch.updateMenu(G)) {
+      // the touch MENU panel is open: the game waits underneath
+    } else if (G.state === 'play' || G.state === 'map') {
       const frozen = AQ.Transition.blocking(), inWorld = G.scene === 'world';
       AQ.Clock.update(dt);                         // one day/night clock for everywhere (the sea, the hill, the station)
+      if (AQ.Starfall) AQ.Starfall.update(dt, G);   // falling stars + meteor showers: on schedule wherever you are
+      if (AQ.Tips) AQ.Tips.update(dt, G);           // one-time tips (first, so an Esc / click that closes a tip is used up)
+      if (AQ.Dive) AQ.Dive.update(dt, G);           // the optional guided dive (its buttons' clicks never swing the net)
+      if (AQ.TUNING.debug.tutorialReset && I.wasPressed(AQ.TUNING.debug.tutorialResetKey) && AQ.Dive) { AQ.Tips.reset(); AQ.Dive.start(G); AQ.HUD.toast('Tutorial restarted, all tips reset.', '#cfe8ff'); }
       if (!frozen) {
         if (AQ.TUNING.debug.timeSkip && I.wasPressed(AQ.TUNING.debug.timeSkipKey)) { AQ.Clock.set(AQ.Clock.hour() + AQ.TUNING.clock.skipHours); AQ.HUD.toast(`Time skip: ${AQ.HUD.clockText()}`, '#cfe8ff'); }
-        if (I.wasPressed('KeyH')) { AQ.HUD.showHelp = true; AQ.HUD.helpT = AQ.HUD.helpT > 0 ? 0 : 12; }
-        if (I.wasPressed('KeyM')) { if (inWorld) G.state = G.state === 'map' ? 'play' : 'map'; else AQ.HUD.toast('The map only shows the sea.', '#cfe8ff'); }
+        if (AQ.TUNING.debug.starKeys && AQ.Starfall) {
+          if (I.wasPressed(AQ.TUNING.debug.fallStarKey) && !AQ.Starfall.fall(G)) AQ.HUD.toast('No free spot for a star right now.', '#cfe8ff');
+          if (I.wasPressed(AQ.TUNING.debug.showerKey)) AQ.Starfall.startShower(G);
+        }
+        if (AQ.Keys.pressed('help')) { AQ.HUD.showHelp = true; AQ.HUD.helpT = AQ.HUD.helpT > 0 ? 0 : 12; }
+        if (AQ.Keys.pressed('map')) { if (inWorld) G.state = G.state === 'map' ? 'play' : 'map'; else AQ.HUD.toast('The map only shows the sea.', '#cfe8ff'); }
         if (I.wasPressed('Tab') && AQ.Aquarium && AQ.TUNING.debug.tabOpensAquarium) { AQ.Aquarium.open(G); I.endFrame(); return; }
-        if (I.wasPressed('KeyL') && AQ.LogUI) { AQ.LogUI.open(G); I.endFrame(); return; }
-        if (I.wasPressed('Escape')) { if (G.state === 'map') G.state = 'play'; else { G.state = 'pause'; I.endFrame(); return; } }
+        if (AQ.Keys.pressed('log') && AQ.LogUI) { AQ.LogUI.open(G); I.endFrame(); return; }
+        if (AQ.Keys.pressed('guide') && AQ.Guide) { AQ.Guide.open(G, 'play'); I.endFrame(); return; }
+        if (AQ.Keys.pressed('pause')) { if (G.state === 'map') G.state = 'play'; else { G.state = 'pause'; I.endFrame(); return; } }
       }
       AQ.Scenes.cur(G).update(dt, G, frozen ? NO_INPUT : I);
       if (AQ.Gulls) AQ.Gulls.update(dt, G);         // distant seagulls in the sky (sea + hill)
+      if (AQ.ShootingStars) AQ.ShootingStars.update(dt, G);   // night streaks (sky, water glow, portholes)
       AQ.HUD.update(dt, G);
       if (AQ.Save) AQ.Save.tick(dt, G);
     } else if (G.state === 'aquarium') {
       AQ.Clock.update(dt);                         // time keeps passing while you tend a tank
+      if (AQ.Starfall) AQ.Starfall.update(dt, G);
+      if (AQ.Tips) AQ.Tips.update(dt, G);
       AQ.Aquarium.update(dt, G);
     } else if (G.state === 'log') {
       AQ.LogUI.update(dt, G);
@@ -114,6 +142,8 @@ AQ.Game = (function () {
       AQ.Title.update(dt, G);
     } else if (G.state === 'soundtest') {
       AQ.SoundTest.update(dt, G);
+    } else if (G.state === 'guide') {
+      AQ.Guide.update(dt, G);
     }
     if (AQ.SoundDirector) AQ.SoundDirector.update(dt, G);
     AQ.Transition.update(dt);
@@ -124,6 +154,7 @@ AQ.Game = (function () {
   function draw() {
     drawScene();
     AQ.Transition.draw(AQ.Render.ctx);
+    if (AQ.Touch) AQ.Touch.drawOverlay(G);     // the on-screen touch controls (their own canvas, screen px)
   }
   function drawScene() {
     const ctx = AQ.Render.ctx, cam = AQ.Camera;
@@ -131,9 +162,10 @@ AQ.Game = (function () {
     if (G.state === 'aquarium' || (G.state === 'log' && AQ.LogUI.from === 'aquarium')) {
       AQ.Aquarium.draw(ctx, G);
       if (G.state === 'log') AQ.LogUI.draw(ctx, G);
+      else if (AQ.Tips) AQ.Tips.draw(ctx, G);
       return;
     }
-    const title = G.state === 'title' || (G.state === 'log' && AQ.LogUI.from === 'title');
+    const title = G.state === 'title' || (G.state === 'log' && AQ.LogUI.from === 'title') || (G.state === 'guide' && AQ.Guide.from === 'title');
     if (!title && G.scene !== 'world') {
       // side scenes draw themselves; overlays go on top as usual
       AQ.Scenes.cur(G).draw(ctx, G);
@@ -142,7 +174,7 @@ AQ.Game = (function () {
     }
     AQ.Render.background(cam);
     if (G.state === 'title') AQ.Title.drawBack(ctx);
-    else if (AQ.Gulls) AQ.Gulls.draw(ctx, G);       // far behind everything, just after the sky
+    else { if (AQ.ShootingStars) AQ.ShootingStars.draw(ctx, G); if (AQ.Gulls) AQ.Gulls.draw(ctx, G); }   // far behind everything, just after the sky
     AQ.Terrain.draw(ctx, cam);
     ctx.save();
     ctx.translate(-cam.left(), -cam.top());
@@ -162,16 +194,23 @@ AQ.Game = (function () {
     AQ.Render.surface(cam);
     AQ.Render.lighting(cam, collectLights(), targetDarkness());
     AQ.Render.twilightTint(cam);
+    if (!title && AQ.ShootingStars) AQ.ShootingStars.drawWater(ctx, G);   // a star's glow passing through the water
+    if (!title && AQ.Starfall) AQ.Starfall.draw(ctx, G);                   // falling stars + light columns over landings
+    if (!title && AQ.Dive) AQ.Dive.drawWorld(ctx, G);                      // the guided dive's glowing marker
     AQ.Render.heavyHaze(G.player.heavy || 0);
     AQ.Terrain.drawGlow(ctx, cam);
-    if (title) { if (G.state === 'log') AQ.LogUI.draw(ctx, G); else AQ.Title.draw(ctx, G); return; }
+    if (title) { if (G.state === 'log') AQ.LogUI.draw(ctx, G); else if (G.state === 'guide') AQ.Guide.draw(ctx); else AQ.Title.draw(ctx, G); return; }
     drawOverlays(ctx);
   }
   function drawOverlays(ctx) {
+    if (G.state === 'guide') { AQ.Guide.draw(ctx); return; }              // the book covers the HUD (no text underneath)
     AQ.HUD.draw(ctx, G);
+    if (G.state === 'play' && AQ.Tips) AQ.Tips.draw(ctx, G);
+    if (G.state === 'play' && AQ.Dive) AQ.Dive.draw(ctx, G);
     if (G.state === 'map') AQ.MapUI.draw(ctx, G);
     if (G.state === 'log') AQ.LogUI.draw(ctx, G);
     if (G.state === 'pause') AQ.PauseUI.draw(ctx, G);
+    if (AQ.Touch) AQ.Touch.drawGame(ctx);             // the touch MENU panel
   }
 
   function targetDarkness() {
@@ -196,6 +235,7 @@ AQ.Game = (function () {
     if (AQ.Creatures) AQ.Creatures.lights(L);
     if (AQ.Chests) AQ.Chests.lights(L);
     if (AQ.Bottles && G.state !== 'title') AQ.Bottles.lights(L);
+    if (AQ.Starfall && G.state !== 'title') AQ.Starfall.lights(L);
     return L;
   }
 

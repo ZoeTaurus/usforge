@@ -119,21 +119,30 @@
     "title": "Aquadise",
     "author": "Henrique",
     "owner": "Henrique",
-    "blurb": "The beautiful chill aquarium fishing game. Pure bliss.",
-    "cover": null,
+    "blurb": "The beautiful chill aquarium fishing game. Pure bliss if you learn. Please play. (works on mobile)",
+    "cover": "games/aquadise/cover.png",
     "pixel": false,
     "url": null,
+    "shots": [
+      "games/aquadise/shots/1.png",
+      "games/aquadise/shots/2.png",
+      "games/aquadise/shots/3.png",
+      "games/aquadise/shots/4.png"
+    ],
     "genres": [
       "Casual",
       "Open world",
       "Simulation"
     ],
-    "dev": true,
-    "progress": 95,
-    "next": "Beautifying",
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
     "build": true,
     "added": 1790877471,
-    "updated": 1791063359
+    "updated": 1791197693
   },
   {
     "slug": "skyline-dash",

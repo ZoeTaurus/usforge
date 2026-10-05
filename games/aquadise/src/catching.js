@@ -33,14 +33,15 @@ AQ.Catching = (function () {
 
   K.update = function (dt, game) {
     const I = AQ.Input, P = game.player;
-    const mousePress = I.mouse.pressed[0], keyPress = false;   // the net is left-click only (Space jumps)
-    const holding = I.mouse.down[0];
+    const mousePress = AQ.Keys.pressed('net'), keyPress = false;   // the net (left click by default; AQ.TUNING.keys.net)
+    const holding = AQ.Keys.down('net');
 
     if ((mousePress || keyPress) && !K.swing) {
       const aim = aimFrom(game, mousePress);
       K.swing = { t: 0, aim, hits: new Set(), msg: false };
       if (aim[0]) P.facing = aim[0] > 0 ? 1 : -1;
       AQ.Audio.play('swing');
+      if (AQ.Dive) AQ.Dive.event('swing');
       // some creatures react to the swing itself (curious dodgers, defensive pinchers)
       for (const c of AQ.Creatures.near(P.x, P.y, 48)) if (c.bhv.onSwing) c.bhv.onSwing(c, ctxFor(game, c));
     }
@@ -80,12 +81,14 @@ AQ.Catching = (function () {
     }
 
     // Bait
-    if (I.wasPressed('KeyB', 'KeyK') || I.mouse.pressed[2]) {
+    if (AQ.Keys.pressed('bait')) {
       if (P.inAir) AQ.HUD.toast('Bait only works underwater.', '#cde');
       else {
         K.bait = { x: P.x + P.facing * 6, y: P.y + 2, t: 0, vy: 0 };
         AQ.FX.puff(K.bait.x, K.bait.y, 'rgba(240,170,100,0.5)', 4);
         AQ.Audio.play('bait');
+        if (AQ.Tips) AQ.Tips.event('bait');
+        if (AQ.Dive) AQ.Dive.event('bait');
       }
     }
     if (K.bait) {
@@ -161,6 +164,8 @@ AQ.Catching = (function () {
     AQ.FX.text(c.x, c.y - 8, pried ? 'PRIED!' : 'GOT IT!', '#ffe36b');
     AQ.HUD.toast(`Caught ${c.def.name}!${isNew ? '  NEW!' : ''}`, isNew ? '#ffe36b' : '#ffffff', 3);
     AQ.Audio.play('catch', { rare: !!c.def.rare });
+    if (AQ.Tips) AQ.Tips.event('catch');
+    if (AQ.Dive) AQ.Dive.event('catch');
   }
 
   K.draw = function (g, game) {

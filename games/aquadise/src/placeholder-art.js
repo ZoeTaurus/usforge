@@ -787,6 +787,40 @@
     p.outline();
   };
   // ---- Starfall tank decor
+  // Universal Nursery decor: soft pastel pieces
+  S.shellcradle = function (p, o) {             // an open scallop shell lined with something soft
+    const W = p.w, H = p.h, cx = W / 2;
+    p.ellipse(cx, H - 4, W * 0.46, 3.4, o.c);
+    p.ellipse(cx, H - 5, W * 0.34, 2, o.a);
+    for (let i = -2; i <= 2; i++) p.line(cx + i * W * 0.1, H - 2, cx + i * W * 0.17, H - 6, mul(o.c, 0.85));
+    p.ellipse(cx, H - 8, W * 0.28, 3, mul(o.c, 1.05)); p.rect(Math.round(cx - W * 0.28), H - 8, Math.round(W * 0.56), 2, o.c);
+    p.shade(0.15); p.outline(0.6);
+    p.set(cx - 2, H - 6, WHITE);
+  };
+  S.bubblemobile = function (p, o) {            // a little hanging mobile with three bubble charms
+    const W = p.w, cx = W / 2;
+    p.rect(Math.round(cx), 0, 1, 4, mul(o.c, 0.8));
+    p.rect(3, 4, W - 6, 1, o.c);
+    [[4, 9, 2.6], [cx, 12, 3.2], [W - 5, 8, 2.4]].forEach(([x, y, r], i) => {
+      p.rect(Math.round(x), 5, 1, Math.round(y - r - 5), mul(o.c, 0.75));
+      p.circle(x, y, r, i === 1 ? o.a : [255, 210, 230, 255]);
+      p.set(Math.round(x - 1), Math.round(y - 1), WHITE);
+    });
+    p.outline(0.5);
+  };
+  S.sandmound = function (p, o) {               // a low, round mound of soft sand with a few pastel specks
+    const W = p.w, H = p.h, r = mkRand(4);
+    p.ellipse(W / 2, H - 2.5, W * 0.46, 4.5, o.c);
+    p.rect(2, H - 3, W - 4, 2, o.c);
+    p.shade(0.18); p.outline(0.5);
+    for (let i = 0; i < 6; i++) { const x = Math.round(W * 0.2 + r() * W * 0.6), y = Math.round(H - 2 - r() * 4); if (p.a(x, y)) p.set(x, y, i % 2 ? o.a : [200, 230, 255, 255]); }
+  };
+  S.pebblenest = function (p, o) {              // a ring of round pebbles around a soft hollow
+    const W = p.w, H = p.h, cx = W / 2;
+    p.ellipse(cx, H - 3, W * 0.4, 2.2, mul(o.a, 0.9));
+    [[-5, 0], [-2, -1], [2, -1], [5, 0], [-3, 1], [3, 1], [0, 1]].forEach(([dx, dy], i) => p.circle(cx + dx, H - 3 + dy, 1.6, i % 2 ? o.c : mul(o.c, 1.12)));
+    p.shade(0.15); p.outline(0.5);
+  };
   S.stardust = function (p, o) {                // a low mound of dark sand sprinkled with glinting dust
     const W = p.w, H = p.h, r = mkRand(7);
     p.ellipse(W / 2, H - 2.5, W * 0.45, 2.6, o.c);
@@ -1302,6 +1336,15 @@
     else if (f === 10) p.tri([4, c], [10, 3], [10, 12], Wh);                                                  // left
     else p.tri([11, c], [5, 3], [5, 12], Wh);                                                                // right
     p.outline(0.35);
+  };
+  // the nursery: a tiny graduation cap (8 x 8, 2 frames: the tassel swings) over grown babies
+  S.uigradcap = function (p, o) {
+    const ink = [40, 34, 60, 255], top = hex('#3a3458'), hi = hex('#5a5488'), gold = hex('#ffd25a');
+    p.tri([0, 3], [4, 1], [8, 3], top); p.tri([0, 3], [4, 5], [8, 3], top);      // the flat board
+    p.rect(3, 1, 2, 1, hi);
+    p.rect(2, 4, 4, 2, ink);                                                    // the cap under it
+    if (o.frame === 0) { p.rect(6, 3, 1, 3, gold); p.set(6, 6, gold); } else { p.rect(7, 3, 1, 3, gold); p.set(7, 6, gold); }   // the tassel
+    p.outline(0.25);
   };
   S.uistick = function (p, o) {
     const c = 15.5;

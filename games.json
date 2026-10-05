@@ -1,5 +1,37 @@
 [
   {
+    "slug": "shred-tide",
+    "title": "Shred tide",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "surfing game",
+    "cover": "games/shred-tide/cover.jpg",
+    "pixel": true,
+    "url": null,
+    "genres": [
+      "Action",
+      "Simulation",
+      "Pixel art"
+    ],
+    "languages": [
+      "en",
+      "pt",
+      "es",
+      "fr",
+      "de",
+      "it",
+      "ru",
+      "zh",
+      "ja",
+      "ko"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791227594
+  },
+  {
     "slug": "3008",
     "title": "3008",
     "author": "Alex",

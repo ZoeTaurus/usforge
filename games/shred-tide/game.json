@@ -1,0 +1,24 @@
+{
+  "title": "Shred tide",
+  "author": "Alex",
+  "owner": "Alex",
+  "blurb": "surfing game",
+  "pixel": true,
+  "genres": [
+    "Action",
+    "Simulation",
+    "Pixel art"
+  ],
+  "languages": [
+    "en",
+    "pt",
+    "es",
+    "fr",
+    "de",
+    "it",
+    "ru",
+    "zh",
+    "ja",
+    "ko"
+  ]
+}

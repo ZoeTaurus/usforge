@@ -236,13 +236,19 @@
     "genres": [
       "Quiz"
     ],
+    "languages": [
+      "en",
+      "es",
+      "fr",
+      "zh"
+    ],
     "dev": false,
     "progress": null,
     "next": "",
     "build": true,
     "added": 1790707406,
     "leaderboard": true,
-    "updated": 1790713197
+    "updated": 1791194196
   },
   {
     "slug": "the-last-city",

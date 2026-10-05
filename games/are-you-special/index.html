@@ -17,8 +17,8 @@
   --panel-ink: #f3f4ff;
   --panel-muted: #a9addb;
   --panel-line: #33375e;
-  --display: "Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
-  --body: "Atkinson Hyperlegible", system-ui, sans-serif;
+  --display: "Bricolage Grotesque", "Avenir Next", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 }
 @media (prefers-color-scheme: dark) {
@@ -40,7 +40,11 @@ body { background: var(--bg); color: var(--ink); font: 17px/1.5 var(--body); }
 header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .brand { font: 800 1.3rem/1 var(--display); letter-spacing: -0.02em; background: none; border: 0; color: var(--ink); padding: 0; cursor: pointer; }
 .brand span { color: var(--accent); }
-.hdr-right { display: flex; align-items: center; gap: 12px; }
+.hdr-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.lang { font: 500 0.8rem var(--body); color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 5px 10px; cursor: pointer; }
+.lang:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+:lang(zh) .hero h1, :lang(zh) .q, :lang(zh) .big, :lang(zh) .verdict { letter-spacing: 0; }
+:lang(zh) .hero h1 { line-height: 1.05; }
 .qcount { font: 500 0.78rem var(--mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
 .link { background: none; border: 0; color: var(--muted); font: 500 0.78rem var(--mono); text-transform: uppercase; letter-spacing: .04em; cursor: pointer; padding: 4px 0; text-decoration: underline; text-underline-offset: 3px; }
 .link:hover { color: var(--accent); }
@@ -102,12 +106,12 @@ header { display: flex; justify-content: space-between; align-items: center; gap
 .hero h1 em { font-style: normal; color: var(--accent); }
 .hero p { max-width: 54ch; margin: 0; }
 .goal { display: flex; gap: 16px; align-items: center; background: var(--gold-soft); border-radius: 14px; padding: 16px; flex-wrap: wrap; }
-.goal strong { font: 800 1.7rem/1 var(--display); color: var(--gold); white-space: nowrap; }
+.goal strong { font: 800 1.7rem/1.1 var(--display); color: var(--gold); }
 .goal span { min-width: 0; flex: 1 1 260px; font-size: 0.95rem; }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .best { font: 500 0.85rem var(--mono); color: var(--muted); }
 .ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
-.ladder li { display: grid; grid-template-columns: 7.5em 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
+.ladder li { display: grid; grid-template-columns: minmax(7.5em, 34%) 1fr; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
 .ladder li:last-child { border-bottom: 0; }
 .ladder .lo { font: 600 0.85rem var(--mono); color: var(--accent); }
 .ladder li:last-child .lo { color: var(--gold); }
@@ -285,18 +289,590 @@ const BANK = [
   { c: "Origins", q: "Do you still live in the town where you were born?", o: [["Yes", .40], ["No", .60]] },
 ];
 
-const RANKS = [
-  // [min rarity (1 in N), title, comparison of how many people still match]
-  [1, "Totally ordinary"], [10, "Slightly unusual"], [100, "Uncommon"], [1e3, "Rare find"],
-  [1e4, "Very rare"], [1e5, "Collector's item"], [1e6, "One in a million"], [1e7, "Needle in a haystack"],
-  [1e8, "Almost mythical"], [1e9, "One in a billion"], [1e10, "Truly one of a kind"],
-];
-const COMPARE = [
-  [4e9, "about half the planet"], [1.4e9, "about the whole of India"], [3.3e8, "about the population of the USA"],
-  [6.5e7, "about the population of the UK"], [8e6, "about the population of New York City"],
-  [1e6, "a big city"], [8e4, "a packed football stadium"], [1e4, "a small town"], [1e3, "a big school"],
-  [50, "a school bus"], [11, "a football team"], [2, "a dinner party"], [1, "just you, maybe one other"], [0, "statistically, only you"],
-];
+// ---------- Languages ----------
+// Each language has interface text (ui), translations for common answer labels (common),
+// and per-question translations keyed by the English question: [question, hint or 0, answer labels or 0].
+// When answer labels are 0, each English label is looked up in `common`.
+const MONTHS_ZH = [...Array(12)].map((_, i) => (i + 1) + "月");
+
+const LANGS = {
+  en: {
+    name: "English", locale: "en",
+    ui: {
+      brand: ["Are you ", "special", "?"],
+      intro: "About 8.2 billion people are alive right now. Answer questions about yourself, and each answer narrows down how many of them are exactly like you.",
+      goalBig: "1 in 10B",
+      goalText: "Your goal: get rarer than one in ten billion. That's rarer than the number of people on Earth, so statistically nobody else would match you. Do it in as few questions as you can.",
+      start: "Start the quiz", best: n => `Your best: ${n} questions`,
+      ladderTitle: "How rare is rare?",
+      ladder: ["820 million people match you, more than all of Europe", "8.2 million people, about New York City", "8,200 people, a small town", "8 people, a dinner party", "statistically, only you"],
+      note: n => `${n} questions about your body, skills, tastes and life, in a new order every game. Answer honestly: rare answers get you there faster. Type the number shown on an answer to pick it, and Enter to move on.`,
+      crowdLabel: "People on Earth who match every answer", thatIs: x => `That's <b>${x}</b>`,
+      everyone: "Everyone, so far", youAre: o => `You are ${o}`,
+      ticks: ["10", "100", "1K", "10K", "100K", "1M", "10M", "100M", "1B", "10B"],
+      qOf: (i, n) => `Q${i} of ${n}`, endGame: "End game",
+      cats: { Body: "Body", Origins: "Origins", Mind: "Mind", Skills: "Skills", Taste: "Taste", Life: "Life" },
+      fbNS: "No problem. That answer doesn't change your odds.",
+      fbRare: (pct, label, x) => `Only about <b>${pct}</b> of people said “${label}”. Your crowd just shrank <b>${x}×</b>.`,
+      fbCommon: pct => `About ${pct} of people said that too, so your crowd only shrank a little.`,
+      seeResults: "See results", finish: "Finish", nextQ: "Next question",
+      tags: ["No effect", "Ultra rare", "Rare", "Uncommon", "Common"],
+      answered: n => `${n} answered`,
+      winHead: "You're one in ten billion. ", verdictWin: "Statistically, nobody else alive matches you.",
+      verdictNone: "You didn't answer any questions.", verdictStill: p => `${p} still match you.`,
+      reached: (n, nb, b) => `You reached the goal in <b>${n}</b> questions.` + (nb ? " That's your new best!" : b ? ` Your best is ${b}.` : ""),
+      stopped: (o, r) => `You stopped at ${o}, rank “${r}”. The questions come in a different order each time, so try again.`,
+      again: "Play again", copy: "Copy my result", copied: "Copied", copyFallback: "Select and copy the text below",
+      listTitle: "Your answers, rarest first", noAnswers: "No answers counted.",
+      disclaimer: "Percentages are rough worldwide estimates, and the game treats every trait as independent of the others. Real life is messier, so enjoy the result, but don't put it on your CV.",
+      shareWin: (o, n, a, pct) => `I'm ${o} on Are You Special. I got there in ${n} questions. Rarest answer: ${a} (${pct}).`,
+      shareLose: o => `I'm ${o} on Are You Special. Can you beat that?`,
+      under: "under 0.01%", language: "Language",
+      ranks: ["Totally ordinary", "Slightly unusual", "Uncommon", "Rare find", "Very rare", "Collector's item", "One in a million", "Needle in a haystack", "Almost mythical", "One in a billion", "Truly one of a kind"],
+      compare: ["about half the planet", "about the whole of India", "about the population of the USA", "about the population of the UK", "about the population of New York City", "a big city", "a packed football stadium", "a small town", "a big school", "a school bus", "a football team", "a dinner party", "just you, maybe one other", "statistically, only you"],
+    },
+    words(n) {
+      if (n >= 1e12) return scaled(n / 1e12) + " trillion";
+      if (n >= 1e9) return scaled(n / 1e9) + " billion";
+      if (n >= 1e6) return scaled(n / 1e6) + " million";
+      return nf(Math.round(n), 0);
+    },
+    oneIn: w => `1 in ${w}`,
+    people(n) { return n < 1 ? "Just you" : n < 1.5 ? "1 person" : this.words(n) + " people"; },
+    common: {}, q: {},
+  },
+
+  zh: {
+    name: "简体中文", locale: "zh-CN",
+    ui: {
+      brand: ["你", "特别", "吗？"],
+      intro: "现在地球上大约有82亿人。回答关于你自己的问题，每个答案都会缩小和你完全一样的人数。",
+      goalBig: "百亿分之一",
+      goalText: "你的目标：比百亿分之一还稀有。一百亿比地球上的总人口还多，所以从统计上说，没有任何人会和你一样。用尽量少的问题做到。",
+      start: "开始答题", best: n => `你的最佳成绩：${n} 题`,
+      ladderTitle: "多稀有才算稀有？",
+      ladder: ["8.2亿人和你一样，比整个欧洲的人还多", "820万人，大约一个纽约市", "8200人，一个小镇", "8个人，一桌晚宴", "从统计上说，只有你"],
+      note: n => `共${n}道题，涉及你的身体、技能、口味和生活，每局顺序都不同。请诚实回答：越稀有的答案越快达到目标。输入答案上的数字来选择，按回车进入下一题。`,
+      crowdLabel: "和你所有答案都一样的地球人", thatIs: x => `相当于<b>${x}</b>`,
+      everyone: "目前为止，所有人", youAre: o => `你是${o}`,
+      ticks: ["10", "100", "千", "万", "10万", "百万", "千万", "亿", "10亿", "百亿"],
+      qOf: (i, n) => `第 ${i} / ${n} 题`, endGame: "结束游戏",
+      cats: { Body: "身体", Origins: "出身", Mind: "心智", Skills: "技能", Taste: "口味", Life: "生活" },
+      fbNS: "没关系，这个答案不会改变你的概率。",
+      fbRare: (pct, label, x) => `只有大约<b>${pct}</b>的人选了“${label}”。和你一样的人一下子少到了原来的<b>${x}分之一</b>。`,
+      fbCommon: pct => `大约${pct}的人也这样选，所以人数只少了一点。`,
+      seeResults: "查看结果", finish: "完成", nextQ: "下一题",
+      tags: ["无影响", "超级稀有", "稀有", "不常见", "常见"],
+      answered: n => `已答 ${n} 题`,
+      winHead: "你是百亿分之一。", verdictWin: "从统计上说，世界上没有任何人和你一样。",
+      verdictNone: "你还没有回答任何问题。", verdictStill: p => `还有${p}和你一样。`,
+      reached: (n, nb, b) => `你用了<b>${n}</b>道题达到目标。` + (nb ? "这是你的新纪录！" : b ? `你的最佳成绩是${b}题。` : ""),
+      stopped: (o, r) => `你停在了${o}，等级“${r}”。每次题目顺序都不同，再试一次吧。`,
+      again: "再玩一次", copy: "复制我的结果", copied: "已复制", copyFallback: "请选中并复制下面的文字",
+      listTitle: "你的答案（从最稀有开始）", noAnswers: "没有计入的答案。",
+      disclaimer: "百分比是对全世界的粗略估计，游戏把每个特征都当作彼此独立。现实要复杂得多，所以玩得开心就好，别把结果写进简历。",
+      shareWin: (o, n, a, pct) => `我在《你特别吗？》里是${o}，只用了${n}道题。最稀有的答案：${a}（${pct}）。`,
+      shareLose: o => `我在《你特别吗？》里是${o}。你能超过我吗？`,
+      under: "不到0.01%", language: "语言",
+      ranks: ["完全普通", "有点不寻常", "不常见", "难得一见", "非常稀有", "收藏级", "百万里挑一", "大海捞针", "近乎传说", "十亿里挑一", "独一无二"],
+      compare: ["大约半个地球", "大约整个印度的人口", "大约美国的人口", "大约英国的人口", "大约纽约市的人口", "一座大城市", "一座坐满的足球场", "一个小镇", "一所大学校", "一辆校车", "一支足球队", "一桌晚宴", "只有你，也许还有一个人", "从统计上说，只有你"],
+    },
+    words(n) {
+      if (n >= 1e12) return scaled(n / 1e12) + "万亿";
+      if (n >= 1e8) return scaled(n / 1e8) + "亿";
+      if (n >= 1e4) return scaled(n / 1e4) + "万";
+      return String(Math.round(n));
+    },
+    oneIn: w => `${w}分之一`,
+    people(n) { return n < 1 ? "只有你" : n < 1.5 ? "1人" : this.words(n) + "人"; },
+    common: { "Yes": "是", "No": "否", "Don't know": "不知道", "Not sure": "不确定", "Never noticed": "没注意过", "Left": "左边", "Right": "右边" },
+    q: {
+      "Which hand do you write with?": ["你用哪只手写字？", 0, ["右手", "左手", "两只手都一样"]],
+      "What colour are your eyes?": ["你的眼睛是什么颜色？", 0, ["棕色", "蓝色", "榛色", "琥珀色", "绿色", "灰色", "两只眼睛颜色不同"]],
+      "What's your blood type?": ["你是什么血型？", 0, ["O+", "A+", "B+", "AB+", "O−", "A−", "B−", "AB−", "不知道"]],
+      "Can you roll your tongue into a tube?": ["你能把舌头卷成筒状吗？"],
+      "What's your natural hair colour?": ["你天生的头发是什么颜色？", 0, ["黑色", "棕色", "金色", "红色", "灰色或白色"]],
+      "Is your hair straight, wavy or curly?": ["你的头发是直发、波浪发还是卷发？", 0, ["直发", "波浪发", "卷发"]],
+      "Do you have dimples when you smile?": ["你笑的时候有酒窝吗？"],
+      "Do you have freckles?": ["你有雀斑吗？"],
+      "Are you colourblind?": ["你是色盲吗？"],
+      "Do you wear glasses or contact lenses?": ["你戴眼镜或隐形眼镜吗？"],
+      "Can you wiggle your ears?": ["你能动耳朵吗？"],
+      "Can your thumb bend backwards past 45°?": ["你的大拇指能向后弯超过45°吗？", "也叫“搭车拇指”。"],
+      "Can you touch your nose with your tongue?": ["你能用舌头碰到鼻子吗？"],
+      "Are your earlobes attached or free-hanging?": ["你的耳垂是分离的还是贴着脸的？", 0, ["分离的", "贴着的"]],
+      "Can you raise just one eyebrow?": ["你能只挑起一边眉毛吗？"],
+      "Are you double-jointed anywhere?": ["你身上有关节特别柔软、能反向弯曲吗？"],
+      "Is your second toe longer than your big toe?": ["你的第二个脚趾比大脚趾长吗？", "这叫“莫顿趾”。"],
+      "Does your hairline dip to a point in the middle?": ["你的发际线中间有个尖吗？", "也叫“美人尖”。"],
+      "Do you have a dimple in your chin?": ["你的下巴上有个小窝吗？"],
+      "Were you born with an extra finger or toe?": ["你出生时多一根手指或脚趾吗？"],
+      "Do you have a visible birthmark?": ["你有明显的胎记吗？"],
+      "Which foot do you kick a ball with?": ["你用哪只脚踢球？", 0, ["右脚", "左脚", "两只都行"]],
+      "Clasp your hands together. Which thumb is on top?": ["双手十指交叉握在一起。哪个大拇指在上面？"],
+      "Fold your arms. Which arm is on top?": ["双臂交叉抱在胸前。哪只手臂在上面？"],
+      "Does bright sunlight make you sneeze?": ["强光会让你打喷嚏吗？", "这叫“光喷嚏反射”。"],
+      "How many times do you usually sneeze in a row?": ["你通常连续打几个喷嚏？", 0, ["一个", "两个", "三个或更多"]],
+      "Do you get motion sick in cars or boats?": ["你坐车或坐船会晕吗？"],
+      "Do you snore?": ["你打呼噜吗？", 0, ["会", "不会", "没人告诉过我"]],
+      "Which month were you born in?": ["你是几月出生的？", 0, MONTHS_ZH],
+      "Which day of the week were you born on?": ["你是星期几出生的？", 0, ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日", "不知道"]],
+      "Were you born on 29 February?": ["你是2月29日出生的吗？"],
+      "Were you born in a leap year?": ["你是在闰年出生的吗？"],
+      "How many siblings do you have?": ["你有几个兄弟姐妹？", 0, ["没有", "一个", "两个", "三个", "四个或更多"]],
+      "Are you a twin?": ["你是双胞胎吗？", 0, ["不是", "同卵双胞胎", "异卵双胞胎"]],
+      "Were you born by caesarean section?": ["你是剖腹产出生的吗？"],
+      "Which continent do you live on?": ["你住在哪个大洲？", 0, ["亚洲", "非洲", "欧洲", "北美洲", "南美洲", "大洋洲", "南极洲"]],
+      "Do you live in a different country from where you were born?": ["你现在住在和出生地不同的国家吗？"],
+      "Are you a morning person or a night owl?": ["你是早起的人还是夜猫子？", 0, ["早起的人", "夜猫子", "都不算"]],
+      "Can you name a musical note just by hearing it?": ["你能只听声音就说出是哪个音吗？", "也就是绝对音感，不能借助参考音。"],
+      "Do letters or numbers have colours in your mind?": ["在你脑海里，字母或数字有颜色吗？", "这是联觉的一种。"],
+      "Do you dream in colour?": ["你的梦是彩色的吗？", 0, ["是彩色的", "不是，是黑白的", "我不记得梦"]],
+      "Have you ever sleepwalked?": ["你梦游过吗？", 0, ["有过", "没有", "据我所知没有"]],
+      "Can you picture an apple in your mind?": ["你能在脑海里想象出一个苹果吗？", "有些人什么都看不到，这叫“心盲症”。", ["很清楚", "模模糊糊", "完全不能"]],
+      "What's your favourite number?": ["你最喜欢的数字是什么？", 0, ["7", "3", "8", "4", "13", "其他"]],
+      "Which of these scares you most?": ["下面哪个最让你害怕？", 0, ["蜘蛛", "高处", "蛇", "黑暗", "其他"]],
+      "Do you bite your nails?": ["你咬指甲吗？"],
+      "How many hours do you usually sleep?": ["你通常睡几个小时？", 0, ["不到6小时", "6到8小时", "超过8小时"]],
+      "How many languages can you hold a conversation in?": ["你能用几种语言和人聊天？", 0, ["一种", "两种", "三种", "四种或更多"]],
+      "Do you play a musical instrument?": ["你会演奏乐器吗？"],
+      "Can you whistle with your fingers?": ["你会用手指吹口哨吗？"],
+      "Can you solve a Rubik's cube without help?": ["你能自己复原魔方吗？"],
+      "Can you juggle three balls?": ["你能同时抛接三个球吗？"],
+      "Can you swim?": ["你会游泳吗？"],
+      "Can you do a cartwheel?": ["你会侧手翻吗？"],
+      "Have you ever ridden a horse?": ["你骑过马吗？"],
+      "What's your favourite colour?": ["你最喜欢什么颜色？", 0, ["蓝色", "绿色", "紫色", "红色", "黑色", "粉色", "橙色", "黄色", "白色", "其他"]],
+      "Does coriander (cilantro) taste like soap to you?": ["你觉得香菜有肥皂味吗？", 0, ["有，像肥皂", "没有，挺好吃", "没吃过"]],
+      "Coffee or tea?": ["咖啡还是茶？", 0, ["咖啡", "茶", "都不喝"]],
+      "What's your favourite season?": ["你最喜欢哪个季节？", 0, ["夏天", "秋天", "春天", "冬天"]],
+      "Pineapple on pizza?": ["菠萝披萨？", 0, ["超爱", "绝对不行", "没吃过"]],
+      "What's your favourite ice cream?": ["你最喜欢什么口味的冰淇淋？", 0, ["香草", "巧克力", "曲奇奶油", "草莓", "薄荷巧克力", "其他"]],
+      "Do you eat meat?": ["你吃肉吗？", 0, ["吃", "素食者", "纯素食者"]],
+      "How do you feel about spicy food?": ["你觉得辣的食物怎么样？", 0, ["超爱", "还行", "受不了"]],
+      "Dogs or cats?": ["狗还是猫？", 0, ["狗", "猫", "都不喜欢"]],
+      "Which way should toilet paper hang?": ["卷筒卫生纸应该怎么挂？", 0, ["纸从上面出", "纸从下面出", "无所谓"]],
+      "Are you allergic to peanuts?": ["你对花生过敏吗？"],
+      "Have you ever broken a bone?": ["你骨折过吗？"],
+      "Do you have any pets?": ["你养宠物吗？", 0, ["养狗", "养猫", "猫狗都养", "其他宠物", "不养宠物"]],
+      "Have you ever been struck by lightning?": ["你被闪电击中过吗？"],
+      "Have you ever been to space?": ["你去过太空吗？"],
+      "Have you ever had braces on your teeth?": ["你戴过牙套吗？"],
+      "Do you have a tattoo?": ["你有纹身吗？"],
+      "Have you ever been in a helicopter?": ["你坐过直升机吗？"],
+      "Have you ever touched real snow?": ["你摸过真正的雪吗？"],
+      "How many countries have you visited?": ["你去过几个国家？", "包括你自己的国家。", ["只有一个", "2到5个", "6到20个", "超过20个"]],
+      "Have you ever met a famous person in real life?": ["你在现实中见过名人吗？"],
+      "Have you ever been on a plane?": ["你坐过飞机吗？"],
+      "Have you ever won a trophy or medal?": ["你得过奖杯或奖牌吗？"],
+      "Have you ever been on TV?": ["你上过电视吗？"],
+      "Have you ever stayed overnight in hospital?": ["你在医院住过夜吗？", "出生那次不算。"],
+      "Have you ever seen a total solar eclipse?": ["你见过日全食吗？"],
+      "Have you ever held a snake?": ["你拿过蛇吗？"],
+      "Have you ever felt an earthquake?": ["你感受过地震吗？"],
+      "Have you ever seen the Northern or Southern Lights?": ["你见过极光吗？"],
+      "Have you ever met one of your great-grandparents?": ["你见过你的曾祖父母吗？"],
+      "Have you ever cracked a phone screen?": ["你摔裂过手机屏幕吗？"],
+      "Do you have a gap between your front teeth?": ["你的门牙之间有缝吗？"],
+      "Are you taller than 180 cm (5 ft 11 in)?": ["你的身高超过180厘米吗？"],
+      "Do you get hay fever?": ["你有花粉症吗？"],
+      "Have you had your tonsils taken out?": ["你切除过扁桃体吗？"],
+      "Have you had chickenpox?": ["你得过水痘吗？"],
+      "Look at your hand. Which finger is longer?": ["看看你的手。哪根手指更长？", 0, ["无名指", "食指", "差不多一样长"]],
+      "Which of your eyes is dominant?": ["你的主视眼是哪只？", "指向远处的某个东西，然后轮流闭上一只眼。手指仍然对准目标的那只眼就是主视眼。", ["右眼", "左眼", "都不是", "不确定"]],
+      "Does music ever give you goosebumps?": ["音乐会让你起鸡皮疙瘩吗？"],
+      "Are you ticklish?": ["你怕痒吗？"],
+      "Can you touch your toes without bending your knees?": ["你能不弯膝盖摸到脚趾吗？"],
+      "Do you hear a voice in your head when you think?": ["你思考时脑海里有声音吗？", 0, ["总是有", "有时有", "从来没有"]],
+      "Are you an introvert or an extrovert?": ["你是内向还是外向？", 0, ["内向", "外向", "介于两者之间"]],
+      "Do you remember your dreams most mornings?": ["你大多数早上都记得自己的梦吗？"],
+      "Do you cry at films?": ["你看电影会哭吗？"],
+      "Can you ride a bike?": ["你会骑自行车吗？"],
+      "Do you have a driving licence?": ["你有驾照吗？"],
+      "Can you type without looking at the keyboard?": ["你能不看键盘打字吗？"],
+      "Do you know how to play chess?": ["你会下国际象棋吗？"],
+      "Can you do a handstand without a wall?": ["你能不靠墙倒立吗？"],
+      "Have you ever written computer code?": ["你写过电脑程序吗？"],
+      "Sweet or savoury breakfast?": ["早餐吃甜的还是咸的？", 0, ["甜的", "咸的"]],
+      "Do you like olives?": ["你喜欢橄榄吗？"],
+      "What's your favourite fruit?": ["你最喜欢什么水果？", 0, ["香蕉", "苹果", "芒果", "橙子", "草莓", "葡萄", "西瓜", "其他"]],
+      "Beach or mountains?": ["海边还是山里？", 0, ["海边", "山里"]],
+      "Do you like horror films?": ["你喜欢恐怖片吗？"],
+      "What's your favourite day of the week?": ["你最喜欢星期几？", 0, ["星期五", "星期六", "星期日", "其他日子"]],
+      "Where are you in your family?": ["你在家里排行第几？", 0, ["老大", "中间", "老幺", "独生子女"]],
+      "How many letters are in your first name?": ["你的名字（拼音或英文名）有几个字母？", 0, ["3个或更少", "4个", "5个", "6个", "7个", "8个或更多"]],
+      "Were you born early (premature)?": ["你是早产儿吗？"],
+      "Do you share a birthday with someone in your family?": ["你和家里人有同一天生日的吗？"],
+      "What time of day were you born?": ["你是一天中什么时候出生的？", 0, ["早上", "下午", "晚上", "半夜", "不知道"]],
+      "Do you still live in the town where you were born?": ["你现在还住在你出生的城镇吗？"],
+    },
+  },
+
+  es: {
+    name: "Español", locale: "es",
+    ui: {
+      brand: ["¿Eres ", "especial", "?"],
+      intro: "Ahora mismo viven unos 8200 millones de personas. Responde preguntas sobre ti y cada respuesta reduce cuántas de ellas son exactamente como tú.",
+      goalBig: "1 entre 10 000 M",
+      goalText: "Tu objetivo: ser más raro que 1 entre 10 000 millones. Es más que toda la población de la Tierra, así que, estadísticamente, nadie más coincidiría contigo. Hazlo con el menor número de preguntas posible.",
+      start: "Empezar", best: n => `Tu récord: ${n} preguntas`,
+      ladderTitle: "¿Cómo de raro es raro?",
+      ladder: ["820 millones de personas como tú, más que toda Europa", "8,2 millones de personas, como Nueva York", "8200 personas, un pueblo pequeño", "8 personas, una cena con amigos", "estadísticamente, solo tú"],
+      note: n => `${n} preguntas sobre tu cuerpo, tus habilidades, tus gustos y tu vida, en un orden distinto cada partida. Responde con sinceridad: las respuestas raras te acercan más rápido. Escribe el número de una respuesta para elegirla y pulsa Intro para seguir.`,
+      crowdLabel: "Personas en la Tierra que coinciden en todo", thatIs: x => `Eso es <b>${x}</b>`,
+      everyone: "Todo el mundo, de momento", youAre: o => `Eres ${o}`,
+      ticks: ["10", "100", "10³", "10⁴", "10⁵", "10⁶", "10⁷", "10⁸", "10⁹", "10¹⁰"],
+      qOf: (i, n) => `P${i} de ${n}`, endGame: "Terminar",
+      cats: { Body: "Cuerpo", Origins: "Orígenes", Mind: "Mente", Skills: "Habilidades", Taste: "Gustos", Life: "Vida" },
+      fbNS: "Sin problema. Esa respuesta no cambia tus probabilidades.",
+      fbRare: (pct, label, x) => `Solo un <b>${pct}</b> de la gente eligió «${label}». Tu grupo acaba de reducirse <b>${x}×</b>.`,
+      fbCommon: pct => `Un ${pct} de la gente dijo lo mismo, así que tu grupo solo se redujo un poco.`,
+      seeResults: "Ver resultados", finish: "Terminar", nextQ: "Siguiente pregunta",
+      tags: ["Sin efecto", "Ultra raro", "Raro", "Poco común", "Común"],
+      answered: n => `${n} respondidas`,
+      winHead: "Eres 1 entre 10 000 millones. ", verdictWin: "Estadísticamente, nadie más en el mundo coincide contigo.",
+      verdictNone: "No has respondido ninguna pregunta.", verdictStill: p => `Aún coinciden contigo: ${p}.`,
+      reached: (n, nb, b) => `Llegaste a la meta en <b>${n}</b> preguntas.` + (nb ? " ¡Es tu nuevo récord!" : b ? ` Tu récord es ${b}.` : ""),
+      stopped: (o, r) => `Te quedaste en ${o}, rango «${r}». Las preguntas salen en otro orden cada vez, así que inténtalo de nuevo.`,
+      again: "Jugar otra vez", copy: "Copiar mi resultado", copied: "Copiado", copyFallback: "Selecciona y copia el texto de abajo",
+      listTitle: "Tus respuestas, de la más rara a la más común", noAnswers: "Ninguna respuesta contada.",
+      disclaimer: "Los porcentajes son estimaciones mundiales aproximadas y el juego trata cada rasgo como independiente de los demás. La vida real es más complicada, así que disfruta del resultado, pero no lo pongas en tu currículum.",
+      shareWin: (o, n, a, pct) => `Soy ${o} en «¿Eres especial?». Lo conseguí en ${n} preguntas. Mi respuesta más rara: ${a} (${pct}).`,
+      shareLose: o => `Soy ${o} en «¿Eres especial?». ¿Puedes superarlo?`,
+      under: "menos del 0,01 %", language: "Idioma",
+      ranks: ["Totalmente normal", "Un poco inusual", "Poco común", "Hallazgo raro", "Muy raro", "Pieza de colección", "Uno entre un millón", "Una aguja en un pajar", "Casi mítico", "Uno entre mil millones", "Único de verdad"],
+      compare: ["más o menos medio planeta", "más o menos toda la India", "más o menos la población de EE. UU.", "más o menos la población del Reino Unido", "más o menos la población de Nueva York", "una gran ciudad", "un estadio de fútbol lleno", "un pueblo pequeño", "un colegio grande", "un autobús escolar", "un equipo de fútbol", "una cena con amigos", "solo tú, quizá alguien más", "estadísticamente, solo tú"],
+    },
+    words(n) {
+      if (n >= 1e12) { const x = n / 1e12; return scaled(x) + (x < 2 ? " billón" : " billones"); }
+      if (n >= 1e9) return scaled(n / 1e9) + " mil millones";
+      if (n >= 1e6) { const x = n / 1e6; return scaled(x) + (x < 2 ? " millón" : " millones"); }
+      return nf(Math.round(n), 0);
+    },
+    oneIn: w => `1 de cada ${w}`,
+    people(n) { return n < 1 ? "Solo tú" : n < 1.5 ? "1 persona" : this.words(n) + (n >= 1e6 ? " de personas" : " personas"); },
+    common: { "Yes": "Sí", "No": "No", "Don't know": "No lo sé", "Not sure": "No estoy seguro", "Never noticed": "Nunca me he fijado", "Left": "Izquierda", "Right": "Derecha" },
+    q: {
+      "Which hand do you write with?": ["¿Con qué mano escribes?", 0, ["Derecha", "Izquierda", "Con las dos igual"]],
+      "What colour are your eyes?": ["¿De qué color son tus ojos?", 0, ["Marrones", "Azules", "Avellana", "Ámbar", "Verdes", "Grises", "Cada uno de un color"]],
+      "What's your blood type?": ["¿Cuál es tu grupo sanguíneo?", 0, ["O+", "A+", "B+", "AB+", "O−", "A−", "B−", "AB−", "No lo sé"]],
+      "Can you roll your tongue into a tube?": ["¿Puedes enrollar la lengua en forma de tubo?"],
+      "What's your natural hair colour?": ["¿De qué color es tu pelo natural?", 0, ["Negro", "Castaño", "Rubio", "Pelirrojo", "Canoso o blanco"]],
+      "Is your hair straight, wavy or curly?": ["¿Tienes el pelo liso, ondulado o rizado?", 0, ["Liso", "Ondulado", "Rizado"]],
+      "Do you have dimples when you smile?": ["¿Te salen hoyuelos al sonreír?"],
+      "Do you have freckles?": ["¿Tienes pecas?"],
+      "Are you colourblind?": ["¿Eres daltónico?"],
+      "Do you wear glasses or contact lenses?": ["¿Llevas gafas o lentillas?"],
+      "Can you wiggle your ears?": ["¿Puedes mover las orejas?"],
+      "Can your thumb bend backwards past 45°?": ["¿Tu pulgar se dobla hacia atrás más de 45°?", "El llamado «pulgar de autoestopista»."],
+      "Can you touch your nose with your tongue?": ["¿Puedes tocarte la nariz con la lengua?"],
+      "Are your earlobes attached or free-hanging?": ["¿Tus lóbulos de las orejas están sueltos o pegados?", 0, ["Sueltos", "Pegados"]],
+      "Can you raise just one eyebrow?": ["¿Puedes levantar una sola ceja?"],
+      "Are you double-jointed anywhere?": ["¿Tienes alguna articulación hiperflexible?"],
+      "Is your second toe longer than your big toe?": ["¿Tu segundo dedo del pie es más largo que el dedo gordo?", "Se llama dedo de Morton o pie griego."],
+      "Does your hairline dip to a point in the middle?": ["¿Tu línea del pelo forma un pico en el centro de la frente?", "El llamado «pico de viuda»."],
+      "Do you have a dimple in your chin?": ["¿Tienes un hoyuelo en la barbilla?"],
+      "Were you born with an extra finger or toe?": ["¿Naciste con un dedo de más en la mano o el pie?"],
+      "Do you have a visible birthmark?": ["¿Tienes alguna marca de nacimiento visible?"],
+      "Which foot do you kick a ball with?": ["¿Con qué pie chutas un balón?", 0, ["Derecho", "Izquierdo", "Con los dos"]],
+      "Clasp your hands together. Which thumb is on top?": ["Entrelaza las manos. ¿Qué pulgar queda arriba?"],
+      "Fold your arms. Which arm is on top?": ["Cruza los brazos. ¿Qué brazo queda arriba?"],
+      "Does bright sunlight make you sneeze?": ["¿La luz fuerte del sol te hace estornudar?", "Se llama reflejo fótico del estornudo."],
+      "How many times do you usually sneeze in a row?": ["¿Cuántas veces sueles estornudar seguidas?", 0, ["Una", "Dos", "Tres o más"]],
+      "Do you get motion sick in cars or boats?": ["¿Te mareas en coche o en barco?"],
+      "Do you snore?": ["¿Roncas?", 0, ["Sí", "No", "Nadie me lo ha dicho"]],
+      "Which month were you born in?": ["¿En qué mes naciste?", 0, ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"]],
+      "Which day of the week were you born on?": ["¿Qué día de la semana naciste?", 0, ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo", "Ni idea"]],
+      "Were you born on 29 February?": ["¿Naciste un 29 de febrero?"],
+      "Were you born in a leap year?": ["¿Naciste en un año bisiesto?"],
+      "How many siblings do you have?": ["¿Cuántos hermanos tienes?", 0, ["Ninguno", "Uno", "Dos", "Tres", "Cuatro o más"]],
+      "Are you a twin?": ["¿Eres gemelo o mellizo?", 0, ["No", "Gemelo idéntico", "Mellizo"]],
+      "Were you born by caesarean section?": ["¿Naciste por cesárea?"],
+      "Which continent do you live on?": ["¿En qué continente vives?", 0, ["Asia", "África", "Europa", "América del Norte", "América del Sur", "Oceanía", "Antártida"]],
+      "Do you live in a different country from where you were born?": ["¿Vives en un país distinto al que naciste?"],
+      "Are you a morning person or a night owl?": ["¿Eres más de mañanas o de noches?", 0, ["De mañanas", "De noches", "De ninguna"]],
+      "Can you name a musical note just by hearing it?": ["¿Puedes reconocer una nota musical solo con oírla?", "Oído absoluto. Sin nota de referencia."],
+      "Do letters or numbers have colours in your mind?": ["¿Las letras o los números tienen colores en tu mente?", "Es una forma de sinestesia."],
+      "Do you dream in colour?": ["¿Sueñas en color?", 0, ["Sí", "No, en blanco y negro", "No recuerdo mis sueños"]],
+      "Have you ever sleepwalked?": ["¿Alguna vez has sido sonámbulo?", 0, ["Sí", "No", "No que yo sepa"]],
+      "Can you picture an apple in your mind?": ["¿Puedes imaginar una manzana en tu mente?", "Algunas personas no ven nada. Se llama afantasía.", ["Con claridad", "Vagamente", "Nada en absoluto"]],
+      "What's your favourite number?": ["¿Cuál es tu número favorito?", 0, ["7", "3", "8", "4", "13", "Otro"]],
+      "Which of these scares you most?": ["¿Qué te da más miedo?", 0, ["Las arañas", "Las alturas", "Las serpientes", "La oscuridad", "Otra cosa"]],
+      "Do you bite your nails?": ["¿Te muerdes las uñas?"],
+      "How many hours do you usually sleep?": ["¿Cuántas horas sueles dormir?", 0, ["Menos de 6", "De 6 a 8", "Más de 8"]],
+      "How many languages can you hold a conversation in?": ["¿En cuántos idiomas puedes mantener una conversación?", 0, ["Uno", "Dos", "Tres", "Cuatro o más"]],
+      "Do you play a musical instrument?": ["¿Tocas algún instrumento musical?"],
+      "Can you whistle with your fingers?": ["¿Sabes silbar con los dedos?"],
+      "Can you solve a Rubik's cube without help?": ["¿Sabes resolver un cubo de Rubik sin ayuda?"],
+      "Can you juggle three balls?": ["¿Sabes hacer malabares con tres pelotas?"],
+      "Can you swim?": ["¿Sabes nadar?"],
+      "Can you do a cartwheel?": ["¿Sabes hacer la rueda?"],
+      "Have you ever ridden a horse?": ["¿Has montado alguna vez a caballo?"],
+      "What's your favourite colour?": ["¿Cuál es tu color favorito?", 0, ["Azul", "Verde", "Morado", "Rojo", "Negro", "Rosa", "Naranja", "Amarillo", "Blanco", "Otro"]],
+      "Does coriander (cilantro) taste like soap to you?": ["¿El cilantro te sabe a jabón?", 0, ["Sí, a jabón", "No, está bien", "Nunca lo he probado"]],
+      "Coffee or tea?": ["¿Café o té?", 0, ["Café", "Té", "Ninguno"]],
+      "What's your favourite season?": ["¿Cuál es tu estación favorita?", 0, ["Verano", "Otoño", "Primavera", "Invierno"]],
+      "Pineapple on pizza?": ["¿Piña en la pizza?", 0, ["Me encanta", "Ni hablar", "Nunca la he probado"]],
+      "What's your favourite ice cream?": ["¿Cuál es tu helado favorito?", 0, ["Vainilla", "Chocolate", "Cookies & cream", "Fresa", "Menta con chocolate", "Otro"]],
+      "Do you eat meat?": ["¿Comes carne?", 0, ["Sí", "Soy vegetariano", "Soy vegano"]],
+      "How do you feel about spicy food?": ["¿Qué te parece la comida picante?", 0, ["Me encanta", "Está bien", "No la aguanto"]],
+      "Dogs or cats?": ["¿Perros o gatos?", 0, ["Perros", "Gatos", "Ninguno"]],
+      "Which way should toilet paper hang?": ["¿Cómo debe colgar el papel higiénico?", 0, ["Por encima", "Por debajo", "Me da igual"]],
+      "Are you allergic to peanuts?": ["¿Eres alérgico a los cacahuetes?"],
+      "Have you ever broken a bone?": ["¿Te has roto algún hueso?"],
+      "Do you have any pets?": ["¿Tienes mascotas?", 0, ["Un perro", "Un gato", "Los dos", "Otra", "Ninguna"]],
+      "Have you ever been struck by lightning?": ["¿Te ha caído alguna vez un rayo?"],
+      "Have you ever been to space?": ["¿Has estado en el espacio?"],
+      "Have you ever had braces on your teeth?": ["¿Has llevado aparato en los dientes?"],
+      "Do you have a tattoo?": ["¿Tienes algún tatuaje?"],
+      "Have you ever been in a helicopter?": ["¿Has montado alguna vez en helicóptero?"],
+      "Have you ever touched real snow?": ["¿Has tocado nieve de verdad?"],
+      "How many countries have you visited?": ["¿Cuántos países has visitado?", "Incluido el tuyo.", ["Solo uno", "De 2 a 5", "De 6 a 20", "Más de 20"]],
+      "Have you ever met a famous person in real life?": ["¿Has conocido a alguien famoso en persona?"],
+      "Have you ever been on a plane?": ["¿Has viajado alguna vez en avión?"],
+      "Have you ever won a trophy or medal?": ["¿Has ganado algún trofeo o medalla?"],
+      "Have you ever been on TV?": ["¿Has salido alguna vez en la tele?"],
+      "Have you ever stayed overnight in hospital?": ["¿Has pasado alguna noche ingresado en un hospital?", "Sin contar cuando naciste."],
+      "Have you ever seen a total solar eclipse?": ["¿Has visto un eclipse total de sol?"],
+      "Have you ever held a snake?": ["¿Has tenido una serpiente en las manos?"],
+      "Have you ever felt an earthquake?": ["¿Has sentido alguna vez un terremoto?"],
+      "Have you ever seen the Northern or Southern Lights?": ["¿Has visto alguna vez una aurora boreal o austral?"],
+      "Have you ever met one of your great-grandparents?": ["¿Conociste a alguno de tus bisabuelos?"],
+      "Have you ever cracked a phone screen?": ["¿Se te ha roto alguna vez la pantalla del móvil?"],
+      "Do you have a gap between your front teeth?": ["¿Tienes separación entre los dientes delanteros?"],
+      "Are you taller than 180 cm (5 ft 11 in)?": ["¿Mides más de 180 cm?"],
+      "Do you get hay fever?": ["¿Tienes alergia al polen?"],
+      "Have you had your tonsils taken out?": ["¿Te han quitado las amígdalas?"],
+      "Have you had chickenpox?": ["¿Has tenido varicela?"],
+      "Look at your hand. Which finger is longer?": ["Mírate la mano. ¿Qué dedo es más largo?", 0, ["El anular", "El índice", "Más o menos igual"]],
+      "Which of your eyes is dominant?": ["¿Cuál es tu ojo dominante?", "Señala algo lejano y cierra primero un ojo y luego el otro. El ojo con el que el dedo sigue apuntando al objeto es el dominante.", ["Derecho", "Izquierdo", "Ninguno", "No estoy seguro"]],
+      "Does music ever give you goosebumps?": ["¿La música te pone la piel de gallina?"],
+      "Are you ticklish?": ["¿Tienes cosquillas?"],
+      "Can you touch your toes without bending your knees?": ["¿Puedes tocarte los pies sin doblar las rodillas?"],
+      "Do you hear a voice in your head when you think?": ["¿Oyes una voz en tu cabeza cuando piensas?", 0, ["Siempre", "A veces", "Nunca"]],
+      "Are you an introvert or an extrovert?": ["¿Eres introvertido o extrovertido?", 0, ["Introvertido", "Extrovertido", "Un punto intermedio"]],
+      "Do you remember your dreams most mornings?": ["¿Recuerdas tus sueños casi todas las mañanas?"],
+      "Do you cry at films?": ["¿Lloras con las películas?"],
+      "Can you ride a bike?": ["¿Sabes montar en bici?"],
+      "Do you have a driving licence?": ["¿Tienes carné de conducir?"],
+      "Can you type without looking at the keyboard?": ["¿Sabes escribir sin mirar el teclado?"],
+      "Do you know how to play chess?": ["¿Sabes jugar al ajedrez?"],
+      "Can you do a handstand without a wall?": ["¿Puedes hacer el pino sin pared?"],
+      "Have you ever written computer code?": ["¿Has escrito alguna vez código de programación?"],
+      "Sweet or savoury breakfast?": ["¿Desayuno dulce o salado?", 0, ["Dulce", "Salado"]],
+      "Do you like olives?": ["¿Te gustan las aceitunas?"],
+      "What's your favourite fruit?": ["¿Cuál es tu fruta favorita?", 0, ["Plátano", "Manzana", "Mango", "Naranja", "Fresa", "Uvas", "Sandía", "Otra"]],
+      "Beach or mountains?": ["¿Playa o montaña?", 0, ["Playa", "Montaña"]],
+      "Do you like horror films?": ["¿Te gustan las películas de terror?"],
+      "What's your favourite day of the week?": ["¿Cuál es tu día favorito de la semana?", 0, ["Viernes", "Sábado", "Domingo", "Otro día"]],
+      "Where are you in your family?": ["¿Qué lugar ocupas entre tus hermanos?", 0, ["El mayor", "El del medio", "El pequeño", "Hijo único"]],
+      "How many letters are in your first name?": ["¿Cuántas letras tiene tu nombre?", 0, ["3 o menos", "4", "5", "6", "7", "8 o más"]],
+      "Were you born early (premature)?": ["¿Naciste prematuro?"],
+      "Do you share a birthday with someone in your family?": ["¿Compartes cumpleaños con alguien de tu familia?"],
+      "What time of day were you born?": ["¿A qué hora del día naciste?", 0, ["Por la mañana", "Por la tarde", "Al anochecer", "De madrugada", "Ni idea"]],
+      "Do you still live in the town where you were born?": ["¿Sigues viviendo en la ciudad donde naciste?"],
+    },
+  },
+
+  fr: {
+    name: "Français", locale: "fr",
+    ui: {
+      brand: ["Es-tu ", "spécial", " ?"],
+      intro: "Environ 8,2 milliards de personnes vivent aujourd'hui. Réponds à des questions sur toi, et chaque réponse réduit le nombre de personnes exactement comme toi.",
+      goalBig: "1 sur 10 Md",
+      goalText: "Ton objectif : devenir plus rare que 1 sur 10 milliards. C'est plus que toute la population de la Terre, donc statistiquement, personne d'autre ne te ressemblerait. Fais-le en un minimum de questions.",
+      start: "Commencer", best: n => `Ton record : ${n} questions`,
+      ladderTitle: "Rare, c'est rare comment ?",
+      ladder: ["820 millions de personnes comme toi, plus que toute l'Europe", "8,2 millions de personnes, environ New York", "8 200 personnes, une petite ville", "8 personnes, un dîner entre amis", "statistiquement, toi seul"],
+      note: n => `${n} questions sur ton corps, tes talents, tes goûts et ta vie, dans un ordre différent à chaque partie. Réponds honnêtement : les réponses rares te font avancer plus vite. Tape le numéro d'une réponse pour la choisir, puis Entrée pour continuer.`,
+      crowdLabel: "Personnes sur Terre qui partagent toutes tes réponses", thatIs: x => `C'est <b>${x}</b>`,
+      everyone: "Tout le monde, pour l'instant", youAre: o => `Tu es ${o}`,
+      ticks: ["10", "100", "10³", "10⁴", "10⁵", "10⁶", "10⁷", "10⁸", "10⁹", "10¹⁰"],
+      qOf: (i, n) => `Q${i} sur ${n}`, endGame: "Terminer",
+      cats: { Body: "Corps", Origins: "Origines", Mind: "Esprit", Skills: "Talents", Taste: "Goûts", Life: "Vie" },
+      fbNS: "Pas de souci. Cette réponse ne change rien à tes chances.",
+      fbRare: (pct, label, x) => `Seulement <b>${pct}</b> des gens ont répondu « ${label} ». Ton groupe vient d'être divisé par <b>${x}</b>.`,
+      fbCommon: pct => `Environ ${pct} des gens ont dit la même chose, donc ton groupe n'a diminué qu'un peu.`,
+      seeResults: "Voir les résultats", finish: "Terminer", nextQ: "Question suivante",
+      tags: ["Sans effet", "Ultra rare", "Rare", "Peu commun", "Commun"],
+      answered: n => `${n} réponses`,
+      winHead: "Tu es un sur dix milliards. ", verdictWin: "Statistiquement, personne d'autre au monde ne te ressemble.",
+      verdictNone: "Tu n'as répondu à aucune question.", verdictStill: p => `Te ressemblent encore : ${p}.`,
+      reached: (n, nb, b) => `Tu as atteint l'objectif en <b>${n}</b> questions.` + (nb ? " C'est ton nouveau record !" : b ? ` Ton record est de ${b}.` : ""),
+      stopped: (o, r) => `Tu t'es arrêté à ${o}, rang « ${r} ». Les questions changent d'ordre à chaque partie, alors réessaie.`,
+      again: "Rejouer", copy: "Copier mon résultat", copied: "Copié", copyFallback: "Sélectionne et copie le texte ci-dessous",
+      listTitle: "Tes réponses, de la plus rare à la plus courante", noAnswers: "Aucune réponse comptée.",
+      disclaimer: "Les pourcentages sont des estimations mondiales approximatives, et le jeu traite chaque trait comme indépendant des autres. La réalité est plus compliquée : profite du résultat, mais ne le mets pas sur ton CV.",
+      shareWin: (o, n, a, pct) => `Je suis ${o} sur « Es-tu spécial ? ». J'y suis arrivé en ${n} questions. Ma réponse la plus rare : ${a} (${pct}).`,
+      shareLose: o => `Je suis ${o} sur « Es-tu spécial ? ». Tu peux faire mieux ?`,
+      under: "moins de 0,01 %", language: "Langue",
+      ranks: ["Tout à fait ordinaire", "Un peu inhabituel", "Peu commun", "Perle rare", "Très rare", "Pièce de collection", "Un sur un million", "Une aiguille dans une botte de foin", "Presque mythique", "Un sur un milliard", "Vraiment unique"],
+      compare: ["environ la moitié de la planète", "environ toute l'Inde", "environ la population des États-Unis", "environ la population du Royaume-Uni", "environ la population de New York", "une grande ville", "un stade de foot plein", "une petite ville", "une grande école", "un bus scolaire", "une équipe de foot", "un dîner entre amis", "toi seul, peut-être une autre personne", "statistiquement, toi seul"],
+    },
+    words(n) {
+      const u = (x, s) => scaled(x) + " " + s + (x >= 2 ? "s" : "");
+      if (n >= 1e12) return u(n / 1e12, "billion");
+      if (n >= 1e9) return u(n / 1e9, "milliard");
+      if (n >= 1e6) return u(n / 1e6, "million");
+      return nf(Math.round(n), 0);
+    },
+    oneIn: w => `1 sur ${w}`,
+    people(n) { return n < 1 ? "Toi seul" : n < 1.5 ? "1 personne" : this.words(n) + (n >= 1e6 ? " de personnes" : " personnes"); },
+    common: { "Yes": "Oui", "No": "Non", "Don't know": "Je ne sais pas", "Not sure": "Pas sûr", "Never noticed": "Jamais remarqué", "Left": "Gauche", "Right": "Droite" },
+    q: {
+      "Which hand do you write with?": ["Avec quelle main écris-tu ?", 0, ["Droite", "Gauche", "Les deux"]],
+      "What colour are your eyes?": ["De quelle couleur sont tes yeux ?", 0, ["Marron", "Bleus", "Noisette", "Ambre", "Verts", "Gris", "Deux couleurs différentes"]],
+      "What's your blood type?": ["Quel est ton groupe sanguin ?", 0, ["O+", "A+", "B+", "AB+", "O−", "A−", "B−", "AB−", "Je ne sais pas"]],
+      "Can you roll your tongue into a tube?": ["Peux-tu rouler ta langue en tube ?"],
+      "What's your natural hair colour?": ["Quelle est ta couleur de cheveux naturelle ?", 0, ["Noirs", "Bruns", "Blonds", "Roux", "Gris ou blancs"]],
+      "Is your hair straight, wavy or curly?": ["Tes cheveux sont-ils raides, ondulés ou bouclés ?", 0, ["Raides", "Ondulés", "Bouclés ou crépus"]],
+      "Do you have dimples when you smile?": ["As-tu des fossettes quand tu souris ?"],
+      "Do you have freckles?": ["As-tu des taches de rousseur ?"],
+      "Are you colourblind?": ["Es-tu daltonien ?"],
+      "Do you wear glasses or contact lenses?": ["Portes-tu des lunettes ou des lentilles ?"],
+      "Can you wiggle your ears?": ["Peux-tu bouger les oreilles ?"],
+      "Can your thumb bend backwards past 45°?": ["Ton pouce se plie-t-il en arrière de plus de 45° ?", "On l'appelle le « pouce d'auto-stoppeur »."],
+      "Can you touch your nose with your tongue?": ["Peux-tu toucher ton nez avec ta langue ?"],
+      "Are your earlobes attached or free-hanging?": ["Tes lobes d'oreilles sont-ils détachés ou attachés ?", 0, ["Détachés", "Attachés"]],
+      "Can you raise just one eyebrow?": ["Peux-tu lever un seul sourcil ?"],
+      "Are you double-jointed anywhere?": ["As-tu une articulation hyperlaxe ?"],
+      "Is your second toe longer than your big toe?": ["Ton deuxième orteil est-il plus long que le gros orteil ?", "On l'appelle l'orteil de Morton, ou pied grec."],
+      "Does your hairline dip to a point in the middle?": ["Ta ligne de cheveux forme-t-elle une pointe au milieu du front ?", "On l'appelle la « pointe de veuve »."],
+      "Do you have a dimple in your chin?": ["As-tu une fossette au menton ?"],
+      "Were you born with an extra finger or toe?": ["Es-tu né avec un doigt ou un orteil en plus ?"],
+      "Do you have a visible birthmark?": ["As-tu une tache de naissance visible ?"],
+      "Which foot do you kick a ball with?": ["Avec quel pied tapes-tu dans un ballon ?", 0, ["Droit", "Gauche", "Les deux"]],
+      "Clasp your hands together. Which thumb is on top?": ["Joins tes mains en croisant les doigts. Quel pouce est au-dessus ?"],
+      "Fold your arms. Which arm is on top?": ["Croise les bras. Quel bras est au-dessus ?"],
+      "Does bright sunlight make you sneeze?": ["Le soleil vif te fait-il éternuer ?", "C'est le réflexe photo-sternutatoire."],
+      "How many times do you usually sneeze in a row?": ["Combien de fois éternues-tu d'affilée, en général ?", 0, ["Une fois", "Deux fois", "Trois fois ou plus"]],
+      "Do you get motion sick in cars or boats?": ["As-tu le mal des transports en voiture ou en bateau ?"],
+      "Do you snore?": ["Ronfles-tu ?", 0, ["Oui", "Non", "Personne ne me l'a dit"]],
+      "Which month were you born in?": ["En quel mois es-tu né ?", 0, ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"]],
+      "Which day of the week were you born on?": ["Quel jour de la semaine es-tu né ?", 0, ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche", "Aucune idée"]],
+      "Were you born on 29 February?": ["Es-tu né un 29 février ?"],
+      "Were you born in a leap year?": ["Es-tu né une année bissextile ?"],
+      "How many siblings do you have?": ["Combien as-tu de frères et sœurs ?", 0, ["Aucun", "Un", "Deux", "Trois", "Quatre ou plus"]],
+      "Are you a twin?": ["As-tu un jumeau ou une jumelle ?", 0, ["Non", "Vrai jumeau", "Faux jumeau"]],
+      "Were you born by caesarean section?": ["Es-tu né par césarienne ?"],
+      "Which continent do you live on?": ["Sur quel continent vis-tu ?", 0, ["Asie", "Afrique", "Europe", "Amérique du Nord", "Amérique du Sud", "Océanie", "Antarctique"]],
+      "Do you live in a different country from where you were born?": ["Vis-tu dans un autre pays que celui où tu es né ?"],
+      "Are you a morning person or a night owl?": ["Es-tu du matin ou du soir ?", 0, ["Du matin", "Du soir", "Ni l'un ni l'autre"]],
+      "Can you name a musical note just by hearing it?": ["Peux-tu nommer une note de musique rien qu'en l'entendant ?", "L'oreille absolue. Sans note de référence."],
+      "Do letters or numbers have colours in your mind?": ["Les lettres ou les chiffres ont-ils des couleurs dans ta tête ?", "C'est une forme de synesthésie."],
+      "Do you dream in colour?": ["Rêves-tu en couleur ?", 0, ["Oui", "Non, en noir et blanc", "Je ne me souviens pas de mes rêves"]],
+      "Have you ever sleepwalked?": ["As-tu déjà été somnambule ?", 0, ["Oui", "Non", "Pas à ma connaissance"]],
+      "Can you picture an apple in your mind?": ["Peux-tu imaginer une pomme dans ta tête ?", "Certaines personnes ne voient rien du tout. On appelle ça l'aphantasie.", ["Clairement", "Vaguement", "Pas du tout"]],
+      "What's your favourite number?": ["Quel est ton chiffre préféré ?", 0, ["7", "3", "8", "4", "13", "Un autre"]],
+      "Which of these scares you most?": ["Qu'est-ce qui te fait le plus peur ?", 0, ["Les araignées", "Le vide", "Les serpents", "Le noir", "Autre chose"]],
+      "Do you bite your nails?": ["Te ronges-tu les ongles ?"],
+      "How many hours do you usually sleep?": ["Combien d'heures dors-tu d'habitude ?", 0, ["Moins de 6", "De 6 à 8", "Plus de 8"]],
+      "How many languages can you hold a conversation in?": ["Dans combien de langues peux-tu tenir une conversation ?", 0, ["Une", "Deux", "Trois", "Quatre ou plus"]],
+      "Do you play a musical instrument?": ["Joues-tu d'un instrument de musique ?"],
+      "Can you whistle with your fingers?": ["Sais-tu siffler avec tes doigts ?"],
+      "Can you solve a Rubik's cube without help?": ["Sais-tu résoudre un Rubik's Cube sans aide ?"],
+      "Can you juggle three balls?": ["Sais-tu jongler avec trois balles ?"],
+      "Can you swim?": ["Sais-tu nager ?"],
+      "Can you do a cartwheel?": ["Sais-tu faire la roue ?"],
+      "Have you ever ridden a horse?": ["As-tu déjà fait du cheval ?"],
+      "What's your favourite colour?": ["Quelle est ta couleur préférée ?", 0, ["Bleu", "Vert", "Violet", "Rouge", "Noir", "Rose", "Orange", "Jaune", "Blanc", "Une autre"]],
+      "Does coriander (cilantro) taste like soap to you?": ["La coriandre a-t-elle un goût de savon pour toi ?", 0, ["Oui, de savon", "Non, c'est bon", "Jamais goûté"]],
+      "Coffee or tea?": ["Café ou thé ?", 0, ["Café", "Thé", "Ni l'un ni l'autre"]],
+      "What's your favourite season?": ["Quelle est ta saison préférée ?", 0, ["L'été", "L'automne", "Le printemps", "L'hiver"]],
+      "Pineapple on pizza?": ["De l'ananas sur la pizza ?", 0, ["J'adore", "Hors de question", "Jamais goûté"]],
+      "What's your favourite ice cream?": ["Quelle est ta glace préférée ?", 0, ["Vanille", "Chocolat", "Cookies & cream", "Fraise", "Menthe-chocolat", "Une autre"]],
+      "Do you eat meat?": ["Manges-tu de la viande ?", 0, ["Oui", "Je suis végétarien", "Je suis végan"]],
+      "How do you feel about spicy food?": ["Que penses-tu de la nourriture épicée ?", 0, ["J'adore", "Ça va", "Je ne supporte pas"]],
+      "Dogs or cats?": ["Chiens ou chats ?", 0, ["Chiens", "Chats", "Ni l'un ni l'autre"]],
+      "Which way should toilet paper hang?": ["Dans quel sens doit pendre le papier toilette ?", 0, ["Par-dessus", "Par-dessous", "Ça m'est égal"]],
+      "Are you allergic to peanuts?": ["Es-tu allergique aux arachides ?"],
+      "Have you ever broken a bone?": ["T'es-tu déjà cassé un os ?"],
+      "Do you have any pets?": ["As-tu des animaux de compagnie ?", 0, ["Un chien", "Un chat", "Les deux", "Un autre animal", "Aucun"]],
+      "Have you ever been struck by lightning?": ["As-tu déjà été frappé par la foudre ?"],
+      "Have you ever been to space?": ["Es-tu déjà allé dans l'espace ?"],
+      "Have you ever had braces on your teeth?": ["As-tu déjà porté un appareil dentaire ?"],
+      "Do you have a tattoo?": ["As-tu un tatouage ?"],
+      "Have you ever been in a helicopter?": ["Es-tu déjà monté dans un hélicoptère ?"],
+      "Have you ever touched real snow?": ["As-tu déjà touché de la vraie neige ?"],
+      "How many countries have you visited?": ["Combien de pays as-tu visités ?", "Y compris le tien.", ["Un seul", "De 2 à 5", "De 6 à 20", "Plus de 20"]],
+      "Have you ever met a famous person in real life?": ["As-tu déjà rencontré une célébrité en vrai ?"],
+      "Have you ever been on a plane?": ["As-tu déjà pris l'avion ?"],
+      "Have you ever won a trophy or medal?": ["As-tu déjà gagné un trophée ou une médaille ?"],
+      "Have you ever been on TV?": ["Es-tu déjà passé à la télé ?"],
+      "Have you ever stayed overnight in hospital?": ["As-tu déjà passé une nuit à l'hôpital ?", "Sans compter ta naissance."],
+      "Have you ever seen a total solar eclipse?": ["As-tu déjà vu une éclipse totale de soleil ?"],
+      "Have you ever held a snake?": ["As-tu déjà tenu un serpent ?"],
+      "Have you ever felt an earthquake?": ["As-tu déjà senti un tremblement de terre ?"],
+      "Have you ever seen the Northern or Southern Lights?": ["As-tu déjà vu une aurore polaire ?"],
+      "Have you ever met one of your great-grandparents?": ["As-tu connu l'un de tes arrière-grands-parents ?"],
+      "Have you ever cracked a phone screen?": ["As-tu déjà fissuré l'écran de ton téléphone ?"],
+      "Do you have a gap between your front teeth?": ["As-tu les dents du bonheur ?", "Un espace entre les deux dents de devant."],
+      "Are you taller than 180 cm (5 ft 11 in)?": ["Mesures-tu plus de 180 cm ?"],
+      "Do you get hay fever?": ["As-tu le rhume des foins ?"],
+      "Have you had your tonsils taken out?": ["T'a-t-on retiré les amygdales ?"],
+      "Have you had chickenpox?": ["As-tu eu la varicelle ?"],
+      "Look at your hand. Which finger is longer?": ["Regarde ta main. Quel doigt est le plus long ?", 0, ["L'annulaire", "L'index", "À peu près pareil"]],
+      "Which of your eyes is dominant?": ["Quel est ton œil directeur ?", "Pointe du doigt un objet lointain, puis ferme un œil, puis l'autre. L'œil qui garde ton doigt sur la cible est l'œil directeur.", ["Droit", "Gauche", "Aucun", "Pas sûr"]],
+      "Does music ever give you goosebumps?": ["La musique te donne-t-elle parfois la chair de poule ?"],
+      "Are you ticklish?": ["Es-tu chatouilleux ?"],
+      "Can you touch your toes without bending your knees?": ["Peux-tu toucher tes orteils sans plier les genoux ?"],
+      "Do you hear a voice in your head when you think?": ["Entends-tu une voix dans ta tête quand tu réfléchis ?", 0, ["Toujours", "Parfois", "Jamais"]],
+      "Are you an introvert or an extrovert?": ["Es-tu introverti ou extraverti ?", 0, ["Introverti", "Extraverti", "Entre les deux"]],
+      "Do you remember your dreams most mornings?": ["Te souviens-tu de tes rêves la plupart des matins ?"],
+      "Do you cry at films?": ["Pleures-tu devant les films ?"],
+      "Can you ride a bike?": ["Sais-tu faire du vélo ?"],
+      "Do you have a driving licence?": ["As-tu le permis de conduire ?"],
+      "Can you type without looking at the keyboard?": ["Sais-tu taper sans regarder le clavier ?"],
+      "Do you know how to play chess?": ["Sais-tu jouer aux échecs ?"],
+      "Can you do a handstand without a wall?": ["Sais-tu faire le poirier sans mur ?"],
+      "Have you ever written computer code?": ["As-tu déjà écrit du code informatique ?"],
+      "Sweet or savoury breakfast?": ["Petit-déjeuner sucré ou salé ?", 0, ["Sucré", "Salé"]],
+      "Do you like olives?": ["Aimes-tu les olives ?"],
+      "What's your favourite fruit?": ["Quel est ton fruit préféré ?", 0, ["Banane", "Pomme", "Mangue", "Orange", "Fraise", "Raisin", "Pastèque", "Un autre"]],
+      "Beach or mountains?": ["Plage ou montagne ?", 0, ["Plage", "Montagne"]],
+      "Do you like horror films?": ["Aimes-tu les films d'horreur ?"],
+      "What's your favourite day of the week?": ["Quel est ton jour préféré de la semaine ?", 0, ["Vendredi", "Samedi", "Dimanche", "Un autre jour"]],
+      "Where are you in your family?": ["Quelle est ta place dans la fratrie ?", 0, ["L'aîné", "Celui du milieu", "Le cadet", "Enfant unique"]],
+      "How many letters are in your first name?": ["Combien de lettres compte ton prénom ?", 0, ["3 ou moins", "4", "5", "6", "7", "8 ou plus"]],
+      "Were you born early (premature)?": ["Es-tu né prématuré ?"],
+      "Do you share a birthday with someone in your family?": ["Partages-tu ton anniversaire avec quelqu'un de ta famille ?"],
+      "What time of day were you born?": ["À quel moment de la journée es-tu né ?", 0, ["Le matin", "L'après-midi", "Le soir", "La nuit", "Aucune idée"]],
+      "Do you still live in the town where you were born?": ["Vis-tu toujours dans la ville où tu es né ?"],
+    },
+  },
+};
+
+const RANK_AT = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10]; // 1-in-N thresholds for each rank title
+const COMPARE_AT = [4e9, 1.4e9, 3.3e8, 6.5e7, 8e6, 1e6, 8e4, 1e4, 1e3, 50, 11, 2, 1, 0]; // people counts for each comparison
+const LADDER_AT = [10, 1e3, 1e6, 1e9, 1e10];
+
+function pickLang() {
+  try { const s = localStorage.getItem("ays-lang"); if (LANGS[s]) return s; } catch (e) {}
+  const nav = (navigator.language || "en").slice(0, 2).toLowerCase();
+  return LANGS[nav] ? nav : "en";
+}
+let lang = pickLang();
+const L = () => LANGS[lang];
+const U = () => L().ui;
+
+function nf(x, maxFrac) { return x.toLocaleString(L().locale, { maximumFractionDigits: maxFrac }); }
+function scaled(x) { return nf(x, x >= 10 ? 0 : 1); }
+const words = n => L().words(n);
+const oneIn = p => L().oneIn(words(Math.max(1, 1 / p)));
+const peopleText = n => L().people(n);
+const pctText = p => p >= .0001 ? (p).toLocaleString(L().locale, { style: "percent", maximumFractionDigits: p >= .01 ? 0 : 2 }) : U().under;
+const rankOf = p => U().ranks[RANK_AT.filter(r => 1 / p >= r).length - 1];
+const compareOf = n => U().compare[COMPARE_AT.findIndex(c => n >= c)];
+
+// Question text in the current language, falling back to English.
+function qText(qi) {
+  const B = BANK[qi], t = L().q[B.q];
+  return {
+    q: t ? t[0] : B.q,
+    hint: t ? (t[1] || "") : (B.hint || ""),
+    o: B.o.map(([label], i) => (t && t[2] && t[2][i]) || L().common[label] || label),
+  };
+}
 
 // Leaderboard: fewest questions needed to reach 1 in 10 billion, so lower is better.
 function sendScoreToUsForge(score) {
@@ -318,35 +894,20 @@ const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-function words(n) {
-  const f = (x, u) => (x >= 10 ? Math.round(x) : x.toFixed(1).replace(/\.0$/, "")) + u;
-  if (n >= 1e12) return f(n / 1e12, " trillion");
-  if (n >= 1e9) return f(n / 1e9, " billion");
-  if (n >= 1e6) return f(n / 1e6, " million");
-  return Math.round(n).toLocaleString("en");
-}
-const oneIn = p => "1 in " + words(Math.max(1, 1 / p));
-const pctText = p => p >= .01 ? Math.round(p * 100) + "%" : p >= .0001 ? +(p * 100).toFixed(2) + "%" : "under 0.01%";
-function peopleText(n) {
-  if (n < 1) return "Just you";
-  if (n < 1.5) return "1 person";
-  return words(n) + " people";
-}
-const rankOf = p => RANKS.filter(r => 1 / p >= r[0]).pop()[1];
-const compareOf = n => COMPARE.find(c => n >= c[0])[1];
 function tagOf(p) {
-  if (p === NS) return `<span class="tag">No effect</span>`;
-  if (p < .01) return `<span class="tag ultra">Ultra rare</span>`;
-  if (p < .06) return `<span class="tag rare">Rare</span>`;
-  if (p < .2) return `<span class="tag rare">Uncommon</span>`;
-  return `<span class="tag">Common</span>`;
+  const t = U().tags;
+  if (p === NS) return `<span class="tag">${t[0]}</span>`;
+  if (p < .01) return `<span class="tag ultra">${t[1]}</span>`;
+  if (p < .06) return `<span class="tag rare">${t[2]}</span>`;
+  if (p < .2) return `<span class="tag rare">${t[3]}</span>`;
+  return `<span class="tag">${t[4]}</span>`;
 }
 
 const keyOf = i => String(i + 1);
 const typed = { buf: "", timer: 0 };
 
 function newGame() {
-  state = { deck: shuffle(BANK), i: 0, p: 1, answers: [], phase: "q", picked: null };
+  state = { deck: shuffle(BANK.map((_, i) => i)), i: 0, p: 1, answers: [], phase: "q", picked: null };
   shown = EARTH;
   render();
 }
@@ -354,18 +915,17 @@ function newGame() {
 function crowdHTML(p) {
   const n = EARTH * p;
   const lvl = Math.log10(1 / p);
-  const labels = ["10", "100", "1K", "10K", "100K", "1M", "10M", "100M", "1B", "10B"];
   let segs = "", ticks = "";
   for (let k = 0; k < 10; k++) {
     segs += `<div class="seg"><i style="width:${Math.max(0, Math.min(1, lvl - k)) * 100}%"></i></div>`;
-    ticks += `<span>${labels[k]}</span>`;
+    ticks += `<span>${U().ticks[k]}</span>`;
   }
   return `<section class="crowd" aria-live="polite">
-    <div class="label">People on Earth who match every answer</div>
+    <div class="label">${U().crowdLabel}</div>
     <div class="big" id="bigcount">${peopleText(shown)}</div>
-    <div class="sub"><span class="compare">That's <b>${compareOf(n)}</b></span><span class="odds">${p === 1 ? "Everyone, so far" : "You are " + oneIn(p)}</span></div>
+    <div class="sub"><span class="compare">${U().thatIs(compareOf(n))}</span><span class="odds">${p === 1 ? U().everyone : U().youAre(oneIn(p))}</span></div>
     <div>
-      <div class="meter" role="img" aria-label="Rarity ${oneIn(p)}, goal is 1 in 10 billion">${segs}</div>
+      <div class="meter" role="img" aria-label="${esc(oneIn(p))}">${segs}</div>
       <div class="ticks" aria-hidden="true">${ticks}</div>
     </div>
     <span class="rank">${rankOf(p)}</span>
@@ -386,67 +946,85 @@ function animateCount(to) {
   })(t0);
 }
 
+function langPicker() {
+  const opts = Object.entries(LANGS).map(([k, v]) => `<option value="${k}" ${k === lang ? "selected" : ""}>${v.name}</option>`).join("");
+  return `<select class="lang" id="lang" aria-label="${U().language}">${opts}</select>`;
+}
+
+function brandHTML(tag) {
+  const b = U().brand;
+  return tag === "h1" ? `${b[0]}<em>${b[1]}</em>${b[2]}` : `${b[0]}<span>${b[1]}</span>${b[2]}`;
+}
+
 function header(right) {
-  return `<header><button class="brand" id="home">Are you <span>special?</span></button><div class="hdr-right">${right}</div></header>`;
+  return `<header><button class="brand" id="home">${brandHTML()}</button><div class="hdr-right">${right}${langPicker()}</div></header>`;
+}
+
+function wireHeader() {
+  $("#lang").onchange = e => {
+    lang = e.target.value;
+    try { localStorage.setItem("ays-lang", lang); } catch (err) {}
+    render();
+  };
 }
 
 function renderIntro() {
-  const ladder = [[10, "820 million people match you, more than all of Europe"], [1e3, "8.2 million people, about New York City"], [1e6, "8,200 people, a small town"], [1e9, "8 people, a dinner party"], [1e10, "statistically, only you"]]
-    .map(([n, t]) => `<li><span class="lo">1 in ${words(n)}</span><span>${t}</span></li>`).join("");
+  const ladder = LADDER_AT.map((n, i) => `<li><span class="lo">${oneIn(1 / n)}</span><span>${U().ladder[i]}</span></li>`).join("");
   app.innerHTML = `
+    <header><span></span><div class="hdr-right">${langPicker()}</div></header>
     <section class="hero slide">
-      <h1>Are you <em>special?</em></h1>
-      <p>About 8.2 billion people are alive right now. Answer questions about yourself, and each answer narrows down how many of them are exactly like you.</p>
-      <div class="goal"><strong>1 in 10B</strong><span>Your goal: get rarer than one in ten billion. That's rarer than the number of people on Earth, so statistically nobody else would match you. Do it in as few questions as you can.</span></div>
+      <h1>${brandHTML("h1")}</h1>
+      <p>${U().intro}</p>
+      <div class="goal"><strong>${U().goalBig}</strong><span>${U().goalText}</span></div>
       <div class="row">
-        <button class="btn" id="start">Start the quiz</button>
-        ${best ? `<span class="best">Your best: ${best} questions</span>` : ""}
+        <button class="btn" id="start">${U().start}</button>
+        ${best ? `<span class="best">${U().best(best)}</span>` : ""}
       </div>
     </section>
     <section class="card slide">
-      <h3>How rare is rare?</h3>
+      <h3>${U().ladderTitle}</h3>
       <ul class="ladder">${ladder}</ul>
-      <p class="note">${BANK.length} questions about your body, skills, tastes and life, in a new order every game. Answer honestly: rare answers get you there faster. Type the number shown on an answer to pick it, and Enter to move on.</p>
+      <p class="note">${U().note(BANK.length)}</p>
     </section>`;
+  wireHeader();
   $("#start").onclick = newGame;
-  $("#home").onclick = () => {};
   $("#start").focus();
 }
 
 function renderQuestion() {
-  const Q = state.deck[state.i];
+  const qi = state.deck[state.i], B = BANK[qi], T = qText(qi);
   const done = state.phase === "fb";
-  const opts = Q.o.map(([label, p], idx) => {
+  const opts = B.o.map(([, p], idx) => {
     const cls = done && state.picked === idx ? "opt picked" : "opt";
     const bar = done ? `<span class="bar"><s><i style="width:${p === NS ? 0 : Math.max(2, p * 100)}%"></i></s>${p === NS ? "–" : pctText(p)}</span>` : "";
-    return `<button class="${cls}" data-i="${idx}" ${done ? "disabled" : ""}><span class="key">${keyOf(idx, Q.o.length)}</span><span>${esc(label)}</span>${bar}</button>`;
+    return `<button class="${cls}" data-i="${idx}" ${done ? "disabled" : ""}><span class="key">${keyOf(idx)}</span><span>${esc(T.o[idx])}</span>${bar}</button>`;
   }).join("");
 
   let fb = "";
   if (done) {
-    const [label, p] = Q.o[state.picked];
+    const p = B.o[state.picked][1];
     const reached = state.p <= 1 / TARGET;
     const out = state.i + 1 >= state.deck.length;
-    const msg = p === NS
-      ? "No problem. That answer doesn't change your odds."
-      : p < .2 ? `Only about <b>${pctText(p)}</b> of people said “${esc(label)}”. Your crowd just shrank <b>${words(1 / p)}×</b>.`
-      : `About ${pctText(p)} of people said that too, so your crowd only shrank a little.`;
-    fb = `<div class="feedback"><p>${tagOf(p)}${msg}</p><button class="btn" id="next">${reached ? "See results" : out ? "Finish" : "Next question"}</button></div>`;
+    const msg = p === NS ? U().fbNS
+      : p < .2 ? U().fbRare(pctText(p), esc(T.o[state.picked]), words(1 / p))
+      : U().fbCommon(pctText(p));
+    fb = `<div class="feedback"><p>${tagOf(p)}${msg}</p><button class="btn" id="next">${reached ? U().seeResults : out ? U().finish : U().nextQ}</button></div>`;
   }
 
   const n = state.deck.length;
   app.innerHTML = `
-    ${header(`<span class="qcount">Q${state.i + 1} of ${n}</span><button class="link" id="quit">End game</button>`)}
+    ${header(`<span class="qcount">${U().qOf(state.i + 1, n)}</span><button class="link" id="quit">${U().endGame}</button>`)}
     ${crowdHTML(state.p)}
     <section class="card ${done ? "" : "slide"}">
       <div class="progress" aria-hidden="true"><i style="width:${(state.i / n) * 100}%"></i></div>
-      <span class="cat">${Q.c}</span>
-      <h2 class="q">${esc(Q.q)}</h2>
-      ${Q.hint ? `<p class="hint">${esc(Q.hint)}</p>` : ""}
+      <span class="cat">${U().cats[B.c]}</span>
+      <h2 class="q">${esc(T.q)}</h2>
+      ${T.hint ? `<p class="hint">${esc(T.hint)}</p>` : ""}
       <div class="opts">${opts}</div>
       ${fb}
     </section>`;
 
+  wireHeader();
   $("#home").onclick = () => { state = null; render(); };
   $("#quit").onclick = () => { state.phase = "end"; render(); };
   if (!done) {
@@ -460,11 +1038,11 @@ function renderQuestion() {
 
 function answer(idx) {
   if (state.phase !== "q") return;
-  const Q = state.deck[state.i];
-  const [label, p] = Q.o[idx];
+  const qi = state.deck[state.i];
+  const p = BANK[qi].o[idx][1];
   state.picked = idx;
   if (p !== NS) state.p *= p;
-  state.answers.push({ q: Q.q, a: label, p });
+  state.answers.push({ qi, oi: idx, p });
   state.phase = "fb";
   render();
 }
@@ -490,36 +1068,36 @@ function renderEnd() {
   newBest = newBest || state.newBest;
   const n = EARTH * state.p;
   shown = n;
-  const verdict = won
-    ? "Statistically, nobody else alive matches you."
-    : used === 0 ? "You didn't answer any questions." : `${peopleText(n)} still match you.`;
+  const verdict = won ? U().verdictWin : used === 0 ? U().verdictNone : U().verdictStill(peopleText(n));
   const counted = state.answers.filter(a => a.p !== NS).sort((a, b) => a.p - b.p);
-  const rows = counted.map(a => `<li><span class="lq">${esc(a.q)}</span><span class="la">${esc(a.a)}</span><span class="lp">${pctText(a.p)}</span></li>`).join("");
-  const shareText = won
-    ? `I'm ${oneIn(state.p)} on Are You Special. I got there in ${used} questions. Rarest answer: ${counted[0].a} (${pctText(counted[0].p)}).`
-    : `I'm ${oneIn(state.p)} on Are You Special. Can you beat that?`;
+  const rows = counted.map(a => {
+    const T = qText(a.qi);
+    return `<li><span class="lq">${esc(T.q)}</span><span class="la">${esc(T.o[a.oi])}</span><span class="lp">${pctText(a.p)}</span></li>`;
+  }).join("");
+  const shareText = won && counted.length
+    ? U().shareWin(oneIn(state.p), used, qText(counted[0].qi).o[counted[0].oi], pctText(counted[0].p))
+    : U().shareLose(oneIn(state.p));
 
   app.innerHTML = `
-    ${header(`<span class="qcount">${used} answered</span>`)}
+    ${header(`<span class="qcount">${U().answered(used)}</span>`)}
     ${crowdHTML(state.p)}
     <section class="card slide">
-      <h2 class="verdict ${won ? "win" : ""}">${won ? "You're one in ten billion. " : ""}${verdict}</h2>
-      <p style="margin:0">${won
-        ? `You reached the goal in <b>${used}</b> questions.${newBest ? " That's your new best!" : best ? ` Your best is ${best}.` : ""}`
-        : `You stopped at ${oneIn(state.p)}, rank “${rankOf(state.p)}”. The questions come in a different order each time, so try again.`}</p>
-      <div class="row"><button class="btn" id="again">Play again</button><button class="btn ghost" id="copy">Copy my result</button><span class="toast" id="toast" aria-live="polite"></span></div>
+      <h2 class="verdict ${won ? "win" : ""}">${won ? U().winHead : ""}${verdict}</h2>
+      <p style="margin:0">${won ? U().reached(used, newBest, best) : U().stopped(oneIn(state.p), rankOf(state.p))}</p>
+      <div class="row"><button class="btn" id="again">${U().again}</button><button class="btn ghost" id="copy">${U().copy}</button><span class="toast" id="toast" aria-live="polite"></span></div>
       <textarea class="share" id="sharetext" rows="2" readonly hidden>${esc(shareText)}</textarea>
     </section>
     <section class="card slide">
-      <h3>Your answers, rarest first</h3>
-      <ul class="list">${rows || "<li><span class='la'>No answers counted.</span></li>"}</ul>
-      <p class="note">Percentages are rough worldwide estimates, and the game treats every trait as independent of the others. Real life is messier, so enjoy the result, but don't put it on your CV.</p>
+      <h3>${U().listTitle}</h3>
+      <ul class="list">${rows || `<li><span class="la">${U().noAnswers}</span></li>`}</ul>
+      <p class="note">${U().disclaimer}</p>
     </section>`;
+  wireHeader();
   $("#home").onclick = () => { state = null; render(); };
   $("#again").onclick = newGame;
   $("#copy").onclick = () => {
-    const done = () => { $("#toast").textContent = "Copied"; };
-    const fallback = () => { const t = $("#sharetext"); t.hidden = false; t.select(); $("#toast").textContent = "Select and copy the text below"; };
+    const done = () => { $("#toast").textContent = U().copied; };
+    const fallback = () => { const t = $("#sharetext"); t.hidden = false; t.select(); $("#toast").textContent = U().copyFallback; };
     try { navigator.clipboard.writeText(shareText).then(done, fallback); } catch (e) { fallback(); }
   };
   $("#again").focus({ preventScroll: true });
@@ -550,9 +1128,10 @@ function confetti() {
 
 document.addEventListener("keydown", e => {
   if (!state || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target && e.target.id === "lang") return;
   if (state.phase === "q" && /^[0-9]$/.test(e.key)) {
     // Two-digit answers: typing "1" waits briefly in case "10", "11" or "12" follows.
-    const len = state.deck[state.i].o.length;
+    const len = BANK[state.deck[state.i]].o.length;
     clearTimeout(typed.timer);
     const buf = typed.buf + e.key;
     const n = +buf;
@@ -566,6 +1145,7 @@ document.addEventListener("keydown", e => {
 });
 
 function render() {
+  document.documentElement.lang = L().locale;
   if (!state) renderIntro();
   else if (state.phase === "end") renderEnd();
   else renderQuestion();
@@ -573,6 +1153,7 @@ function render() {
 }
 
 window.claude?.hot?.snapshot?.(() => ({ state, best }));
-const start = d => { if (d && d.state) { state = d.state; shown = EARTH * state.p; } render(); };
+const validState = s => s && Array.isArray(s.deck) && Number.isInteger(s.deck[0]) && s.answers.every(a => Number.isInteger(a.qi));
+const start = d => { if (d && validState(d.state)) { state = d.state; shown = EARTH * state.p; } render(); };
 window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
 </script>

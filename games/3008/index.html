@@ -1,0 +1,188 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>3008 Infinite Store</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap">
+<style>
+/* Layout: one full-window pixel canvas scaled by whole device pixels; store-sign panels sit over it. */
+:root {
+  --bg: #07090a;
+  --ink: #ece8dc;
+  --dim: #a8b0c4;
+  --chalkboard: #1c3462;
+  --board-edge: #d8a82a;
+  --blood: #c8242c;
+  --pixel: "Press Start 2P", ui-monospace, monospace;
+  --mono: "VT323", ui-monospace, "Courier New", monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--mono); overflow: hidden;
+  -webkit-user-select: none; user-select: none; touch-action: none; -webkit-tap-highlight-color: transparent;
+}
+#wrap { position: fixed; inset: 0; display: grid; place-items: center; }
+#game { display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #000; outline: none; cursor: none; }
+.panel {
+  position: fixed; inset: 0; display: grid; place-items: safe center; overflow-y: auto;
+  padding-block: 16px; padding-inline: 16px; background: rgba(3, 5, 4, .66); z-index: 5;
+}
+.board {
+  width: min(600px, 100%); box-sizing: border-box; background: var(--chalkboard);
+  border: 8px solid var(--board-edge); box-shadow: 0 0 0 4px #000, 0 12px 0 4px #000;
+  padding: 22px 22px 18px; display: grid; gap: 14px;
+}
+.eyebrow { font-family: var(--pixel); font-size: 10px; letter-spacing: .12em; color: var(--dim); margin: 0; }
+h1 { font-family: var(--pixel); font-weight: 400; margin: 0; font-size: clamp(18px, 5vw, 28px); line-height: 1.35; text-wrap: balance; color: var(--ink); text-shadow: 3px 3px 0 #000; }
+h1 .red { color: var(--blood); }
+.board p { margin: 0; font-size: 20px; line-height: 1.05; max-width: 62ch; }
+.keys { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 16px; font-size: 19px; }
+.keys div { display: flex; gap: 8px; align-items: baseline; min-width: 0; flex-wrap: wrap; }
+kbd { font-family: var(--pixel); font-size: 9px; color: #111; background: var(--ink); padding: 3px 5px 2px; box-shadow: 0 2px 0 #000; white-space: nowrap; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+button.btn {
+  font-family: var(--pixel); font-size: 12px; color: #fff; background: var(--blood); border: 0; padding: 12px 16px; cursor: pointer;
+  box-shadow: 0 4px 0 #000, inset 0 -4px 0 rgba(0,0,0,.3);
+}
+button.btn:hover { filter: brightness(1.15); }
+button.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+button.btn.ghost { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+.stat { font-family: var(--pixel); font-size: 10px; color: var(--dim); }
+.note { font-size: 18px !important; color: var(--dim); }
+#listenText { color: #ff8a80; font-size: 20px; min-height: 1em; }
+
+/* the gate and the title: dark, scanlined, a little broken */
+#gate { background: #000; z-index: 8; }
+.gate-btn { position: absolute; inset: 0; width: 100%; min-height: 100%; background: #000; border: 0; color: #f2f2f2; cursor: pointer;
+  display: grid; place-content: center; justify-items: center; gap: 26px; padding: 32px 16px; text-align: center; font-family: var(--mono);
+  image-rendering: pixelated; -webkit-font-smoothing: none; font-smooth: never; }
+.gate-btn:focus-visible { outline: none; }
+.gate-title { font-family: var(--pixel); font-size: clamp(22px, 6vw, 40px); color: #ff1a1a; letter-spacing: .06em; text-shadow: 4px 4px 0 #3a0000; animation: flick 3.2s infinite steps(1); }
+.gate-text { display: grid; gap: 22px; max-width: 44ch; font-size: clamp(20px, 4.4vw, 26px); line-height: 1.05; color: #f2f2f2; }
+.gate-strong { font-family: var(--pixel); font-size: clamp(10px, 2.6vw, 13px); line-height: 1.6; color: #ffffff; letter-spacing: .04em; }
+.gate-enter { font-family: var(--pixel); font-size: clamp(12px, 3.6vw, 20px); line-height: 1.5; color: #f2f2f2; margin-top: 18px; animation: blink 1.2s infinite steps(1); }
+.gate-note { font-size: 18px; color: #5a5a54; }
+.title-screen { background:
+  repeating-linear-gradient(0deg, rgba(0,0,0,.28) 0 1px, transparent 1px 3px),
+  radial-gradient(ellipse at 50% 45%, rgba(0,0,0,.15) 0%, rgba(0,0,0,.55) 60%, rgba(0,0,0,.9) 100%); }
+.title-wrap { width: min(620px, 100%); display: grid; gap: 16px; justify-items: center; text-align: center; }
+.title-wrap .eyebrow { color: #7a2020; }
+h1.glitch { position: relative; font-size: clamp(56px, 18vw, 120px); letter-spacing: .06em; line-height: 1.25; color: #e8e2d6; text-shadow: 3px 3px 0 #000; animation: jitter 4s infinite steps(1); }
+h1.glitch::before, h1.glitch::after { content: attr(data-text); position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+h1.glitch::before { color: #ff2020; transform: translate(-3px, 1px); clip-path: inset(10% 0 55% 0); animation: slice 2.7s infinite steps(1); }
+h1.glitch::after { color: #20e8e8; transform: translate(3px, -1px); clip-path: inset(60% 0 8% 0); animation: slice 3.3s infinite steps(1) .4s; }
+.edition { margin: -10px 0 0; font-family: var(--pixel); font-size: clamp(10px, 2.6vw, 15px); letter-spacing: .3em; color: #c8242c; text-transform: uppercase; }
+.whisper { margin: 0; min-height: 1.2em; font-family: var(--pixel); font-size: clamp(9px, 2.2vw, 12px); color: #b02020; letter-spacing: .14em; transition: opacity .6s; }
+.menu { display: grid; gap: 10px; width: min(320px, 100%); }
+.menu .btn { width: 100%; }
+.title-wrap .stat { margin: 0; }
+.how { text-align: left; width: 100%; }
+@keyframes blink { 50% { opacity: 0; } }
+@keyframes flick { 0%, 100% { opacity: 1; } 31% { opacity: .2; } 33% { opacity: 1; } 72% { opacity: 0; } 74% { opacity: .9; } }
+@keyframes jitter { 0%, 100% { transform: none; } 47% { transform: translate(2px, -1px) skewX(-4deg); } 48% { transform: translate(-3px, 1px); } 49% { transform: none; } 88% { transform: translate(1px, 2px); } 89% { transform: none; } }
+@keyframes slice { 0%, 100% { opacity: 0; } 12% { opacity: .9; } 14% { opacity: 0; } 61% { opacity: .8; clip-path: inset(30% 0 40% 0); } 63% { opacity: 0; } }
+
+#touch { position: fixed; inset: auto 0 0 0; display: none; justify-content: flex-end; align-items: flex-end;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); pointer-events: none; z-index: 3; }
+#touch.on { display: flex; }
+.acts { display: grid; grid-template-columns: repeat(3, 58px); gap: 8px; pointer-events: auto; }
+.tb { font-family: var(--pixel); font-size: 8px; color: var(--ink); background: rgba(16, 22, 18, .72); border: 2px solid rgba(223, 232, 214, .45);
+  height: 50px; display: grid; place-items: center; touch-action: none; padding: 0; }
+.tb:active, .tb.down { background: rgba(200, 36, 44, .6); }
+@media (orientation: landscape) and (max-height: 520px) {
+  .acts { grid-template-columns: repeat(4, 54px); gap: 6px; }
+  .tb { height: 42px; }
+  .tb[data-run] { grid-column: auto !important; }
+}
+#stick { position: fixed; width: 96px; height: 96px; border-radius: 50%; border: 2px solid rgba(223, 232, 214, .35); background: rgba(16, 22, 18, .35); z-index: 3; pointer-events: none; }
+#knob { position: absolute; left: 30px; top: 30px; width: 36px; height: 36px; border-radius: 50%; background: rgba(223, 232, 214, .5); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+<div id="wrap"><canvas id="game" width="640" height="360" tabindex="0" aria-label="Game view"></canvas></div>
+
+<div class="panel" id="gate">
+  <button class="gate-btn" id="gateBtn">
+    <span class="gate-title">WARNING</span>
+    <span class="gate-text">
+      <span>This game contains flashing lights, loud noises, and jumpscares.</span>
+      <span>The creator of this game assumes no responsibility for any adverse reactions or effects imparted by playing this game.</span>
+      <span class="gate-strong">You have been warned.</span>
+    </span>
+    <span class="gate-enter">Click anywhere to continue.</span>
+    <span class="gate-note">sound on &middot; headphones recommended</span>
+  </button>
+</div>
+
+<div class="panel title-screen" id="title" hidden>
+  <div class="title-wrap">
+    <p class="eyebrow">SCP-3008 &middot; SAFE (BY DAY)</p>
+    <h1 class="glitch" data-text="3008">3008</h1>
+    <p class="edition">The infinite store</p>
+    <p class="whisper" id="whisper" aria-live="off">WHY ARE YOU HERE?</p>
+    <div class="menu">
+      <button class="btn" id="continueBtn" hidden>CONTINUE</button>
+      <button class="btn" id="startBtn">NEW GAME</button>
+      <button class="btn ghost" id="listenBtn">HEAR THE EMPLOYEES</button>
+      <button class="btn ghost" id="howBtn" aria-expanded="false" aria-controls="how">HOW TO SURVIVE</button>
+    </div>
+    <p class="stat" id="best"></p>
+    <p id="listenText" aria-live="polite"></p>
+    <div class="board how" id="how" hidden>
+      <p>You walked into a huge flat-pack furniture store and never found the way out. By day the faceless employees in yellow shirts ignore you, the arrows on the floor lead nowhere and soft music drifts from somewhere far away. At closing time the lights die, and the staff come looking for you: employees, security, the new hire, the cook, the stocker, the greeter. And the manager.</p>
+      <p>You can't fight them. Grab furniture, close the doors and wall yourself in before closing time. Keep your flashlight off if you don't want to be seen. Don't look away from the greeter.</p>
+      <div class="keys">
+        <div><kbd>WASD</kbd> walk, <kbd>SHIFT</kbd> run</div>
+        <div><kbd>MOUSE</kbd> aim your light</div>
+        <div><kbd>E</kbd> / <kbd>RMB</kbd> grab, open doors</div>
+        <div><kbd>Q</kbd> / <kbd>LMB</kbd> place furniture</div>
+        <div><kbd>F</kbd> flashlight, <kbd>C</kbd> eat</div>
+        <div><kbd>1-9</kbd> / wheel pick furniture</div>
+        <div><kbd>M</kbd> map, <kbd>ESC</kbd> pause</div>
+      </div>
+      <p class="note">The game saves on its own. Dying deletes the save.</p>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="dead" hidden>
+  <div class="board">
+    <p class="eyebrow">CUSTOMER: NOT FOUND</p>
+    <h1><span class="red">STAFF ONLY.</span><br>FOREVER.</h1>
+    <p id="deadText"></p>
+    <div class="row"><button class="btn" id="againBtn">TRY AGAIN</button><button class="btn ghost" id="menuBtn">TITLE SCREEN</button></div>
+  </div>
+</div>
+
+<div class="panel" id="paused" hidden>
+  <div class="board">
+    <p class="eyebrow">TAKE A SEAT</p>
+    <h1>PAUSED</h1>
+    <p>The store waits for you. Your progress is saved.</p>
+    <div class="row"><button class="btn" id="resumeBtn">RESUME</button><button class="btn ghost" id="quitBtn">SAVE AND QUIT</button></div>
+  </div>
+</div>
+
+<div id="stick" hidden><div id="knob"></div></div>
+<div id="touch">
+  <div class="acts">
+    <button class="tb" data-a="grab">GRAB</button>
+    <button class="tb" data-a="place">PLACE</button>
+    <button class="tb" data-a="light">LIGHT</button>
+    <button class="tb" data-a="eat">EAT</button>
+    <button class="tb" data-a="next">ITEM</button>
+    <button class="tb" data-run="1">RUN</button>
+  </div>
+</div>
+
+<script src="js/util.js"></script>
+<script src="js/art.js"></script>
+<script src="js/world.js"></script>
+<script src="js/actors.js"></script>
+<script src="js/voices.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/main.js"></script>
+
+
+</body></html>

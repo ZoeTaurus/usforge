@@ -1,5 +1,34 @@
 [
   {
+    "slug": "3008",
+    "title": "3008",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "SCP 3008; you are in an infinite IKEA, and just walk around sasfely at day, but at night... WARNING",
+    "cover": "games/3008/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Horror"
+    ],
+    "languages": [
+      "en",
+      "pt",
+      "es",
+      "fr",
+      "de",
+      "it",
+      "ru",
+      "zh",
+      "ja"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791195215
+  },
+  {
     "slug": "underleaf",
     "title": "Underleaf",
     "author": "Taurus",

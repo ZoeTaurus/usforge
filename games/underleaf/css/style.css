@@ -86,7 +86,7 @@ button:focus-visible { outline: 2px solid var(--honey); outline-offset: 2px; }
 .maprow { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; }
 .biome { font: 800 13px var(--font-display); color: var(--ink); }
 .rain { color: #9ac8f0; font-weight: 700; }
-.clock { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-dim); }
+.clock { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 12px; color: var(--ink-dim); }
 .dial { position: relative; width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(from 0deg, #ffd36b 0 58%, #f08a4a 58% 62%, #24305a 62% 92%, #f0a06a 92% 100%); }
 .dial i { position: absolute; left: 7px; top: 1px; width: 2px; height: 7px; background: #fff8e8; border-radius: 1px; transform-origin: 1px 7px; }
 #clockDial { transform-origin: 1px 7px; }
@@ -357,3 +357,11 @@ body.innest .colony, body.innest .goals, body.innest .mapbox, body.innest .vital
 .perk p { margin: 0; font-size: 13px; color: var(--ink-dim); line-height: 1.4; }
 .perk .pips i.next { background: rgba(244, 183, 64, 0.45); }
 @media (max-width: 640px) { .perkgrid { grid-template-columns: 1fr; } }
+
+.langPick { display: inline-flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--ink-dim); }
+.langSel { font: inherit; font-size: 13px; color: var(--ink); background: rgba(245, 238, 216, 0.08); border: 1px solid var(--edge); border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+.langSel option { color: #222; background: #f5eed8; }
+#pause .langPick { justify-content: center; }
+
+/* translated labels can run long: let buttons break words sensibly */
+button { hyphens: auto; overflow-wrap: anywhere; }

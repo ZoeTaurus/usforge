@@ -1857,4 +1857,12 @@ class Game {
   }
 }
 
-window.addEventListener('DOMContentLoaded', () => { window.game = new Game(); });
+window.addEventListener('DOMContentLoaded', () => {
+  L10N.init();
+  // language menus on the home screen and in the pause menu
+  const head = document.querySelector('.homehead > div');
+  if (head) { const w = document.createElement('label'); w.className = 'langPick'; w.append(document.createTextNode('Language '), L10N.picker()); head.appendChild(w); }
+  const ps = document.querySelector('#pause .sheet');
+  if (ps) { const w = document.createElement('label'); w.className = 'langPick'; w.append(document.createTextNode('Language '), L10N.picker()); ps.appendChild(w); }
+  window.game = new Game();
+});

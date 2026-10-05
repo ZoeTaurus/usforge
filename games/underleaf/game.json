@@ -8,6 +8,14 @@
     "Management",
     "Open world"
   ],
+  "languages": [
+    "en",
+    "pt",
+    "es",
+    "fr",
+    "de",
+    "zh"
+  ],
   "whatsnew": {
     "text": "Better ant behaviour.",
     "at": 1791099846

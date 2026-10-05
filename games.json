@@ -17,13 +17,21 @@
       "Management",
       "Open world"
     ],
+    "languages": [
+      "en",
+      "pt",
+      "es",
+      "fr",
+      "de",
+      "zh"
+    ],
     "dev": false,
     "progress": null,
     "next": "",
     "build": true,
     "added": 1790957949,
     "leaderboard": true,
-    "updated": 1791100883
+    "updated": 1791191275
   },
   {
     "slug": "lab-madness",

@@ -1,5 +1,24 @@
 [
   {
+    "slug": "housekeeper",
+    "title": "Housekeeper",
+    "author": "Taurus",
+    "owner": "Taurus",
+    "blurb": "In development",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "languages": [
+      "en"
+    ],
+    "dev": true,
+    "progress": 50,
+    "next": "",
+    "build": false,
+    "added": 1791301190
+  },
+  {
     "slug": "multiverse-mayhem",
     "title": "Multiverse Mayhem",
     "author": "Balthi",

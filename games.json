@@ -1,5 +1,24 @@
 [
   {
+    "slug": "multiverse-mayhem",
+    "title": "Multiverse Mayhem",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "Escape the mad scientists lab and go to ruling the multiverse.",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791288480
+  },
+  {
     "slug": "shred-tide",
     "title": "Shred tide",
     "author": "Alex",

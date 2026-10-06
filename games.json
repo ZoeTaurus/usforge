@@ -4,8 +4,8 @@
     "title": "Housekeeper",
     "author": "Taurus",
     "owner": "Taurus",
-    "blurb": "In development",
-    "cover": null,
+    "blurb": "Watch your friend's cozy house for a week and follow the increasingly strange rules on the fridge, because the house is always watching.",
+    "cover": "games/housekeeper/cover.png",
     "pixel": false,
     "url": null,
     "genres": [],
@@ -17,7 +17,7 @@
     "next": "",
     "build": true,
     "added": 1791301190,
-    "updated": 1791301336
+    "updated": 1791310570
   },
   {
     "slug": "multiverse-mayhem",

@@ -372,3 +372,4 @@ button kbd { background: rgba(0,0,0,.2); }
 .request { margin-top: 8px; padding-top: 6px; border-top: 2px dashed rgba(74,32,48,.3); }
 .request .label { font-family: var(--pixel); font-size: 8px; color: #a0506a; display: block; margin-bottom: 2px; }
 .request.urgent { color: #b3261e; }
+

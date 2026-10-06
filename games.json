@@ -8,17 +8,14 @@
     "cover": "games/housekeeper/cover.png",
     "pixel": false,
     "url": null,
-    "genres": [
-      "Management",
-      "Simulation",
-      "Horror"
-    ],
+    "genres": [],
     "languages": [
       "en",
+      "es",
       "zh"
     ],
-    "dev": false,
-    "progress": null,
+    "dev": true,
+    "progress": 80,
     "next": "",
     "build": true,
     "added": 1791301190,

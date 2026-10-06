@@ -3,13 +3,11 @@
   "author": "Taurus",
   "owner": "Taurus",
   "blurb": "Watch your friend's cozy house for a week and follow the increasingly strange rules on the fridge, because the house is always watching.",
-  "genres": [
-    "Management",
-    "Simulation",
-    "Horror"
-  ],
   "languages": [
     "en",
+    "es",
     "zh"
-  ]
+  ],
+  "dev": true,
+  "progress": 80
 }

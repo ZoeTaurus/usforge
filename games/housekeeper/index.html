@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Housesitting</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="hud">
+      <div class="hud-item"><span class="hud-label">Day</span><b id="hud-day">1</b><span class="dim">/7</span></div>
+      <div class="hud-item"><span class="hud-label">Time</span><b id="hud-time">8:00 AM</b></div>
+      <div class="hud-item mood">
+        <span class="hud-label">House</span>
+        <div class="bar"><div id="chaos-fill"></div></div>
+        <span id="chaos-label">Cozy</span>
+      </div>
+      <div class="hud-item"><span class="hud-label">Hands</span><b id="hud-holding">—</b></div>
+      <div class="hud-item"><span class="hud-label">Pages</span><b id="hud-pages">0/7</b></div>
+      <span id="fast-indicator" class="fast" hidden>▶▶ x5</span>
+      <span id="save-indicator" class="saved" hidden>✔ saved</span>
+      <button id="music-btn" class="small">♪ ON</button>
+    </header>
+
+    <main id="layout">
+      <div id="stage">
+        <canvas id="game"></canvas>
+        <div id="prompt" hidden></div>
+        <div id="sleep-overlay" hidden>Zzz… <small>(move to wake up)</small></div>
+      </div>
+
+      <aside id="side">
+        <section class="panel note">
+          <h2>Fridge note</h2>
+          <div id="note-body"></div>
+        </section>
+        <section class="panel chores">
+          <h2>Chores</h2>
+          <ul id="chore-list"></ul>
+        </section>
+        <section class="panel phone">
+          <h2>Messages</h2>
+          <div id="phone-msgs"></div>
+        </section>
+      </aside>
+    </main>
+
+    <footer id="controls">
+      <span><kbd>WASD</kbd> move</span>
+      <span><kbd>E</kbd> interact</span>
+      <span><kbd>1</kbd><kbd>2</kbd> choose</span>
+      <span><kbd>F</kbd> (hold) fast-forward</span>
+      <span><kbd>Esc</kbd> pause</span>
+      <span><kbd>M</kbd> music</span>
+    </footer>
+  </div>
+
+  <!-- Dialog -->
+  <div id="dialog" class="overlay" hidden>
+    <div id="dialog-box" class="dialog-box">
+      <div id="dialog-text"></div>
+      <div id="dialog-choices"></div>
+    </div>
+  </div>
+
+  <!-- Home screen -->
+  <div id="title-screen" class="overlay home">
+    <canvas id="home-canvas"></canvas>
+    <div class="home-ui">
+      <div class="home-title">
+        <div id="title-kicker" class="kicker">a slightly haunted chore simulator</div>
+        <h1 class="logo">HOUSE<br>SITTING</h1>
+      </div>
+      <nav id="home-menu" class="home-menu">
+        <button id="btn-continue" hidden>Continue</button>
+        <button id="btn-new">New game</button>
+        <button id="btn-howto">How to play</button>
+        <button id="btn-endings">Endings</button>
+        <button id="btn-options">Options</button>
+      </nav>
+      <div id="home-panel" class="home-panel" hidden></div>
+      <div class="home-foot">↑↓ choose · Enter select · M music</div>
+    </div>
+  </div>
+
+  <!-- Day card -->
+  <div id="card-screen" class="overlay solid" hidden>
+    <div class="screen-box">
+      <h1 id="card-day" class="logo small"></h1>
+      <div id="card-name" class="kicker big"></div>
+      <div id="card-body"></div>
+      <div class="buttons"><button id="btn-start" class="primary">Start the day <kbd>Enter</kbd></button></div>
+    </div>
+  </div>
+
+  <!-- End-of-day report -->
+  <div id="report-screen" class="overlay solid" hidden>
+    <div class="screen-box">
+      <div class="kicker">6:00 AM</div>
+      <h1 id="report-title" class="logo small"></h1>
+      <div id="report-stars" class="stars"></div>
+      <div class="bubble"><b>Robin:</b> <span id="report-msg"></span></div>
+      <ul id="report-list" class="checklist"></ul>
+      <p id="report-extra" class="dim"></p>
+      <div class="buttons"><button id="btn-next" class="primary">Go to sleep <kbd>Enter</kbd></button></div>
+    </div>
+  </div>
+
+  <!-- Ending -->
+  <div id="ending-screen" class="overlay solid" hidden>
+    <div class="screen-box">
+      <div id="end-kicker" class="kicker"></div>
+      <h1 id="end-title" class="logo small"></h1>
+      <div id="end-body" class="end-body"></div>
+      <div class="bubble"><b>Robin:</b> <span id="end-msg"></span></div>
+      <p id="end-stats" class="dim"></p>
+      <p id="end-hint" class="hint-line"></p>
+      <div class="buttons">
+        <button id="btn-retry" class="primary" hidden>Retry this day</button>
+        <button id="btn-title">Title screen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Jumpscare -->
+  <div id="jumpscare" hidden><canvas></canvas></div>
+
+  <!-- Pause -->
+  <div id="pause-screen" class="overlay" hidden>
+    <div class="screen-box narrow">
+      <h1 class="logo small">PAUSED</h1>
+      <div class="buttons column">
+        <button id="btn-resume" class="primary">Resume</button>
+        <button id="btn-music2">Music: on</button>
+        <button id="btn-quit">Save &amp; quit to title</button>
+      </div>
+      <p class="dim">Your progress is saved. Continue picks up right here.</p>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/clock.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/rulebook.js"></script>
+  <script src="js/rules/cat.js"></script>
+  <script src="js/rules/fern.js"></script>
+  <script src="js/rules/fridge.js"></script>
+  <script src="js/rules/night.js"></script>
+  <script src="js/rules/notes.js"></script>
+  <script src="js/rules/wind.js"></script>
+  <script src="js/rules/tv.js"></script>
+  <script src="js/rules/chair.js"></script>
+  <script src="js/rules/phone.js"></script>
+  <script src="js/rules/painting.js"></script>
+  <script src="js/rules/ducks.js"></script>
+  <script src="js/rules/washer.js"></script>
+  <script src="js/rules/blackout.js"></script>
+  <script src="js/rules/mirror.js"></script>
+  <script src="js/rules/delivery.js"></script>
+  <script src="js/rules/greet.js"></script>
+  <script src="js/rules/curtains.js"></script>
+  <script src="js/rules/dinner.js"></script>
+  <script src="js/rules/nursery.js"></script>
+  <script src="js/rules/footsteps.js"></script>
+  <script src="js/rules/fire.js"></script>
+  <script src="js/rules/chores.js"></script>
+  <script src="js/story.js"></script>
+  <script src="js/requests.js"></script>
+  <script src="js/daytime.js"></script>
+  <script src="js/uncanny.js"></script>
+  <script src="js/visitor.js"></script>
+  <script src="js/mirror.js"></script>
+  <script src="js/objects.js"></script>
+  <script src="js/home.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

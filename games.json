@@ -8,16 +8,21 @@
     "cover": "games/housekeeper/cover.png",
     "pixel": false,
     "url": null,
-    "genres": [],
-    "languages": [
-      "en"
+    "genres": [
+      "Management",
+      "Simulation",
+      "Horror"
     ],
-    "dev": true,
-    "progress": 80,
+    "languages": [
+      "en",
+      "zh"
+    ],
+    "dev": false,
+    "progress": null,
     "next": "",
     "build": true,
     "added": 1791301190,
-    "updated": 1791310570
+    "updated": 1791312158
   },
   {
     "slug": "multiverse-mayhem",

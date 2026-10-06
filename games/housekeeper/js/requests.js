@@ -74,7 +74,7 @@
       if (r && m >= this.current.until) {
         this.current = null;
         G.chaos = Math.min(HS.CHAOS_MAX, G.chaos + 5);
-        G.text('H', `😠 ${r.fail}`);
+        G.text('H', `😠 ${HS.T(r.fail)}`);
         HS.Audio.play('bad');
         this.schedule(m);
         HS.UI.renderRules();
@@ -95,7 +95,7 @@
       const options = REQUESTS.filter(r => !busy.has(r.id) && HS.Map.byId[r.obj]);
       const r = options[Math.floor(Math.random() * options.length)];
       this.current = { id: r.id, until: m + 45 };
-      G.text('H', `⚠ ${r.ask}`);
+      G.text('H', `⚠ ${HS.T(r.ask)}`);
       HS.Audio.play('beep');
       HS.UI.renderRules();
     },
@@ -104,7 +104,7 @@
 
     prompt(o) {
       const r = this.def();
-      return r && o.id === r.obj ? `⚠ ${r.verb}` : null;
+      return r && o.id === r.obj ? `⚠ ${HS.T(r.verb)}` : null;
     },
 
     interact(o) {
@@ -124,7 +124,7 @@
       const r = this.def();
       if (!r) return '';
       const left = Math.max(0, Math.round(this.current.until - HS.Clock.minutes));
-      return `<li class="request ${left < 15 ? 'urgent' : ''}"><span><span class="label">The house wants</span>${r.verb} <b>(${left} min)</b></span></li>`;
+      return `<li class="request ${left < 15 ? 'urgent' : ''}"><span><span class="label">${HS.T('The house wants')}</span>${HS.T(r.verb)} <b>${HS.T(`(${left} min)`)}</b></span></li>`;
     },
   };
 })();

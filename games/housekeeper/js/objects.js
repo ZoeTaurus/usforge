@@ -16,7 +16,7 @@
         case 'bed': return 'Sleep';
         case 'towel': return G.holding === 'towel' ? 'Put the towel back' : 'Take a towel';
         case 'basement': return 'Basement door';
-        default: return 'Look at the ' + o.label.toLowerCase();
+        default: return `Look at the ${o.label.toLowerCase()}`;
       }
     },
 
@@ -107,7 +107,10 @@
         case 'photo': {
           const d = G.day, n = Math.min(4, d - 1);
           if (d === 1) return G.say('<p>A family photo: Grandma June, a little Robin, and three people you don\'t recognize.</p><p>Everyone is smiling. Especially the people you don\'t recognize.</p>');
-          return G.say(`<p>A family photo. <b>${n}</b> of the faces ${n === 1 ? 'has' : 'have'} been scratched out. Yesterday it was ${n - 1}.</p>${d >= 6 ? '<p>One of the people still left in the photo looks a lot like you.</p>' : ''}`);
+          const scratched = n === 1
+            ? '<p>A family photo. <b>One</b> of the faces has been scratched out. It wasn\'t yesterday.</p>'
+            : `<p>A family photo. <b>${n}</b> of the faces have been scratched out. Yesterday it was ${n - 1}.</p>`;
+          return G.say(scratched + (d >= 6 ? '<p>One of the people still left in the photo looks a lot like you.</p>' : ''));
         }
 
         case 'desk': {

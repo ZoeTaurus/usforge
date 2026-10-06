@@ -314,11 +314,12 @@
       const RB = HS.Rulebook, d = this.day;
       const items = RB.rules().map(id => {
         const r = RB.defs[id], text = r.text(d);
-        const tag = !(id in this.seen) ? '<span class="new">NEW</span> ' : this.seen[id] !== text ? '<span class="new">CHANGED</span> ' : '';
+        const tag = !(id in this.seen) ? `<span class="new">${HS.T('NEW')}</span> ` : this.seen[id] !== text ? `<span class="new">${HS.T('CHANGED')}</span> ` : '';
         this.seen[id] = text;
-        return `<li>${tag}${text}</li>`;
+        return `<li>${tag}${HS.T(text)}</li>`;
       }).join('');
-      const chores = RB.chores().map(id => RB.defs[id].short(d).toLowerCase()).join(', ');
+      const en = HS.I18n.lang === 'en';
+      const chores = RB.chores().map(id => { const s = HS.T(RB.defs[id].short(d)); return en ? s.toLowerCase() : s; }).join(HS.T(', '));
       this.noteRead = true;
       HS.UI.renderRules();
       this.say(`<h3>House rules ♡</h3><ol>${items}</ol><p>Today's chores: ${chores}. Thank you!! — Robin</p>`, null, 'note');

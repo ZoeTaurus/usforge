@@ -373,3 +373,24 @@ button kbd { background: rgba(0,0,0,.2); }
 .request .label { font-family: var(--pixel); font-size: 8px; color: #a0506a; display: block; margin-bottom: 2px; }
 .request.urgent { color: #b3261e; }
 
+
+/* ---------- Languages ---------- */
+.lang-btn { position: absolute; top: 24px; right: 28px; font-size: 11px; pointer-events: auto; }
+/* Chinese: pixel fonts have no CJK glyphs, so fall back to Noto Sans, a bit larger so it stays readable. */
+/* One font for everything in Chinese, so digits and characters match in size. */
+html[lang^="zh"] { --pixel: "Noto Sans SC", "Noto Sans TC", sans-serif; --body: "Noto Sans SC", "Noto Sans TC", sans-serif; }
+html[lang="zh-TW"] { --pixel: "Noto Sans TC", "Noto Sans SC", sans-serif; --body: "Noto Sans TC", "Noto Sans SC", sans-serif; }
+html[lang^="zh"] .dialog-box h3, html[lang^="zh"] .home-panel h2 { font-size: 19px; font-weight: 700; }
+html[lang^="zh"] .logo.small { font-size: 28px; }
+html[lang^="zh"] .home-title .logo { font-size: 56px; }
+html[lang^="zh"] body { font-size: 18px; line-height: 1.45; }
+html[lang^="zh"] .dialog-box { font-size: 18px; line-height: 1.55; }
+html[lang^="zh"] .panel li, html[lang^="zh"] .hint, html[lang^="zh"] .msg { font-size: 15px; line-height: 1.45; }
+html[lang^="zh"] .hud-label, html[lang^="zh"] .kicker, html[lang^="zh"] .msg .from, html[lang^="zh"] .new { font-size: 12px; }
+html[lang^="zh"] #hud, html[lang^="zh"] .panel h2, html[lang^="zh"] .tag, html[lang^="zh"] kbd { font-size: 13px; }
+html[lang^="zh"] button { font-size: 14px; }
+html[lang^="zh"] .home-menu button { font-size: 18px; }
+html[lang^="zh"] .logo { font-weight: 700; letter-spacing: .08em; }
+html[lang^="zh"] .fake-note, html[lang^="zh"] .typed { font-size: 16px; line-height: 1.7; }
+html[lang^="zh"] .screen-box p, html[lang^="zh"] .bubble, html[lang^="zh"] .checklist li { font-size: 18px; }
+html[lang="es"] .home-menu button { font-size: 13px; }

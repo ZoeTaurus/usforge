@@ -35,6 +35,7 @@
         b.addEventListener('mouseenter', () => { this.sel = Math.max(0, this.buttons().indexOf(b)); this.renderMenu(); });
         b.addEventListener('click', () => { this.wake(); this.activate(b.id); });
       });
+      document.getElementById('lang-btn').addEventListener('click', () => { this.wake(); this.openPanel('lang'); });
       document.getElementById('home-panel').addEventListener('click', e => {
         const a = e.target.closest('[data-act]');
         if (a) this.panelAction(a.dataset.act);
@@ -51,10 +52,11 @@
       cont.hidden = !save;
       if (save) {
         const time = save.mid ? ` · ${HS.Clock.format(save.mid.minutes)}` : '';
-        cont.textContent = `Continue · Day ${(save.mid || save).day}${time}`;
+        cont.textContent = HS.T(save.mid ? `Continue · Day ${save.mid.day} · ${HS.Clock.format(save.mid.minutes)}` : `Continue · Day ${save.day}`);
       }
-      document.getElementById('btn-endings').textContent = `Endings ${(mem.endings || []).length}/7`;
-      document.getElementById('title-kicker').textContent = mem.runs > 0 ? 'welcome back' : 'a slightly haunted chore simulator';
+      document.getElementById('btn-endings').textContent = HS.T(`Endings ${(mem.endings || []).length}/7`);
+      document.getElementById('title-kicker').textContent = HS.T(mem.runs > 0 ? 'welcome back' : 'a slightly haunted chore simulator');
+      document.getElementById('lang-btn').textContent = '🌐 ' + HS.I18n.LANGS[HS.I18n.lang].name;
       this.sel = 0;
       this.closePanel();
       this.renderMenu();
@@ -131,8 +133,9 @@
         const save = HS.Save.load();
         html = `<h2>Options</h2>
           <div class="panel-buttons column">
-            <button data-act="music">Music: ${HS.Audio.music.on ? 'on' : 'off'}</button>
-            <button data-act="scares">Jumpscares: ${HS.Scare.enabled() ? 'on' : 'off'}</button>
+            <button data-act="lang">Language: ${HS.I18n.LANGS[HS.I18n.lang].name}</button>
+            <button data-act="music">${HS.Audio.music.on ? 'Music: on' : 'Music: off'}</button>
+            <button data-act="scares">${HS.Scare.enabled() ? 'Jumpscares: on' : 'Jumpscares: off'}</button>
             ${save ? `<button data-act="erase">Erase save (Day ${save.day})</button>` : ''}
             ${mem.runs > 0 ? '<button data-act="forget">Make the house forget you</button>' : ''}
             <button data-act="close">Back</button>
@@ -140,10 +143,14 @@
       } else if (kind === 'confirm') {
         html = `<h2>Start over?</h2><p>Your Day ${(HS.Save.load().mid || HS.Save.load()).day} save will be lost.</p>
           <div class="panel-buttons"><button class="primary" data-act="confirm-new">Start over <kbd>Enter</kbd></button><button data-act="close">Cancel <kbd>Esc</kbd></button></div>`;
+      } else if (kind === 'lang') {
+        html = `<h2>Language</h2><div class="panel-buttons column">${Object.entries(HS.I18n.LANGS).map(([code, l]) =>
+          `<button data-act="set-lang:${code}"${code === HS.I18n.lang ? ' class="primary"' : ''}>${l.name}</button>`).join('')}
+          <button data-act="close">Back</button></div>`;
       } else if (kind === 'forgot') {
         html = `<h2>Done.</h2><p>The house says it has forgotten you.</p><p class="dim">It's lying. But it's trying.</p>${back}`;
       }
-      el.innerHTML = html;
+      el.innerHTML = HS.T(html);
       el.hidden = false;
       document.getElementById('home-menu').hidden = true;
     },
@@ -155,8 +162,10 @@
     },
 
     panelAction(act) {
+      if (act.startsWith('set-lang:')) return HS.I18n.setLang(act.slice(9));
       switch (act) {
         case 'close': return this.closePanel();
+        case 'lang': return this.openPanel('lang');
         case 'confirm-new': this.closePanel(); return HS.Game.newGame();
         case 'music': HS.UI.toggleMusic(); return this.openPanel('options');
         case 'scares': HS.Scare.setEnabled(!HS.Scare.enabled()); return this.openPanel('options');

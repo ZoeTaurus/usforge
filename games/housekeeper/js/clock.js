@@ -9,8 +9,11 @@ HS.Clock = {
   format(m = this.minutes) {
     const h = Math.floor(m / 60) % 24;
     const mm = Math.floor(m % 60);
-    const suffix = h < 12 ? 'AM' : 'PM';
-    return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${suffix}`;
+    const time = `${h % 12 || 12}:${String(mm).padStart(2, '0')}`;
+    const lang = HS.I18n ? HS.I18n.lang : 'en';
+    if (lang.startsWith('zh')) return `${h < 12 ? '上午' : '下午'}${time}`;
+    if (lang === 'es') return `${time} ${h < 12 ? 'a. m.' : 'p. m.'}`;
+    return `${time} ${h < 12 ? 'AM' : 'PM'}`;
   },
 
   // 0 = full daylight, ~0.85 = deep night

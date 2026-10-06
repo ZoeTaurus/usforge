@@ -1,0 +1,39 @@
+{
+  "slug": "multiverse-mayhem",
+  "title": "Multiverse Mayhem",
+  "owner": "Balthi",
+  "author": "Balthi",
+  "submittedBy": "Balthi",
+  "founder": false,
+  "submitted": 1791288457,
+  "kind": "new",
+  "status": "pending",
+  "info": {
+    "title": "Multiverse Mayhem",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "Escape the mad scientists lab and go to ruling the multiverse.",
+    "languages": [
+      "en"
+    ]
+  },
+  "entry": {
+    "slug": "multiverse-mayhem",
+    "title": "Multiverse Mayhem",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "Escape the mad scientists lab and go to ruling the multiverse.",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791288457
+  }
+}

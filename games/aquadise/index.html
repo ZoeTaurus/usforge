@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
-  <title>Aquadise</title>
+  <title></title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -16,13 +16,19 @@
     <canvas id="game" width="320" height="180"></canvas>
     <div id="ui"></div>
     <canvas id="touch"></canvas>
-    <div id="rotate"><div class="phone"></div><div>ROTATE YOUR DEVICE</div><div class="small">Aquadise plays sideways (landscape).</div></div>
+    <div id="rotate"><div class="phone"></div><div data-t="touch.rotate"></div><div class="small" data-t="touch.rotateSmall"></div></div>
     <div id="safe-probe"></div>
-    <div id="loading"><div class="logo">AQUADISE</div><div id="loading-text">Loading...</div></div>
+    <div id="loading"><div class="logo" data-t="game.name"></div><div id="loading-text" data-t="game.loading"></div></div>
   </div>
+
+  <!-- languages first: every text the player sees comes from these (data/lang/, src/lang.js) -->
+  <script src="src/lang.js"></script>
+  <script src="data/lang/en.js"></script>
+  <script>AQ.Lang.refresh(); AQ.Lang.fillPage();</script>   <!-- the page's own text (title, loading, rotate screen) -->
 
   <!-- data (edit these to add biomes / creatures / decorations) -->
   <script src="src/config.js"></script>
+  <script src="data/glyphs.js"></script>
   <script src="data/sprite-spec.js"></script>
   <script src="data/world.js"></script>
   <script src="data/creatures.js"></script>
@@ -30,8 +36,8 @@
   <script src="data/aquarium.js"></script>
   <script src="data/scenes.js"></script>
   <script src="data/music.js"></script>
-  <script src="data/lore.js"></script>
   <script src="data/tutorial.js"></script>
+  <script src="src/langdata.js"></script>          <!-- the data files' text, from data/lang/ -->
   <script src="assets/manifest.js"></script>
   <script src="assets/sprites-embedded.js"></script>
   <script src="assets/audio/embedded.js"></script>
@@ -56,6 +62,8 @@
   <script src="src/starfall.js"></script>
   <script src="src/tips.js"></script>
   <script src="src/dive.js"></script>
+  <script src="src/redo.js"></script>
+  <script src="src/nudges.js"></script>          <!-- friendly nudges for a player who seems stuck -->            <!-- REDO TUTORIAL: the guided dive again, from anywhere, and back -->
   <script src="src/guide.js"></script>
   <script src="src/savefile.js"></script>
   <script src="src/player.js"></script>
@@ -67,11 +75,14 @@
   <script src="src/creatures.js"></script>
   <script src="src/catching.js"></script>
   <script src="src/collection.js"></script>
+  <script src="src/panes.js"></script>            <!-- glass panes: the building material for the tanks -->
   <script src="src/tanks.js"></script>
   <script src="src/sexes.js"></script>
   <script src="src/clock.js"></script>
   <script src="src/breeding.js"></script>
   <script src="src/nursery.js"></script>
+  <script src="src/pairs.js"></script>
+  <script src="src/release.js"></script>          <!-- releasing creatures back to the sea (the log keeps everything) -->            <!-- ONE PAIR EACH: arrange a tank to one pair of every species -->
   <script src="src/vibe.js"></script>
   <script src="src/chests.js"></script>
   <script src="src/bottles.js"></script>
@@ -81,6 +92,7 @@
   <script src="src/station.js"></script>
   <script src="src/ui.js"></script>
   <script src="src/hud.js"></script>
+  <script src="src/logbutton.js"></script>        <!-- the HUD counter doubles as the collection-log button -->
   <script src="src/title.js"></script>
   <script src="src/soundtest.js"></script>
   <script src="src/touch.js"></script>

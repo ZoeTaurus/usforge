@@ -26,12 +26,12 @@ AQ.Game = (function () {
     fit(); window.addEventListener('resize', fit);
     if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
 
-    setLoading('Loading sprites...');
-    await AQ.Assets.load((p) => setLoading(`Loading sprites... ${Math.round(p * 100)}%`));
-    setLoading('Shaping the seabed...');
+    setLoading(AQ.t('game.loadingSprites'));
+    await AQ.Assets.load((p) => setLoading(AQ.t('game.loadingSpritesPct', { n: Math.round(p * 100) })));
+    setLoading(AQ.t('game.loadingSeabed'));
     await frame();
     AQ.World.build(AQ.data.world);
-    setLoading('Painting terrain...');
+    setLoading(AQ.t('game.loadingTerrain'));
     await frame();
     AQ.Terrain.build(AQ.World);
     AQ.World.releaseBackShapes();               // scenery-only shapes stop being walls once painted
@@ -42,6 +42,8 @@ AQ.Game = (function () {
     const start = AQ.data.world.playerStart;
     G.player = new AQ.Player(start[0], start[1]);
     if (save) AQ.Save.apply(save, G);
+    else if (AQ.Panes) AQ.Panes.debugTopUp();   // TESTING ONLY flag (a loaded save does this in Save.apply)
+    AQ.Lang.refresh();                          // the saved LANGUAGE, else the browser's (if we have it), else English
     // a brand-new game has tutorial progress from the start, so its saves are never mistaken for an older save
     if (!AQ.State.tutorial) AQ.State.tutorial = { seen: {} };
     G.upgrades = AQ.State.upgrades;
@@ -59,7 +61,7 @@ AQ.Game = (function () {
     requestAnimationFrame(loop);
   };
 
-  function setLoading(t) { const el = document.getElementById('loading-text'); if (el) el.textContent = t; }
+  function setLoading(t) { const el = document.getElementById('loading-text'); if (el) { el.removeAttribute('data-t'); el.textContent = t; } }
   const frame = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
 
   // Scale the 320 x 180 game to the window. Keyboard + mouse: whole-number steps (crisp pixels).
@@ -101,6 +103,8 @@ AQ.Game = (function () {
     G.time += dt;
     AQ.Render.t = G.time;
     if (AQ.Touch) AQ.Touch.update(dt, G);
+    // REDO TUTORIAL's question (from any screen) has the input to itself while it's up
+    if (AQ.Redo && AQ.Redo.dialog && !AQ.Transition.active) { AQ.Redo.update(G); AQ.Transition.update(dt); I.endFrame(); return; }
 
     if (AQ.Touch && AQ.Touch.updateMenu(G)) {
       // the touch MENU panel is open: the game waits underneath
@@ -108,17 +112,19 @@ AQ.Game = (function () {
       const frozen = AQ.Transition.blocking(), inWorld = G.scene === 'world';
       AQ.Clock.update(dt);                         // one day/night clock for everywhere (the sea, the hill, the station)
       if (AQ.Starfall) AQ.Starfall.update(dt, G);   // falling stars + meteor showers: on schedule wherever you are
+      if (AQ.LogButton && AQ.LogButton.update(dt, G)) return;   // the HUD counter is the log button (a click on it is used up)
       if (AQ.Tips) AQ.Tips.update(dt, G);           // one-time tips (first, so an Esc / click that closes a tip is used up)
       if (AQ.Dive) AQ.Dive.update(dt, G);           // the optional guided dive (its buttons' clicks never swing the net)
-      if (AQ.TUNING.debug.tutorialReset && I.wasPressed(AQ.TUNING.debug.tutorialResetKey) && AQ.Dive) { AQ.Tips.reset(); AQ.Dive.start(G); AQ.HUD.toast('Tutorial restarted, all tips reset.', '#cfe8ff'); }
+      if (AQ.Nudges) AQ.Nudges.update(dt, G);       // friendly nudges for a player who seems stuck (src/nudges.js)
+      if (AQ.TUNING.debug.tutorialReset && I.wasPressed(AQ.TUNING.debug.tutorialResetKey) && AQ.Dive) { AQ.Tips.reset(); AQ.Dive.start(G); AQ.HUD.toast(AQ.t('debug.tutorialReset'), '#cfe8ff'); }
       if (!frozen) {
-        if (AQ.TUNING.debug.timeSkip && I.wasPressed(AQ.TUNING.debug.timeSkipKey)) { AQ.Clock.set(AQ.Clock.hour() + AQ.TUNING.clock.skipHours); AQ.HUD.toast(`Time skip: ${AQ.HUD.clockText()}`, '#cfe8ff'); }
+        if (AQ.TUNING.debug.timeSkip && I.wasPressed(AQ.TUNING.debug.timeSkipKey)) { AQ.Clock.set(AQ.Clock.hour() + AQ.TUNING.clock.skipHours); AQ.HUD.toast(AQ.t('debug.timeSkip', { time: AQ.HUD.clockText() }), '#cfe8ff'); }
         if (AQ.TUNING.debug.starKeys && AQ.Starfall) {
-          if (I.wasPressed(AQ.TUNING.debug.fallStarKey) && !AQ.Starfall.fall(G)) AQ.HUD.toast('No free spot for a star right now.', '#cfe8ff');
+          if (I.wasPressed(AQ.TUNING.debug.fallStarKey) && !AQ.Starfall.fall(G)) AQ.HUD.toast(AQ.t('debug.noStarSpot'), '#cfe8ff');
           if (I.wasPressed(AQ.TUNING.debug.showerKey)) AQ.Starfall.startShower(G);
         }
         if (AQ.Keys.pressed('help')) { AQ.HUD.showHelp = true; AQ.HUD.helpT = AQ.HUD.helpT > 0 ? 0 : 12; }
-        if (AQ.Keys.pressed('map')) { if (inWorld) G.state = G.state === 'map' ? 'play' : 'map'; else AQ.HUD.toast('The map only shows the sea.', '#cfe8ff'); }
+        if (AQ.Keys.pressed('map')) { if (inWorld) G.state = G.state === 'map' ? 'play' : 'map'; else AQ.HUD.toast(AQ.t('map.onlySea'), '#cfe8ff'); }
         if (I.wasPressed('Tab') && AQ.Aquarium && AQ.TUNING.debug.tabOpensAquarium) { AQ.Aquarium.open(G); I.endFrame(); return; }
         if (AQ.Keys.pressed('log') && AQ.LogUI) { AQ.LogUI.open(G); I.endFrame(); return; }
         if (AQ.Keys.pressed('guide') && AQ.Guide) { AQ.Guide.open(G, 'play'); I.endFrame(); return; }
@@ -153,6 +159,7 @@ AQ.Game = (function () {
 
   function draw() {
     drawScene();
+    if (AQ.Redo) AQ.Redo.draw(AQ.Render.ctx);  // REDO TUTORIAL's question, over whatever screen asked
     AQ.Transition.draw(AQ.Render.ctx);
     if (AQ.Touch) AQ.Touch.drawOverlay(G);     // the on-screen touch controls (their own canvas, screen px)
   }
@@ -207,6 +214,7 @@ AQ.Game = (function () {
     AQ.HUD.draw(ctx, G);
     if (G.state === 'play' && AQ.Tips) AQ.Tips.draw(ctx, G);
     if (G.state === 'play' && AQ.Dive) AQ.Dive.draw(ctx, G);
+    if (G.state === 'play' && AQ.Nudges) AQ.Nudges.draw(ctx, G);
     if (G.state === 'map') AQ.MapUI.draw(ctx, G);
     if (G.state === 'log') AQ.LogUI.draw(ctx, G);
     if (G.state === 'pause') AQ.PauseUI.draw(ctx, G);

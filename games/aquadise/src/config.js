@@ -68,6 +68,10 @@ AQ.TUNING = {
 
   chests: { active: 6, respawnMin: 40, respawnMax: 80, lifetime: 300, minPlayerDist: 220 },
 
+  // Glass panes: the building material for every tank (src/panes.js). Every chest drops this many
+  // (a random whole number in the range), on top of its upgrade; with every upgrade maxed, just panes.
+  panes: { chestMin: 2, chestMax: 4 },
+
   creatures: {
     simRadius: 520,      // creatures farther than this from the player are frozen
     respawnTime: 45      // seconds before a caught creature's slot refills
@@ -75,7 +79,16 @@ AQ.TUNING = {
 
   plants: { regrowTime: 50 },
 
-  tank: { capacity: 12, decorCapacity: 40, storageCapacity: null },   // storageCapacity: null = no limit (graduates wait in storage)
+  // Tanks, by SIZE level 0..3 (each tank's level is saved; 0 = the original tank). EXPAND on the tank
+  // screen's TANK tab costs expandCost[level] glass panes to go up one level (so 10, then 20, then 35).
+  // width: how wide the tank really is, in pixels (the screen shows 312 at a time and scrolls sideways).
+  tank: {
+    capacity: [12, 18, 24, 30],         // creatures living in the tank (the rest wait in its storage)
+    decorCapacity: [40, 60, 80, 100],   // decorations + plants placed in it
+    expandCost: [10, 20, 35],           // panes for size 1, 2 and 3 (its length is the number of levels)
+    width: [312, 468, 624, 780],        // px wide
+    storageCapacity: null               // null = no limit (graduates wait in storage)
+  },
 
   // Aquarium "vibe" (tank happiness). Each part scores 0..1; the weighted average becomes 0-5 stars.
   // Raise a weight to make that part matter more. Nothing here can ever hurt a creature.
@@ -85,10 +98,10 @@ AQ.TUNING = {
     decorAmountTarget: 10,    // total decor pieces for a full "amount" score
     themeTarget: 4,           // decor pieces matching the tank's biome for a full "theme" score
     plantTarget: 3,           // plants for a full "plants" score
-    comfortable: 8,           // creatures before the tank starts to feel crowded
+    comfortable: 8,           // creatures before a size-0 tank starts to feel crowded (bigger tanks: in proportion to their room)
     crowdedFloor: 0.5,        // "space" score when the tank is completely full (never lower)
     stressPenalty: 0.6,       // how much a fully nervous tank lowers "calm" (gentle on purpose)
-    nervousAbove: 10,         // more creatures than this in one tank -> the smallest few feel a bit nervous
+    nervousAbove: 10,         // more creatures than this in a size-0 tank -> the smallest few feel a bit nervous (bigger: in proportion)
     fedFreshMinutes: 20,      // real minutes a feeding counts as "fed"...
     fedFadeMinutes: 40,       // ...then fades to hungry over this many minutes (they never starve)
     recomputeEvery: 0.5,      // seconds between vibe updates while watching a tank
@@ -112,6 +125,11 @@ AQ.TUNING = {
     feedPellets: 8,
     chompSeconds: 0.45,
     undoSteps: 30,            // how many decor changes UNDO remembers per tank visit
+    // a bigger (wider) tank scrolls sideways: arrow keys / A D (keys.scrollLeft / scrollRight), dragging
+    // the water, the mouse wheel, the strip under the tank, or carrying a piece to the edge of the view
+    scroll: { keySpeed: 180, edgeSpeed: 110, edgeZone: 14 },   // px per second; edgeZone: px from the view's edge
+    buildSeconds: 1.6,        // the EXPAND animation: how long the new glass takes to sweep out
+    releaseSeconds: 1.8,      // a released creature swims up and away, fading out, over this long
     unlockStars: [2, 3.5, 5]  // tank stars needed for each biome's unlock tiers 1, 2 and 3 (new themed decor)
   },
 
@@ -136,10 +154,18 @@ AQ.TUNING = {
     showerKey: 'KeyJ',        //   J = a meteor shower starts right now (2-4 stars over the next ~20 seconds)
     tutorialReset: false,     // TESTING ONLY: true adds a key that restarts the guided dive and marks every tip unseen
     tutorialResetKey: 'KeyR', //   R = restart the guided dive + reset all tips
+    pseudoLanguage: false,    // TESTING ONLY: true adds the PSEUDO language to SETTINGS > OPTIONS > LANGUAGE (every text
+                              //   longer and in [!! brackets !!], to spot untranslated text and layout problems)
     fastNursery: false,       // TESTING ONLY: true makes breeding take seconds instead of minutes (the numbers below),
     fastNurserySeconds: { court: 5, egg: 6, grow: 25, cooldown: 4, check: 1 },   // so the whole nursery can be tried quickly
+    hundredPanes: false,      // TESTING ONLY: true gives you 100 glass panes (topped back up to 100 whenever a game loads or starts)
+    nudges: false,            // TESTING ONLY: true adds a key (below) that shows a friendly nudge right now, cycling
+    nudgeKey: 'KeyY',         //   through net spam -> no catch for a while -> key mashing (it skips the rate limits)
     forceTouch: false         // TESTING ONLY: true shows the touch controls and makes the mouse act as a finger
   },                          //   (drag in the stick zone = joystick, click the on-screen buttons), to try them on a PC
+  // Text that doesn't fit (long translations): it is squeezed sideways down to this much of its width,
+  // then cut short with ".." (src/font.js). screenMargin: px kept free at the screen's edges.
+  text: { squeezeMin: 0.55, screenMargin: 2 },
   // Touch controls (src/touch.js). Sizes are in screen pixels (CSS px), so they stay finger-sized on any
   // screen; fractions are of the window. The settings (TOUCH CONTROLS auto/on/off, SWAP SIDES) live in
   // the SETTINGS panel and are saved with the game.
@@ -167,7 +193,7 @@ AQ.TUNING = {
     tapSeconds: 0.22,         // a touch in the joystick zone this quick...
     tapSlopPx: 12             // ...that moved less than this is a tap on the game instead (swings the net there)
   },
-  // The guided first dive (src/dive.js; the text is in data/tutorial.js).
+  // The guided first dive (src/dive.js; the text is dive.* in data/lang/en.js).
   dive: {
     niceSeconds: 1.1,         // the little "NICE!" after a step before the next one shows
     moveDistance: 40,         // px you walk for the "move" step
@@ -191,7 +217,8 @@ AQ.TUNING = {
     log: ['KeyL'], map: ['KeyM'], help: ['KeyH'], pause: ['Escape'],
     // in a tank
     feed: ['KeyF'], tanks: ['KeyT'], undo: ['KeyU'], flip: ['KeyX'], layer: ['KeyZ'],
-    prevTank: ['KeyQ', 'ArrowLeft'], nextTank: ['KeyE', 'ArrowRight'],
+    prevTank: ['KeyQ', 'ArrowLeft'], nextTank: ['KeyE', 'ArrowRight'],   // (in a bigger tank the arrows scroll it instead; Q / E still switch)
+    scrollLeft: ['KeyA', 'ArrowLeft'], scrollRight: ['KeyD', 'ArrowRight'],   // scroll a bigger tank sideways
     // in photo mode
     photoSnap: ['Space'], photoFreeze: ['KeyZ'], photoIcons: ['KeyI'], photoFrame: ['KeyF'], photoCaption: ['KeyC'],
     // the GUIDE (field-guide book): from the help line, pause menu or title
@@ -243,7 +270,8 @@ AQ.TUNING = {
 
   // The Universal Nursery (src/nursery.js): every bred egg and baby lives here until it grows up.
   nursery: {
-    capacity: 20              // babies + grown babies waiting to graduate + eggs; when full, breeding pauses everywhere
+    capacity: [20, 30, 40, 50]   // by the nursery's SIZE level (it expands like any tank): babies + grown babies waiting
+                              // to graduate + eggs; when full, breeding pauses everywhere
   },
 
   sexes: {
@@ -255,7 +283,8 @@ AQ.TUNING = {
     zoomedOutByDefault: false, // OPTIONAL view: true starts zoomed out to see the whole building (all tanks)
     zoomKey: 'KeyV',          // toggles the zoomed-out view in the building (your choice is saved)
     zoomSeconds: 0.6,         // how long the zoom in/out takes
-    zoomMargin: 10            // space (px) kept around the building when zoomed out
+    zoomMargin: 10,           // space (px) kept around the building when zoomed out
+    windowPanSeconds: 40      // a bigger tank's window slowly pans across the whole tank, one way and back in this long
   },       // ladder climbing speed in the aquarium building (px/s)
 
   // ---- distant seagulls in the sky (sea surface, Tide Pools shore, the hill); day, dawn + dusk only
@@ -298,7 +327,38 @@ AQ.TUNING = {
     landGlowAlpha: 0.22       //   (instead of the sparkle burst)
   },
 
-  // One-time tips (src/tips.js; the text is in data/tutorial.js). Never blocking: any key or click closes one.
+  // Friendly nudges for a player who seems stuck (src/nudges.js; the lines are nudge.* in data/lang/en.js).
+  // Only active play in the sea counts (never menus, the guided dive, transitions or the tank screens).
+  nudges: {
+    enabled: true,            // the whole feature (HINTS off in the settings turns them off too)
+    showSeconds: 5,           // how long one stays (it also goes when you do something else...)
+    dismissGrace: 2.5,        // ...but not in its first seconds, so there's time to read it
+    minGap: 90,               // at most one every this many seconds...
+    maxPerWindow: 3,          // ...and at most this many...
+    windowSeconds: 600,       // ...in this many seconds (10 minutes)
+    afterCatch: 60,           // none this soon (seconds) after a catch
+    spam: { swings: 12, seconds: 20, fastClicks: 4, fastSeconds: 3 },   // 12 swings in 20 s with no catch, or 4+ clicks a second for 3 s
+    drought: { seconds: 240, newGameSeconds: 180, idleGrace: 20,      // no catch for 4 min of play (3 min in a new game); away from the keys
+                                                                       // for more than idleGrace seconds doesn't count
+      // the bigger your collection, the longer the wait (rarer creatures take longer): [species found, seconds]
+      bySpecies: [[20, 300], [40, 360], [50, 420], [60, 480], [70, 600]],   // 20+: 5 min, 40+: 6, 50+: 7, 60+: 8, 70+: 10
+      maxSpecies: null },     // no nudge from this many species on (null = no limit); never once you've caught them all
+    mash: { presses: 6, seconds: 8 },   // the same key that does nothing here, 6 times in 8 seconds
+    droughtRedoButton: true   // the "no catch for a while" nudge also shows a small REDO TUTORIAL button
+  },
+
+  // REDO TUTORIAL (src/redo.js): closer than this (px) to the Tide Pools' starting spot, the guided dive
+  // just starts where you are; anywhere else, you go there first and come back after
+  redo: { nearStart: 400 },
+
+  // The collection-log button: the discovered counter in the HUD's top-right corner (src/logbutton.js)
+  logButton: {
+    pulseEvery: 6,            // until it has been clicked once: a gentle glow every this many seconds...
+    pulseSeconds: 1.2,        // ...lasting this long
+    touchPx: 44               // with touch, its hit area is at least this many screen pixels (a thumb)
+  },
+
+  // One-time tips (src/tips.js; the text is tip.* in data/lang/en.js). Never blocking: any key or click closes one.
   tips: {
     baseSeconds: 4,           // how long a tip stays at least...
     perChar: 0.045,           // ...plus this much per character of text...
@@ -342,7 +402,7 @@ AQ.TUNING = {
     previewSeconds: 2.5       // how long the little "Saved!" preview stays
   },
 
-  // ---- message bottles (one per species, holding its field notes; see src/bottles.js, data/lore.js)
+  // ---- message bottles (one per species, holding its field notes; see src/bottles.js; the notes are lore.* in data/lang/en.js)
   bottles: {
     pickupRadius: 12,         // how close (px) you get to pick one up
     glintPerSecond: 1.2,      // how often a bottle sparkles while it's on screen
@@ -377,5 +437,6 @@ AQ.TUNING = {
   },
 
   save: { key: 'aquadise.save.v1', autosaveEvery: 10 },
-  saveFile: { maxImportBytes: 5000000 },   // IMPORT SAVE refuses files bigger than this (a normal save is a few KB)
+  saveFile: { maxImportBytes: 5000000,    // IMPORT SAVE refuses files bigger than this (a normal save is a few KB)
+    gestureWaitMs: 400 },                  // a download / file picker waits this long for the click to finish (browsers need it)
 };

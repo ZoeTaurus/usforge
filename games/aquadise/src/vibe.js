@@ -27,8 +27,11 @@ AQ.Vibe = (function () {
   // Nervous creatures. Predators live in their own tanks now, so the only thing that makes anyone
   // nervous is crowding: past AQ.TUNING.aquarium.nervousAbove creatures, the smallest few get
   // nervous (one per creature over the limit). Nobody is ever hurt.
-  V.stressedIds = function (creatures) {
-    const out = new Set(), over = creatures.length - T().nervousAbove;
+  // (a bigger tank has room for more: the limit grows with it, AQ.Tanks.roomScale)
+  V.nervousAbove = (tankId) => Math.round(T().nervousAbove * (tankId ? AQ.Tanks.roomScale(tankId) : 1));
+  V.comfortable = (tankId) => Math.round(T().comfortable * (tankId ? AQ.Tanks.roomScale(tankId) : 1));
+  V.stressedIds = function (creatures, tankId) {
+    const out = new Set(), over = creatures.length - V.nervousAbove(tankId);
     if (over <= 0) return out;
     const rank = (e) => { const d = creatureDef(e.id); return d ? (SIZE_RANK[d.sprite_size] || 1) : 1; };
     creatures.slice().sort((a, b) => rank(a) - rank(b)).slice(0, over).forEach((e) => out.add(e.uid));
@@ -50,7 +53,7 @@ AQ.Vibe = (function () {
     return { likes, present: likes.filter((l) => have.has(l)) };
   };
 
-  const pretty = (t) => t.replace(/_/g, ' ');
+  const pretty = (t) => AQ.t(`tag.${t}`);                     // a decor tag as a word (data/lang/ tag.<tag>)
 
   // Full evaluation of a tank. Returns { score (0..1), stars (0..5 in halves), parts, helps, missing }.
   V.evaluate = function (biomeId) {
@@ -71,10 +74,11 @@ AQ.Vibe = (function () {
     const n = creatures.length;
     let stressed = new Set(), wants = [];
     if (n) {
-      stressed = V.stressedIds(creatures);
+      stressed = V.stressedIds(creatures, biomeId);
       parts.fed = V.fedLevel(tank);
       parts.calm = 1 - (stressed.size / n) * cfg.stressPenalty;
-      parts.space = n <= cfg.comfortable ? 1 : U.lerp(1, cfg.crowdedFloor, (n - cfg.comfortable) / Math.max(1, AQ.TUNING.tank.capacity - cfg.comfortable));
+      const comfy = V.comfortable(biomeId), cap = AQ.Tanks.capacity(biomeId);
+      parts.space = n <= comfy ? 1 : U.lerp(1, cfg.crowdedFloor, Math.min(1, (n - comfy) / Math.max(1, cap - comfy)));
       let liked = 0, withLikes = 0;
       creatures.forEach((e) => {
         const d = creatureDef(e.id); if (!d || !d.likes || !d.likes.length) return;
@@ -92,17 +96,17 @@ AQ.Vibe = (function () {
 
     const helps = [], missing = [];
     const good = (k) => parts[k] >= 0.75;
-    if (!n) missing.push('NO CREATURES YET - CATCH SOME!');
-    if (good('decor')) helps.push('LOTS OF DECOR VARIETY'); else missing.push(decor.length < cfg.decorAmountTarget / 2 ? 'ADD MORE DECOR' : 'ADD DIFFERENT KINDS OF DECOR');
+    if (!n) missing.push(AQ.t('vibe.noCreatures'));
+    if (good('decor')) helps.push(AQ.t('vibe.variety')); else missing.push(AQ.t(decor.length < cfg.decorAmountTarget / 2 ? 'vibe.moreDecor' : 'vibe.differentDecor'));
     const themeName = (AQ.Tanks.isPredatorTank(biomeId) ? (AQ.World.biomeById[AQ.Tanks.themesOf(biomeId)[1]] || {}).short || short : short).toUpperCase();
-    if (good('theme')) helps.push(`FEELS LIKE THE ${themeName}`); else missing.push(`ADD ${themeName} DECOR OR PLANTS`);
-    if (good('plants')) helps.push('PLANTS TO GRAZE ON'); else missing.push('ADD PLANTS (HARVEST THEM IN THE WILD)');
+    if (good('theme')) helps.push(AQ.t('vibe.feelsLike', { place: themeName })); else missing.push(AQ.t('vibe.addTheme', { place: themeName }));
+    if (good('plants')) helps.push(AQ.t('vibe.plants')); else missing.push(AQ.t('vibe.addPlants'));
     if (n) {
-      if (good('fed')) helps.push('RECENTLY FED'); else missing.push(parts.fed > 0 ? 'GETTING PECKISH - FEED THEM' : 'HUNGRY - PRESS FEED');
-      if (stressed.size) missing.push(`${stressed.size} NERVOUS - A BIT CROWDED`); else helps.push('EVERYONE IS CALM');
-      if (good('space')) helps.push('PLENTY OF ROOM'); else missing.push('A LITTLE CROWDED');
-      if (good('likes')) helps.push('THEY HAVE THINGS THEY LIKE');
-      wants.slice(0, 2).forEach((wn) => missing.push(`${wn.name.toUpperCase()} WOULD LIKE ${pretty(wn.like).toUpperCase()}`));
+      if (good('fed')) helps.push(AQ.t('vibe.fed')); else missing.push(AQ.t(parts.fed > 0 ? 'vibe.peckish' : 'vibe.hungry'));
+      if (stressed.size) missing.push(AQ.t('vibe.nervous', { n: stressed.size })); else helps.push(AQ.t('vibe.calm'));
+      if (good('space')) helps.push(AQ.t('vibe.room')); else missing.push(AQ.t('vibe.crowded'));
+      if (good('likes')) helps.push(AQ.t('vibe.likes'));
+      wants.slice(0, 2).forEach((wn) => missing.push(AQ.t('vibe.wouldLike', { name: wn.name.toUpperCase(), thing: pretty(wn.like).toUpperCase() })));
     }
     const out = { score, stars, parts, helps, missing, stressed: stressed.size, creatures: n };
     out.breeding = AQ.Breeding ? AQ.Breeding.describe(biomeId, tank, out) : null;

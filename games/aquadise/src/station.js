@@ -9,6 +9,7 @@ AQ.Station = (function () {
   const U = AQ.U, R = U.R, F = () => AQ.Font;
   const St = { mode: 'walk', t: 0, dust: [] };
   let W = null, L = null, canvas = null, tanks = [];
+  AQ.Lang.onChange(() => { canvas = null; });           // the signs are painted into the background: repaint in the new language
 
   St.build = function () {
     L = AQ.data.station;
@@ -27,7 +28,7 @@ AQ.Station = (function () {
     canvas = null;
   };
   St.world = () => W;
-  St.zoneName = () => 'Aquarium Station';
+  St.zoneName = () => AQ.t('station.name');
   St.valid = (x, y) => W.standable(x, y) && W.boxHits(x, y + 3, 5, 4) && x > L.hull.x + 10 && x < L.hull.x + L.hull.w - 10 && y > L.hull.y && y < L.floors[0];
 
   // tank slots straight from data/scenes.js (b = the tank def, or null for an empty slot)
@@ -48,10 +49,10 @@ AQ.Station = (function () {
     const feet = P.y + AQ.TUNING.swim.hitbox.h / 2;
     const fl = L.floors.findIndex((y) => Math.abs(feet - y) < 3);
     if (fl < 0 || P.mode !== 'walk') return null;
-    if (fl === 0 && Math.abs(P.x - L.pad.x) < 13) return { kind: 'pad', text: 'BEAM DOWN TO THE HILL' };
-    if (fl === 0 && Math.abs(P.x - L.console.x) < 11) return { kind: 'console', text: 'TANK DIRECTORY' };
+    if (fl === 0 && Math.abs(P.x - L.pad.x) < 13) return { kind: 'pad', text: AQ.t('station.beamDown') };
+    if (fl === 0 && Math.abs(P.x - L.console.x) < 11) return { kind: 'console', text: AQ.t('station.directory') };
     const t = tanks.find((k) => k.b && k.floor === fl && Math.abs(P.x - k.x) < 26);
-    if (t) return { kind: 'tank', tank: t, text: `TEND THE ${(t.b.short || t.b.name).toUpperCase()} TANK` };
+    if (t) return { kind: 'tank', tank: t, text: AQ.t('station.tend', { tank: (t.b.short || t.b.name).toUpperCase() }) };
     return null;
   }
 
@@ -136,8 +137,8 @@ AQ.Station = (function () {
       for (let x = inner.x0 + 40; x < inner.x1 - 20; x += 96) { g.fillStyle = '#3a4a5a'; g.fillRect(x - 5, ceil, 10, 2); g.fillStyle = '#ffe6a8'; g.fillRect(x - 4, ceil + 2, 8, 1); }
     });
     // signs
-    const sign = (x, y, text, col) => { const w = F().width(text) + 6; g.fillStyle = '#16283a'; g.fillRect(x - w / 2, y - 2, w, 9); g.fillStyle = col; g.fillRect(x - w / 2, y - 2, w, 1); F().draw(g, text, x, y, col, { align: 'center', shadow: false }); };
-    (L.signs || []).forEach(([text, sx, fl, col]) => sign(sx, L.floors[fl] - (fl === 0 ? 66 : 72), text, col));
+    const sign = (x, y, text, col) => { const w = Math.min(F().width(text), 68) + 6; g.fillStyle = '#16283a'; g.fillRect(x - w / 2, y - 2, w, 9); g.fillStyle = col; g.fillRect(x - w / 2, y - 2, w, 1); F().draw(g, text, x, y, col, { align: 'center', shadow: false, max: 68 }); };   // signs stay narrow: a long name squeezes
+    (L.signs || []).forEach(([id, sx, fl, col]) => sign(sx, L.floors[fl] - (fl === 0 ? 66 : 72), AQ.t(`sign.${id}`), col));
     // potted plants
     L.plants.forEach(([px, fl]) => {
       const fy = L.floors[fl];
@@ -196,11 +197,14 @@ AQ.Station = (function () {
       ctx.fillStyle = rg; ctx.fillRect(tk.x - fw, y0 - 14, fw * 2, fh + 24);
     }
     // the tank's own water + backdrop, cropped to the window
-    const bd = AQ.Aquarium.backdropOf(b), sw = Math.round(bd.height * iw / ih);
-    ctx.drawImage(bd, Math.round((bd.width - sw) / 2), 0, sw, bd.height, ix, iy, iw, ih);
+    // (a bigger tank is wider than its window: the view pans slowly from one end to the other and back,
+    // AQ.TUNING.station.windowPanSeconds; a size-0 tank shows its middle, as always)
+    const bd = AQ.Aquarium.backdropOf(b), sw = Math.round(bd.height * iw / ih), spare = bd.width - sw, base = AQ.Tanks.width(b.id, 0) - sw;
+    const pan = spare > base ? 0.5 - 0.5 * Math.cos(t * Math.PI * 2 / AQ.TUNING.station.windowPanSeconds) : 0.5;
+    ctx.drawImage(bd, Math.round(spare * pan), 0, sw, bd.height, ix, iy, iw, ih);
     if (st.dark) { ctx.fillStyle = `rgba(2,6,16,${st.dark * 0.6})`; ctx.fillRect(ix, iy, iw, ih); }
     // its creatures, drifting about
-    tank.creatures.slice(0, 7).forEach((e, k) => {
+    tank.creatures.slice(0, 7 + 3 * AQ.Tanks.size(b.id)).forEach((e, k) => {   // (a bigger tank shows a few more)
       const def = AQ.Creatures.defs[e.id], juv = AQ.Breeding.isJuvenile(e);
       const key = !def ? 'creature.' + e.id : juv && AQ.Sex.babyKey(def, e.variant) ? AQ.Sex.babyKey(def, e.variant) : AQ.Sex.spriteKey(def, e.sex, e.variant), en = AQ.Assets.entry(key);
       if (!en || !def) return;
@@ -219,11 +223,11 @@ AQ.Station = (function () {
       ctx.fillStyle = 'rgba(40,30,20,0.5)'; ctx.fillRect(ex - 1, ey - 2, 4, 3);
       ctx.fillStyle = '#fff0dc'; ctx.fillRect(ex, ey - 2, 2, 2); ctx.fillRect(ex, ey - 3, 1, 1);
     });
-    if (!tank.creatures.length && !(tank.eggs || []).length) F().draw(ctx, 'EMPTY', tk.x, iy + ih / 2 - 2, 'rgba(230,250,255,0.55)', { align: 'center', shadow: false });
+    if (!tank.creatures.length && !(tank.eggs || []).length) F().draw(ctx, AQ.t('station.empty'), tk.x, iy + ih / 2 - 2, 'rgba(230,250,255,0.55)', { align: 'center', shadow: false });
     ctx.fillStyle = 'rgba(220,245,255,0.12)'; ctx.fillRect(ix + 2, iy + 1, 6, ih - 2);       // glass sheen
     if (frame) AQ.Assets.draw(ctx, 'misc.tank_frame', 'idle', tk.x, tk.y, {});
     // name above, star pips on the plate
-    if (!noLabels) F().draw(ctx, (b.short || b.name).toUpperCase(), tk.x, y0 - 7, '#e8fbff', { align: 'center', shadow: 'rgba(4,12,24,0.8)' });
+    if (!noLabels) F().draw(ctx, AQ.Tanks.labelFor(b, 90), tk.x, y0 - 7, '#e8fbff', { align: 'center', shadow: 'rgba(4,12,24,0.8)', max: 90 });
     if (!tk.v || t - tk.vT > 1) { tk.v = AQ.Vibe.evaluate(b.id); tk.vT = t; }   // refreshed once a second
     const v = tk.v;
     if (v.nursery) { F().draw(ctx, `♥ ${AQ.Nursery.occupancy()}/${AQ.Nursery.capacity()}`, tk.x, tk.y - 6, AQ.Nursery.full() ? '#ffcf8a' : '#ffd8e8', { align: 'center', shadow: false }); return; }   // no stars: how full it is
@@ -278,13 +282,13 @@ AQ.Station = (function () {
         ctx.globalAlpha = U.clamp((zoomAmt - 0.5) * 3, 0, 1);
         // room for each label = distance to the nearest neighbouring slot on the same floor
         const room = (tk) => Math.min(...tanks.filter((o) => o !== tk && o.floor === tk.floor).map((o) => Math.abs(o.x - tk.x)), 200) * z - 4;
-        tanks.filter((tk) => tk.b).forEach((tk) => F().draw(ctx, AQ.Tanks.labelFor(tk.b, room(tk)), Math.round((tk.x - sx) * z), Math.round((tk.y - 44 - sy) * z) - 7, '#e8fbff', { align: 'center', shadow: 'rgba(4,12,24,0.9)' }));
+        tanks.filter((tk) => tk.b).forEach((tk) => F().draw(ctx, AQ.Tanks.labelFor(tk.b, room(tk)), Math.round((tk.x - sx) * z), Math.round((tk.y - 44 - sy) * z) - 7, '#e8fbff', { align: 'center', shadow: 'rgba(4,12,24,0.9)', max: room(tk) }));
         ctx.globalAlpha = 1;
       }
       drawPrompt(ctx, P, sx, sy, z);
     }
     if (St.mode === 'walk' && !AQ.Transition.active) {
-      const F = AQ.Font, txt = `${cfg.zoomKey.replace('Key', '')}: ${St.zoomedOut() ? 'FOLLOW ROBOT' : 'SEE ALL TANKS'}`;
+      const F = AQ.Font, txt = AQ.t(St.zoomedOut() ? 'station.followRobot' : 'station.seeAll', { key: AQ.Keys.name('stationView') });
       const helpOn = AQ.HUD.showHelp && AQ.HUD.helpT > 0;              // above the controls hint while it's showing
       ctx.globalAlpha = 0.75; F.draw(ctx, txt, 316, helpOn ? 158 : 172, '#cfe8ff', { align: 'right', shadow: 'rgba(4,12,24,0.85)' }); ctx.globalAlpha = 1;
     }

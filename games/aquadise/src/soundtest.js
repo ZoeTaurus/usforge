@@ -9,29 +9,30 @@ AQ.SoundUI = (function () {
   // with the game (AQ.State.settings / the audio settings).
   const S = { sel: 0, ui: [], tab: 'sound' };
   const BOX = { x: 52, y: 22, w: 216, h: 154 };
-  const TABS = [['sound', 'SOUND'], ['options', 'OPTIONS'], ['touch', 'TOUCH']];
+  const TABS = ['sound', 'options', 'touch'];                      // labels: settings.tab.<id>
   const set = () => (AQ.State.settings = AQ.State.settings || {});
   const touchMode = () => set().touchControls || 'auto';
   // the rows of each tab: bar (a volume), btn (a toggle / cycle, `value` is its label), wide (an action)
   function rows() {
     const st = A.settings();
     if (S.tab === 'sound') return [
-      { id: 'music', kind: 'bar', label: 'MUSIC', bar: st.music }, { id: 'sfx', kind: 'bar', label: 'EFFECTS', bar: st.sfx },
-      { id: 'mute', kind: 'btn', label: 'MUTE', value: st.mute ? 'MUTED' : 'SOUND ON', warn: st.mute },
-      { id: 'test', kind: 'wide', value: 'SOUND TEST' }];
+      { id: 'music', kind: 'bar', label: AQ.t('settings.music'), bar: st.music }, { id: 'sfx', kind: 'bar', label: AQ.t('settings.effects'), bar: st.sfx },
+      { id: 'mute', kind: 'btn', label: AQ.t('settings.mute'), value: AQ.t(st.mute ? 'settings.muted' : 'settings.soundOn'), warn: st.mute },
+      { id: 'test', kind: 'wide', value: AQ.t('settings.soundTest') }];
     if (S.tab === 'options') return [
-      { id: 'hints', kind: 'btn', label: 'TIPS', value: !AQ.Tips || AQ.Tips.hintsOn() ? 'HINTS ON' : 'HINTS OFF' },
-      { id: 'resettips', kind: 'btn', label: 'SEE AGAIN', value: S.resetDone > 0 ? 'TIPS RESET!' : 'RESET TIPS' },
-      { id: 'flashing', kind: 'btn', label: 'FLASHING', value: AQ.U.calm() ? 'REDUCED' : 'NORMAL', on: AQ.U.calm() }];
+      { id: 'hints', kind: 'btn', label: AQ.t('settings.tips'), value: AQ.t(!AQ.Tips || AQ.Tips.hintsOn() ? 'settings.hintsOn' : 'settings.hintsOff') },
+      { id: 'resettips', kind: 'btn', label: AQ.t('settings.seeAgain'), value: AQ.t(S.resetDone > 0 ? 'settings.tipsReset' : 'settings.resetTips') },
+      { id: 'flashing', kind: 'btn', label: AQ.t('settings.flashing'), value: AQ.t(AQ.U.calm() ? 'settings.reduced' : 'settings.normal'), on: AQ.U.calm() },
+      { id: 'language', kind: 'btn', label: AQ.t('settings.language'), value: AQ.Lang.name(AQ.Lang.code), off: AQ.Lang.available().length < 2 }];
     return [
-      { id: 'touchmode', kind: 'btn', label: 'TOUCH CONTROLS', value: touchMode().toUpperCase() },
-      { id: 'swap', kind: 'btn', label: 'SIDES', value: set().swapSides ? 'SWAPPED' : 'NORMAL', on: !!set().swapSides }].concat(S.extraTouchRows ? S.extraTouchRows() : []);
+      { id: 'touchmode', kind: 'btn', label: AQ.t('settings.touchControls'), value: AQ.t(`settings.touch.${touchMode()}`) },
+      { id: 'swap', kind: 'btn', label: AQ.t('settings.sides'), value: AQ.t(set().swapSides ? 'settings.swapped' : 'settings.normal'), on: !!set().swapSides }].concat(S.extraTouchRows ? S.extraTouchRows() : []);
   }
   const order = () => ['tabs'].concat(rows().map((r) => r.id), ['back']);
   S.open = function () { S.sel = 0; };
   function layout() {
     const ui = [];
-    TABS.forEach(([id, label], i) => ui.push({ id: 'tab:' + id, row: 'tabs', x: BOX.x + 10 + i * 66, y: BOX.y + 14, w: 64, h: 11, label, on: S.tab === id }));
+    TABS.forEach((id, i) => ui.push({ id: 'tab:' + id, row: 'tabs', x: BOX.x + 10 + i * 66, y: BOX.y + 14, w: 64, h: 11, label: AQ.t(`settings.tab.${id}`), on: S.tab === id }));
     rows().forEach((r, i) => {
       const y = BOX.y + 34 + i * 15;
       if (r.kind === 'bar') {
@@ -39,14 +40,14 @@ AQ.SoundUI = (function () {
         ui.push({ id: r.id + '+', row: r.id, x: 224, y, w: 10, h: 9, label: '+' });
         ui.push({ id: r.id + 'bar', row: r.id, x: 159, y, w: 62, h: 9, bar: r.bar });
       } else if (r.kind === 'wide') ui.push({ id: r.id, row: r.id, x: 110, y, w: 100, h: 11, label: r.value });
-      else ui.push({ id: r.id, row: r.id, x: 146, y, w: 106, h: 10, label: r.value, warn: r.warn, on2: r.on });
-      ui.push({ id: 'label:' + r.id, row: r.id, label: r.label, y, text: true });
+      else ui.push({ id: r.id, row: r.id, x: 146, y, w: 106, h: 10, label: r.value, warn: r.warn, on2: r.on, off: r.off });
+      if (r.label != null) ui.push({ id: 'label:' + r.id, row: r.id, label: r.label, y, text: true });   // (a wide button has no label)
     });
-    ui.push({ id: 'back', row: 'back', x: 110, y: BOX.y + BOX.h - 22, w: 100, h: 11, label: 'BACK' });
+    ui.push({ id: 'back', row: 'back', x: 110, y: BOX.y + BOX.h - 22, w: 100, h: 11, label: AQ.t('ui.back') });
     return ui;
   }
   function nudge(row, dir) {
-    if (row === 'tabs') { const i = TABS.findIndex((t) => t[0] === S.tab); S.tab = TABS[(i + dir + TABS.length) % TABS.length][0]; A.play('menu_move'); return; }
+    if (row === 'tabs') { const i = TABS.indexOf(S.tab); S.tab = TABS[(i + dir + TABS.length) % TABS.length]; A.play('menu_move'); return; }
     if (row !== 'music' && row !== 'sfx') return;
     A.setVolume(row, A.settings()[row] + dir * 0.1);
     A.play('menu_move');
@@ -57,6 +58,10 @@ AQ.SoundUI = (function () {
     else if (id === 'mute') { A.toggleMute(); A.play('menu_select'); }
     else if (id === 'hints') { AQ.Tips.setHints(!AQ.Tips.hintsOn()); dirty(); }
     else if (id === 'flashing') { set().reduceFlashing = !AQ.U.calm(); dirty(); }
+    else if (id === 'language') {                 // the next language that exists (only the ones with a file)
+      const list = AQ.Lang.available(), next = list[(list.indexOf(AQ.Lang.code) + 1) % list.length];
+      if (list.length > 1) { set().language = AQ.Lang.set(next); dirty(); }
+    }
     else if (id === 'resettips') { AQ.Tips.reset(); S.resetDone = 2; dirty(); }
     else if (id === 'touchmode') { const m = ['auto', 'on', 'off'], i = m.indexOf(touchMode()); set().touchControls = m[(i + 1) % 3]; if (AQ.Touch) AQ.Touch.refresh(); dirty(); }
     else if (id === 'swap') { set().swapSides = !set().swapSides; dirty(); }
@@ -93,19 +98,19 @@ AQ.SoundUI = (function () {
     const st = A.settings(), ord = order(), selRow = ord[S.sel];
     g.fillStyle = 'rgba(6,20,38,0.95)'; g.fillRect(BOX.x, BOX.y, BOX.w, BOX.h);
     g.fillStyle = 'rgba(110,240,239,0.6)'; g.fillRect(BOX.x, BOX.y, BOX.w, 1); g.fillRect(BOX.x, BOX.y + BOX.h - 1, BOX.w, 1);
-    F().draw(g, 'SETTINGS', 160, BOX.y + 4, '#6ef0ef', { align: 'center', shadow: false });
+    F().draw(g, AQ.t('settings.title'), 160, BOX.y + 4, '#6ef0ef', { align: 'center', shadow: false });
     g.fillStyle = 'rgba(110,240,239,0.25)'; g.fillRect(BOX.x + 8, BOX.y + 28, BOX.w - 16, 1);
     for (const r of S.ui) {
-      if (r.text) { F().draw(g, r.label, 66, r.y + (rows().find((x) => x.id === r.row).kind === 'bar' ? 2 : 3), selRow === r.row ? '#ffffff' : '#9fd3ee', { shadow: false }); continue; }
+      if (r.text) { F().draw(g, r.label, 66, r.y + ((rows().find((x) => x.id === r.row) || {}).kind === 'bar' ? 2 : 3), selRow === r.row ? '#ffffff' : '#9fd3ee', { shadow: false, max: (S.ui.find((u) => u.row === r.row && !u.text) || { x: 146 }).x - 70 }); continue; }
       if (r.bar != null) {
         for (let i = 0; i < 10; i++) { g.fillStyle = i < Math.round(r.bar * 10) ? (st.mute ? '#5f7a8c' : '#6ef0ef') : '#16334a'; g.fillRect(r.x + i * 6 + 1, r.y + 2, 5, 5); }
-        F().draw(g, `${Math.round(r.bar * 100)}%`, 258, r.y + 2, '#c3dfec', { align: 'right', shadow: false });
+        F().draw(g, AQ.t('ui.percent', { n: Math.round(r.bar * 100) }), 258, r.y + 2, '#c3dfec', { align: 'right', shadow: false });
       } else if (r.row === 'tabs') AQ.Aquarium.button(g, r, S.hover === r || (selRow === 'tabs' && r.on));   // the open tab is lit
       else AQ.Aquarium.button(g, Object.assign({}, r, { on: (r.on || r.on2 || selRow === r.row) && !r.warn }), S.hover === r);
     }
     if (selRow !== 'tabs' && selRow !== 'back') { const r = S.ui.find((u) => u.text && u.row === selRow); if (r) F().draw(g, '>', 59, r.y + 3, '#6ef0ef', { shadow: false }); }
-    const foot = S.tab === 'sound' ? `${AQ.Keys.name('mute')}: QUICK MUTE ANYWHERE` : S.tab === 'touch' ? (AQ.Touch && AQ.Touch.active() ? 'TOUCH CONTROLS ARE ON' : 'TOUCH CONTROLS ARE OFF RIGHT NOW') : 'SAVED WITH YOUR GAME';
-    F().draw(g, foot, 160, BOX.y + BOX.h - 8, '#7fa4ba', { align: 'center', shadow: false });
+    const foot = S.tab === 'sound' ? AQ.t('settings.foot.sound', { key: AQ.Keys.name('mute') }) : S.tab === 'touch' ? AQ.t(AQ.Touch && AQ.Touch.active() ? 'settings.foot.touchOn' : 'settings.foot.touchOff') : AQ.t('settings.foot.saved');
+    F().draw(g, foot, 160, BOX.y + BOX.h - 8, '#7fa4ba', { align: 'center', shadow: false, max: BOX.w - 8 });
   };
   return S;
 })();
@@ -113,7 +118,7 @@ AQ.SoundUI = (function () {
 AQ.SoundTest = (function () {
   const F = () => AQ.Font, A = AQ.Audio;
   const T = { tab: 0, sel: 0, ui: [], from: 'title' };
-  const TABS = [['sfx', 'EFFECTS'], ['amb', 'AMBIENCE'], ['music', 'MUSIC']];
+  const TABS = [['sfx', 'soundtest.effects'], ['amb', 'soundtest.ambience'], ['music', 'soundtest.music']];
   const COLS = 4, CW = 76, CH = 8, STEP = 9, X0 = 8, Y0 = 28;
 
   T.open = function (game, from) {
@@ -132,8 +137,8 @@ AQ.SoundTest = (function () {
     return list.map((s) => ({ id: kind === 'amb' ? s.bed : s.id, label: s.label, key: s.id }));
   }
   function layout() {
-    const ui = TABS.map(([, name], i) => ({ id: 'tab', i, x: 60 + i * 68, y: 14, w: 64, h: 10, label: name, on: i === T.tab }));
-    ui.push({ id: 'back', x: 270, y: 2, w: 46, h: 10, label: 'BACK' });
+    const ui = TABS.map(([, name], i) => ({ id: 'tab', i, x: 60 + i * 68, y: 14, w: 64, h: 10, label: AQ.t(name), on: i === T.tab }));
+    ui.push({ id: 'back', x: 270, y: 2, w: 46, h: 10, label: AQ.t('ui.back') });
     items().forEach((it, i) => ui.push({ id: 'item', i, it, x: X0 + (i % COLS) * (CW + 2), y: Y0 + Math.floor(i / COLS) * STEP, w: CW, h: CH, label: it.label }));
     return ui;
   }
@@ -177,9 +182,9 @@ AQ.SoundTest = (function () {
 
   T.draw = function (g) {
     g.fillStyle = '#06101e'; g.fillRect(0, 0, 320, 180);
-    F().draw(g, 'SOUND TEST', 8, 4, '#ffe9a8');
+    F().draw(g, AQ.t('soundtest.title'), 8, 4, '#ffe9a8', { max: 90 });
     const st = A.settings();
-    if (st.mute) F().draw(g, `MUTED - PRESS ${AQ.TUNING.audio.muteKey.replace('Key', '')}`, 160, 4, '#ffb08a', { align: 'center' });
+    if (st.mute) F().draw(g, AQ.t('soundtest.muted', { key: AQ.Keys.name('mute') }), 160, 4, '#ffb08a', { align: 'center' });
     let cur = null;
     for (const r of T.ui) {
       if (r.id !== 'item') { AQ.Aquarium.button(g, r, T.hover === r); continue; }
@@ -187,11 +192,12 @@ AQ.SoundTest = (function () {
       if (sel) cur = r.it;
       g.fillStyle = on ? '#2e7d96' : sel ? '#24506b' : '#132b40'; g.fillRect(r.x, r.y, r.w, r.h);
       if (sel) { g.fillStyle = '#6ef0ef'; g.fillRect(r.x, r.y + r.h - 1, r.w, 1); }
-      F().draw(g, (on ? '> ' : '') + r.label, r.x + 3, r.y + 1, on ? '#ffffff' : '#c3dfec', { shadow: false });
+      F().draw(g, (on ? '> ' : '') + r.label, r.x + 3, r.y + 1, on ? '#ffffff' : '#c3dfec', { shadow: false, max: r.w - 4 });
     }
     const kind = TABS[T.tab][0];
-    if (cur) F().draw(g, `ID: ${cur.key}${A.hasRecording(cur.key) ? '  (RECORDING)' : ''}${kind === 'sfx' ? '' : kind === 'amb' ? '  (LOOPS - CLICK AGAIN TO STOP)' : cur.stinger ? '  (PLAYS OVER THE MUSIC)' : '  (CLICK AGAIN TO STOP)'}`, 8, 162, '#8fb6cc');
-    F().draw(g, 'CLICK / ENTER: PLAY   Q/E: SWITCH LIST   ESC: BACK', 160, 172, '#5f7f96', { align: 'center' });
+    // (the font has no '_': ids show it as a space, as they always looked)
+    if (cur) F().draw(g, AQ.t(`soundtest.info.${kind === 'sfx' ? 'sfx' : kind === 'amb' ? 'amb' : cur.stinger ? 'stinger' : 'music'}`, { id: cur.key.replace(/_/g, ' '), rec: A.hasRecording(cur.key) ? AQ.t('soundtest.recording') : '' }), 8, 162, '#8fb6cc');
+    F().draw(g, AQ.t('soundtest.footer'), 160, 172, '#5f7f96', { align: 'center' });
   };
   return T;
 })();

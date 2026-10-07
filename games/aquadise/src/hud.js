@@ -31,7 +31,7 @@ AQ.HUD = (function () {
   const SH = 'rgba(4,12,24,0.75)';
   H.clockText = function () {
     const h = AQ.Clock.hour(), hh = Math.floor(h), mm = Math.floor((h - hh) * 60 / 10) * 10;
-    return `${AQ.Clock.phase().toUpperCase()} ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+    return AQ.t('clock.time', { phase: AQ.t(`clock.${AQ.Clock.phase()}`).toUpperCase(), h: String(hh).padStart(2, '0'), m: String(mm).padStart(2, '0') });
   };
   // 9x7 pixel icon for the current phase
   const SUN = ['..#.#.#..', '...###...', '.#######.', '..#####..', '.#######.', '...###...', '..#.#.#..'];
@@ -59,16 +59,17 @@ AQ.HUD = (function () {
     if (up) {
       // one row per upgrade: label + pips (lit = your level)
       const rows = [
-        ['NET', up.net, AQ.TUNING.net.maxLevel, '#ffd56b'], ['SPD', up.speed, AQ.TUNING.speedMaxLevel, '#7ef0c0'],
-        ['LAMP', up.lantern || 0, AQ.TUNING.upgrades.lanternMax, '#ffe9a8'], ['DEEP', up.depth || 0, AQ.TUNING.upgrades.depthMax, '#9fd8ff']
+        [AQ.t('hud.net'), up.net, AQ.TUNING.net.maxLevel, '#ffd56b'], [AQ.t('hud.speed'), up.speed, AQ.TUNING.speedMaxLevel, '#7ef0c0'],
+        [AQ.t('hud.lamp'), up.lantern || 0, AQ.TUNING.upgrades.lanternMax, '#ffe9a8'], [AQ.t('hud.deep'), up.depth || 0, AQ.TUNING.upgrades.depthMax, '#9fd8ff']
       ];
       ctx.globalAlpha = 0.85;
+      const px = Math.max(23, 4 + Math.min(60, Math.max(...rows.map((r) => F.width(r[0])))) + 4);   // pips sit after the longest label
       rows.forEach(([label, lvl, max, col], r) => {
         const y = 4 + r * 7;
-        F.draw(ctx, label, 4, y, '#cfeaf5', { shadow: SH });
+        F.draw(ctx, label, 4, y, '#cfeaf5', { shadow: SH, max: 60 });
         for (let i = 0; i < max; i++) {
-          ctx.fillStyle = SH; ctx.fillRect(24 + i * 5, y + 2, 4, 3);
-          ctx.fillStyle = i < lvl ? col : 'rgba(255,255,255,0.22)'; ctx.fillRect(23 + i * 5, y + 1, 4, 3);
+          ctx.fillStyle = SH; ctx.fillRect(px + 1 + i * 5, y + 2, 4, 3);
+          ctx.fillStyle = i < lvl ? col : 'rgba(255,255,255,0.22)'; ctx.fillRect(px + i * 5, y + 1, 4, 3);
         }
       });
       ctx.globalAlpha = 1;
@@ -76,14 +77,18 @@ AQ.HUD = (function () {
     // the time of day (sea only): sun, sunrise/sunset or moon
     if (game.scene !== 'station') drawClockIcon(ctx, vw - 12, 12);   // (the station floats in space: no sun there)
     if (AQ.Starfall) AQ.Starfall.drawHud(ctx, vw - 20, 13, game.time);   // a star waiting / a meteor-shower night
+    // glass panes (top-right, under the clock), once you've found any
+    if (AQ.Panes && AQ.Panes.known()) { ctx.globalAlpha = 0.85; AQ.Panes.drawCounter(ctx, vw - 3, 22); ctx.globalAlpha = 1; }
     // collection progress (top-right)
-    if (AQ.Collection) {
+    // (it's also the collection-log button, with a little book: src/logbutton.js)
+    if (AQ.LogButton) AQ.LogButton.draw(ctx, game);
+    else if (AQ.Collection) {
       const c = AQ.Collection.progress();
       ctx.globalAlpha = 0.85;
       F.draw(ctx, `${c.discovered}/${c.total}`, vw - 4, 4, '#ffe9a8', { align: 'right', shadow: SH });
       ctx.globalAlpha = 1;
     }
-    if (game.player.sneaking) { ctx.globalAlpha = 0.8; F.draw(ctx, 'SNEAKING', 4, 34, '#9fe8ff', { shadow: SH }); ctx.globalAlpha = 1; }
+    if (game.player.sneaking) { ctx.globalAlpha = 0.8; F.draw(ctx, AQ.t('hud.sneaking'), 4, 34, '#9fe8ff', { shadow: SH }); ctx.globalAlpha = 1; }
     // toasts: at most two, newest at the bottom
     const shown = game.state === 'pause' ? [] : H.toasts.slice(-2), helpOn = H.showHelp && H.helpT > 0;   // (paused: the pause screen speaks)
     const base = helpOn ? vh - 28 : vh - 20;                     // above the controls hint while it's showing
@@ -95,7 +100,7 @@ AQ.HUD = (function () {
     // help (first moments only, or when H is pressed)
     if (H.showHelp && H.helpT > 0 && game.state !== 'pause') {
       ctx.globalAlpha = Math.min(1, H.helpT) * 0.9;
-      const tut = AQ.data.tutorial, lines = (AQ.Touch && AQ.Touch.active() && tut.touchHelpLines ? tut.touchHelpLines : tut.helpLines).map(AQ.Keys.fill);    // data/tutorial.js; key names from the bindings
+      const tut = AQ.data.tutorial, lines = (AQ.Touch && AQ.Touch.active() && tut.touchHelpLines ? tut.touchHelpLines : tut.helpLines).map(AQ.Keys.fill);    // help.* in data/lang/en.js; key names from the bindings
       lines.forEach((l, i) => F.draw(ctx, l, vw / 2, vh - 15 + i * 7, '#d8f3ff', { align: 'center', shadow: SH }));
       ctx.globalAlpha = 1;
     }

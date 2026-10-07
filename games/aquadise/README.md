@@ -29,7 +29,7 @@ npx http-server -c-1 .      # or: python3 -m http.server
 | climb a ladder      | W / S (or Up / Down) on a ladder         |
 | building: whole-view toggle | V                                |
 | field guide         | I (Left/Right: turn the page, Esc: close)  |
-| collection log      | L (Left/Right: tabs, WASD or Up/Down: move, Q/E or the dots: biome, wheel: scroll, Enter: open entry, then Left/Right: prev/next species, Esc: back / close) |
+| collection log      | L, or click / tap the counter in the top right (Left/Right: tabs, WASD or Up/Down: move, Q/E or the dots: biome, wheel: scroll, Enter: open entry, then Left/Right: prev/next species, Esc: back / close) |
 | map                 | M                                        |
 | pause / home / reset | Esc                                     |
 | help overlay        | H                                        |
@@ -59,6 +59,9 @@ them on a computer, set `AQ.TUNING.debug.forceTouch: true`: the controls show an
 finger (drag in the joystick area, click the buttons).
 
 In the aquarium: **Q/E** switch tanks, **F** feeds, **T** (or TANKS) shows every tank at a glance.
+In a bigger (expanded) tank: **A/D** or **Left/Right** scroll it sideways (Q/E still switch tanks;
+in a size-0 tank the arrows switch tanks as before), or drag the water, use the mouse wheel over it,
+or click / drag the thin strip on the tank's lower rim.
 Drag a tray item into the tank (or click it, then click in the tank). Drag a placed item to move it;
 right-click or **Delete** removes it. Tray pieces show ♥ when a creature in the tank loves them and a
 green dot when they suit the tank's theme (best ones first; hover for details). While carrying a piece,
@@ -100,6 +103,90 @@ browsers won't let a page save pictures made from file:// images.
   dive before the water gets heavy: you slow down, the view softens and you drift back up, never
   any damage). Limits are in `upgrades.depthLimitY`; level 0 reaches everything except the bottom of the
   trench's rounded floor, which each level lets you sink a little further into (level 3 reaches the bottom).
+- **The collection-log button:** the discovered counter in the HUD's top-right corner ("31/77") is also
+  a button, with a small book beside it. Click or tap it to open the collection log, just like L (which
+  still works, as do the touch MENU and the title screen). It still shows the count exactly as before.
+  - **Looks:** it lights up on hover with a tooltip, "COLLECTION LOG (L)" (the key name follows the
+    binding; there's no tooltip with touch), and presses in while held.
+  - **Safe to click:** a click or tap on it is used up, so it never swings the net or reaches anything
+    underneath. With touch, its hit area grows to a thumb-sized 44 screen pixels without looking any
+    different, and it never covers the touch MENU button.
+  - **When it works:** everywhere the counter shows: the sea (also with the map open), the hill and the
+    aquarium building. It's dimmed and does nothing whenever the log key wouldn't work (a scene
+    transition, the guided dive's first question, the touch MENU panel, pause and the other menus), so
+    it never opens on top of another menu.
+  - **The glow:** until you've clicked it once (saved), it glows gently every few seconds, so players who
+    don't read know it's a button.
+  - The controls hint, the Guide's log page, the catch tip and the guided dive's log step ("click the
+    counter, or press L"; on touch, "tap the counter") mention it.
+  - Tuning: `AQ.TUNING.logButton` (`pulseEvery` 6 s, `pulseSeconds` 1.2 s, `touchPx` 44).
+- **Glass panes (building material):** the one material used for every tank. Every chest holds 2-4
+  panes on top of its upgrade; once all four upgrades are maxed, a chest holds only panes ("You found
+  3 glass panes!"). The amount shows in the chest's toast. A small counter (a pane icon and the
+  number) sits in the top-right corner of the HUD under the clock, once you've found any, and on the
+  TANKS overview. Saved with the game; older saves start with 0. The first time you get some, a tip
+  explains them. The name is `pane.name` in `data/lang/en.js` (change it there and every text follows).
+  Tuning: `AQ.TUNING.panes` (`chestMin`, `chestMax`). **Testing:** set `debug.hundredPanes: true` in
+  `src/config.js` and every game you load or start has 100 panes.
+- **Bigger tanks (SIZE 0-3):** every tank, the nursery included, has a SIZE level, saved per tank
+  (`AQ.State.tanks[id].size`; older saves are all size 0, today's tank). The tank screen's third tray
+  tab, **TANK**, shows `SIZE n/3`, the counts and your panes, and an **EXPAND: 20** button with a pane
+  icon. It's greyed out with the reason beside it ("Need 12 more glass panes." / "As big as a tank
+  gets.", MAX SIZE). Pressing it asks first (what it costs, how much room the next size gives), then
+  plays a soft building sound (TANK EXPANDED in the Sound Test) while a seam of new glass sweeps out
+  to the new end of the tank, a blueprint until it arrives, and the view follows it.
+  - **Physically wider, never squashed:** each size is wider (312, 468, 624, 780 px), drawn at the same
+    crisp scale. The screen shows 312 px at a time and scrolls sideways (keys above, dragging the water
+    with a mouse or a finger, the wheel, the strip on the lower rim, or carrying a piece to the edge of
+    the view). Small arrows at the view's edges show there's more tank that way. Placing, moving,
+    flipping and layering decor, info cards, hover and tap tooltips, the vibe tooltip, feeding (the
+    shaker sprinkles where you're looking), undo and photo mode all work anywhere along it.
+  - **Photo mode** captures the whole tank, however wide (in photo mode, scroll with the keys or by
+    dragging; a tap that doesn't drag takes the photo).
+  - **Room:** creatures spawn and swim across the whole width; capacity is read from the tank's size
+    everywhere (new catches, moving creatures in from storage, graduates, old-save moves, the "12/18"
+    count in the top bar, the nursery's room and its "breeding paused" limit). Crowding scales with the
+    room: a tank's "comfortable" and "nervous above" numbers grow in proportion, so 12 creatures in a
+    size-1 tank feel roomy, not crowded.
+  - **In the building:** each tank's window keeps its size; a bigger tank's window slowly pans across
+    the whole tank and back (`station.windowPanSeconds`), and shows a few more of its creatures.
+  - Tuning (`AQ.TUNING.tank`): `capacity` [12, 18, 24, 30], `decorCapacity` [40, 60, 80, 100],
+    `expandCost` [10, 20, 35] panes, `width` [312, 468, 624, 780]; the nursery's room by size is
+    `nursery.capacity` [20, 30, 40, 50]; scrolling speeds `aquarium.scroll`; the animation length
+    `aquarium.buildSeconds`; the keys `keys.scrollLeft` / `keys.scrollRight`.
+- **ONE PAIR EACH (TANK tab):** arranges the tank to show one ♂ and one ♀ of every species that
+  lives there (two of a species without sexes), bringing creatures in from the tank's storage and
+  sending the extras to storage. It always asks first ("Move 7 extras to storage and bring 2 from
+  storage into the tank?", CONFIRM / CANCEL) and never removes anything: creatures only move between
+  the tank and its own storage. Which one is shown, best first: a rare variant (✦), an adult over a
+  still-growing baby, one already in the tank (so nothing swaps for no reason), then the oldest. A
+  courting pair always stays (it is already a ♂ and a ♀), so breeding carries on; that's the one case a
+  rare variant may wait in storage instead. A species with only one sex collected shows the one it has.
+  If every pair doesn't fit the room, complete pairs go in first (the species you have the most of
+  first), then singles, and the question says what waits in storage and which size fits them all
+  ("A pair of each needs room for 18: expand the tank to size 1"). Logic: `src/pairs.js`. Not in the
+  nursery.
+- **Releasing creatures:** every info card has **RELEASE**: a creature in the tank (click it), one
+  waiting in storage (the small "i" on its FISH-tray tile opens its card, with INTO TANK and RELEASE) or a
+  baby in the nursery. The TANK tab has **RELEASE EXTRAS** and **SELECT TO RELEASE**. A released creature
+  swims up and away with a sparkle and a soft chime (RELEASE CHIME in the Sound Test), with a quiet note
+  ("Goodbye, Ribbonmane! Released into the sea."). It's simply removed from your collection: no wild
+  respawn trick, and nothing else changes. The log's discovered species, the ♂ / ♀ slots, the
+  rare-variant marks, the "bred" marker and the catch counts all stay exactly as they are
+  (`src/release.js` never touches the log). A courting pair that loses one simply stops courting.
+  - **Always asks:** every release asks for confirmation first.
+  - **A second, clearly worded question** comes before releasing a rare variant (✦), the last ♂ or ♀ of
+    a species you have (or the last one of a species without sexes), a nursery baby or one still growing
+    ("This is a rare variant (✦). Release it anyway?", RELEASE ANYWAY / CANCEL).
+  - **RELEASE EXTRAS** only takes from the tank's storage, never from the tank itself or the nursery. It
+    keeps one pair of every species (the same pair ONE PAIR EACH would show), every rare variant, the
+    last of a sex and anything still growing, and shows a preview first ("Release 9 creatures from
+    storage? Keeping one pair of every species, all rare variants and anything still growing.").
+  - **SELECT TO RELEASE** is the careful way: the tray shows the storage creatures, a tap or click
+    picks one (a warm frame and a tick), and RELEASE n / DONE replace the tabs. If any picked one
+    deserves a second look, you're asked about those first (RELEASE THEM TOO / KEEP THOSE), then the
+    final CONFIRM. Esc or DONE leaves select mode.
+  - Tuning: `aquarium.releaseSeconds` (how long the swim-away takes).
 - **New catch behaviours:** `mirror` (copies your swimming mirrored; hold still and it drifts in),
   `lure` (a glowing decoy on a stalk; net the dim creature beside it, not the light) and `midair`
   (leaps out of the water; only nettable in the air). See the header of data/creatures.js.
@@ -118,7 +205,7 @@ browsers won't let a page save pictures made from file:// images.
 - **Message bottles + field notes:** one bottle per species, lying on the seabed, on the Tide Pools
   shore or bobbing at the surface in that species' biome. They glint softly; swim (or walk) into one
   to pick it up, like a chest. Found bottles are saved and never come back. Each holds a field
-  researcher's notes on its species (`data/lore.js`): an epithet, an invented scientific name and a
+  researcher's notes on its species (`lore.<id>.*` in `data/lang/en.js`): an epithet, an invented scientific name and a
   few lines of biology. The species' name only appears once you've caught it ("this creature"
   until then). Read them on a species' entry page (ENTER or click in the SPECIES tab, in its Field
   Notes section) or in the NOTES tab, grouped by biome. The log header shows "BOTTLES FOUND n/total". Pickup toasts (and every other toast)
@@ -141,7 +228,8 @@ browsers won't let a page save pictures made from file:// images.
   it's in the Sound Test as SHOOTING STAR. Tuning: `AQ.TUNING.shootingStars` (how often, speed, trail
   length, angle, tints, underwater glow, sound volume).
 - **No fail state.** Hostile creatures only knock you back. Air is unlimited.
-- **Progression** comes only from chests: a bigger net (3 levels) and faster swimming (3 levels).
+- **Progression** comes only from chests: a bigger net (3 levels) and faster swimming (3 levels),
+  the LAMP and DEEP upgrades, and glass panes for building bigger tanks.
   Six chests exist at a time, and they despawn and respawn around the world.
 - **Getting to the aquarium.** Walk left off the far edge of Tide Pools (by the little signpost)
   and the screen fades to a separate hill scene. Walk up the hill and stand in the UFO's beam,
@@ -163,7 +251,7 @@ browsers won't let a page save pictures made from file:// images.
   mid-netting, during a transition, in photo mode or in a menu, and any key or click closes one (Esc
   and clicks on the box don't do anything else). Each shows once; seen tips are saved. HINTS ON/OFF and
   RESET TIPS are in the Sound settings (pause menu or title). Older saves skip every tip their own
-  progress shows they already know. Text: `data/tutorial.js` (key names are filled in from the real
+  progress shows they already know. Text: `tip.*` in `data/lang/en.js` (key names are filled in from the real
   bindings, see below). Sounds: NEW TIP and STEP COMPLETE in the Sound Test. Tuning: `AQ.TUNING.tips`.
 - **Optional guided first dive.** NEW GAME on a fresh save asks "Want a quick guided dive?" (YES /
   NO THANKS; Esc is no thanks, and the answer is saved). It's a short checklist shown one step at a
@@ -172,17 +260,56 @@ browsers won't let a page save pictures made from file:// images.
   net, catch it (a very easy Glasswinged Minnow waits in the water for you: it's a real catch), drop
   bait, open the log, done. Each step completes when you actually do it (a soft chime), nothing ever
   pauses or takes your controls, and if you wander off it just waits (it dims, and hides away from the
-  sea). SKIP skips a step, STOP ALL ends it. Restart it any time from the pause menu (TUTORIAL); it
-  never changes your progress. Text: `data/tutorial.js` (dive). Tuning: `AQ.TUNING.dive`. Testing: set
+  sea). SKIP skips a step, STOP ALL ends it. The last step points out the log button (the counter) and
+  the Guide. It never changes your progress.
+- **REDO TUTORIAL** (pause menu, title screen under CONTROLS and GUIDE, and the Guide's left page) runs the
+  guided dive again from anywhere (`src/redo.js`).
+  - **It asks first:** "Redo the tutorial?" with "Also show the tips again?" YES / NO (NO by default:
+    tips are marked unseen only if you say YES), LET'S GO / CANCEL (Enter / Esc work too).
+  - **The trip there:** away from the Tide Pools' start (the hill, the building, a tank screen, far out at
+    sea, or the title screen), it says "You'll go to the Tide Pools and come back here after", then fades
+    to the starting spot and starts the dive.
+  - **The trip back:** when the dive finishes, is skipped through or stopped (STOP ALL), it fades back to
+    where you were (the same scene and spot, or the tank screen you came from), with the scene's own
+    safety check, and a toast: "Tutorial done! Back where you were." The way back is kept in the save
+    (`tutorial.redo`), so a reload mid-dive still brings you back.
+  - **Progress stays as it is:** the log, upgrades, bottles, panes, tanks and breeding never change.
+    The dive's easy minnow is a real creature, so catching it counts as a normal catch.
+  - Tuning: `redo.nearStart` (closer than 400 px to the start, the dive just begins where you are, with
+    no trip). Text: `dive.*` in `data/lang/en.js`. Tuning: `AQ.TUNING.dive`. Testing: set
   `debug.tutorialReset: true` and press **R** to restart the dive and reset every tip
   (`debug.tutorialResetKey`).
+- **Friendly nudges for players who struggle** (`src/nudges.js`): now and then, a short, light line in
+  the tip-box style (top centre, with a small icon and the soft "new tip" sound) when someone seems
+  stuck. They never mention the log or the Guide and are never bossy, never pause or block anything,
+  and go after 5 seconds or when you do something else (a click on the box closes it too).
+  - **Where they can happen:** only active play in the sea counts. Never in a menu, the guided dive (or
+    its question), a transition, photo mode or the tank and nursery screens.
+  - **Three situations,** each with its own 12 lines (`nudge.*` in `data/lang/en.js`), shuffled so a
+    line doesn't repeat until all of its kind have shown (the shuffle is saved):
+    - **net spam** (teasing): 12 swings in 20 seconds with no catch (holding to pry isn't a swing), or 4+
+      clicks a second for 3 seconds;
+    - **no catch for a long time** (encouraging): 4 minutes of active play without a catch (3 in a game
+      with nothing caught yet); being away from the keys for more than 20 seconds doesn't count. A bigger
+      collection waits longer, since the rare ones take time (`nudges.drought.bySpecies`): 5 minutes
+      with 20+ species, 6 with 40+, 7 with 50+, 8 with 60+, 10 with 70+. Never once every species is
+      caught (`nudges.drought.maxSpecies` can also stop it from a number of species on). These
+      also show a small REDO TUTORIAL button (`nudges.droughtRedoButton`);
+    - **key mashing** (silly): the same key that does nothing in the sea (the interact key, say), 6
+      times in 8 seconds.
+  - **Rate limits:** at most one every 90 seconds and 3 per 10 minutes, none within 60 seconds of a
+    catch, and none while a tip or toast is showing (tips wait for a nudge, too). HINTS off turns them
+    off, and `nudges.enabled` turns the whole feature off.
+  - Tuning: `AQ.TUNING.nudges`. **Testing:** set `debug.nudges: true` and press **Y** in the sea to show
+    one right now (it skips the rate limits), cycling net spam, no catch, key mashing
+    (`debug.nudgeKey`).
 - **The GUIDE.** A small paged field-guide book: from the title screen (GUIDE), the pause menu
   (GUIDE) or the help line's key (**I** by default, `keys.guide`). Left/right, A/D or the arrows turn
   the page; Esc or the guide key closes it. Ten short pages, each with a picture: moving, swimming and
   sneaking; catching (the net, bait and how creatures behave); upgrades and chests; day, night and
   night events; getting to the aquarium; tanks; sexes, breeding and rare colors; the log and message
   bottles; photo mode; sound and settings. A page (or line) about a feature the build doesn't have is
-  left out. Text: `data/tutorial.js` (guide); key names and numbers like the day length or the
+  left out. Text: `guide.*` in `data/lang/en.js` (the page list: `data/tutorial.js`); key names and numbers like the day length or the
   rare-color odds are filled in live from the bindings and config.js (`{k:...}`, `{c:...}`, `{inv:...}`).
 - **REDUCE FLASHING.** In SETTINGS > OPTIONS (pause menu or title), saved with your other settings.
   When it's on: the photo camera flash becomes a faint, slow fade instead of a white flash; shooting
@@ -195,17 +322,27 @@ browsers won't let a page save pictures made from file:// images.
   marker and the Variants outline. A one-time tip mentions it the first time a flash plays; the
   Guide's Sound page too. Tuning: `AQ.TUNING.calm`.
 - **Save files and safety.** EXPORT SAVE and IMPORT SAVE are on the title screen and in the pause
-  menu. Export downloads your save as `Aquadise-save-YYYY-MM-DD.json` (it works even when the browser
-  won't let the game save). Import lets you pick a file, checks it carefully (an Aquadise save, the
-  right structure, a version this game understands) and refuses anything else with a friendly message,
-  then asks before replacing your save; the imported save loads through the normal loading and
-  migration, just like an old save, and your previous save becomes the backup. Saves carry a version
-  number (`AQ.Save.VERSION`, now 2; the original v1 saves still load). Before every save the previous
-  good one is kept as a backup. If your save can't be read, the title asks whether to restore the
-  backup (or import a file) or start fresh, and the unreadable save is never overwritten: starting
-  fresh keeps it aside (`aquadise.save.v1.unreadable`). If the browser blocks saving (e.g. private
-  browsing), the game keeps running, says so once, and the title / pause screens show a small note.
-  Tuning: `saveFile.maxImportBytes`.
+  menu.
+  - **Export** saves `Aquadise-save-YYYY-MM-DD.json` (it works even when the browser won't let the game
+    save). On a phone whose browser can share files, it opens the share sheet ("Save to Files",
+    Drive, a message...); everywhere else it's a download.
+  - **Why it waits for the click to finish:** some browsers only allow a download, the file picker, the
+    share sheet or the clipboard during the click or tap itself, and the game sees a click a frame later.
+    So these run when the button is let go (`saveFile.gestureWaitMs`).
+  - **COPY SAVE TEXT:** some browsers and embedded pages silently block downloads, so the export message
+    always offers COPY SAVE TEXT. It copies the save to the clipboard, or, if the clipboard is blocked too,
+    shows it in a text box to copy by hand.
+  - **Import** asks CHOOSE FILE or PASTE TEXT (a text box for save text copied that way). Either way the
+    save is checked carefully (an Aquadise save, the right structure, a version this game understands)
+    and refuses anything else with a friendly message, then asks before replacing your save; the
+    imported save loads through the normal loading and migration, just like an old save, and your
+    previous save becomes the backup. Saves carry a version number (`AQ.Save.VERSION`, now 3; the
+    original v1 saves still load). Before every save the previous good one is kept as a backup. If your
+    save can't be read, the title asks whether to restore the backup (or import a file) or start fresh,
+    and the unreadable save is never overwritten: starting fresh keeps it aside
+    (`aquadise.save.v1.unreadable`). If the browser blocks saving (e.g. private browsing), the game
+    keeps running, says so once, and the title / pause screens show a small note.
+  - Tuning: `saveFile.maxImportBytes`, `saveFile.gestureWaitMs`.
 - **Key bindings in one place:** `AQ.TUNING.keys` in config.js (plus `interactKeys`, `audio.muteKey`,
   `photo.key`, `station.zoomKey`). The game reads them, and the help line, the title's CONTROLS panel
   and every tip show key names from them (`src/keys.js`), so changing a key changes the text too.
@@ -352,6 +489,40 @@ before that), and pauses while the tab is hidden.
   sounds), plus the default volumes, ambience level, crossfade time, menu duck, underwater muffle
   and the mute key.
 
+## Languages
+
+The game is ready for translation; English is the only language so far. Every text the player sees
+comes from a language file in `data/lang/` (English: `data/lang/en.js`), looked up with `t()`
+(`src/lang.js`). A key missing in a language falls back to English. **SETTINGS > OPTIONS > LANGUAGE**
+picks the language (saved with your settings); by default the game uses the browser's language if
+there's a file for it, otherwise English. Dates in photo captions use the language's format (photo
+file names stay plain ASCII), and the pixel font's characters live in `data/glyphs.js`: a character
+it doesn't have yet draws as a small box. Rules for adding text: `CLAUDE.md`.
+
+**Translating:** see `docs/TRANSLATING.md` for how to add a language, how to test it, which
+letters the font has, and a checklist for new text. Right-to-left languages aren't supported yet.
+- `node tools/lang-csv.js export de de.csv`: every text in a spreadsheet (key, English,
+  translation, where it's used). `node tools/lang-csv.js import de de.csv` turns it back into
+  `data/lang/de.js`.
+- `node tools/lang-check.js de` (or `--all`): checks a language file against English (missing
+  and unknown keys, placeholders that don't match, missing plural forms, letters the font lacks).
+- **PSEUDO test language:** set `debug.pseudoLanguage: true` in `src/config.js`, and PSEUDO appears
+  under LANGUAGE. Every text is about 40% longer and wrapped in `[!! !!]`, which shows missed
+  English and layout trouble.
+- **Long text never overflows:** text in buttons, cards, tooltips and titles has a width limit.
+  Text that doesn't fit is squeezed narrower, down to `text.squeezeMin` in `src/config.js`, then
+  cut short with "..". Button rows widen and re-flow when a label needs more room. None of this
+  changes anything in English, where everything already fits.
+
+**Checking the game:** `node tools/check-game.js` opens the game in a headless browser, visits every
+main screen (title, settings, sound test, the sea, the map, pause, the guided dive, a tip, the hill,
+the building, the directory, every tank, the info cards, photo mode, every log tab, every Guide page,
+the touch controls, a save panel) and reports console errors and characters missing from the font.
+Options: `--lang en` (or `pseudo`, or any language file; the default is English, then PSEUDO), `--keys` (check language keys), `--dump file.json` (save the text drawn on every screen) and
+`--compare a.json b.json` (compare two dumps), `--shots dir` (screenshots). It needs Playwright:
+`npm install --no-save playwright && npx playwright install chromium` (a test tool only; the game itself
+has no dependencies).
+
 ## Project layout
 
 ```
@@ -371,6 +542,10 @@ src/creatures.js      spawning / simulation / drawing of creatures + plants
 src/catching.js       net, pry, bait
 src/aquarium.js       tanks, decorating, creature life + moods, info card, overview, undo
 src/vibe.js           tank happiness (stars), helping/missing reasons, unlock milestones
+src/logbutton.js      the HUD counter as the collection-log button (hover, press, touch area, gentle glow)
+src/panes.js          glass panes: the building material for the tanks (count, add, spend, the counter)
+src/pairs.js          ONE PAIR EACH: which creatures a tank shows (a pair of every species) and the moves
+src/release.js        releasing creatures: which ones need a second look, RELEASE EXTRAS' choice, removing them
 src/transition.js     reusable fade-to-black scene transition (AQ.Transition.go)
 src/scenes.js         scene system: world / hill / station, scene switching, save restore, prompts
 src/miniworld.js      small collision maps for side scenes (ladders, one-way platforms)
@@ -380,8 +555,13 @@ src/ui.js             collection log, map, pause
 src/gulls.js          distant seagull flocks in the sky (sea + hill)
 src/shootingstars.js  night shooting-star streaks (sky, underwater glow, station portholes)
 src/keys.js           key bindings: pressed / held checks and key names for the text
+src/lang.js           languages: t() lookups, English fallback, plurals, name sorting, date format
+data/lang/en.js       every player-visible text, in English (the master copy for translations)
+data/glyphs.js        the pixel font's characters (add letters for other languages here)
 src/tips.js           one-time tips: events, queue, safe placement, saved as seen
 src/dive.js           the optional guided first dive: prompt, steps, checklist, markers
+src/redo.js           REDO TUTORIAL: the question, the trip to the Tide Pools and back
+src/nudges.js         friendly nudges: noticing a stuck player (net spam, no catch, key mashing), rate limits
 src/guide.js          the GUIDE: a paged field-guide book (title, pause menu, help-line key)
 src/savefile.js       EXPORT / IMPORT SAVE, import checks + confirm, the save-recovery choice
 src/starfall.js       falling stars + meteor showers: nightly plan, landings, light columns, map/HUD marks
@@ -394,11 +574,15 @@ src/music.js          generative music engine + director (pieces in data/music.j
 src/sounddirector.js  per-frame sound hooks: steps, splashes, beam, chimes, creature voices
 src/soundtest.js      the SETTINGS panel (SOUND / OPTIONS / TOUCH tabs) and the SOUND TEST screen
 src/touch.js          touch controls: pointers, joystick, on-screen buttons, MENU panel, rotate screen
-data/lore.js          field notes, one per species (found in message bottles)
-data/tutorial.js      tutorial text: help line, controls panel, one-time tips, guided dive, Guide pages
+data/tutorial.js      tutorial structure: tips, guided dive steps, Guide pages (their text is in data/lang/)
+src/langdata.js       gives the data files their text (names, hints, field notes...) from data/lang/
 data/music.js         music pieces, scales, motif, creature voice map, audio file mapping
 assets/audio/         recorded sounds (+ embedded.js, generated by tools/embed-audio.js)
 tools/gen-placeholders.js   writes placeholder PNGs + manifest from the data files
+tools/check-game.js         headless check of every main screen (console errors, text dumps, language keys)
+tools/lang-check.js         checks a translation against English (keys, placeholders, plural forms, letters)
+tools/lang-csv.js           exports all text to a CSV for translators, and imports it back
+docs/TRANSLATING.md         how to translate the game
 tools/sprites.html          animated preview of every sprite
 docs/SPRITE_SPEC.md         how to make sprites that drop in cleanly
 ```
@@ -406,10 +590,15 @@ docs/SPRITE_SPEC.md         how to make sprites that drop in cleanly
 ### Adding content (data only)
 
 - **New creature:** add an entry to `data/creatures.js` that uses an existing `catch_behavior`,
-  run `node tools/gen-placeholders.js` for a placeholder sprite, and it spawns in its biome.
-- **New biome:** add a biome rect, palette and props to `data/world.js`, adjust the `floor`
+  add its name and log hint to `data/lang/en.js` (`creature.<id>.name`, `creature.<id>.hint`, and
+  field notes as `lore.<id>.*` if it has some), run `node tools/gen-placeholders.js` for a placeholder
+  sprite, and it spawns in its biome.
+- **New biome:** add a biome rect, palette and props to `data/world.js` (its names go in
+  `data/lang/en.js`: `biome.<id>.name` / `.short`), adjust the `floor`
   profile or add `shapes`, then add creatures with that `biome` id. Its tank, log page and map
   label appear automatically.
+- **Text:** every text the player sees lives in `data/lang/en.js` (see `CLAUDE.md`); run
+  `node tools/check-game.js --keys --lang none` to check that every key exists and is used.
 - **Real art:** drop PNGs over the placeholders, following `docs/SPRITE_SPEC.md`.
 
 ## Milestones

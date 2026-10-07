@@ -962,7 +962,7 @@ function sendScoreToUsForge(score) {
   // only when running inside UsForge's page; does nothing when the game is opened on its own
   if (window.parent === window) return;
   try {
-    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'points' }, '');
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'points' }, '*');
   } catch (e) {}
 }
 </script>

@@ -1,27 +1,5 @@
 [
   {
-    "slug": "keruffle",
-    "title": "KERUFFLE!",
-    "author": "Alex",
-    "owner": "Alex",
-    "blurb": "a cartoon fighting game :)",
-    "cover": "games/keruffle/cover.jpg",
-    "pixel": false,
-    "url": null,
-    "genres": [
-      "Action",
-      "Fighting"
-    ],
-    "languages": [
-      "en"
-    ],
-    "dev": false,
-    "progress": null,
-    "next": "",
-    "build": true,
-    "added": 1791454713
-  },
-  {
     "slug": "housekeeper",
     "title": "Housekeeper",
     "author": "Taurus",

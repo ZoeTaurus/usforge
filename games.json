@@ -46,7 +46,7 @@
     "author": "Balthi",
     "owner": "Balthi",
     "blurb": "Escape the mad scientists lab and go to ruling the multiverse.",
-    "cover": null,
+    "cover": "games/multiverse-mayhem/cover.png",
     "pixel": false,
     "url": null,
     "genres": [],
@@ -58,7 +58,7 @@
     "next": "",
     "build": true,
     "added": 1791288480,
-    "updated": 1791289986
+    "updated": 1791461466
   },
   {
     "slug": "shred-tide",

@@ -1,0 +1,51 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>KERFUFFLE!</title>
+<link rel="stylesheet" href="css/fonts.css">
+<style>
+  /* One deliberate look: a dark arcade cabinet around a letterboxed 16:9 canvas. */
+  :root {
+    color-scheme: dark;
+    --cabinet: #140c1f;
+    --screen: #1d1428;
+  }
+  html, body { height: 100%; overflow: hidden; }
+  body { margin: 0; background: var(--cabinet); touch-action: none; -webkit-user-select: none; user-select: none; }
+  #game { position: absolute; display: block; background: var(--screen); outline: none; }
+  #fontwarm, #fontwarm2 { position: absolute; left: -999px; top: -999px; color: var(--screen); }
+  #fontwarm { font-family: 'Luckiest Guy', system-ui, sans-serif; }
+  #fontwarm2 { font-family: 'Fredoka', system-ui, sans-serif; font-weight: 700; }
+</style>
+<canvas id="game" tabindex="0" aria-label="KERFUFFLE! game screen. Click, then press any key to start."></canvas>
+<span id="fontwarm">KERFUFFLE</span><span id="fontwarm2">Kerfuffle</span>
+<script src="js/util.js"></script>
+<script src="js/input.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/touch.js"></script>
+<script src="js/music.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/sketch.js"></script>
+<script src="js/rig.js"></script>
+<script src="js/chardef.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/fighter.js"></script>
+<script src="js/combat.js"></script>
+<script src="js/puppet.js"></script>
+<script src="js/chars/jett.js"></script>
+<script src="js/chars/mochi.js"></script>
+<script src="js/chars/bruno.js"></script>
+<script src="js/chars/volt.js"></script>
+<script src="js/chars/kiri.js"></script>
+<script src="js/chars/nana.js"></script>
+<script src="js/stages.js"></script>
+<script src="js/hud.js"></script>
+<script src="js/battle.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/flow.js"></script>
+<script src="js/screens/title.js"></script>
+<script src="js/screens/select.js"></script>
+<script src="js/screens/battle_screen.js"></script>
+<script src="js/screens/menus.js"></script>
+<script src="js/main.js"></script>
+
+</body></html>

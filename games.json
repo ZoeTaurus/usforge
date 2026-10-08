@@ -22,28 +22,6 @@
     "added": 1791472055
   },
   {
-    "slug": "kerfuffle",
-    "title": "KERFUFFLE!",
-    "author": "Alex",
-    "owner": "Alex",
-    "blurb": "a cartoony fighting game.",
-    "cover": null,
-    "pixel": false,
-    "url": null,
-    "genres": [
-      "Action",
-      "Fighting"
-    ],
-    "languages": [
-      "en"
-    ],
-    "dev": false,
-    "progress": null,
-    "next": "",
-    "build": true,
-    "added": 1791463192
-  },
-  {
     "slug": "time-thief",
     "title": "Time Thief",
     "author": "Balthi",

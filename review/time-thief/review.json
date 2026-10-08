@@ -1,0 +1,39 @@
+{
+  "slug": "time-thief",
+  "title": "Time Thief",
+  "owner": "Balthi",
+  "author": "Balthi",
+  "submittedBy": "Balthi",
+  "founder": false,
+  "submitted": 1791461229,
+  "kind": "new",
+  "status": "pending",
+  "info": {
+    "title": "Time Thief",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "Steal from the bank and cause mayhem in the city.",
+    "languages": [
+      "en"
+    ]
+  },
+  "entry": {
+    "slug": "time-thief",
+    "title": "Time Thief",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "Steal from the bank and cause mayhem in the city.",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791461229
+  }
+}

@@ -36,7 +36,7 @@ button:hover,button:focus-visible{background:var(--acc);color:#1f2a2e;outline:no
 <div id="intro"><h1>The World Is Lying</h1>
 <p>You wake in a city square. A woman is already waving at you, like she has done it a thousand times.</p>
 <div><button id="go">New game</button><button id="cont" style="display:none">Continue</button><button id="how">How to play</button></div></div>
-<div class="box" id="ov" style="display:none"></div><div id="hud"><button id="think">I believe...</button><span id="mem"></span><span id="mon">$0</span><button id="guide">Guide to house</button></div><div id="movie"></div><div class="box" id="thk" style="display:none;top:60px"><label for="tq" style="color:var(--acc)">Your belief</label><div style="display:flex;gap:6px;margin-top:6px"><input id="tq" placeholder="I believe it is nighttime" maxlength="140" autocomplete="off" style="flex:1;min-width:0;font:inherit;font-size:16px;padding:6px;background:#141b1d;color:var(--ink);border:2px solid var(--dim)"><button id="tgo">Believe</button></div></div>
+<div class="box" id="ov" style="display:none"></div><div id="hud"><button id="think">I believe...</button><span id="mem"></span><span id="mon">$0</span><button id="guide">Guide to house</button></div><div id="movie"></div><div class="box" id="thk" style="display:none;top:60px"><label for="tq" style="color:var(--acc)">Your belief</label><div style="display:flex;gap:6px;margin-top:6px"><input id="tq" placeholder="I believe I am a kid" maxlength="140" autocomplete="off" style="flex:1;min-width:0;font:inherit;font-size:16px;padding:6px;background:#141b1d;color:var(--ink);border:2px solid var(--dim)"><button id="tgo">Believe</button></div></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -85,14 +85,14 @@ const DOORS=[{x:-12.3,z:-4.1,t:'bakery',n:'Bakery'},{x:9.7,z:-4.1,t:'library',n:
 const SP=[['home','Your House',-22,10,7,4.5,0xd78a6a,0x5a3a3a],['cinema','Cinema',22,10,10,5.5,0x6a4a6a,0x2a1a2a],['pool','Public Pool',-22,-26,10,4.5,0x7fb7c4,0x3a5a6a],['pet','Pet Shop',22,-26,8,4.5,0xe3b5a4,0x7a4a5a],['aqua','Aquarium',-46,-12,10,5.5,0x4a7a9a,0x1f3340],['zoo','Zoo',46,-12,10,5,0x8aa05a,0x4a5a2a]].map(([t,n,x,z,w,h,c,r])=>({t,n,x,z,w,h,c,r,d:6}));
 for(const q of SP){const g=bld(q.x,q.z,q.w,q.h,q.d,q.c,q.r);sign(q.n.toUpperCase(),0,q.h-.7,q.d/2+.14,g);colliders.push({x:q.x,z:q.z,r:Math.max(q.w,q.d)*.45,on:()=>1});DOORS.push({x:q.x-q.w*.18,z:q.z+q.d/2+.5,t:q.t,n:q.n})}
 const chapel=bld(-14,7,5,4,4,0xe8e0d0,0x6a6a8a);sign('CHAPEL',0,3.3,2.14,chapel);chapel.visible=false;colliders.push({x:-14,z:7,r:3,on:()=>chapel.visible});DOORS.push({x:-14.9,z:9.5,t:'chapel',n:'Chapel',on:()=>chapel.visible});
-const HG=[];let fc=0;let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+const HG=[],HOUSES=[];let fc=0;let sd=7;const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
 const WALL=[0xe0c9a0,0xc98f7a,0xb7c4a0,0xd7d2c6,0x9fb7c9,0xe3b5a4,0xcfa95e],ROOF=[0x8a3b2e,0x4a5568,0x6b4a3a,0x3f5f55,0x7a4a5a];
 for(let x=-96;x<=96;x+=14)for(let z=-96;z<=96;z+=14){
  const hx=x+(rnd()-.5)*3,hz=z+(rnd()-.5)*3;
  if(Math.abs(hx)<7||Math.abs(hz)<7||Math.abs(Math.abs(hx)-33)<6||Math.abs(Math.abs(hz)-33)<6||Math.abs(Math.abs(hx)-66)<6||Math.abs(Math.abs(hz)-66)<6)continue;
  if(SP.some(q=>Math.hypot(hx-q.x,hz-q.z)<11)||Math.hypot(hx+14,hz-7)<9||Math.hypot(hx+11,hz+7)<10||Math.hypot(hx-11,hz+7)<10||Math.hypot(hx,hz+17)<9||Math.hypot(hx-100,hz-20)<10)continue;
  const w=4.5+rnd()*3,d=4+rnd()*2.5,h=3.2+rnd()*2.2;
- const rot=rnd()<.5?0:Math.PI,g=bld(hx,hz,w,h,d,WALL[rnd()*7|0],ROOF[rnd()*5|0]),sg=rot?-1:1;g.rotation.y=rot;HG.push(g);DOORS.push({x:hx-sg*w*.18,z:hz+sg*(d/2+.5),t:'house',n:'House'});
+ const rot=rnd()<.5?0:Math.PI,g=bld(hx,hz,w,h,d,WALL[rnd()*7|0],ROOF[rnd()*5|0]),sg=rot?-1:1;g.rotation.y=rot;HG.push(g);HOUSES.push(g);DOORS.push({x:hx-sg*w*.18,z:hz+sg*(d/2+.5),t:'house',n:'House'});
  colliders.push({x:hx,z:hz,r:Math.max(w,d)*.62+.4,on:()=>1})}
 for(let i=0;i<230;i++){const x=(rnd()-.5)*220,z=(rnd()-.5)*220;
  if(Math.abs(x)<5||Math.abs(z)<5||Math.abs(Math.abs(x)-33)<4||Math.abs(Math.abs(z)-33)<4||Math.abs(Math.abs(x)-66)<4||Math.abs(Math.abs(z)-66)<4||x>106||colliders.some(c=>Math.hypot(x-c.x,z-c.z)<c.r+2.2))continue;
@@ -154,22 +154,22 @@ function eerie(){if(!started||cur)return;toast(pick(WH));if(Math.random()<.6){sc
 async function movie(){unlock();const m=$('movie');m.style.display='flex';m.onclick=null;for(const [bg,tx] of pick(MOVS)){m.style.background=bg;m.textContent=tx;await new Promise(r=>setTimeout(r,2600))}m.textContent='The lights come up. Nobody else is in the room.';m.onclick=()=>{m.style.display='none'}}
 let smp;
 const hx=c=>/^#[0-9a-f]{6}$/i.test(c);
-function becomeNPC(n,b){const g=n.g,u=g.userData;if(!u.hum){u.hum=g.children.slice();u.bs=g.scale.x}
- if(u.ex)g.remove(u.ex);const ex=u.ex=new T.Group();g.add(ex);
+function becomeNPC(n,b){const g=n.g,u=g.userData;if(!u.hum){u.hum=g.children.filter(c=>!c.isLight);u.bs=g===player?.72:g.scale.x;u.orig=[];g.traverse(o=>o.isMesh&&u.orig.push([o,o.material.color.getHex()]))}
+ if(u.ex)g.remove(u.ex);u.orig.forEach(([o,c])=>o.material.color.setHex(c));const ex=u.ex=new T.Group();g.add(ex);
  const col=hx(b.color)?b.color:'#8a6fa8',ac=hx(b.accent)?b.accent:'#e8a86b',sc=Math.max(.5,Math.min(2.6,+b.scale||1)),an=b.animal&&AN[b.animal]?b.animal:null;
  u.hum.forEach(c=>c.visible=!an&&!b.parts);
  if(b.parts){b.parts.forEach(([x,y,z,w,h,d,c])=>box(w,h,d,c,x,y,z,ex));if(b.label)sign(String(b.what).toUpperCase().slice(0,16),0,3.1,0,ex)}
- else if(!an){g.traverse(o=>{if(o.isMesh&&o.material.color.getHex()>0x303030)o.material.color.set(col)});u.cloth.forEach(m=>m.material.color.set(ac))}
+ else if(!an){if(!b.person)g.traverse(o=>{if(o.isMesh&&o.material.color.getHex()>0x303030)o.material.color.set(col)});u.cloth.forEach(m=>m.material.color.set(b.person?col:ac))}
  else{animal(an,0,0,ex);ex.traverse(o=>{if(o.isMesh&&o.material.color.getHex()>0x303030)o.material.color.set(col)})}
  const part=(w,h,d,c,x,y,z,rz)=>{const m=box(w,h,d,c,x,y,z,ex);m.rotation.z=rz||0},top=an?1.5:2.95;
  for(const q of [-1,1]){if(b.wings)part(1.8,.08,1.2,ac,q*1.1,an?1.3:2.2,-.5,q*.5);if(b.horns)part(.16,.6,.16,ac,q*.22,top,0,-q*.3)}
  if(b.tail)part(.25,.25,1.4,ac,0,an?.7:1,-.9);
  if(b.scary&&!an){for(const q of [-1,1]){const e=new T.Mesh(new T.BoxGeometry(.14,.14,.08),new T.MeshBasicMaterial({color:0xff2020}));e.position.set(q*.17,2.43,.34);ex.add(e);part(.07,.2,.07,0xf1e9d2,q*.1,2.12,.33,0)}for(let i=0;i<4;i++)part(.18,.5,.18,ac,0,2.3-i*.4,-.35,0)}
  if(b.glow){const h=new T.Mesh(new T.SphereGeometry(1.7,10,8),new T.MeshBasicMaterial({color:ac,transparent:true,opacity:.25}));h.position.y=1.5;ex.add(h)}
- g.scale.set(u.bs*sc*(b.scary?1.25:1),u.bs*sc,u.bs*sc*(b.scary?1.25:1));u.tf=1;u.fly=!!(b.fly||b.wings);g.position.y=u.fly?1.2:0;
+ u.sc=sc;u.sx=b.scary?1.25:1;g.scale.set(u.bs*sc*(b.scary?1.25:1),u.bs*sc,u.bs*sc*(b.scary?1.25:1));u.tf=1;u.fly=!!(b.fly||b.wings);g.position.y=u.fly?1.2:0;
  n.tag=String(b.what||'thing').slice(0,24);n.r='a '+n.tag+(b.role?' ('+String(b.role).slice(0,60)+')':'');n.l=["I have always been a "+n.tag+".","Why does everyone act surprised that I am a "+n.tag+"?"];
- if(!b.quiet)toast(n.n+' becomes '+(/^[aeiou]/i.test(n.tag)?'an ':'a ')+n.tag+'.');$('who').textContent=n.n+' the '+n.tag}
-function tf(n,b){becomeNPC(n,b);const k=Object.keys(NPC).find(x=>NPC[x]===n);if(['mara','pim','odd'].includes(k)){S.tf=S.tf||{};S.tf[k]=b;save()}}
+ if(!b.quiet)toast((n.self?'You become ':n.n+' becomes ')+(/^[aeiou]/i.test(n.tag)?'an ':'a ')+n.tag+'.');if(!n.self)$('who').textContent=n.n+' the '+n.tag}
+function tf(n,b){becomeNPC(n,b);if(n===SELF){S.tf=S.tf||{};S.tf.player=b;save()}const k=Object.keys(NPC).find(x=>NPC[x]===n);if(['mara','pim','odd'].includes(k)){S.tf=S.tf||{};S.tf[k]=b;save()}}
 const bx=(x,y,z,w,h,d,c)=>[x,y,z,w,h,d,c],L4=(c,x,z,h,q)=>[[-x,-z],[x,-z],[-x,z],[x,z]].map(([a,b])=>bx(a,h/2,b,q,h,q,c));
 function quad(c,L,H,lg,ear,tl,o){o=o||{};const nk=o.neck||0,hy=lg+H*.85+nk,hz=L/2+H*.2,P=[bx(0,lg+H/2,0,H*.9,H,L,c),bx(0,hy,hz,H*.7,H*.7,H*.8,c)];
  if(nk)P.push(bx(0,lg+H+nk/2,L/2,H*.4,nk,H*.4,c));if(o.snout)P.push(bx(0,hy-H*.1,hz+H*.5,H*.4,H*.3,H*.3,o.snout));if(o.trunk)P.push(bx(0,hy-H*.5,hz+H*.5,H*.22,H*1.1,H*.22,c));
@@ -198,43 +198,106 @@ spider:[bx(0,.5,0,.8,.6,1,'#222'),bx(0,.55,.7,.5,.5,.5,'#222'),...[-1,1].flatMap
 const AL={bunny:'rabbit',kitten:'cat',puppy:'dog',pony:'horse',stallion:'horse',donkey:'horse',bull:'cow',piglet:'pig',lamb:'sheep',goat:'sheep',rat:'mouse',gerbil:'hamster',squirrel:'hamster',ape:'monkey',gorilla:'monkey',chimp:'monkey',leopard:'tiger',cheetah:'tiger',moose:'deer',reindeer:'deer',coyote:'wolf',pigeon:'bird',sparrow:'bird',crow:'bird',raven:'bird',goose:'duck',hen:'chicken',rooster:'chicken',hawk:'eagle',falcon:'eagle',seagull:'bird',dolphin:'shark',goldfish:'fish',salmon:'fish',crate:'cube',box:'cube',block:'cube',mug:'cup',glass:'cup',stone:'rock',boulder:'rock',couch:'sofa',armchair:'chair',stool:'chair',bush:'tree',plant:'flower',rose:'flower',sedan:'car',truck:'car',bus:'car',taxi:'car',cottage:'house',hut:'house',cabin:'house',jar:'vase',pot:'vase',urn:'vase',orb:'ball',sphere:'ball',globe:'ball',desk:'table',candle:'lamp',lantern:'lamp',spirit:'ghost',phantom:'ghost',android:'robot',cyborg:'robot',snail:'frog',toad:'frog',lizard:'frog'};
 function PARTS(k){if(QD[k]){const P=quad(...QD[k]);if(k==='dragon')for(const a of[-1,1])P.push(bx(a*1.6,2.2,-.2,1.8,.1,1.4,'#c2503f'));return P}if(BD[k])return bird(...BD[k]);if(FD[k])return fish(...FD[k]);return OB[k]||null}
 function mk(w){if(/monster|beast|ogre|troll|zombie|vampire|demon|devil|creature|abomination|alien/.test(w))return human(w);
- for(let x of w.split(/[\s\-]+/)){x=x.replace(/[^a-z]/g,'');for(const k of [x,AL[x],x.replace(/ies$/,'y'),x.replace(/e?s$/,''),AL[x.replace(/e?s$/,'')]]){if(!k)continue;const P=PARTS(k);if(P)return{what:w,parts:P,fly:/dragon|bird|duck|fish|shark|whale|ghost|owl|eagle|parrot|swan/.test(k),glow:k==='ghost'}}}
- if(/king|queen|prince|princess|wizard|witch|doctor|nurse|police|cop|pirate|soldier|knight|teacher|chef|farmer|clown|human|man|woman|girl|boy|person|baker|thief|ninja|angel|fairy|santa|cowboy|hero|villain|mage|stranger|friend|god|librarian|sailor|guard/.test(w))return human(w);
+ for(let x of w.split(/[\s\-]+/)){x=x.replace(/[^a-z]/g,'');for(const k of [x,AL[x],x.replace(/ies$/,'y'),x.replace(/e?s$/,''),AL[x.replace(/e?s$/,'')]]){if(!k)continue;const P=PARTS(k);if(P)return{what:w,parts:P,fly:/dragon|bird|duck|fish|shark|whale|ghost|owl|eagle|parrot|swan/.test(k),glow:k==='ghost',live:!!(QD[k]||BD[k]||FD[k])}}}
+ if(/king|queen|prince|princess|wizard|witch|doctor|nurse|police|cop|pirate|soldier|knight|teacher|chef|farmer|clown|human|man|woman|girl|boy|person|baker|thief|ninja|angel|fairy|santa|cowboy|hero|villain|mage|stranger|friend|god|librarian|sailor|guard|kid|child|baby|toddler|teen|elder|old man|old woman|grandma|grandpa|mom|dad|mother|father|brother|sister|giant|tiny|dwarf|citizen|villager|mayor|butcher|artist|singer|dancer|musician|student|scientist|spy|bandit|captain|sheriff|judge|monk|priest/.test(w))return{...human(w),person:true};
  let h=0;for(const c of w)h=(h*31+c.charCodeAt(0))%9973;const C=(a,l)=>'#'+new T.Color().setHSL(a%360/360,.55,l).getHexString();
  return{what:w,label:true,parts:[bx(0,1,0,1.2,2,1.2,C(h,.5)),bx(0,2.3,0,1,.5,1,C(h+140,.6)),bx(-.2,1.6,.62,.2,.2,.05,'#111'),bx(.2,1.6,.62,.2,.2,.05,'#111')]}}
 const MC={};
 function okParts(a){if(!Array.isArray(a)||a.length<2)return null;const P=a.slice(0,44).map(p=>{if(!Array.isArray(p)||p.length<7)return null;const v=p.slice(0,6).map(Number);if(v.some(x=>!isFinite(x)))return null;return[...v.map((x,i)=>Math.max(i<3?-8:.04,Math.min(i<3?8:9,x))),hx(p[6])?p[6]:'#999999']}).filter(Boolean);return P.length>1?P:null}
 async function aiModel(w){if(MC[w])return MC[w];try{if(smp===undefined)smp=(window.claude&&await claude.use('sample'))||null;if(!smp)return null;
- const r=await smp('Design a simple blocky low-poly model of "'+w+'" for a pixel-style 3D game, built only from boxes. Reply with ONLY JSON: {"parts":[[x,y,z,w,h,d,"#rrggbb"],...],"fly":false,"glow":false}. Rules: 14 to 40 parts. Each part is a box centered at x,y,z with sizes w (left-right), h (up), d (front-back). y=0 is the ground. The front faces +z. Units: a human is 2.9 tall, so scale the thing realistically against a human (a mouse about 0.3 long, a vase about 1.5 tall, an elephant about 4 long). Make it clearly recognizable (eyes, ears, legs, handles, wings and so on as relevant). Use 2 to 6 colors.',{cache:false,modelTier:'quick'});
- const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]),P=okParts(j.parts);if(P)return MC[w]={parts:P,fly:!!j.fly,glow:!!j.glow}}catch(e){}return null}
-function guess(q){const m=q.match(/\byou(?:'re|\s+are|\s+were|\s+have\s+become|\s+turned\s+into)\s+(?:actually\s+|really\s+|now\s+)?(?:an?\s+|the\s+)?([a-z][a-z \-]{1,28})/i)||q.match(/(?:become|turn into|transform into)\s+(?:an?\s+|the\s+)?([a-z][a-z \-]{1,28})/i);if(!m)return null;return mk(m[1].trim().toLowerCase())}
+ const r=await smp('Design a simple blocky low-poly model of "'+w+'" for a pixel-style 3D game, built only from boxes. Reply with ONLY JSON: {"parts":[[x,y,z,w,h,d,"#rrggbb"],...],"fly":false,"glow":false,"live":false}. Set live to true if it is a creature that should wander around. Rules: 14 to 40 parts. Each part is a box centered at x,y,z with sizes w (left-right), h (up), d (front-back). y=0 is the ground. The front faces +z. Units: a human is 2.9 tall, so scale the thing realistically against a human (a mouse about 0.3 long, a vase about 1.5 tall, an elephant about 4 long). Make it clearly recognizable (eyes, ears, legs, handles, wings and so on as relevant). Use 2 to 6 colors.',{cache:false,modelTier:'quick'});
+ const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]),P=okParts(j.parts);if(P)return MC[w]={parts:P,fly:!!j.fly,glow:!!j.glow,live:!!j.live}}catch(e){}return null}
+const THINGS=[],ST=[],COINS=[],BEL=/\b(believe|think|know|imagine|wish|there (is|are|was|were)|there's|i can|i am|i'm|i have|everyone|everybody|everything|the (sky|ground|street|streets|road|town|world)|it is|it's|becomes?|turn|make|(is|are|was|were) an?)\b/i;
+const SECRETS=["you saw the player arrive in this town years ago, and again yesterday","you are afraid of the lighthouse","you were paid to tell the player they belong here","you remember the town before it changed","you counted the player's footsteps last night"],QUIRKS=["you hum when nervous","you never say the player's name","you repeat the last word of your sentences","you keep glancing at the sky","you whisper the end of every sentence"];
+const ctx=n=>"Setting: "+(inside?"inside "+inside.t:"outdoors")+", time "+(S.sky||'day')+(S.wx?", "+S.wx:"")+". Your secret: "+(n.sec||'none')+". Your quirk: "+(n.qk||'none')+". Recent talk with the player: "+JSON.stringify((n.h||[]).slice(-4))+". The player's recent beliefs: "+JSON.stringify((S.lg||[]).slice(-5))+".";
+function addThing(b,x,z,w,norec,fl){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=Math.random()*6.28;scene.add(g);let r=.5;
+ b.parts.forEach(([a,y,c,d,e,f,col])=>{box(d,e,f,col,a,y,c,g);r=Math.max(r,Math.abs(a)+d/2,Math.abs(c)+f/2)});
+ if(b.label)sign(String(w).toUpperCase().slice(0,16),0,3.1,0,g);
+ if(b.glow){const h=new T.Mesh(new T.SphereGeometry(1.7,10,8),new T.MeshBasicMaterial({color:0xffe08a,transparent:true,opacity:.25}));h.position.y=1.5;g.add(h)}
+ g.scale.setScalar(.01);const th={g,w,age:0,tx:x,tz:z,k:0,t:null,col:null,catch:false,follow:!!fl,b:{what:b.what,parts:b.parts,label:b.label,fly:b.fly,glow:b.glow,live:b.live}};
+ if(!b.live&&!fl){th.col={x,z,r:Math.min(5,r*.72),on:()=>true};colliders.push(th.col)}
+ THINGS.push(th);if(THINGS.length>40){const o=THINGS.shift();scene.remove(o.g);if(o.col)colliders.splice(colliders.indexOf(o.col),1)}
+ if(!norec){S.sp=S.sp||[];S.sp.push({w,x,z,b:th.b,f:fl?1:0});if(S.sp.length>40)S.sp.shift()}return th}
+async function spawnThing(w,cnt,where,follow){let b=mk(w);if(b.label){const m=await aiModel(w);if(m)b={...b,parts:m.parts,fly:m.fly,glow:m.glow,live:m.live,label:false}}
+ for(let i=0;i<cnt;i++){const a=player.rotation.y+(where==='around'||cnt>1?(Math.random()-.5)*(where==='around'?6.2:2.6):0),r=where==='around'?7+Math.random()*8:6+Math.random()*(cnt>1?8:2);addThing(b,player.position.x+Math.sin(a)*r,player.position.z+Math.cos(a)*r,w,false,follow)}save()}
+const cl=w=>String(w||'').toLowerCase().replace(/[^a-z \-]/g,'').trim().slice(0,28);
+const SELF={g:player,n:'You',self:true,l:[]};
+const COLS={red:'#c0392b',blue:'#2f6fd0',green:'#3a9a4a',purple:'#7a4aa8',pink:'#e87aa8',yellow:'#e8c93a',orange:'#e0762a',black:'#15151a',white:'#f4f6fa',grey:'#888888',gray:'#888888',brown:'#6a4a2a',gold:'#e0b030',silver:'#b8c0c8'};
+const GRD={lava:'#d9441e',water:'#3a8ac4',ice:'#bfe4f0',gold:'#e0b030',candy:'#e87aa8',slime:'#6ac04a',sand:'#d8c28a',snow:'#f4f6fa',blood:'#8a1c1c',grass:'#7d8f6f',chocolate:'#5a3520'};
+const LMK={library:'library',lighthouse:'lighthouse',fountain:'fountain',chapel:'chapel','clock tower':'tower',tower:'tower',bakery:'bakery'};
+const BEH=[[/\b(love|loves|like|likes|follow|follows|adore|adores|worship|trust|trusts)\b|my friends?|best friends?/,'follow'],[/afraid|scared|fear|terrified|run away|flee|hate|panic/,'flee'],[/danc|party|celebrat/,'dance'],[/sleep|frozen|freeze|statue|paralyz|stop moving/,'freeze'],[/\b(normal|calm|ordinary|stop)\b/,'']];
+const ABIL=[[/\b(fly|flying|float|floating|levitat)/,{fly:true}],[/\b(fast|speedy|quick|lightning|flash)\b/,{speed:3}],[/\bslow\b/,{speed:.5}],[/\b(giant|huge|enormous|gigantic|tall|massive)\b/,{size:2.5}],[/\b(tiny|small|little|miniature|short)\b/,{size:.5}],[/\binvisible\b/,{inv:true}],[/\bvisible\b/,{inv:false}]];
+const EMO=/^(happy|sad|angry|tired|nice|kind|mean|good|bad|poor|here|gone|lost|real|fake|nervous|calm|friendly|funny|crazy|dead|alive|safe|fine|ok|okay|lying|watching|listening|free|ready|alone)$/;
+function findNPC(w){w=w.replace(/^(the|a|an) /,'').trim();if(/^(he|she|him|her|that (man|woman|person|guy))$/.test(w)){if(cur)return NPC[cur.k];let m=null,d=12;for(const k in NPC){const x=player.position.distanceTo(NPC[k].g.position);if(x<d){d=x;m=NPC[k]}}return m}
+ for(const k in NPC){const nm=NPC[k].n.toLowerCase();if(w===nm||w.split(' ').includes(nm))return NPC[k]}
+ for(const k in NPC){const r=(NPC[k].r||'').toLowerCase();if(w.length>3&&r.includes(w))return NPC[k]}return null}
+function rmThing(th){scene.remove(th.g);if(th.col)colliders.splice(colliders.indexOf(th.col),1);const i=THINGS.indexOf(th);if(i>=0)THINGS.splice(i,1)}
+function applyFx(fx){const o=[];if(!fx||typeof fx!=='object')return o;
+ if(['day','night','dusk','dawn'].includes(fx.sky)){S.sky=fx.sky;o.push('The sky turns to '+fx.sky+'.')}
+ if(['rain','snow','fog','clear'].includes(fx.weather)){S.wx=fx.weather==='clear'?'':fx.weather;o.push('The weather changes.')}
+ if(hx(fx.ground)){S.gc=fx.ground;o.push('The ground changes.')}
+ if(hx(fx.skycolor)){S.skc=fx.skycolor;o.push('The sky changes color.')}
+ if(hx(fx.houses)){S.hc=fx.houses;o.push('Every house changes color.')}
+ const pw=fx.player;if(pw&&typeof pw==='object'){S.pw=S.pw||{};if(pw.fly!=null)S.pw.fly=!!pw.fly;if(+pw.speed)S.pw.speed=Math.max(.5,Math.min(4,+pw.speed));if(+pw.size)S.pw.size=Math.max(.3,Math.min(4,+pw.size));if(pw.inv!=null)S.pw.inv=!!pw.inv;o.push('You feel different.')}
+ if(+fx.money){money=Math.max(0,Math.min(99999,money+Math.round(+fx.money)));hud();o.push('Money fills your pockets.')}
+ const sf=cl(fx.self);if(sf){const b=mk(sf);tf(SELF,b);if(b.label)aiModel(sf).then(m=>m&&tf(SELF,{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true}));o.push('You become '+sf+'.')}
+ for(const sp of (Array.isArray(fx.spawn)?fx.spawn:[]).slice(0,4)){const w=cl(sp.what);if(w){spawnThing(w,Math.max(1,Math.min(10,+sp.count||1)),sp.where);o.push('A '+w+' appears.')}}
+ for(const pt of (Array.isArray(fx.pets)?fx.pets:[]).slice(0,3)){const w=cl(pt);if(w){spawnThing(w,1,'here',true);o.push('A '+w+' joins you.')}}
+ const ev=cl(fx.everyone);if(ev){const b=mk(ev),ks=Object.keys(NPC);ks.forEach(k=>becomeNPC(NPC[k],{...b,quiet:true}));if(b.label)aiModel(ev).then(m=>m&&ks.forEach(k=>NPC[k]&&becomeNPC(NPC[k],{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true})));o.push('Everyone becomes '+ev+'.')}
+ if(typeof fx.behavior==='string'&&['follow','flee','dance','freeze',''].includes(fx.behavior)){S.beh=fx.behavior;o.push({follow:'Everyone turns to follow you.',flee:'Everyone backs away from you.',dance:'Everyone starts to dance.',freeze:'Everyone freezes in place.','':'Everyone goes back to normal.'}[fx.behavior])}
+ for(const pp of (Array.isArray(fx.people)?fx.people:[]).slice(0,6)){const n=findNPC(String(pp.who||'').toLowerCase()),w=cl(pp.become);if(n&&w){const b=mk(w);tf(n,b);if(b.label)aiModel(w).then(m=>m&&tf(n,{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true}));o.push(n.n+' becomes '+w+'.')}}
+ if(fx.land&&typeof fx.land==='object')for(const k in fx.land){const on=!!fx.land[k];S.rum=S.rum||{};({library:()=>S.libN=on?0:2,lighthouse:()=>S.light=on,fountain:()=>S.rum.dry=on?0:1,chapel:()=>S.rum.chapel=on?1:0,tower:()=>S.noTw=!on,bakery:()=>S.noBk=!on}[k]||(()=>0))();o.push('The '+k+(on?' is there.':' is gone.'))}
+ for(const w of (Array.isArray(fx.remove)?fx.remove:[]).slice(0,4)){const q=cl(w);if(!q)continue;const hit=THINGS.filter(th=>th.w.includes(q));hit.forEach(rmThing);S.sp=(S.sp||[]).filter(r=>!r.w.includes(q));if(hit.length)o.push('The '+q+' is gone.')}
+ world();save();if(o.length)toast(o.slice(0,3).join(' '));return o}
+function local(q){let l=q.toLowerCase().replace(/[.!]+$/,'').replace(/\b(i )?(believe|think|know|imagine|wish|feel|guess|bet)( that)?\b/g,' ').replace(/^\s*(what if|let's say|suppose|assume|pretend)\b/,'').replace(/\s+/g,' ').trim();const fx={};let m;
+ for(const nm in LMK){const k=LMK[nm];if(new RegExp('(?:there (?:is|are|was) no|no more) (?:the )?'+nm+'|\\b'+nm+' (?:is |was )?(?:gone|missing|vanished|disappeared|not real|never existed|doesn.?t exist|does not exist)').test(l))(fx.land=fx.land||{})[k]=false;
+  else if(new RegExp('there (?:is|are|was|.s) (?:an? |the )?'+nm+'|\\b'+nm+' (?:exists|is back|is real|appeared|reappeared|is here)').test(l))(fx.land=fx.land||{})[k]=true}
+ if(!fx.land&&(m=l.match(/(?:there (?:is|are|was) no|no more|remove|get rid of|delete|destroy) (?:the |all |every |any )?([a-z][a-z \-]{1,26})/)))fx.remove=[m[1].trim()];
+ if(m=l.match(/\b(?:i|me|myself)\s*(?:am|'m|become|became|have become|will become|turn into|turned into|was born)\s+(?:now |actually |really |suddenly |also |very )?(.{2,40})$/)){const w=m[1].replace(/^(an? |the )/,'').trim(),pw={};let any=0;for(const [re,v] of ABIL)if(re.test(w)){Object.assign(pw,v);any=1}
+  if(/\b(rich|millionaire|wealthy|loaded)\b/.test(w))fx.money=500;else if(!EMO.test(w)&&(!any||/\b(kid|child|baby|toddler|boy|girl|old|elderly|ghost|monster|dragon|robot)\b/.test(w)))fx.self=w;
+  if(any)fx.player=pw}
+ else{if(/\bi (can|could|will) (fly|float)|\bi have wings|\bi am flying/.test(l))fx.player={fly:true};if(/\bi can run (really )?fast/.test(l))fx.player={...fx.player,speed:3};if(/\bi (have|got) (lots of |a lot of |so much |infinite )?money/.test(l))fx.money=500;
+  m=l.match(/\bi (?:have|own|got|keep|found) (?:a |an |my own |some )?(?:pet |new )?([a-z][a-z \-]{1,24})$/);if(m&&!/money|wings|power|friends?|nothing/.test(m[1]))fx.pets=[m[1].trim()]}
+ if(/\b(everyone|everybody|everything|all (the |of the )?(people|townsfolk|humans|villagers)|the (people|townsfolk|villagers|citizens)|each person|nobody|no one)\b/.test(l)&&!fx.land){const BH=BEH.find(([re])=>re.test(l));
+  if(BH)fx.behavior=BH[1];else if(m=l.match(/\b(?:everyone|everybody|everything|all (?:the |of the )?(?:people|townsfolk|humans|villagers)|the (?:people|townsfolk|villagers|citizens)|each person)\s*(?:in (?:the )?(?:town|world|city) )?(?:is|are|was|were|has become|have become|becomes?|became|turns? into|turned into|will be)\s+(?:now |actually |really |all |also )?(?:an? |the )?(.{2,40})$/)){if(!EMO.test(m[1].trim()))fx.everyone=m[1].trim()}}
+ else if(!fx.land&&!fx.self&&!fx.player&&(m=l.match(/^(?:the )?([a-z]+(?: [a-z]+)?) (?:is|are|was|becomes?|became|turns? into|turned into|has become) (?:now |actually |really )?(?:an? |the )?(.{2,40})$/))&&!/^(it|there|this|that|i|you|we|they|sky|ground|houses?)\b/.test(m[1])){const n=findNPC(m[1]);if(n&&!EMO.test(m[2].trim()))fx.people=[{who:m[1],become:m[2].trim()}]}
+ if(m=l.match(/\b(sky|houses?|buildings?|ground|grass|streets?|roads?|floor) (?:is|are|was|were|turns?|turned|becomes?|became)\s*(?:now |actually |all |made of |into |to )?([a-z]+)/)){const y=m[2],c=GRD[y]||COLS[y];if(c){if(m[1]==='sky')fx.skycolor=COLS[y]||c;else if(/house|building/.test(m[1]))fx.houses=COLS[y]||c;else fx.ground=GRD[y]||c}}
+ if(!fx.land&&!fx.remove&&!fx.pets&&!fx.people&&!fx.everyone&&!fx.self&&(m=l.match(/\bthere (?:is|are|'s|was|were) (?:an? |some |many |lots of |a lot of |the |two |three |four |five |ten |dozens of |hundreds of )?([a-z][a-z \-]{1,26})/))){const pl=/\bare\b|many|lots|dozens|hundreds|two|three|four|five|ten/.test(l);fx.spawn=[{what:m[1].trim().replace(/\s+(here|nearby|outside|everywhere|around|right|in|on|now)\b.*$/,''),count:pl?6:1,where:pl?'around':'here'}]}
+ return Object.keys(fx).length?fx:null}
+const ENG='The player of an eerie game states something they BELIEVE, and in this world whatever they believe comes true. Make it come true. Reply ONLY JSON: {"narration":"one short eerie sentence","effects":{"sky":null,"weather":null,"ground":null,"skycolor":null,"houses":null,"player":null,"self":null,"money":0,"spawn":[],"pets":[],"everyone":null,"behavior":null,"people":[],"land":null,"remove":[]}}. sky is day|night|dusk|dawn. weather is rain|snow|fog|clear. ground, skycolor and houses are #rrggbb colors. player is {"fly":bool,"speed":0.5-4,"size":0.3-4,"inv":bool}. self is a short noun phrase if the player themselves becomes something (a kid, a dragon, a vase, an old man). spawn is up to 4 {"what":"short noun","count":1-10,"where":"here|around"} for anything that should appear (creatures, objects, vehicles, buildings). pets is a list of nouns for companions that follow the player. everyone is a short noun if all townsfolk become it. behavior is follow|flee|dance|freeze or an empty string if all townsfolk should act that way (love me means follow, afraid means flee). people is a list of {"who":"a name or role such as Mara or the baker","become":"noun"}. land is {"library"|"lighthouse"|"fountain"|"chapel"|"tower"|"bakery": true to exist or false to vanish}. remove is a list of nouns of previously appeared things to delete. Handle every kind of phrasing: I am, I can, I have, everyone, everybody, he, she, they, the X is, there is and there are. Be generous and literal and never refuse. If the text is only a question or chat, set effects to null. The text: ';
+async function engine(q){let o=[];const fx=local(q);if(fx)o=applyFx(fx);
+ try{if(smp===undefined)smp=(window.claude&&await claude.use('sample'))||null;if(!smp)return o;
+  const r=await smp(ENG+q,{cache:false,modelTier:'quick'}),j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]);
+  if(!o.length&&j.effects)o=applyFx(j.effects);if(j.narration&&(o.length||j.effects))toast(String(j.narration).slice(0,140))}catch(e){}return o}
+function guess(q){const m=q.match(/\byou(?:'re|\s+are|\s+were|\s+have\s+become|\s+turned\s+into)\s+(?:actually\s+|really\s+|now\s+)?(?:an?\s+|the\s+)?([a-z][a-z \-]{1,28})/i)||q.match(/(?:become|turn into|transform into)\s+(?:an?\s+|the\s+)?([a-z][a-z \-]{1,28})/i);if(!m||/\b(i|i'll|me|myself|we|everyone|everybody|they|he|she)\b/.test(q.slice(0,m.index).toLowerCase().replace(/\bi (believe|think|know|imagine|wish|feel)( that)?\b/g,'')))return null;return mk(m[1].trim().toLowerCase())}
 function human(w){let h=0;for(const c of w)h=(h*31+c.charCodeAt(0))%9973;
  const AM={cat:'cat',kitten:'cat',dog:'dog',puppy:'dog',wolf:'dog',rabbit:'rabbit',bunny:'rabbit',lion:'lion',tiger:'lion',elephant:'elephant',giraffe:'giraffe',penguin:'penguin',shark:'shark',whale:'shark',fish:'fish'},k=w.split(' ').find(x=>AM[x]);
  const C=(h,l)=>'#'+new T.Color().setHSL(h%360/360,.55,l).getHexString(),t=r=>r.test(w);
- const o={what:w,animal:null,color:C(h,.5),accent:C(h+140,.6),scale:t(/giant|dragon|elephant|monster|titan|god/)?1.8:t(/tiny|small|fairy|mouse|baby|ant/)?.6:1+((h%5)-2)*.08,wings:t(/dragon|bird|angel|fairy|bat|eagle|phoenix|demon/),horns:t(/devil|demon|dragon|unicorn|bull|goat|monster/),tail:t(/dragon|cat|dog|lizard|fox|devil|demon|monster|mermaid/),glow:t(/ghost|star|angel|fire|phoenix|spirit|alien|wizard|god/),fly:t(/ghost|bird|angel|fairy|bat|dragon|phoenix|spirit/),scary:t(/monster|beast|ogre|troll|zombie|vampire|demon|devil|creature|abomination|alien/)};if(o.scary){o.scale=2.3;o.horns=o.tail=o.glow=true;o.color=['#3d5a3a','#4a2f5c','#5a2a2a'][h%3];o.accent='#8a1c1c'}return o}
+ const o={what:w,animal:null,color:C(h,.5),accent:C(h+140,.6),scale:t(/giant|dragon|elephant|monster|titan|god/)?1.8:t(/tiny|small|fairy|mouse|baby|ant|kid|child|toddler|little/)?.6:1+((h%5)-2)*.08,wings:t(/dragon|bird|angel|fairy|bat|eagle|phoenix|demon/),horns:t(/devil|demon|dragon|unicorn|bull|goat|monster/),tail:t(/dragon|cat|dog|lizard|fox|devil|demon|monster|mermaid/),glow:t(/ghost|star|angel|fire|phoenix|spirit|alien|wizard|god/),fly:t(/ghost|bird|angel|fairy|bat|dragon|phoenix|spirit/),scary:t(/monster|beast|ogre|troll|zombie|vampire|demon|devil|creature|abomination|alien/)};if(o.scary){o.scale=2.3;o.horns=o.tail=o.glow=true;o.color=['#3d5a3a','#4a2f5c','#5a2a2a'][h%3];o.accent='#8a1c1c'}return o}
 function believe(q){if(/\?\s*$/.test(q))return[];const l=q.toLowerCase(),t=r=>r.test(l),o=[];
- if(t(/\b(night|nighttime|midnight|dark)\b/)){S.sky='night';o.push('Night falls. The stars come out one by one.')}
+ if(t(/\b(night|nighttime|midnight)\b|\bit('s| is) (getting )?dark\b/)){S.sky='night';o.push('Night falls. The stars come out one by one.')}
  else if(t(/\b(dusk|sunset|evening|twilight)\b/)){S.sky='dusk';o.push('The sky burns orange.')}
  else if(t(/\b(dawn|sunrise|morning)\b/)){S.sky='dawn';o.push('A pale dawn creeps over the roofs.')}
- else if(t(/\b(day|daytime|noon|midday|sunny|bright)\b/)){S.sky='day';S.wx='';o.push('The sun returns, as if it never left.')}
+ else if(t(/\b(daytime|noon|midday|sunny)\b|\bit('s| is) (day|bright)\b/)){S.sky='day';S.wx='';o.push('The sun returns, as if it never left.')}
  if(t(/\b(rain|raining|rainy|storm)\b/)){S.wx='rain';o.push('Rain begins to fall.')}
  else if(t(/\b(snow|snowing|blizzard)\b/)){S.wx='snow';o.push('Snow drifts down from nowhere.')}
  else if(t(/\b(fog|foggy|mist|misty)\b/)){S.wx='fog';o.push('A thick fog swallows the streets.')}
  else if(t(/\b(clear sky|stopped raining|no rain|clear weather)\b/)){S.wx='';o.push('The weather clears.')}
  if(o.length){world();save();toast(o.join(' '))}return o}
 function doBelieve(){const q=$('tq').value.trim();if(!q)return;$('tq').value='';const b=guess(q),e=b?[]:believe(q);let m=null,d=9;for(const k in NPC){const x=player.position.distanceTo(NPC[k].g.position);if(x<d){d=x;m=k}}
- if(b&&m){const n=NPC[m];tf(n,b);if(b.parts)aiModel(b.what).then(r=>r&&tf(n,{...b,parts:r.parts,fly:r.fly,glow:r.glow,label:false,quiet:true}));return}if(b)toast('No one is close enough to hear you believe it.');else if(!e.length)toast('Nothing in the world agrees with you. Yet.')}
+ if(b&&m){const n=NPC[m];tf(n,b);if(b.parts)aiModel(b.what).then(r=>r&&tf(n,{...b,parts:r.parts,fly:r.fly,glow:r.glow,label:false,quiet:true}));return}if(b)toast('No one is close enough to hear you believe it.');else{(S.lg=S.lg||[]).push(q.slice(0,80));engine(q).then(o=>{if(!e.length&&!o.length)toast('Reality shrugs. Try believing something bigger.')})}}
 $('think').onclick=()=>{unlock();const b=$('thk');b.style.display=b.style.display==='none'?'block':'none';if(b.style.display==='block')$('tq').focus()};
 $('tgo').onclick=doBelieve;$('tq').addEventListener('keydown',e=>{if(e.key==='Enter')doBelieve()});
 async function ask(){const q=$('q').value.trim();if(!q||!cur)return;const n=NPC[cur.k];$('q').value='';$('say').textContent='...';
- const b0=guess(q),eff=b0?[]:believe(q);if(b0)tf(n,b0);const mp=b0&&b0.parts?aiModel(b0.what):null;
+ const b0=guess(q),eff=b0?[]:believe(q);if(b0)tf(n,b0);const mp=b0&&b0.parts?aiModel(b0.what):null;if(BEL.test(q))(S.lg=S.lg||[]).push(q.slice(0,80));const eng=!b0&&BEL.test(q)?engine(q):null;
  const note=(b0?" The player's belief just turned you into a "+b0.what+"; you feel it happening and you ARE that now. ":"")+(eff.length?" The player's belief just changed the world: "+eff.join(' ')+" ":"");
  try{if(smp===undefined)smp=(window.claude&&await claude.use('sample'))||null;if(!smp)throw 0;
-  const r=await smp("You are "+n.n+", "+(n.r||'a local')+" in an eerie, slightly wrong town. You act as if you have known the player (who has amnesia) their whole life, but your story has small contradictions. You are uneasy and a little suspicious. Never break the fourth wall, never admit you lie. Sometimes hesitate or stutter. What the player has accepted so far (b=believed,d=doubted,i=ignored): "+JSON.stringify(S.b)+". Player money: $"+money+"."+note+`Reply with ONLY JSON: {"reply":"1-2 short sentences in character","become":null,"world":null}. The player's beliefs reshape reality. If the player tells you what you are (e.g. 'you are a dragon', 'I believe you are a monster'), set "become" to {"what":"a short noun phrase for exactly what they said"} and reply as that new thing, startled but certain you always were. If the player says what the world is like (e.g. 'it is nighttime'), set "world" to {"sky":"day|night|dusk|dawn","weather":"rain|snow|fog|clear"} and remark on it. Otherwise null. The player says: `+q,{cache:false,modelTier:'quick'});
+  const r=await smp("You are "+n.n+", "+(n.r||'a local')+" in an eerie, slightly wrong town. "+ctx(n)+" You act as if you have known the player (who has amnesia) their whole life, but your story has small contradictions. You are uneasy and a little suspicious. Never break the fourth wall, never admit you lie. Sometimes hesitate or stutter. What the player has accepted so far (b=believed,d=doubted,i=ignored): "+JSON.stringify(S.b)+". Player money: $"+money+"."+note+`Reply with ONLY JSON: {"reply":"1-2 short sentences in character","become":null,"world":null}. The player's beliefs reshape reality. If the player tells you what you are (e.g. 'you are a dragon', 'I believe you are a monster'), set "become" to {"what":"a short noun phrase for exactly what they said"} and reply as that new thing, startled but certain you always were. If the player says what the world is like (e.g. 'it is nighttime'), set "world" to {"sky":"day|night|dusk|dawn","weather":"rain|snow|fog|clear"} and remark on it. Otherwise null. Whatever the player says they believe immediately becomes true in this town; if they describe something appearing or changing, react as if you just saw it happen. The player says: `+q,{cache:false,modelTier:'quick'});
   let j=null;try{j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0])}catch(e){}
   if(!cur)return;
-  if(j&&j.reply){say(String(j.reply));if(!b0&&j.become&&j.become.what){const w=String(j.become.what).toLowerCase().replace(/[^a-z \-]/g,'').trim().slice(0,28);if(w)tf(n,mk(w))}const w=j.world;if(w&&!eff.length){if(['day','night','dusk','dawn'].includes(w.sky))S.sky=w.sky;if(['rain','snow','fog','clear'].includes(w.weather))S.wx=w.weather==='clear'?'':w.weather;world();save()}}else say(r.text.trim())}
+  if(j&&j.reply){say(String(j.reply));(n.h=n.h||[]).push([q.slice(0,80),String(j.reply).slice(0,120)]);if(!b0&&j.become&&j.become.what){const w=String(j.become.what).toLowerCase().replace(/[^a-z \-]/g,'').trim().slice(0,28);if(w)tf(n,mk(w))}const w=j.world;if(w&&!eff.length){if(['day','night','dusk','dawn'].includes(w.sky))S.sky=w.sky;if(['rain','snow','fog','clear'].includes(w.weather))S.wx=w.weather==='clear'?'':w.weather;world();save()}}else say(r.text.trim())}
  catch(e){if(!cur)return;if(b0)say('I... I am '+(/^[aeiou]/.test(b0.what)?'an ':'a ')+b0.what+'. I have always been one.');else if(eff.length)say("It has always been like this here. Hasn't it?");else say(pick((n.l||[]).concat(FALL)))}
+ if(eng)await eng;
  if(mp){const m=await mp;if(m)tf(n,{...b0,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true})}}
 const AN={lion:[0xd9a441,1.4,.7,.6,0,1],elephant:[0x8c8c92,2.2,1.2,1,.3,1.3],giraffe:[0xe3b858,1.3,.7,1.5,1.6,1],penguin:[0x23262b,.5,.7,.2,0,.8],cat:[0xc9a27a,.6,.3,.25,0,.8],dog:[0xa0764a,.8,.4,.35,0,.8],rabbit:[0xeeeeee,.4,.3,.15,0,.8],shark:[0x7a8a99,1.6,.4,0,0,1],fish:[0xf08a4b,.5,.25,0,0,1]};
 function animal(k,x,z,p){const [c,L,H,lg,nk,sc]=AN[k],g=new T.Group();g.position.set(x,0,z);g.scale.setScalar(sc);(p||scene).add(g);
@@ -243,9 +306,33 @@ function animal(k,x,z,p){const [c,L,H,lg,nk,sc]=AN[k],g=new T.Group();g.position
  if(lg)for(const [a,b] of [[1,1],[-1,1],[1,-1],[-1,-1]])box(.18,lg,.18,c,a*.2,lg/2,b*L*.35,g);return g}
 function roam(g,cx,cz,rr,sp,y,zs){const ph=Math.random()*6;anims.push(t=>{const a=t*.0006*sp+ph;g.position.set(cx+Math.cos(a)*rr,y,cz+Math.sin(a)*rr*(zs||1));g.rotation.y=Math.atan2(-Math.sin(a),Math.cos(a))})}
 function addPet(k){const a=animal(k,player.position.x,player.position.z+2,scene);a.scale.setScalar(.6);petO.push(a)}
-function folk(x,z,role,shop){const g=person(x,z,pick(COL),1,pick([0xf0d2b0,0xe6b98f,0xc99a74,0x8d5a3c]),pick([0x3a2a22,0x7a4a35,0xcfcfcf,0xc9893a,0x1a1a1a]),pick([0x3b4a6b,0x4a3f3a,0x2f3b47]));return {g,n:pick(NAMES),r:role,l:LINES,debt:Math.random()<.55?10+(Math.random()*60|0):0,shop}}
+function folk(x,z,role,shop){const sec=pick(SECRETS),qk=pick(QUIRKS),g=person(x,z,pick(COL),1,pick([0xf0d2b0,0xe6b98f,0xc99a74,0x8d5a3c]),pick([0x3a2a22,0x7a4a35,0xcfcfcf,0xc9893a,0x1a1a1a]),pick([0x3b4a6b,0x4a3f3a,0x2f3b47]));return {g,sec,qk,n:pick(NAMES),r:role,l:LINES,debt:Math.random()<.55?10+(Math.random()*60|0):0,shop}}
 const NPC={mara:{g:mara,n:'Mara',r:'a baker who is oddly warm',l:["The bread is warm.","You were here yesterday. Weren't you?"]},pim:{g:pim,n:'Pim',r:'a curious ten year old',l:["Shh. Don't say that so loud."]},odd:{g:odd,n:'Odd',r:'a strange old man who claims to be your oldest friend',l:["Keep your voice down."]}};
 for(let i=0;i<28;i++){const [x,z]=rnd()<.5?[(rnd()-.5)*190,(rnd()<.5?-1:1)*3.4]:[(rnd()<.5?-1:1)*3.4,(rnd()-.5)*190];const o=folk(x,z,pick(ROLES));if(i<10)o.rum=RUMORS[i%5];NPC['w'+i]=o;WAN.push({g:o.g,i,t:null,k:0,p:0})}
+const CARC=['#c2503f','#2f7a9a','#d9a441','#6a8a3a','#8a4a8a'];let nSt=0,nBu=0;
+function prop(ty,x,z,rot){const g=new T.Group();g.position.set(x,0,z);g.rotation.y=rot;scene.add(g);HG.push(g);const B=(w,h,d,c,a,y,b)=>box(w,h,d,c,a,y,b,g);let cr=.8;
+ const act=(l,f)=>ST.push({x,z,l,f});
+ if(ty==='bench'){B(1.8,.15,.6,0x8a5a3a,0,.6,0);B(1.8,.5,.1,0x8a5a3a,0,1,-.3);B(.1,.6,.5,0x333333,-.8,.3,0);B(.1,.6,.5,0x333333,.8,.3,0);act('Sit down',()=>toast(pick(["You sit. Everyone on the street sits too.","The bench is warm, as if someone just left. Or is still here."])))}
+ else if(ty==='bin'){B(.6,.9,.6,0x4a5a4a,0,.45,0);B(.7,.1,.7,0x333333,0,.95,0);cr=.5}
+ else if(ty==='hydrant'){B(.4,.8,.4,0xc2503f,0,.4,0);B(.6,.15,.2,0xc2503f,0,.6,0);cr=.4}
+ else if(ty==='planter'){B(1.4,.5,.6,0x7a5a3a,0,.25,0);for(let i=0;i<4;i++)B(.25,.4+i%2*.2,.25,[0xe06c8a,0xf2c14e,0xffffff,0xb06ae0][i],-.5+i*.33,.7,0)}
+ else if(ty==='mail'){B(.5,1.2,.5,0x2f5a9a,0,.6,0);B(.6,.15,.6,0x2f5a9a,0,1.25,0);cr=.5;act('Check the mail',()=>{const v=3+(Math.random()*20|0);money+=v;hud();save();toast(pick(["A letter for you. Inside: $"+v+" and a note: Stop looking.","$"+v+" in an envelope. The handwriting is yours."]))})}
+ else if(ty==='vend'){B(1,2,.8,0x2f7a9a,0,1,0);B(.7,1,.05,0xf1e9d2,0,1.3,.42);cr=.7;act('Buy a drink ($3)',()=>{if(money<3)return toast('You cannot afford it. Funny.');money-=3;hud();toast(pick(["It tastes like a day you cannot remember.","The can is cold. The label has your name on it."]))})}
+ else if(ty==='statue'){B(1.4,.8,1.4,0x888888,0,.4,0);B(.6,1.2,.4,0x9a9a9a,0,1.4,0);B(.5,.5,.5,0x9a9a9a,0,2.25,0);act('Read the plaque',()=>toast(pick(['"In honor of the one who stayed." The face looks like yours.','"Erected: tomorrow."','The statue faces the other way than yesterday.'])))}
+ else if(ty==='car'){OB.car.forEach(([a,y,c,w,h,d,col],i)=>B(w,h,d,i===0?CARC[rnd()*5|0]:col,a,y,c));cr=1.8;g.rotation.y=rot+Math.PI/2}
+ else if(ty==='stall'&&nSt<10){const c=CARC[nSt%5];nSt++;[[-1,-.7],[1,-.7],[-1,.7],[1,.7]].forEach(([a,b])=>B(.1,2.2,.1,0x5a3e2a,a,1.1,b));B(2.4,.15,1.8,c,0,2.3,0);B(2.4,.7,.1,0xf1e9d2,0,.6,.8);B(2.2,.8,.7,0x7a5a3a,0,.4,.2);for(let k=0;k<3;k++)B(.3,.3,.3,[0xe05a4a,0xf2c14e,0x6fa86b][k],-.6+k*.6,.95,.2);for(let k=0;k<3;k++)B(.3,.4,.3,CARC[(k+nSt)%5],-.9+k*.9,3.1+k%2*.3,.7);
+  const o=folk(x,z,'a street vendor');o.st='vendor';o.debt=0;o.g.rotation.y=rot;NPC['v'+nSt]=o;cr=1.6}
+ else if(ty==='busker'&&nBu<8){nBu++;B(.7,.15,.7,0x333333,0,.08,1.4);const o=folk(x,z,'a street musician');o.st='busker';o.g.rotation.y=rot;NPC['u'+nBu]=o;cr=.6}
+ else cr=0;if(cr)colliders.push({x,z,r:cr,on:()=>1})}
+const PT=['bench','bin','stall','vend','statue','planter','car','bench','mail','hydrant','busker','planter','car'],RL=[-66,-33,0,33,66];
+for(const line of RL)for(let t=-98;t<=98;t+=15){if(RL.some(r=>Math.abs(t-r)<6))continue;
+ for(const ax of [0,1]){const side=rnd()<.5?-1:1,ty=PT[rnd()*PT.length|0],x=ax?t:line+side*4.6,z=ax?line+side*4.6:t;prop(ty,x,z,ax?(side>0?Math.PI:0):(side>0?-Math.PI/2:Math.PI/2))}}
+function mkCoin(x,z){const m=new T.Mesh(new T.BoxGeometry(.5,.5,.1),new T.MeshBasicMaterial({color:0xffd24a}));m.position.set(x,1,z);scene.add(m);COINS.push(m)}
+for(let i=0;i<90;i++){const l=RL[rnd()*5|0],t=(rnd()-.5)*190;rnd()<.5?mkCoin(l+(rnd()-.5)*3,t):mkCoin(t,l+(rnd()-.5)*3)}
+function streetEvent(){if(!started||inside||cur)return;const r=Math.random();
+ if(r<.4){spawnThing('chicken',1,'here').then(()=>{const th=THINGS[THINGS.length-1];if(th){th.catch=true;toast('A chicken is loose! Catch it.')}})}
+ else if(r<.75){for(let i=0;i<14;i++){const a=Math.random()*6.28,d=5+Math.random()*10;mkCoin(player.position.x+Math.cos(a)*d,player.position.z+Math.sin(a)*d)}toast('Coins rain down from a sky that should not be dropping them.')}
+ else eerie()}
 const PN=400,pg=new T.BufferGeometry(),pa=new Float32Array(PN*3);for(let i=0;i<PN;i++){pa[i*3]=(Math.random()-.5)*40;pa[i*3+1]=Math.random()*25;pa[i*3+2]=(Math.random()-.5)*40}
 pg.setAttribute('position',new T.BufferAttribute(pa,3));const pm=new T.PointsMaterial({color:0xa8c4ff,size:.12}),pts=new T.Points(pg,pm);pts.frustumCulled=false;pts.visible=false;scene.add(pts);
 const sg=new T.BufferGeometry(),sa=new Float32Array(900);for(let i=0;i<300;i++){const a=Math.random()*6.28,e=Math.random()*1.2+.15;sa[i*3]=Math.cos(a)*Math.cos(e)*100;sa[i*3+1]=Math.sin(e)*100;sa[i*3+2]=Math.sin(a)*Math.cos(e)*100}
@@ -303,8 +390,8 @@ function world(){const f=S.flip;
  win.material.color.setHex((S.home!==f)?0xffd27a:0x5c5c52);
  tint(odd,(S.odd!==f)?0xe8a86b:0x5a6f8a);
  tint(mara,(S.odd!==f)?0x9a9a9a:0xc7566b);
- const r=S.rum||{};water.visible=(r.dry!==1)!==f;water.material.color.setHex(r.dry===-1?0xc23a3a:0x6fb3c9);tdoor.visible=(r.door===1)!==f;chapel.visible=(r.chapel===1)!==f;
- const sk=SKYS[S.sky||(r.dusk===1?'dusk':r.dusk===-1?'bright':'day')];SKY=sk[0];sun.color.setHex(sk[1]);sun.intensity=sk[2];hemi.intensity=sk[3];lan.intensity=sk[4];stars.visible=moon.visible=sk[4]>0&&!inside;
+ const r=S.rum||{};gnd.material.color.set(S.gc||'#7d8f6f');tower.visible=!S.noTw;bakery.visible=!S.noBk;setOp(player,(S.pw&&S.pw.inv)?.15:1);if(S.hc)HOUSES.forEach(g=>g.children[0].material.color.set(S.hc));water.visible=(r.dry!==1)!==f;water.material.color.setHex(r.dry===-1?0xc23a3a:0x6fb3c9);tdoor.visible=(r.door===1)!==f;chapel.visible=(r.chapel===1)!==f;
+ const sk=SKYS[S.sky||(r.dusk===1?'dusk':r.dusk===-1?'bright':'day')];SKY=S.skc?new T.Color(S.skc).getHex():sk[0];sun.color.setHex(sk[1]);sun.intensity=sk[2];hemi.intensity=sk[3];lan.intensity=sk[4];stars.visible=moon.visible=sk[4]>0&&!inside;
  scene.fog.near=S.wx==='fog'?6:40;scene.fog.far=S.wx==='fog'?42:105;pts.visible=(S.wx==='rain'||S.wx==='snow')&&!inside;pm.color.setHex(S.wx==='snow'?0xffffff:0xa8c4ff);pm.size=S.wx==='snow'?.25:.12;if(!inside){scene.background=new T.Color(SKY);scene.fog.color.copy(scene.background)}}
 function decide(c,ch){S.b[c.id]=ch;S.n++;if(c.debt&&ch==='b'){money+=c.debt;hud()}if(c.rum){S.rum=S.rum||{};S.rum[c.rum]=ch==='b'?1:ch==='d'?-1:0;world();const m=ch==='b'?RT[c.rum]:ch==='d'?RD[c.rum]:null;if(m)toast(m)}save();
  if(ch==='b'){if(c.id==='home')S.home=true;if(c.id==='nolib'||c.id==='nolib2')S.libN++;if(c.id==='light')S.light=true;if(c.id==='friend')S.odd=true}
@@ -319,6 +406,8 @@ function openDlg(k){unlock();const n=NPC[k],c=CL.find(c=>c.k===k&&!S.b[c.id])||d
  const o=$('opts');o.innerHTML='';const add=(l,f)=>{const b=document.createElement('button');b.textContent=l;b.onclick=f;o.appendChild(b)};
  if(c){add(c.debt?'Take the money.':'I believe you.',()=>{decide(c,'b');closeDlg()});add(c.debt?'I never lent you anything.':"That doesn't add up.",()=>{decide(c,'d');closeDlg()});add('(Say nothing.)',()=>{decide(c,'i');closeDlg()})}
  if(n.shop)for(const [q,pr] of [['cat',40],['dog',60],['rabbit',30]])add('Buy '+q+' $'+pr,()=>{if(money<pr)say('You cannot afford that. Funny. You always could.');else{money-=pr;pets.push(q);addPet(q);hud();save();say('Take good care of it. It already knows you.')}});
+ if(n.st==='vendor')for(const [f,pr] of [['a pastry',5],['hot cider',4]])add('Buy '+f+' $'+pr,()=>{if(money<pr)say('Your pockets are empty. They were not before.');else{money-=pr;hud();say(pick(["It tastes exactly like something you ate once.","Eat. Eat. You always look thin."]))}});
+ if(n.st==='busker')add('Tip $2',()=>{if(money<2)return say('...');money-=2;hud();if(Math.random()<.4){money+=8;hud();say('The music stops. "Take it back. You will need it."')}else say(pick(["He plays a song you hum without knowing why.","The melody is the name of this town. You never knew it had one."]))});
  add('Leave',closeDlg);$('dlg').style.display='block';$('talk').style.display='none'}
 function closeDlg(){cur=null;$('dlg').style.display='none'}
 
@@ -332,13 +421,13 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 const ray=new T.Raycaster(),v2=new T.Vector2();
 $('c').addEventListener('pointerdown',e=>{if(cur||!started)return;if(e.pointerType==='mouse'){try{const r=$('c').requestPointerLock();if(r&&r.catch)r.catch(()=>{})}catch(x){}return}v2.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1);ray.setFromCamera(v2,cam);const h=ray.intersectObject(gnd)[0];if(h)target=h.point.clone()});
 let near=null;
-function useNear(){if(!near||cur||!started)return;if(near==='rec')ending();else if(NPC[near])openDlg(near);else if(near[0]==='t')things[+near.slice(1)].f();else enter(DOORS[+near.slice(1)])}
+function useNear(){if(!near||cur||!started)return;if(near==='rec')ending();else if(NPC[near])openDlg(near);else if(near[0]==='t')things[+near.slice(1)].f();else if(near[0]==='s')ST[+near.slice(1)].f();else enter(DOORS[+near.slice(1)])}
 $('talk').onclick=useNear;
 let started=false;
 const SV=(()=>{try{return JSON.parse(localStorage.getItem('wil1'))}catch(e){return null}})();
 if(SV&&SV.S)$('cont').style.display='';
-function begin(sv){if(sv){Object.assign(S,sv.S);Object.entries(S.tf||{}).forEach(([k,b])=>becomeNPC(NPC[k],b));(S.got||[]).forEach(i=>ORB[i]&&(ORB[i].visible=false));money=sv.money||0;(sv.pets||[]).forEach(q=>{pets.push(q);addPet(q)});world();libCur=libTgt;lh.scale.setScalar(Math.max(.001,lhTgt));if(sv.x!=null)player.position.set(sv.x,0,sv.z);if(S.n>=4&&!S.end)rec.visible=true}
- hud();$('intro').style.display='none';$('hud').style.display='flex';started=true;setInterval(eerie,28000);toast(sv?'You wake in the same place. Probably.':'Blue beams mark your lost memories. Find all twelve.')}
+function begin(sv){if(sv){Object.assign(S,sv.S);(S.sp||[]).forEach(q=>addThing(q.b,q.x,q.z,q.w,true,q.f));Object.entries(S.tf||{}).forEach(([k,b])=>becomeNPC(k==='player'?SELF:NPC[k],b));(S.got||[]).forEach(i=>ORB[i]&&(ORB[i].visible=false));money=sv.money||0;(sv.pets||[]).forEach(q=>{pets.push(q);addPet(q)});world();libCur=libTgt;lh.scale.setScalar(Math.max(.001,lhTgt));if(sv.x!=null)player.position.set(sv.x,0,sv.z);if(S.n>=4&&!S.end)rec.visible=true}
+ hud();$('intro').style.display='none';$('hud').style.display='flex';started=true;setInterval(eerie,28000);setInterval(streetEvent,50000);toast(sv?'You wake in the same place. Probably.':'Blue beams mark your lost memories. Find all twelve.')}
 $('go').onclick=()=>begin(null);$('cont').onclick=()=>begin(SV);
 $('how').onclick=()=>ov('<b>How to play</b><br>You have no memory of this place, but everyone acts like they know you. Move with WASD or by tapping. Press E or the button to talk, enter buildings and use things. Type anything in the Question box and people answer. Believe, doubt or say nothing to what they tell you: the world listens. People who say they owe you money will pay you, and the Pet Shop sells companions. <i>Guide to house</i> walks you home.');
 $('guide').onclick=()=>{if(inside)leave();guideT=true;toast('Following the way home...')};
@@ -373,23 +462,37 @@ async function ending(){unlock();S.end=true;rec.visible=false;const e=$('end');e
 // loop
 const mv=new T.Vector3();let last=performance.now();
 function step(g,dx,dz,sp,dt){const nx=g.position.x+dx*sp*dt,nz=g.position.z+dz*sp*dt;
- const ok=(x,z)=>inside?(Math.abs(x-OFF)<7.2&&z>OFF-5.2&&z<OFF+5.8&&!icol.some(c=>Math.hypot(x-c.x,z-c.z)<c.r+.5)):(Math.abs(x)<110&&Math.abs(z)<110&&!colliders.some(c=>c.on()&&Math.hypot(x-c.x,z-c.z)<c.r+.5&&Math.hypot(x-c.x,z-c.z)<=Math.hypot(g.position.x-c.x,g.position.z-c.z)));
+ const ok=(x,z)=>inside?(Math.abs(x-OFF)<7.2&&z>OFF-5.2&&z<OFF+5.8&&!icol.some(c=>Math.hypot(x-c.x,z-c.z)<c.r+.5)):(Math.abs(x)<110&&Math.abs(z)<110&&((g===player&&S.pw&&S.pw.fly)||!colliders.some(c=>c.on()&&Math.hypot(x-c.x,z-c.z)<c.r+.5&&Math.hypot(x-c.x,z-c.z)<=Math.hypot(g.position.x-c.x,g.position.z-c.z))));
  if(ok(nx,g.position.z))g.position.x=nx;if(ok(g.position.x,nz))g.position.z=nz}
 function tick(t){requestAnimationFrame(tick);const dt=Math.min(.05,(t-last)/1000);last=t;
  let dx=(keys.d||keys.arrowright?1:0)-(keys.a||keys.arrowleft?1:0),dz=(keys.s||keys.arrowdown?1:0)-(keys.w||keys.arrowup?1:0),moving=false;
  if(started&&!cur){
   if(dx||dz){target=null;const c=Math.cos(yaw),n=Math.sin(yaw),a=dx;dx=a*c+dz*n;dz=-a*n+dz*c}else if(target){dx=target.x-player.position.x;dz=target.z-player.position.z;if(Math.hypot(dx,dz)<.4){target=null;dx=dz=0}}
-  const l=Math.hypot(dx,dz);if(l){dx/=l;dz/=l;step(player,dx,dz,6.5,dt);player.rotation.y=Math.atan2(dx,dz);moving=true}}
+  const l=Math.hypot(dx,dz);if(l){dx/=l;dz/=l;step(player,dx,dz,6.5*((S.pw&&S.pw.speed)||1),dt);player.rotation.y=Math.atan2(dx,dz);moving=true}}
  if(guideT&&started&&!cur){if(keys.w||keys.a||keys.s||keys.d)guideT=false;else{const h=DOORS.find(q=>q.t==='home'),ex=h.x-player.position.x,ez=h.z-player.position.z,l=Math.hypot(ex,ez);if(l<1.2){guideT=false;toast('Your house. It looks exactly as you left it. You think.')}else{player.position.x+=ex/l*11*dt;player.position.z+=ez/l*11*dt;player.rotation.y=Math.atan2(ex,ez);moving=true}}}
  const sw=inside&&inside.t==='pool'&&Math.abs(player.position.x-OFF)<5.2&&Math.abs(player.position.z-OFF)<2.4;
- player.position.y=sw?-.5+Math.sin(t*.004)*.05:(moving?Math.abs(Math.sin(t*.013))*.05:0);anim(player,moving||sw,t);anim(mara,0,t);anim(pim,0,t+500);
+ {const u=player.userData,z=(S.pw&&S.pw.size)||1,b=(u.bs||.72)*z,c=u.sc||1,x=u.sx||1;player.scale.set(b*c*x,b*c,b*c*x)}player.position.y=(S.pw&&S.pw.fly&&!inside)?6+Math.sin(t*.003)*.4:sw?-.5+Math.sin(t*.004)*.05:(moving?Math.abs(Math.sin(t*.013))*.05:0);anim(player,moving||sw,t);anim(mara,0,t);anim(pim,0,t+500);
  // Odd follows when he is your friend
  let om=false;if(S.odd!==S.flip&&!cur&&!inside){const ddx=player.position.x-odd.position.x,ddz=player.position.z-odd.position.z,d=Math.hypot(ddx,ddz);if(d>3.4){step(odd,ddx/d,ddz/d,5,dt);odd.rotation.y=Math.atan2(ddx,ddz);om=true}}anim(odd,om,t);
- if(started&&!inside&&!cur)for(const w of WAN){const g=w.g;if((S.rum||{}).stare===1&&Math.hypot(g.position.x-player.position.x,g.position.z-player.position.z)<22){g.rotation.y=Math.atan2(player.position.x-g.position.x,player.position.z-g.position.z);anim(g,0,t);continue}if(!w.t||Math.hypot(g.position.x-w.t.x,g.position.z-w.t.z)<1||(w.k+=dt)>7){w.k=0;w.t={x:(rnd()-.5)*190,z:(rnd()-.5)*190};w.p=rnd()*3}
+ if(started&&!inside&&!cur)for(const w of WAN){const g=w.g;if((S.rum||{}).stare===1&&Math.hypot(g.position.x-player.position.x,g.position.z-player.position.z)<22){g.rotation.y=Math.atan2(player.position.x-g.position.x,player.position.z-g.position.z);anim(g,0,t);continue}
+  if(S.beh){const ex=player.position.x-g.position.x,ez=player.position.z-g.position.z,d=Math.hypot(ex,ez)||1;
+   if(S.beh==='follow'){g.rotation.y=Math.atan2(ex,ez);if(d>3.2&&d<80){step(g,ex/d,ez/d,3.6,dt);anim(g,1,t+w.i*300)}else anim(g,0,t);continue}
+   if(S.beh==='flee'&&d<30){g.rotation.y=Math.atan2(-ex,-ez);step(g,-ex/d,-ez/d,4.4,dt);anim(g,1,t+w.i*300);continue}
+   if(S.beh==='dance'){g.rotation.y+=dt*5;anim(g,1,t+w.i*200);if(!g.userData.fly)g.position.y=Math.abs(Math.sin(t*.01+w.i))*.4;continue}
+   if(S.beh==='freeze')continue}
+  if(!g.userData.fly&&g.position.y)g.position.y=0;
+  if(!w.t||Math.hypot(g.position.x-w.t.x,g.position.z-w.t.z)<1||(w.k+=dt)>7){w.k=0;w.t={x:(rnd()-.5)*190,z:(rnd()-.5)*190};w.p=rnd()*3}
   if(w.p>0){w.p-=dt;anim(g,0,t+w.i*300);continue}
   const dx=w.t.x-g.position.x,dz=w.t.z-g.position.z,d=Math.hypot(dx,dz)||1;step(g,dx/d,dz/d,2.2,dt);g.rotation.y=Math.atan2(dx,dz);anim(g,1,t+w.i*300)}
  petO.forEach((q,i)=>{const tx=player.position.x-Math.sin(player.rotation.y)*(1.6+i*1.3)+(i%2?1:-1)*.8,tz=player.position.z-Math.cos(player.rotation.y)*(1.6+i*1.3);q.rotation.y=Math.atan2(tx-q.position.x,tz-q.position.z);q.position.x+=(tx-q.position.x)*Math.min(1,dt*3);q.position.z+=(tz-q.position.z)*Math.min(1,dt*3);q.position.y=Math.abs(Math.sin(t*.01+i))*.08});
  anims.forEach(f=>f(t));
+ for(let i=THINGS.length-1;i>=0;i--){const th=THINGS[i],P=player.position;th.age+=dt;th.g.scale.setScalar(Math.max(.01,Math.min(1,th.age/.7)*.72));
+  if(th.follow&&!inside){const dx=P.x-th.g.position.x,dz=P.z-th.g.position.z,d=Math.hypot(dx,dz)||1;if(d>2.6){th.g.position.x+=dx/d*3.5*dt;th.g.position.z+=dz/d*3.5*dt;th.g.rotation.y=Math.atan2(dx,dz);th.g.position.y=th.b.fly?2:Math.abs(Math.sin(t*.012))*.15}}
+  else if(th.b.live&&!inside&&th.age>.7){if(!th.t||(th.k+=dt)>5||Math.hypot(th.g.position.x-th.t.x,th.g.position.z-th.t.z)<.5){th.k=0;th.t={x:th.tx+(Math.random()-.5)*20,z:th.tz+(Math.random()-.5)*20}}
+   const dx=th.t.x-th.g.position.x,dz=th.t.z-th.g.position.z,d=Math.hypot(dx,dz)||1;th.g.position.x+=dx/d*(th.catch?3.2:1.8)*dt;th.g.position.z+=dz/d*(th.catch?3.2:1.8)*dt;th.g.rotation.y=Math.atan2(dx,dz);th.g.position.y=th.b.fly?2+Math.sin(t*.004)*.3:Math.abs(Math.sin(t*.012))*.15}
+  th.g.visible=!inside&&Math.hypot(th.g.position.x-P.x,th.g.position.z-P.z)<90;
+  if(th.catch&&!inside&&Math.hypot(th.g.position.x-P.x,th.g.position.z-P.z)<1.8){scene.remove(th.g);THINGS.splice(i,1);money+=12;hud();save();toast('You caught it. It looked at you like it knew you. +$12')}}
+ COINS.forEach(m=>{if(!m.visible)return;m.rotation.y+=dt*3;if(!inside&&Math.hypot(player.position.x-m.position.x,player.position.z-m.position.z)<1.6){m.visible=false;money+=2;hud()}});
  if((fc=(fc+1)%8)===0){const P=player.position;HG.forEach(h=>h.visible=!inside&&Math.hypot(h.position.x-P.x,h.position.z-P.z)<85);WAN.forEach(w=>w.g.visible=!inside&&Math.hypot(w.g.position.x-P.x,w.g.position.z-P.z)<85)}
  ORB.forEach(m=>{if(!m.visible)return;m.rotation.y+=dt*2;if(started&&!inside&&Math.hypot(player.position.x-m.position.x,player.position.z-m.position.z)<1.8){m.visible=false;S.got=S.got||[];S.got.push(ORB.indexOf(m));money+=15;hud();save();toast(S.got.length===12?'All twelve. You remember a door that was never built.':pick(MEM))}});
  // world transitions
@@ -397,14 +500,14 @@ function tick(t){requestAnimationFrame(tick);const dt=Math.min(.05,(t-last)/1000
  const ls=lh.scale.x+(lhTgt-lh.scale.x)*Math.min(1,dt*1.8);lh.scale.setScalar(Math.max(.001,ls));lh.visible=ls>.03;
  rec.rotation.y=t*.002;rec.position.y=1.2+Math.sin(t*.004)*.2;
  // nearest talk target
- near=null;if(started&&!cur&&!S.end&&!guideT){let bd=3.6;const P=player.position;
+ near=null;if(started&&!cur&&$('end').style.display!=='block'&&!guideT){let bd=3.6;const P=player.position;
   for(const k in NPC){const d=P.distanceTo(NPC[k].g.position);if(d<bd){bd=d;near=k}}
   if(rec.visible&&!inside&&P.distanceTo(rec.position)<3.6)near='rec';
   if(inside)things.forEach((h,i)=>{const d=Math.hypot(P.x-h.x,P.z-h.z);if(d<h.r&&d<bd){bd=d;near='t'+i}});
-  else DOORS.forEach((h,i)=>{if(h.on&&!h.on())return;const d=Math.hypot(P.x-h.x,P.z-h.z);if(d<2.6&&d<bd){bd=d;near='d'+i}})}
- const tb=$('talk');if(near){tb.style.display='block';tb.textContent=NPC[near]?'Talk to '+NPC[near].n:near==='rec'?'Play the recording':near[0]==='t'?things[+near.slice(1)].l:'Enter '+DOORS[+near.slice(1)].n}else tb.style.display='none';
+  else DOORS.forEach((h,i)=>{if(h.on&&!h.on())return;const d=Math.hypot(P.x-h.x,P.z-h.z);if(d<2.6&&d<bd){bd=d;near='d'+i}});ST.forEach((h,i)=>{const d=Math.hypot(P.x-h.x,P.z-h.z);if(d<2.4&&d<bd){bd=d;near='s'+i}})}
+ const tb=$('talk');if(near){tb.style.display='block';tb.textContent=NPC[near]?'Talk to '+NPC[near].n:near==='rec'?'Play the recording':near[0]==='t'?things[+near.slice(1)].l:near[0]==='s'?ST[+near.slice(1)].l:'Enter '+DOORS[+near.slice(1)].n}else tb.style.display='none';
  stars.position.copy(player.position);moon.position.set(player.position.x+40,70,player.position.z-80);if(pts.visible){pts.position.set(player.position.x,0,player.position.z);const sp=S.wx==='snow'?2.5:18;for(let i=0;i<PN;i++){pa[i*3+1]-=sp*dt;if(pa[i*3+1]<0)pa[i*3+1]=25}pg.attributes.position.needsUpdate=true}sun.position.set(player.position.x+12,24,player.position.z+9);sun.target.position.copy(player.position);sun.target.updateMatrixWorld();
- {const cp=Math.cos(pitch);cam.position.lerp(new T.Vector3(player.position.x+Math.sin(yaw)*cp*dist,1+Math.sin(pitch)*dist,player.position.z+Math.cos(yaw)*cp*dist),.2);cam.lookAt(player.position.x,1.2,player.position.z)}
+ {const cp=Math.cos(pitch);cam.position.lerp(new T.Vector3(player.position.x+Math.sin(yaw)*cp*dist,player.position.y+1+Math.sin(pitch)*dist,player.position.z+Math.cos(yaw)*cp*dist),.2);cam.lookAt(player.position.x,player.position.y+1.2,player.position.z)}
  ren.render(scene,cam)}
 world();requestAnimationFrame(tick);
 </script></body></html>

@@ -5,14 +5,14 @@
   "author": "Balthi",
   "submittedBy": "Balthi",
   "founder": false,
-  "submitted": 1791530884,
+  "submitted": 1791531419,
   "kind": "new",
   "status": "pending",
   "info": {
     "title": "The World Is Lying",
     "author": "Balthi",
     "owner": "Balthi",
-    "blurb": "Everybody says they have known you your entire life, but you don't remember a thing. Twist the world to your beliefs.",
+    "blurb": "",
     "languages": [
       "en"
     ]
@@ -22,8 +22,8 @@
     "title": "The World Is Lying",
     "author": "Balthi",
     "owner": "Balthi",
-    "blurb": "Everybody says they have known you your entire life, but you don't remember a thing. Twist the world to your beliefs.",
-    "cover": null,
+    "blurb": "",
+    "cover": "games/the-world-is-lying/cover.png",
     "pixel": false,
     "url": null,
     "genres": [],
@@ -34,6 +34,6 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1791530884
+    "added": 1791531419
   }
 }

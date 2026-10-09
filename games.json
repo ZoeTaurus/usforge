@@ -1,5 +1,24 @@
 [
   {
+    "slug": "the-world-is-lying",
+    "title": "The World Is Lying",
+    "author": "Balthi",
+    "owner": "Balthi",
+    "blurb": "",
+    "cover": "games/the-world-is-lying/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791548153
+  },
+  {
     "slug": "keruffle",
     "title": "KERUFFLE!",
     "author": "Alex",

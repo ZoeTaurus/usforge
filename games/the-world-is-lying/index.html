@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>The World Is Lying</title>
+<title>Twisted Beliefs</title>
 <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#1f2a2e;--ink:#f1e9d2;--acc:#e8a86b;--dim:#9fb0a8;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -33,7 +33,7 @@ button:hover,button:focus-visible{background:var(--acc);color:#1f2a2e;outline:no
 <button id="talk"></button>
 <div class="box" id="dlg"><b id="who"></b><div id="qrow"><label for="q">Question box</label><input id="q" placeholder="Ask anything, or tell them what they are..." maxlength="140" autocomplete="off"><button id="ask">Ask</button></div><p id="say"></p><div id="opts"></div></div>
 <div class="box" id="end"></div>
-<div id="intro"><h1>The World Is Lying</h1>
+<div id="intro"><h1>Twisted Beliefs</h1>
 <p>You wake in a city square. A woman is already waving at you, like she has done it a thousand times.</p>
 <div><button id="go">New game</button><button id="cont" style="display:none">Continue</button><button id="how">How to play</button></div></div>
 <div class="box" id="ov" style="display:none"></div><div id="hud"><button id="think">I believe...</button><span id="mem"></span><span id="mon">$0</span><button id="guide">Guide to house</button></div><div id="movie"></div><div class="box" id="thk" style="display:none;top:60px"><label for="tq" style="color:var(--acc)">Your belief</label><div style="display:flex;gap:6px;margin-top:6px"><input id="tq" placeholder="I believe I am a kid" maxlength="140" autocomplete="off" style="flex:1;min-width:0;font:inherit;font-size:16px;padding:6px;background:#141b1d;color:var(--ink);border:2px solid var(--dim)"><button id="tgo">Believe</button></div></div>
@@ -196,17 +196,74 @@ snake:[0,1,2,3,4,5,6].map(i=>bx(Math.sin(i)*.4,.15,1-i*.4,.3,.3,.45,i%2?'#3a8a4a
 frog:[bx(0,.4,0,.9,.6,1,'#4aa04a'),bx(.25,.8,.4,.25,.25,.25,'#4aa04a'),bx(-.25,.8,.4,.25,.25,.25,'#4aa04a'),bx(.25,.85,.5,.1,.1,.1,'#111'),bx(-.25,.85,.5,.1,.1,.1,'#111'),...L4('#3a8a3a',.5,.4,.2,.25)],
 spider:[bx(0,.5,0,.8,.6,1,'#222'),bx(0,.55,.7,.5,.5,.5,'#222'),...[-1,1].flatMap(a=>[-.5,-.15,.2,.55].map(z=>bx(a*.9,.4,z,1.2,.1,.1,'#222')))]};
 const AL={bunny:'rabbit',kitten:'cat',puppy:'dog',pony:'horse',stallion:'horse',donkey:'horse',bull:'cow',piglet:'pig',lamb:'sheep',goat:'sheep',rat:'mouse',gerbil:'hamster',squirrel:'hamster',ape:'monkey',gorilla:'monkey',chimp:'monkey',leopard:'tiger',cheetah:'tiger',moose:'deer',reindeer:'deer',coyote:'wolf',pigeon:'bird',sparrow:'bird',crow:'bird',raven:'bird',goose:'duck',hen:'chicken',rooster:'chicken',hawk:'eagle',falcon:'eagle',seagull:'bird',dolphin:'shark',goldfish:'fish',salmon:'fish',crate:'cube',box:'cube',block:'cube',mug:'cup',glass:'cup',stone:'rock',boulder:'rock',couch:'sofa',armchair:'chair',stool:'chair',bush:'tree',plant:'flower',rose:'flower',sedan:'car',truck:'car',bus:'car',taxi:'car',cottage:'house',hut:'house',cabin:'house',jar:'vase',pot:'vase',urn:'vase',orb:'ball',sphere:'ball',globe:'ball',desk:'table',candle:'lamp',lantern:'lamp',spirit:'ghost',phantom:'ghost',android:'robot',cyborg:'robot',snail:'frog',toad:'frog',lizard:'frog'};
-function PARTS(k){if(QD[k]){const P=quad(...QD[k]);if(k==='dragon')for(const a of[-1,1])P.push(bx(a*1.6,2.2,-.2,1.8,.1,1.4,'#c2503f'));return P}if(BD[k])return bird(...BD[k]);if(FD[k])return fish(...FD[k]);return OB[k]||null}
+QD.dinosaur=['#5a8a3a',2.6,1.3,1,[.1,.1],2,{neck:.5,stripe:'#3a6a2a'}];QD.unicorn=['#f1e9f8',2,1,1.3,[.2,.4],1.2,{neck:.6,tailc:'#e87aa8'}];
+Object.assign(OB,{
+boat:[bx(0,.4,0,1.6,.6,3.6,'#8a5a3a'),bx(0,.9,.4,1.3,.4,1.8,'#a0764a'),bx(0,2,0,.12,2.4,.12,'#5a3e2a'),bx(.55,2.1,0,1,1.8,.06,'#f1f1f1')],
+plane:[bx(0,1,0,.9,.9,4,'#d8d8dc'),bx(0,1,.2,5,.12,1.2,'#b8c0c8'),bx(0,1.8,-1.8,.12,1,.8,'#b8c0c8'),bx(0,1,-1.9,1.8,.1,.7,'#b8c0c8'),bx(0,1.1,2,.7,.7,.4,'#9fc8e0')],
+rocket:[bx(0,1.6,0,1,3.2,1,'#f1f1f1'),bx(0,3.5,0,.7,.8,.7,'#c2503f'),bx(0,1.8,.51,.4,.4,.05,'#9fc8e0'),bx(-.7,.5,0,.4,1,.2,'#c2503f'),bx(.7,.5,0,.4,1,.2,'#c2503f'),bx(0,.15,0,.6,.3,.6,'#f2a03a')],
+train:[bx(0,.8,0,1.4,1.2,4,'#2f5a9a'),bx(0,1.6,1.2,1.4,.8,1.4,'#2f5a9a'),bx(0,2.1,1.6,.5,.8,.5,'#333'),...[[-.8,-1.2],[.8,-1.2],[-.8,1],[.8,1]].map(([x,z])=>bx(x,.3,z,.2,.6,.6,'#111'))],
+bike:[bx(0,.35,.9,.15,.7,.7,'#111'),bx(0,.35,-.9,.15,.7,.7,'#111'),bx(0,.9,0,.12,.12,2,'#c2503f'),bx(0,1.1,.7,.8,.1,.1,'#333'),bx(0,1.1,-.6,.3,.1,.5,'#333')],
+tank:[bx(0,.5,0,1.8,.7,3,'#5a6a3a'),bx(0,1.1,0,1.2,.5,1.4,'#5a6a3a'),bx(0,1.15,1.5,.2,.2,1.8,'#333')],
+castle:[bx(0,1.2,0,3,2.4,2.4,'#b8b2a4'),...[[-1.8,-1],[1.8,-1],[-1.8,1],[1.8,1]].flatMap(([x,z])=>[bx(x,2,z,1,4,1,'#a8a294'),bx(x,4.3,z,1.3,.6,1.3,'#8a3b2e')]),bx(0,.8,1.25,.9,1.6,.06,'#4a3020')],
+skyscraper:[bx(0,3,0,2,6,2,'#8a9aa8'),...[0,1,2,3,4].map(i=>bx(0,.8+i*1.1,1.01,1.5,.5,.04,'#cfe8ff')),bx(0,6.3,0,.1,.8,.1,'#333')],
+pyramid:[bx(0,.4,0,4,.8,4,'#d8b86a'),bx(0,1.2,0,3,.8,3,'#d8b86a'),bx(0,2,0,2,.8,2,'#d8b86a'),bx(0,2.8,0,1,.8,1,'#d8b86a'),bx(0,3.4,0,.4,.4,.4,'#f2d27a')],
+tent:[bx(0,.5,0,2.4,1,2,'#c2503f'),bx(0,1.3,0,1.8,.6,1.6,'#c2503f'),bx(0,1.8,0,.8,.5,1.2,'#c2503f'),bx(0,.5,1.01,.7,1,.05,'#333')],
+windmill:[bx(0,1.6,0,1.6,3.2,1.6,'#e0c9a0'),bx(0,3.5,0,1.9,.6,1.9,'#8a3b2e'),bx(0,3,1,3.4,.2,.1,'#f1f1f1'),bx(0,3,1,.2,3.4,.1,'#f1f1f1')],
+cactus:[bx(0,1,0,.7,2,.7,'#3a8a4a'),bx(.7,1.3,0,.7,.25,.3,'#3a8a4a'),bx(.9,1.65,0,.25,.7,.3,'#3a8a4a'),bx(-.7,.9,0,.7,.25,.3,'#3a8a4a'),bx(-.9,1.25,0,.25,.7,.3,'#3a8a4a')],
+palm:[bx(0,1.5,0,.4,3,.4,'#8a6a3a'),bx(0,3.1,0,2.4,.2,.5,'#3a8a4a'),bx(0,3.1,0,.5,.2,2.4,'#3a8a4a'),bx(0,3,.2,.35,.35,.35,'#6a4a2a')],
+pine:[bx(0,.6,0,.4,1.2,.4,'#5b4636'),bx(0,1.5,0,2,.8,2,'#2f6a4a'),bx(0,2.2,0,1.5,.8,1.5,'#2f6a4a'),bx(0,2.9,0,1,.8,1,'#2f6a4a'),bx(0,3.5,0,.5,.6,.5,'#2f6a4a')],
+bed:[bx(0,.4,0,1.8,.5,3,'#8a5a3a'),bx(0,.8,0,1.7,.3,2.6,'#f1e9d2'),bx(0,1.2,-1.4,1.8,1,.2,'#8a5a3a'),bx(0,.98,-1,1.2,.2,.6,'#9fc8e0')],
+shelf:[bx(0,1.5,0,2.4,3,.6,'#7a5a3a'),...[0,1,2].map(i=>bx(0,.9+i*.9,.1,2.2,.12,.5,'#5a3e2a')),...[0,1,2].map(i=>bx(-.5+i*.5,1.1+i*.9,.1,.3,.5,.4,['#c2503f','#2f7a9a','#d9a441'][i]))],
+door:[bx(0,1.5,0,1.6,3,.2,'#6a4a2a'),bx(.55,1.5,.15,.15,.15,.1,'#f2d27a'),bx(0,1.5,.11,1.2,2.5,.02,'#5a3e2a')],
+clock:[bx(0,1.5,0,1.6,3.2,.8,'#7a5a3a'),bx(0,2.5,.41,1,1,.05,'#f1e9d2'),bx(0,2.6,.45,.08,.4,.04,'#111'),bx(.1,2.5,.45,.3,.08,.04,'#111'),bx(0,.7,.41,.8,1,.04,'#5a3e2a')],
+apple:[bx(0,.7,0,1.2,1.1,1.2,'#c2302f'),bx(0,1.4,0,.12,.4,.12,'#5b4636'),bx(.3,1.4,0,.5,.1,.3,'#3a8a3a')],
+banana:[bx(0,.3,0,.6,.5,1.4,'#f2d23a'),bx(0,.65,.9,.5,.5,.8,'#f2d23a'),bx(0,1,1.3,.2,.3,.2,'#5b4636')],
+cake:[bx(0,.5,0,2,1,2,'#f0d2b0'),bx(0,1.05,0,2.1,.2,2.1,'#f7a8c8'),bx(0,1.5,0,.12,.7,.12,'#f1f1f1'),bx(0,1.95,0,.2,.2,.2,'#f2a03a')],
+pizza:[bx(0,.1,0,2.4,.2,2.4,'#e0a050'),bx(0,.25,0,2.1,.1,2.1,'#c2503f'),bx(.4,.33,.3,.4,.1,.4,'#a82020'),bx(-.5,.33,-.3,.4,.1,.4,'#a82020'),bx(.3,.33,-.6,.4,.1,.4,'#f2d23a')],
+burger:[bx(0,.3,0,1.6,.6,1.6,'#d9a050'),bx(0,.7,0,1.7,.2,1.7,'#3a8a3a'),bx(0,.95,0,1.6,.3,1.6,'#6a3a20'),bx(0,1.35,0,1.6,.6,1.6,'#d9a050')],
+donut:[bx(0,.3,0,1.6,.6,1.6,'#e8a0c0'),bx(0,.35,0,.5,.7,.5,'#7ad8e8')],
+carrot:[bx(0,.8,0,.5,1.6,.5,'#e0762a'),bx(0,.4,0,.3,.8,.3,'#e0762a'),bx(0,1.8,0,.5,.4,.5,'#3a8a3a')],
+pumpkin:[bx(0,.7,0,1.6,1.3,1.6,'#e0762a'),bx(0,1.45,0,.2,.4,.2,'#3a6a3a'),bx(-.3,.9,.82,.3,.3,.05,'#111'),bx(.3,.9,.82,.3,.3,.05,'#111'),bx(0,.5,.82,.7,.2,.05,'#111')],
+egg:[bx(0,.7,0,1,1.4,1,'#f1e9d2'),bx(0,1.3,0,.8,.5,.8,'#f1e9d2')],
+sword:[bx(0,1.5,0,.25,2.6,.1,'#c8d0d8'),bx(0,.15,0,.9,.2,.2,'#d9a441'),bx(0,-.2,0,.2,.6,.2,'#5a3e2a')],
+axe:[bx(0,1,0,.2,2,.2,'#7a5a3a'),bx(.4,1.8,0,.8,.7,.15,'#aab4ba')],hammer:[bx(0,1,0,.2,2,.2,'#7a5a3a'),bx(0,2.1,0,1.2,.6,.5,'#8a8a92')],
+key:[bx(0,1.5,0,.2,2,.12,'#e0b030'),bx(0,2.7,0,.8,.6,.12,'#e0b030'),bx(.2,.7,0,.4,.2,.12,'#e0b030')],
+book:[bx(0,.2,0,1.4,.4,1.8,'#2f5a9a'),bx(0,.2,.05,1.3,.3,1.7,'#f1e9d2'),bx(-.65,.2,0,.12,.42,1.8,'#1f3a6a')],
+tv:[bx(0,1.1,0,2.2,1.5,.3,'#222'),bx(0,1.1,.16,1.9,1.2,.05,'#3a5a8a'),bx(0,.3,0,1,.2,.5,'#222')],
+computer:[bx(0,.9,0,1.8,1.2,.2,'#222'),bx(0,.9,.11,1.6,1,.05,'#3a8ac4'),bx(0,.5,.6,1.8,.1,1,'#aab4ba')],
+guitar:[bx(0,.9,0,1,1.2,.25,'#c9a27a'),bx(0,.9,.13,.3,.3,.05,'#222'),bx(0,2.1,0,.18,1.8,.15,'#5a3e2a'),bx(0,3.1,0,.35,.4,.12,'#5a3e2a')],
+umbrella:[bx(0,2,0,2.2,.4,2.2,'#c2503f'),bx(0,2.3,0,1.3,.3,1.3,'#c2503f'),bx(0,1,0,.1,2,.1,'#333')],
+balloon:[bx(0,2.6,0,1.3,1.5,1.3,'#e0455a'),bx(0,1.7,0,.06,1.7,.06,'#f1f1f1')],
+crab:[bx(0,.4,0,1.2,.5,.9,'#d9442f'),bx(-.8,.7,.5,.4,.4,.3,'#d9442f'),bx(.8,.7,.5,.4,.4,.3,'#d9442f'),bx(-.3,.8,.4,.12,.3,.12,'#111'),bx(.3,.8,.4,.12,.3,.12,'#111'),...[-1,1].flatMap(a=>[-.3,0,.3].map(z=>bx(a*.75,.15,z,.5,.1,.1,'#b8301f')))],
+bee:[bx(0,.8,0,.6,.5,1,'#f2c23a'),bx(0,.8,.1,.62,.52,.2,'#222'),bx(0,.8,-.3,.62,.52,.2,'#222'),bx(0,.85,.6,.4,.4,.4,'#f2c23a'),bx(-.5,1.2,0,.6,.05,.4,'#cfe8ff'),bx(.5,1.2,0,.6,.05,.4,'#cfe8ff')],
+butterfly:[bx(0,1,0,.15,.15,.7,'#222'),bx(-.7,1.1,0,1.2,.05,.9,'#e06cb0'),bx(.7,1.1,0,1.2,.05,.9,'#6c8ae0')],
+bat:[bx(0,1,0,.5,.5,.6,'#2a2a30'),bx(-.8,1.05,0,1.1,.05,.6,'#2a2a30'),bx(.8,1.05,0,1.1,.05,.6,'#2a2a30'),bx(-.15,1.35,0,.12,.25,.1,'#2a2a30'),bx(.15,1.35,0,.12,.25,.1,'#2a2a30')],
+turtle:[bx(0,.5,0,1.4,.6,1.8,'#5a8a3a'),bx(0,.4,1.1,.5,.4,.5,'#7aaa4a'),...L4('#7aaa4a',.6,.7,.25,.3)],
+octopus:[bx(0,1.6,0,1.4,1.4,1.4,'#c24a8a'),bx(-.3,1.7,.71,.2,.2,.05,'#fff'),bx(.3,1.7,.71,.2,.2,.05,'#fff'),...[0,1,2,3,4,5,6,7].map(i=>bx(Math.cos(i*.785)*.7,.5,Math.sin(i*.785)*.7,.2,1,.2,'#c24a8a'))],
+jellyfish:[bx(0,1.8,0,1.6,.9,1.6,'#e0a0f0'),...[-1,0,1].flatMap(a=>[-1,1].map(b=>bx(a*.5,.8,b*.5,.1,1.4,.1,'#d080e0')))],
+snowman:[bx(0,.6,0,1.4,1.2,1.4,'#f4f6fa'),bx(0,1.6,0,1,.9,1,'#f4f6fa'),bx(0,2.4,0,.7,.7,.7,'#f4f6fa'),bx(0,2.4,.4,.15,.15,.4,'#e0762a'),bx(-.15,2.55,.36,.08,.08,.05,'#111'),bx(.15,2.55,.36,.08,.08,.05,'#111'),bx(0,2.85,0,.8,.3,.8,'#222')],
+sun:[bx(0,2,0,2,2,2,'#f2c23a'),bx(0,2,0,2.6,.6,.6,'#f2a03a'),bx(0,2,0,.6,2.6,.6,'#f2a03a')],moon:[bx(0,2,0,2,2,2,'#e8e6d0'),bx(.4,2.3,.9,.5,.5,.2,'#c8c6b0')],
+star:[bx(0,2,0,1,1,.4,'#f2d23a'),bx(0,2,0,2.4,.5,.4,'#f2d23a'),bx(0,2,0,.5,2.4,.4,'#f2d23a')],cloud:[bx(0,2.5,0,2.4,.8,1.4,'#f4f6fa'),bx(-.6,3,0,1.2,.8,1.1,'#f4f6fa'),bx(.6,3,0,1.4,.9,1.1,'#f4f6fa')],
+fire:[bx(0,.5,0,1,1,1,'#e0501a'),bx(0,1.2,0,.7,1,.7,'#f2a03a'),bx(0,1.8,0,.4,.8,.4,'#f2d23a')],
+mountain:[bx(0,.8,0,5,1.6,4,'#7a7a82'),bx(0,2,0,3.4,1.2,2.8,'#8a8a92'),bx(0,3,0,2,1,1.6,'#f4f6fa'),bx(0,3.8,0,.8,.8,.8,'#f4f6fa')],
+volcano:[bx(0,.8,0,4,1.6,4,'#6a4a3a'),bx(0,2,0,2.6,1.2,2.6,'#6a4a3a'),bx(0,2.7,0,1.4,.3,1.4,'#e0501a'),bx(0,3.3,0,.6,.9,.6,'#f2a03a')],
+crystal:[bx(0,.6,0,1.6,1.2,1.6,'#8a6ae0'),bx(0,1.5,0,1.1,.9,1.1,'#a58af0'),bx(0,2.2,0,.6,.7,.6,'#c8b8ff'),bx(-.9,.5,.3,.6,1,.6,'#7a5ad0')]});
+Object.assign(AL,{ship:'boat',yacht:'boat',canoe:'boat',sailboat:'boat',airplane:'plane',jet:'plane',helicopter:'plane',aircraft:'plane',spaceship:'rocket',shuttle:'rocket',motorcycle:'bike',bicycle:'bike',scooter:'bike',palace:'castle',fortress:'castle',building:'skyscraper',hamburger:'burger',cupcake:'cake',pie:'pizza',doughnut:'donut',watermelon:'pumpkin',pear:'apple',laptop:'computer',monitor:'tv',television:'tv',phone:'tv',trex:'dinosaur',dino:'dinosaur',sunflower:'flower',oak:'tree',christmas:'pine',spruce:'pine',fir:'pine',ant:'spider',mosquito:'bee',wasp:'bee',moth:'butterfly',lobster:'crab',shrimp:'crab',squid:'octopus',flame:'fire',campfire:'fire',hill:'mountain',gem:'crystal',diamond:'crystal',jewel:'crystal',blade:'sword',knife:'sword',dagger:'sword',mallet:'hammer',ufo:'plane'});
+function generic(w,h){const C=(a,l)=>'#'+new T.Color().setHSL(a%360/360,.5,l).getHexString(),c=C(h,.5),d=C(h+60,.35),e=C(h+180,.65),k=h%3;
+ if(k===0)return quad(c,1+(h%5)*.2,.8,.5,[.4,.5],.8,{ear:d,tailc:d});
+ return[bx(0,.4,0,1.6,.8,1.6,d),bx(0,1.2,0,1.2,.8,1.2,c),bx(0,1.9,0,.8,.6,.8,e),bx(0,2.4,0,.4,.4,.4,'#f1f1f1')]}
+function PARTS(k){if(QD[k]){const P=quad(...QD[k]);if(k==='dragon')for(const a of[-1,1])P.push(bx(a*1.6,2.2,-.2,1.8,.1,1.4,'#c2503f'));if(k==='unicorn')P.push(bx(0,3.45,1.3,.15,.8,.15,'#f2d27a'));return P}if(BD[k])return bird(...BD[k]);if(FD[k])return fish(...FD[k]);return OB[k]||null}
 function mk(w){if(/monster|beast|ogre|troll|zombie|vampire|demon|devil|creature|abomination|alien/.test(w))return human(w);
- for(let x of w.split(/[\s\-]+/)){x=x.replace(/[^a-z]/g,'');for(const k of [x,AL[x],x.replace(/ies$/,'y'),x.replace(/e?s$/,''),AL[x.replace(/e?s$/,'')]]){if(!k)continue;const P=PARTS(k);if(P)return{what:w,parts:P,fly:/dragon|bird|duck|fish|shark|whale|ghost|owl|eagle|parrot|swan/.test(k),glow:k==='ghost',live:!!(QD[k]||BD[k]||FD[k])}}}
+ for(let x of w.split(/[\s\-]+/)){x=x.replace(/[^a-z]/g,'');for(const k of [x,AL[x],x.replace(/ies$/,'y'),x.replace(/e?s$/,''),AL[x.replace(/e?s$/,'')]]){if(!k)continue;const P=PARTS(k);if(P)return{what:w,parts:P,fly:/dragon|bird|duck|fish|shark|whale|ghost|owl|eagle|parrot|swan|bee|butterfly|bat|plane|rocket|balloon|cloud|jellyfish/.test(k),glow:/^(ghost|sun|star|fire|moon|crystal)$/.test(k),live:!!(QD[k]||BD[k]||FD[k])||/^(crab|bee|butterfly|bat|turtle|octopus|jellyfish|snake|frog|spider|robot|snowman)$/.test(k)}}}
  if(/king|queen|prince|princess|wizard|witch|doctor|nurse|police|cop|pirate|soldier|knight|teacher|chef|farmer|clown|human|man|woman|girl|boy|person|baker|thief|ninja|angel|fairy|santa|cowboy|hero|villain|mage|stranger|friend|god|librarian|sailor|guard|kid|child|baby|toddler|teen|elder|old man|old woman|grandma|grandpa|mom|dad|mother|father|brother|sister|giant|tiny|dwarf|citizen|villager|mayor|butcher|artist|singer|dancer|musician|student|scientist|spy|bandit|captain|sheriff|judge|monk|priest/.test(w))return{...human(w),person:true};
- let h=0;for(const c of w)h=(h*31+c.charCodeAt(0))%9973;const C=(a,l)=>'#'+new T.Color().setHSL(a%360/360,.55,l).getHexString();
- return{what:w,label:true,parts:[bx(0,1,0,1.2,2,1.2,C(h,.5)),bx(0,2.3,0,1,.5,1,C(h+140,.6)),bx(-.2,1.6,.62,.2,.2,.05,'#111'),bx(.2,1.6,.62,.2,.2,.05,'#111')]}}
+ const wl=w.split(/[\s\-]+/).pop();if(/(er|or|ist|ian|man|woman|ess|eer)$/.test(wl)&&wl.length>3)return{...human(w),person:true};
+ let h=0;for(const c of w)h=(h*31+c.charCodeAt(0))%9973;
+ return{what:w,unk:true,parts:generic(w,h),glow:h%3!==0,live:h%3===0}}
 const MC={};
-function okParts(a){if(!Array.isArray(a)||a.length<2)return null;const P=a.slice(0,44).map(p=>{if(!Array.isArray(p)||p.length<7)return null;const v=p.slice(0,6).map(Number);if(v.some(x=>!isFinite(x)))return null;return[...v.map((x,i)=>Math.max(i<3?-8:.04,Math.min(i<3?8:9,x))),hx(p[6])?p[6]:'#999999']}).filter(Boolean);return P.length>1?P:null}
-async function aiModel(w){if(MC[w])return MC[w];try{if(smp===undefined)smp=(window.claude&&await claude.use('sample'))||null;if(!smp)return null;
- const r=await smp('Design a simple blocky low-poly model of "'+w+'" for a pixel-style 3D game, built only from boxes. Reply with ONLY JSON: {"parts":[[x,y,z,w,h,d,"#rrggbb"],...],"fly":false,"glow":false,"live":false}. Set live to true if it is a creature that should wander around. Rules: 14 to 40 parts. Each part is a box centered at x,y,z with sizes w (left-right), h (up), d (front-back). y=0 is the ground. The front faces +z. Units: a human is 2.9 tall, so scale the thing realistically against a human (a mouse about 0.3 long, a vase about 1.5 tall, an elephant about 4 long). Make it clearly recognizable (eyes, ears, legs, handles, wings and so on as relevant). Use 2 to 6 colors.',{cache:false,modelTier:'quick'});
- const j=JSON.parse(r.text.match(/\{[\s\S]*\}/)[0]),P=okParts(j.parts);if(P)return MC[w]={parts:P,fly:!!j.fly,glow:!!j.glow,live:!!j.live}}catch(e){}return null}
+function okParts(a){if(!Array.isArray(a)||a.length<2)return null;const P=a.slice(0,60).map(p=>{if(!Array.isArray(p)||p.length<7)return null;const v=p.slice(0,6).map(Number);if(v.some(x=>!isFinite(x)))return null;return[...v.map((x,i)=>Math.max(i<3?-8:.04,Math.min(i<3?8:9,x))),hx(p[6])?p[6]:'#999999']}).filter(Boolean);return P.length>1?P:null}
+async function aiModel(w){if(MC[w])return MC[w];try{if(smp===undefined)smp=(window.claude&&await claude.use('sample'))||null}catch(e){smp=null}if(!smp)return null;
+ const pr='Design a simple blocky low-poly model of "'+w+'" for a pixel-style 3D game, built only from boxes. Reply with ONLY JSON: {"parts":[[x,y,z,w,h,d,"#rrggbb"],...],"fly":false,"glow":false,"live":false}. Set live to true if it is a creature that should wander around. Rules: 14 to 40 parts. Each part is a box centered at x,y,z with sizes w (left-right), h (up), d (front-back). y=0 is the ground. The front faces +z. Units: a human is 2.9 tall, so scale the thing realistically against a human (a mouse about 0.3 long, a vase about 1.5 tall, an elephant about 4 long). Make it clearly recognizable (eyes, ears, legs, handles, wings and so on as relevant). Use 2 to 6 colors.';
+ for(let tr=0;tr<2;tr++){try{const r=await smp(pr,{cache:false,modelTier:'quick'});let t=r.text;t=t.slice(t.indexOf('{'),t.lastIndexOf('}')+1).replace(/,\s*([}\]])/g,'$1');const j=JSON.parse(t),P=okParts(j.parts);if(P)return MC[w]={parts:P,fly:!!j.fly,glow:!!j.glow,live:!!j.live}}catch(e){}}return null}
 const THINGS=[],ST=[],COINS=[],BEL=/\b(believe|think|know|imagine|wish|there (is|are|was|were)|there's|i can|i am|i'm|i have|everyone|everybody|everything|the (sky|ground|street|streets|road|town|world)|it is|it's|becomes?|turn|make|(is|are|was|were) an?)\b/i;
 const SECRETS=["you saw the player arrive in this town years ago, and again yesterday","you are afraid of the lighthouse","you were paid to tell the player they belong here","you remember the town before it changed","you counted the player's footsteps last night"],QUIRKS=["you hum when nervous","you never say the player's name","you repeat the last word of your sentences","you keep glancing at the sky","you whisper the end of every sentence"];
 const ctx=n=>"Setting: "+(inside?"inside "+inside.t:"outdoors")+", time "+(S.sky||'day')+(S.wx?", "+S.wx:"")+". Your secret: "+(n.sec||'none')+". Your quirk: "+(n.qk||'none')+". Recent talk with the player: "+JSON.stringify((n.h||[]).slice(-4))+". The player's recent beliefs: "+JSON.stringify((S.lg||[]).slice(-5))+".";
@@ -218,7 +275,7 @@ function addThing(b,x,z,w,norec,fl){const g=new T.Group();g.position.set(x,0,z);
  if(!b.live&&!fl){th.col={x,z,r:Math.min(5,r*.72),on:()=>true};colliders.push(th.col)}
  THINGS.push(th);if(THINGS.length>40){const o=THINGS.shift();scene.remove(o.g);if(o.col)colliders.splice(colliders.indexOf(o.col),1)}
  if(!norec){S.sp=S.sp||[];S.sp.push({w,x,z,b:th.b,f:fl?1:0});if(S.sp.length>40)S.sp.shift()}return th}
-async function spawnThing(w,cnt,where,follow){let b=mk(w);if(b.label){const m=await aiModel(w);if(m)b={...b,parts:m.parts,fly:m.fly,glow:m.glow,live:m.live,label:false}}
+async function spawnThing(w,cnt,where,follow){let b=mk(w);if(b.unk){const m=await aiModel(w);if(m)b={...b,parts:m.parts,fly:m.fly,glow:m.glow,live:m.live,label:false}}
  for(let i=0;i<cnt;i++){const a=player.rotation.y+(where==='around'||cnt>1?(Math.random()-.5)*(where==='around'?6.2:2.6):0),r=where==='around'?7+Math.random()*8:6+Math.random()*(cnt>1?8:2);addThing(b,player.position.x+Math.sin(a)*r,player.position.z+Math.cos(a)*r,w,false,follow)}save()}
 const cl=w=>String(w||'').toLowerCase().replace(/[^a-z \-]/g,'').trim().slice(0,28);
 const SELF={g:player,n:'You',self:true,l:[]};
@@ -240,12 +297,12 @@ function applyFx(fx){const o=[];if(!fx||typeof fx!=='object')return o;
  if(hx(fx.houses)){S.hc=fx.houses;o.push('Every house changes color.')}
  const pw=fx.player;if(pw&&typeof pw==='object'){S.pw=S.pw||{};if(pw.fly!=null)S.pw.fly=!!pw.fly;if(+pw.speed)S.pw.speed=Math.max(.5,Math.min(4,+pw.speed));if(+pw.size)S.pw.size=Math.max(.3,Math.min(4,+pw.size));if(pw.inv!=null)S.pw.inv=!!pw.inv;o.push('You feel different.')}
  if(+fx.money){money=Math.max(0,Math.min(99999,money+Math.round(+fx.money)));hud();o.push('Money fills your pockets.')}
- const sf=cl(fx.self);if(sf){const b=mk(sf);tf(SELF,b);if(b.label)aiModel(sf).then(m=>m&&tf(SELF,{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true}));o.push('You become '+sf+'.')}
+ const sf=cl(fx.self);if(sf){const b=mk(sf);tf(SELF,b);if(b.unk)aiModel(sf).then(m=>m&&tf(SELF,{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true}));o.push('You become '+sf+'.')}
  for(const sp of (Array.isArray(fx.spawn)?fx.spawn:[]).slice(0,4)){const w=cl(sp.what);if(w){spawnThing(w,Math.max(1,Math.min(10,+sp.count||1)),sp.where);o.push('A '+w+' appears.')}}
  for(const pt of (Array.isArray(fx.pets)?fx.pets:[]).slice(0,3)){const w=cl(pt);if(w){spawnThing(w,1,'here',true);o.push('A '+w+' joins you.')}}
- const ev=cl(fx.everyone);if(ev){const b=mk(ev),ks=Object.keys(NPC);ks.forEach(k=>becomeNPC(NPC[k],{...b,quiet:true}));if(b.label)aiModel(ev).then(m=>m&&ks.forEach(k=>NPC[k]&&becomeNPC(NPC[k],{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true})));o.push('Everyone becomes '+ev+'.')}
+ const ev=cl(fx.everyone);if(ev){const b=mk(ev),ks=Object.keys(NPC);ks.forEach(k=>becomeNPC(NPC[k],{...b,quiet:true}));if(b.unk)aiModel(ev).then(m=>m&&ks.forEach(k=>NPC[k]&&becomeNPC(NPC[k],{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true})));o.push('Everyone becomes '+ev+'.')}
  if(typeof fx.behavior==='string'&&['follow','flee','dance','freeze',''].includes(fx.behavior)){S.beh=fx.behavior;o.push({follow:'Everyone turns to follow you.',flee:'Everyone backs away from you.',dance:'Everyone starts to dance.',freeze:'Everyone freezes in place.','':'Everyone goes back to normal.'}[fx.behavior])}
- for(const pp of (Array.isArray(fx.people)?fx.people:[]).slice(0,6)){const n=findNPC(String(pp.who||'').toLowerCase()),w=cl(pp.become);if(n&&w){const b=mk(w);tf(n,b);if(b.label)aiModel(w).then(m=>m&&tf(n,{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true}));o.push(n.n+' becomes '+w+'.')}}
+ for(const pp of (Array.isArray(fx.people)?fx.people:[]).slice(0,6)){const n=findNPC(String(pp.who||'').toLowerCase()),w=cl(pp.become);if(n&&w){const b=mk(w);tf(n,b);if(b.unk)aiModel(w).then(m=>m&&tf(n,{...b,parts:m.parts,fly:m.fly,glow:m.glow,label:false,quiet:true}));o.push(n.n+' becomes '+w+'.')}}
  if(fx.land&&typeof fx.land==='object')for(const k in fx.land){const on=!!fx.land[k];S.rum=S.rum||{};({library:()=>S.libN=on?0:2,lighthouse:()=>S.light=on,fountain:()=>S.rum.dry=on?0:1,chapel:()=>S.rum.chapel=on?1:0,tower:()=>S.noTw=!on,bakery:()=>S.noBk=!on}[k]||(()=>0))();o.push('The '+k+(on?' is there.':' is gone.'))}
  for(const w of (Array.isArray(fx.remove)?fx.remove:[]).slice(0,4)){const q=cl(w);if(!q)continue;const hit=THINGS.filter(th=>th.w.includes(q));hit.forEach(rmThing);S.sp=(S.sp||[]).filter(r=>!r.w.includes(q));if(hit.length)o.push('The '+q+' is gone.')}
  world();save();if(o.length)toast(o.slice(0,3).join(' '));return o}

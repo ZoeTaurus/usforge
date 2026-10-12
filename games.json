@@ -1,5 +1,26 @@
 [
   {
+    "slug": "terra-scripta",
+    "title": "Terra scripta",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "A game where you have to explore the world with your trusty map... but whatever you draw on it becomes real.",
+    "cover": "games/terra-scripta/cover.jpg",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Adventure"
+    ],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791832822
+  },
+  {
     "slug": "crazy-dentist",
     "title": "Crazy dentist",
     "author": "Alex",

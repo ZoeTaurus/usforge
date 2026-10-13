@@ -251,6 +251,37 @@ code { font: 600 13px/1 ui-monospace, Menlo, Consolas, monospace; color: var(--c
 }
 .card:hover { transform: translateY(-4px); border-color: var(--c1); box-shadow: 0 20px 44px -20px var(--c1); }
 .card:hover::after { opacity: 1; }
+/* a universe card: the whole card plays; it lights up and says so when you point at it */
+.card-wrap { position: relative; display: grid; }
+.card-wrap > .card { height: 100%; transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease; }
+.card-wrap:hover > .card, .card-wrap > .card:focus-visible {
+  transform: translateY(-4px); filter: brightness(1.16) saturate(1.1);
+  border-color: var(--c1); box-shadow: 0 0 0 1px var(--c1), 0 20px 44px -16px var(--c1), 0 0 34px -10px var(--c1);
+}
+.card-wrap:hover > .card::after, .card-wrap > .card:focus-visible::after { opacity: 1; }
+.card-wrap:hover .c-glyph, .card-wrap > .card:focus-visible .c-glyph { transform: scale(1.08) rotate(-5deg); color: color-mix(in srgb, var(--c1) 55%, transparent); }
+.c-enter {
+  position: absolute; left: 50%; top: 38%; z-index: 2; display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 16px 10px 18px; white-space: nowrap; pointer-events: none;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: #0b0716;
+  background: #f5f3ff; border-radius: 4px; box-shadow: 4px 4px 0 var(--c1), 0 12px 30px -8px rgba(0, 0, 0, 0.7);
+  opacity: 0; transform: translate(-50%, -30%) skewX(-8deg); transition: opacity 0.18s ease, transform 0.22s ease;
+}
+.c-enter-arrow { font-size: 10px; letter-spacing: 0; color: var(--c1); filter: brightness(0.75); }
+.card:hover .c-enter, .card:focus-visible .c-enter { opacity: 1; transform: translate(-50%, -50%) skewX(-8deg); }
+.card-info {
+  position: absolute; top: 10px; left: 10px; z-index: 3; width: 30px; height: 30px; padding: 0;
+  border: 1px solid var(--line-2); border-radius: 50%; background: rgba(10, 8, 20, 0.7);
+  font: italic 700 15px/1 Georgia, serif; color: var(--ink-2);
+  transition: transform 0.22s ease, background 0.15s, color 0.15s, border-color 0.15s;
+}
+.card-wrap:hover .card-info { transform: translateY(-4px); }
+.card-info:hover, .card-info:focus-visible { background: var(--ink); color: #0b0716; border-color: var(--ink); }
+@media (hover: none) {
+  /* no cursor to point with: keep the prompt on the card all the time, smaller and lower */
+  .c-enter { opacity: 0.92; top: auto; bottom: auto; left: auto; right: 12px; top: 12px; transform: skewX(-8deg); padding: 6px 10px; font-size: 10px; }
+  .card:hover .c-enter { transform: skewX(-8deg); }
+}
 .c-glyph {
   position: absolute; top: -10px; right: -4px; pointer-events: none;
   font: 400 118px/1 var(--f-display); color: rgba(255, 255, 255, 0.075);
@@ -354,6 +385,9 @@ code { font: 600 13px/1 ui-monospace, Menlo, Consolas, monospace; color: var(--c
 .d-facts dt { font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); }
 .d-facts dd { margin: 0; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 .d-hero .btn.primary { margin-top: auto; align-self: stretch; }
+/* on a short window the hero column scrolls, and the button stays pinned to its bottom so it can always be reached */
+.detail-card .d-hero { overflow-y: auto; overscroll-behavior: contain; }
+.d-hero > #d-play { position: sticky; bottom: 0; z-index: 2; flex-shrink: 0; }
 .d-custom { display: flex; gap: 8px; justify-content: center; }
 .d-right { display: flex; flex-direction: column; min-height: 0; }
 .d-hero > *:not(.d-floor):not(.d-glyph) { position: relative; z-index: 1; }
@@ -702,6 +736,7 @@ body.touch #toast { bottom: calc(150px + var(--safe-b)); }
   #banner.show, #cine.show, #cine.show .cine-name { animation: none !important; opacity: 1; }
   #cine.show .cine-bar { animation: none !important; transform: none; }
 }
+.sel-i { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--line-2); border-radius: 50%; font: italic 700 12px/1 Georgia, serif; vertical-align: 2px; }
 
 </style>
 <canvas id="bg" aria-hidden="true"></canvas>
@@ -742,7 +777,7 @@ body.touch #toast { bottom: calc(150px + var(--safe-b)); }
       <header class="sel-head">
         <button type="button" class="back" id="sel-back"><span aria-hidden="true">←</span> Title</button>
         <h2 id="sel-h">Choose your universe</h2>
-        <p class="sel-sub">You get every power listed inside it, from every character.</p>
+        <p class="sel-sub">You get every power listed inside it, from every character. Click a card to enter the arena, or its <b class="sel-i">i</b> to see the powers first.</p>
         <div class="sel-tools">
           <label class="search">
             <span class="sr">Search universes and powers</span>
@@ -30632,13 +30667,18 @@ body.touch #toast { bottom: calc(150px + var(--safe-b)); }
       const b = best[u.id];
       const preview = u.abilities.slice(0, 3).map(a => esc(a.s || window.Game.shortName(a.n))).join(' · ');
       const more = u.abilities.length > 3 ? ' · +' + (u.abilities.length - 3) : '';
-      return '<button type="button" class="card" data-id="' + esc(u.id) + '" style="--c1:' + u.colors[0] + ';--c2:' + u.colors[1] + '">' +
+      // the whole card enters the arena; the small "i" beside it opens the powers and details
+      return '<div class="card-wrap" style="--c1:' + u.colors[0] + ';--c2:' + u.colors[1] + '">' +
+        '<button type="button" class="card" data-id="' + esc(u.id) + '" aria-label="Enter the arena: ' + esc(u.name) + '">' +
         '<span class="c-glyph" aria-hidden="true">' + esc(u.glyph) + '</span>' +
+        '<span class="c-enter" aria-hidden="true">Enter the arena<span class="c-enter-arrow">▶</span></span>' +
         '<span class="c-kind">' + esc(u.custom ? 'Yours · ' + u.kind : u.kind) + '</span>' +
         '<span class="c-name">' + esc(u.name) + '</span>' +
         '<span class="c-powers">' + preview + more + '</span>' +
         '<span class="c-meta"><span>' + u.abilities.length + ' powers</span><span>' + esc(u.resource) + '</span>' +
-        (b ? '<span class="c-best">Best: wave ' + b.wave + '</span>' : '') + '</span></button>';
+        (b ? '<span class="c-best">Best: wave ' + b.wave + '</span>' : '') + '</span></button>' +
+        '<button type="button" class="card-info" data-info="' + esc(u.id) + '" aria-label="Powers and details: ' + esc(u.name) + '" title="Powers &amp; details">i</button>' +
+        '</div>';
     });
     const raw = $('search').value.trim();
     const exact = all().some(u => u.name.toLowerCase() === q);
@@ -30960,11 +31000,13 @@ body.touch #toast { bottom: calc(150px + var(--safe-b)); }
     });
     document.querySelectorAll('.chip').forEach(c => c.addEventListener('click', () => { window.Sfx.play('ui'); setFilter(c.dataset.f); }));
     $('grid').addEventListener('click', e => {
+      const info = e.target.closest('.card-info');
+      if (info) { window.Sfx.play('ui'); openDetail(byId(info.dataset.info)); return; }
       const card = e.target.closest('.card');
       if (!card) return;
-      window.Sfx.play('ui');
-      if (card.dataset.new !== undefined) openCreate(card.dataset.new);
-      else openDetail(byId(card.dataset.id));
+      if (card.dataset.new !== undefined) { window.Sfx.play('ui'); openCreate(card.dataset.new); return; }
+      const u = byId(card.dataset.id);
+      if (u) startGame(u);
     });
     $('grid').addEventListener('pointermove', e => {
       const card = e.target.closest('.card');

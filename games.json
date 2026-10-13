@@ -125,7 +125,7 @@
     "author": "Balthi",
     "owner": "Balthi",
     "blurb": "Steal from the bank and cause mayhem in the city.",
-    "cover": null,
+    "cover": "games/time-thief/cover.png",
     "pixel": false,
     "url": null,
     "genres": [],
@@ -137,7 +137,7 @@
     "next": "",
     "build": true,
     "added": 1791461413,
-    "updated": 1791468032
+    "updated": 1791890117
   },
   {
     "slug": "housekeeper",

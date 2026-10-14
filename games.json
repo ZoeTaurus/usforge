@@ -1,5 +1,32 @@
 [
   {
+    "slug": "turbo-tokens",
+    "title": "Turbo Tokens",
+    "author": "Alex",
+    "owner": "Alex",
+    "blurb": "A racing game :D",
+    "cover": "games/turbo-tokens/cover.jpg",
+    "pixel": false,
+    "url": null,
+    "shots": [
+      "games/turbo-tokens/shots/1.png",
+      "games/turbo-tokens/shots/2.png",
+      "games/turbo-tokens/shots/3.png",
+      "games/turbo-tokens/shots/4.png"
+    ],
+    "genres": [
+      "Racing"
+    ],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1791980834
+  },
+  {
     "slug": "gravity-zero",
     "title": "GRAVITY ZERO",
     "author": "Balthi",

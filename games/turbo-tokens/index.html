@@ -1,0 +1,227 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Turbo Tokens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Russo+One&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/style.css" />
+    <!-- Loading screen. It turns into an error message if the game cannot start. -->
+    <style>
+      @keyframes bootspin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+    <div id="boot" style="position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; background: #07080d; color: #eef1f8; font: 600 18px/1.5 system-ui, sans-serif; text-align: center">
+      <div id="boot-spin" style="width: 46px; height: 46px; border-radius: 50%; border: 5px solid rgba(255, 255, 255, 0.15); border-top-color: #ff3ea5; animation: bootspin 0.8s linear infinite"></div>
+      <p id="boot-msg" style="margin: 0; max-width: 34em">Loading Turbo Tokens…</p>
+    </div>
+    <canvas id="game"></canvas>
+
+    <div id="ui">
+      <div id="topbar">
+        <div class="token-pill" title="Your tokens"><span class="coin">T</span><b id="token-count">0</b></div>
+        <button class="icon-btn" id="btn-sound" title="Sound on/off (M)">🔊</button>
+        <button class="icon-btn" id="btn-quality" title="Graphics quality">HD</button>
+      </div>
+
+      <!-- Main menu -->
+      <section id="screen-menu" class="screen">
+        <div class="menu-left">
+          <h1 class="logo"><span class="l1">TURBO</span><span class="l2">TOKENS</span></h1>
+          <p class="tagline">Build your dream car. Beat the pack. Earn tokens.</p>
+          <div class="menu-buttons">
+            <button class="btn big primary" data-action="play">▶&nbsp; RACE</button>
+            <button class="btn big" data-action="garage">🔧&nbsp; BUILD CAR</button>
+            <button class="btn daily-btn" data-action="daily">📅&nbsp; DAILY CHALLENGES <span class="daily-badge" id="daily-badge"></span></button>
+            <button class="btn" data-action="howto">HOW TO PLAY</button>
+          </div>
+          <div class="menu-stats" id="menu-stats"></div>
+        </div>
+      </section>
+
+      <!-- Garage -->
+      <section id="screen-garage" class="screen">
+        <div class="garage-panel panel">
+          <h2 class="panel-title">BUILD YOUR CAR</h2>
+          <div class="tabs" id="garage-tabs">
+            <button data-tab="parts" class="active">Parts</button>
+            <button data-tab="body">Body</button>
+            <button data-tab="paint">Paint</button>
+            <button data-tab="wheels">Wheels</button>
+            <button data-tab="extras">Extras</button>
+            <button data-tab="style">Style</button>
+          </div>
+          <div class="tab-content" id="garage-content"></div>
+        </div>
+        <div class="stats-panel panel" id="stats-panel"></div>
+        <div class="drag-hint">⟲ drag to rotate · scroll to zoom</div>
+        <div class="bottom-bar">
+          <button class="btn" data-action="menu">◀ MENU</button>
+          <button class="btn primary" data-action="play">CHOOSE TRACK ▶</button>
+        </div>
+      </section>
+
+      <!-- Track select -->
+      <section id="screen-maps" class="screen">
+        <div class="maps-wrap">
+          <h2 class="screen-title">CHOOSE YOUR TRACK</h2>
+          <div class="map-grid" id="map-grid"></div>
+          <div class="laps-row">
+            <div class="opt-group">
+              <span>LAPS</span>
+              <div class="seg" id="laps-seg"></div>
+            </div>
+            <div class="opt-group">
+              <span>DIFFICULTY</span>
+              <div class="seg diff" id="diff-seg"></div>
+            </div>
+            <div class="opt-group">
+              <span>EXTRAS</span>
+              <div class="chips" id="extra-chips"></div>
+            </div>
+          </div>
+        </div>
+        <div class="bottom-bar">
+          <button class="btn" data-action="garage">◀ GARAGE</button>
+          <p class="laps-note" id="laps-note"></p>
+          <button class="btn primary big" data-action="start">START RACE ▶</button>
+        </div>
+      </section>
+
+      <!-- In-race HUD (filled by hud.js) -->
+      <section id="screen-hud" class="screen hud"></section>
+
+      <!-- Pause -->
+      <section id="screen-pause" class="screen overlay">
+        <div class="modal">
+          <h2>PAUSED</h2>
+          <button class="btn primary" data-action="resume">RESUME</button>
+          <button class="btn" data-action="restart">RESTART RACE</button>
+          <button class="btn" data-action="quit">QUIT TO MENU</button>
+          <p class="muted">Quitting gives no tokens.</p>
+        </div>
+      </section>
+
+      <!-- Results -->
+      <section id="screen-results" class="screen overlay">
+        <div class="modal results" id="results"></div>
+      </section>
+
+      <!-- How to play -->
+      <section id="screen-howto" class="screen overlay">
+        <div class="modal howto">
+          <h2>HOW TO PLAY</h2>
+          <div class="howto-grid">
+            <div><kbd>W</kbd><kbd>↑</kbd> Accelerate</div>
+            <div><kbd>SPACE</kbd> Brake</div>
+            <div><kbd>S</kbd><kbd>↓</kbd> Brake / reverse</div>
+            <div><kbd>A</kbd><kbd>D</kbd><kbd>←</kbd><kbd>→</kbd> Steer</div>
+            <div><kbd>E</kbd> Drift (hold while turning)</div>
+            <div><kbd>SHIFT</kbd> Nitro boost</div>
+            <div><kbd>H</kbd> Honk your horn</div>
+            <div><kbd>Q</kbd> Show / hide daily challenges</div>
+            <div><kbd>C</kbd> Change camera</div>
+            <div><kbd>R</kbd> Reset car to track</div>
+            <div><kbd>ESC</kbd> Pause</div>
+          </div>
+          <ul class="tips">
+            <li>🪙 Finish races to earn <b>tokens</b> — 1st place pays the most!</li>
+            <li>⚡ Earn <b>bonus tokens</b> for overtakes, drifting, top speed, a perfect start, laps in the lead, the fastest lap and a clean race.</li>
+            <li>🚦 <b>Perfect start:</b> press the gas right when the lights turn green for a free boost.</li>
+            <li>💨 <b>Drift:</b> hold E while turning. Keep drifting to raise the combo (×2, ×3…). Hitting a wall loses it!</li>
+            <li>🎬 After each race you see the <b>highlights</b> of your best moments.</li>
+            <li>🔧 <b>Build your car</b>: buy engines, turbos, tyres, exhausts and nitro with your tokens. Every part shows on your car.</li>
+            <li>🔥 Drifting refills your nitro tank.</li>
+            <li>🎚️ Choose <b>Easy</b>, <b>Medium</b> or <b>Hard</b> on the track screen. On Hard the rivals copy your parts and get extra power and grip on top — but it pays ×1.8 tokens.</li>
+            <li>💀 <b>Insane</b> is way harder: every rival has the best parts in the shop plus extra power and grip. Only the very best drivers win — and it pays ×3 tokens!</li>
+            <li>🏜️ Harder tracks pay more. The Dune Buggy barely slows down off-road!</li>
+            <li>❄️ Snowy Peaks is slippery — brake early.</li>
+            <li>🌙🌧️ Turn on <b>Night</b> or <b>Rain</b> on the track screen for extra tokens. Rain makes the road slippery!</li>
+            <li>👻 Turn on <b>Ghost</b> to race against your own best lap.</li>
+            <li>📅 Check the <b>Daily challenges</b> on the menu for bonus tokens every day. In a race, the daily panel shows your progress. Hide it with ✕ or Q, and bring it back with the 📅 button.</li>
+            <li>🎨 Buy stickers, light trails, horns and bubble colours in the garage's <b>Style</b> tab.</li>
+            <li>🐠 On <b>Bubble Reef</b> you race in a bubble under the sea — there is no road, just follow the floating stones and coral. Halfway round you shoot out of the water onto a palm island!</li>
+          </ul>
+          <button class="btn primary" data-action="closehowto">GOT IT</button>
+        </div>
+      </section>
+
+      <!-- Daily challenges -->
+      <section id="screen-daily" class="screen overlay">
+        <div class="modal daily">
+          <h2>📅 DAILY CHALLENGES</h2>
+          <p class="muted">Three new challenges every day. Finish a race that does one to win its tokens!</p>
+          <div class="daily-list" id="daily-list"></div>
+          <p class="daily-foot" id="daily-foot"></p>
+          <div class="daily-actions">
+            <button class="btn primary" data-action="play">LET'S RACE ▶</button>
+            <button class="btn" data-action="closedaily">CLOSE</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Loading -->
+      <section id="screen-loading" class="screen overlay">
+        <div class="loading"><div class="spinner"></div><p id="loading-text">Building track…</p></div>
+      </section>
+
+      <div id="toast"></div>
+    </div>
+
+    <div id="fatal" hidden></div>
+    <noscript><div class="noscript">This game needs JavaScript enabled.</div></noscript>
+    <script type="module" src="src/main.js"></script>
+    <script nomodule>
+      document.getElementById('boot-msg').innerHTML = '<b>Your browser is too old for this game.</b><br>Please update it, or try Chrome, Edge, Firefox or Safari.';
+    </script>
+    <script>
+      (function () {
+        var boot = document.getElementById('boot');
+        var msg = document.getElementById('boot-msg');
+        var spin = document.getElementById('boot-spin');
+        var failed = false;
+        function show(html) {
+          if (window.__gameStarted || !boot.parentNode) return;
+          spin.style.display = 'none';
+          msg.innerHTML = html;
+        }
+        function fail(html) {
+          if (failed) return;
+          failed = true;
+          show(html);
+        }
+        function text(v) {
+          return String(v).replace(/[<>&]/g, function (c) {
+            return { '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c];
+          });
+        }
+        window.__bootFail = fail;
+        if (location.protocol === 'file:') {
+          fail('<b>This game has to be opened from a web server.</b><br>In the game folder run <code>python3 -m http.server 8080</code>, then open http://localhost:8080');
+          return;
+        }
+        if (document.querySelector('script[type="importmap"]') && !(window.HTMLScriptElement && HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'))) {
+          fail('<b>Your browser is too old for this game.</b><br>Please update it, or try Chrome, Edge, Firefox or Safari.');
+          return;
+        }
+        var main = document.querySelector('script[type="module"]');
+        if (main) {
+          main.addEventListener('error', function () {
+            fail('<b>The game files could not load.</b><br>Check your internet connection, then reload the page.');
+          });
+        }
+        window.addEventListener('error', function (e) {
+          fail('<b>Sorry, the game could not start.</b><br><small>' + text(e.message || 'Unknown error') + '</small>');
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          var r = e.reason;
+          fail('<b>Sorry, the game could not start.</b><br><small>' + text((r && r.message) || r) + '</small>');
+        });
+        setTimeout(function () {
+          if (!failed) show('<b>Still loading…</b><br>If this does not go away, check your internet connection and reload the page.');
+        }, 25000);
+      })();
+    </script>
+
+</body></html>

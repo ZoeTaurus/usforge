@@ -33,6 +33,7 @@
           <div class="menu-buttons">
             <button class="btn big primary" data-action="play">▶&nbsp; RACE</button>
             <button class="btn big" data-action="garage">🔧&nbsp; BUILD CAR</button>
+            <button class="btn" data-action="tutorial">🎓&nbsp; TUTORIAL</button>
             <button class="btn daily-btn" data-action="daily">📅&nbsp; DAILY CHALLENGES <span class="daily-badge" id="daily-badge"></span></button>
             <button class="btn" data-action="howto">HOW TO PLAY</button>
           </div>
@@ -126,6 +127,7 @@
             <div><kbd>ESC</kbd> Pause</div>
           </div>
           <ul class="tips">
+            <li>🎓 New to racing? Try the <b>Tutorial</b> on the menu. It teaches you to drive, turn, brake, drift and use nitro, step by step.</li>
             <li>🪙 Finish races to earn <b>tokens</b> — 1st place pays the most!</li>
             <li>⚡ Earn <b>bonus tokens</b> for overtakes, drifting, top speed, a perfect start, laps in the lead, the fastest lap and a clean race.</li>
             <li>🚦 <b>Perfect start:</b> press the gas right when the lights turn green for a free boost.</li>
@@ -144,6 +146,20 @@
             <li>🐠 On <b>Bubble Reef</b> you race in a bubble under the sea — there is no road, just follow the floating stones and coral. Halfway round you shoot out of the water onto a palm island!</li>
           </ul>
           <button class="btn primary" data-action="closehowto">GOT IT</button>
+        </div>
+      </section>
+
+      <!-- Tutorial finished -->
+      <section id="screen-tutdone" class="screen overlay">
+        <div class="modal tutdone">
+          <div class="tut-cap">🎓</div>
+          <h2>TUTORIAL COMPLETE!</h2>
+          <p>You can drive, turn, brake, drift and use nitro. You're ready to race!</p>
+          <p class="tut-prize" id="tut-prize"></p>
+          <div class="daily-actions">
+            <button class="btn primary big" data-action="play">START PLAYING ▶</button>
+            <button class="btn" data-action="menu">MENU</button>
+          </div>
         </div>
       </section>
 

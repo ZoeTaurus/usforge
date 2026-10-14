@@ -14,6 +14,7 @@ import { computeStats, difficultyDef, bestParts, WHEELS, SPOILERS, FINISHES, BUB
 import { Trail } from './style.js';
 import { GhostRecorder, GhostCar, loadGhost } from './ghost.js';
 import { dailyLive } from './daily.js';
+import { Tutorial } from './tutorial.js';
 import { Particles, SkidMarks } from './effects.js';
 import { HUD } from './hud.js';
 import { audio } from './audio.js';
@@ -49,7 +50,7 @@ function aiCarConfig(rand, color, night) {
 }
 
 export class Race {
-  constructor({ renderer, track, laps, playerCar, quality, input, hudRoot, onFinish, difficulty = 'medium', playerName = 'YOU', ghost = false, dailyOpen = true, onDailyToggle = null }) {
+  constructor({ renderer, track, laps, playerCar, quality, input, hudRoot, onFinish, difficulty = 'medium', playerName = 'YOU', ghost = false, dailyOpen = true, onDailyToggle = null, tutorial = null }) {
     this.renderer = renderer;
     this.def = track;
     this.laps = laps;
@@ -68,7 +69,8 @@ export class Race {
     this.grip = T.grip;
 
     // --- Cars ------------------------------------------------------------
-    const n = 5;
+    // The tutorial has the track to itself.
+    const n = tutorial ? 0 : 5;
     const diff = difficultyDef(difficulty);
     this.difficulty = diff;
     const [lo, hiSkill] = track.aiSkill;
@@ -199,7 +201,9 @@ export class Race {
     this.onDailyToggle = onDailyToggle;
     const cond = track.conditions || {};
     const extras = [track.theme.nightMode && 'NIGHT', cond.rain === 'rain' && 'RAIN', cond.rain === 'blizzard' && 'BLIZZARD'].filter(Boolean);
-    this.hud.message([track.name.toUpperCase(), ...extras, diff.name.toUpperCase()].join(' · '), 'title', 2.6);
+    if (tutorial) this.hud.message('DRIVING SCHOOL', 'title', 2.6);
+    else this.hud.message([track.name.toUpperCase(), ...extras, diff.name.toUpperCase()].join(' · '), 'title', 2.6);
+    this.tutorial = tutorial ? new Tutorial(this, tutorial) : null;
 
     this.state = 'countdown';
     this.t = 0;
@@ -440,7 +444,7 @@ export class Race {
       const c = this.input.read();
       this.player.ctrl.throttle = c.throttle;
       if (c.throttle && this.t > COUNTDOWN - 0.6) this.perf.earlyThrottle = true;
-      if (this.t > 1.4 && !this.startTip) {
+      if (this.t > 1.4 && !this.startTip && !this.tutorial) {
         this.startTip = true;
         this.hud.tip('Hit the GAS right when the lights turn GREEN for a perfect start!', 2.4);
       }
@@ -471,12 +475,13 @@ export class Race {
     const fwdDot = Math.sin(p.heading) * this.path.tx[p.trackIdx] + Math.cos(p.heading) * this.path.tz[p.trackIdx];
     p.wrongWay = racing && !p.finished && fwdDot < -0.3 && Math.abs(p.speed) > 2 ? p.wrongWay + dt : 0;
     this.hud.update({ player: p, ranking: this.ranking, raceTime: this.raceTime, cars: this.cars, dt, wrongWay: p.wrongWay > 1, drift: this.drift });
-    if (racing && this.raceTime > 3 && !this.driftTip) {
+    if (racing && this.raceTime > 3 && !this.driftTip && !this.tutorial) {
       this.driftTip = true;
       this.hud.tip(this.input.isTouch ? 'Hold DRIFT while turning to drift and score points!' : 'Hold E while turning to DRIFT and score points!', 4);
     }
     this.hud.updateTags(this.camera, this.cars, this.width, this.height);
-    this.updateDailyHud(dt);
+    if (this.tutorial) this.tutorial.update(dt);
+    else this.updateDailyHud(dt);
 
     audio.updateEngine(
       p.speed / p.stats.maxSpeed,
@@ -1256,6 +1261,7 @@ export class Race {
     this.sparks.dispose();
     if (this.trail) this.trail.dispose();
     if (this.ghost) this.ghost.dispose();
+    if (this.tutorial) this.tutorial.dispose();
     if (this.bubbles) {
       this.bubbles.dispose();
       audio.setMuffled(false);

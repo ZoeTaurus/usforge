@@ -67,7 +67,7 @@ $('#btn-sound').textContent = save.settings.sound ? '🔊' : '🔇';
 function show(name) {
   screen = name;
   $$('.screen').forEach((s) => s.classList.toggle('active', s.id === 'screen-' + name));
-  const inRace = ['hud', 'pause', 'results', 'loading'].includes(name);
+  const inRace = ['hud', 'pause', 'results', 'loading', 'tutdone'].includes(name);
   $('#topbar').classList.toggle('hidden', name === 'hud' || name === 'pause' || name === 'loading');
   document.body.classList.toggle('in-race', inRace);
   if (!inRace) {
@@ -536,6 +536,54 @@ function startRace() {
   }, 60);
 }
 
+// Driving school: an empty Green Valley and step-by-step lessons.
+const TUTORIAL_PRIZE = 50;
+function startTutorial() {
+  clearPreview();
+  audio.unlock();
+  $('#loading-text').textContent = 'Getting the driving school ready…';
+  show('loading');
+  setTimeout(() => {
+    try {
+      disposeRace();
+      race = new Race({
+        renderer,
+        track: getTrack('valley'),
+        laps: 99,
+        difficulty: 'easy',
+        playerCar: save.car,
+        quality: save.settings.quality,
+        input,
+        hudRoot: $('#screen-hud'),
+        onFinish: () => {},
+        tutorial: { onDone: finishTutorial },
+      });
+      race.onPause = () => pauseRace(true);
+      race.setCameraMode(save.settings.camera || 0);
+      active = race;
+      show('hud');
+    } catch (err) {
+      console.error(err);
+      toast('Could not start the tutorial: ' + err.message, 'bad');
+      show('menu');
+    }
+  }, 60);
+}
+
+function finishTutorial() {
+  const first = !save.tutorialDone;
+  save.tutorialDone = true;
+  if (first) {
+    save.tokens += TUTORIAL_PRIZE;
+    save.stats.tokensEarned += TUTORIAL_PRIZE;
+  }
+  persist();
+  if (race) race.setPaused(true);
+  $('#tut-prize').innerHTML = first ? `Here's <b><i class="coin">T</i>${TUTORIAL_PRIZE}</b> to spend on your car!` : 'Ready for the real thing?';
+  show('tutdone');
+  if (first) updateTokens(true);
+}
+
 function disposeRace() {
   if (race) {
     save.settings.camera = race.camMode;
@@ -662,10 +710,17 @@ document.addEventListener('click', (e) => {
   const a = b.dataset.action;
   audio.click();
   switch (a) {
+    case 'tutorial':
+      startTutorial();
+      break;
     case 'play':
       disposeRace();
       clearPreview();
-      if (!save.visitedGarage) {
+      // Brand-new players learn to drive first.
+      if (!save.tutorialDone && save.stats.races === 0) {
+        startTutorial();
+        toast('Welcome to driving school! Learn the moves, then the racing begins.', 'good');
+      } else if (!save.visitedGarage) {
         garageTab = 'parts';
         show('garage');
         toast('First, build your car! Pick parts and paint, then press CHOOSE TRACK.', 'good');
@@ -696,8 +751,11 @@ document.addEventListener('click', (e) => {
       break;
     case 'start':
     case 'again':
-    case 'restart':
       startRace();
+      break;
+    case 'restart':
+      if (race && race.tutorial) startTutorial();
+      else startRace();
       break;
     case 'resume':
       pauseRace(false);

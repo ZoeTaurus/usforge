@@ -214,6 +214,7 @@ function defaultSave() {
     car: defaultCar(),
     owned: [],
     visitedGarage: false,
+    tutorialDone: false,
     best: {},
     stats: { races: 0, wins: 0, podiums: 0, tokensEarned: 0 },
     settings: { sound: true, quality: 'high', camera: 0, ghost: false, night: false, rain: false },

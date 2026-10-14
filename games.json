@@ -25,7 +25,7 @@
     "author": "Balthi",
     "owner": "Balthi",
     "blurb": "Can you survive what lurks in the darkness, and find the exit?",
-    "cover": null,
+    "cover": "games/the-exit-doesnt-exist/cover.png",
     "pixel": false,
     "url": null,
     "genres": [],
@@ -36,7 +36,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1791833029
+    "added": 1791833029,
+    "updated": 1791959961
   },
   {
     "slug": "terra-scripta",

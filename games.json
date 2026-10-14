@@ -5,7 +5,7 @@
     "author": "Balthi",
     "owner": "Balthi",
     "blurb": "",
-    "cover": null,
+    "cover": "games/gravity-zero/cover.png",
     "pixel": false,
     "url": null,
     "genres": [],
@@ -16,7 +16,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1791893117
+    "added": 1791893117,
+    "updated": 1791959834
   },
   {
     "slug": "the-exit-doesnt-exist",

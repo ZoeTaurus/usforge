@@ -12,11 +12,12 @@
     "languages": [
       "en"
     ],
-    "dev": false,
-    "progress": null,
+    "dev": true,
+    "progress": 10,
     "next": "",
     "build": true,
-    "added": 1792067970
+    "added": 1792067970,
+    "updated": 1792068153
   },
   {
     "slug": "turbo-tokens",

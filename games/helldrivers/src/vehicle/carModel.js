@@ -3,8 +3,7 @@
 //
 //   root          follows the physics body
 //   ├─ body       leans in turns / dips when braking (visual wobble)
-//   │   ├─ sections: cabin (+ roof turret), nose, tail, doorL, doorR, bumper
-//   │   └─ parts you bolted on
+//   │   └─ turret → yaw → pitch → barrels, muzzle
 //   └─ wheels     stay planted on the ground
 import * as THREE from 'three';
 
@@ -64,62 +63,52 @@ export function createCarModel() {
   const body = new THREE.Group();
   root.add(body);
 
-  // --- Body sections: each one can be damaged and break off on its own ---
-  //   cabin  = where you sit (the core: lose it and you're wrecked)
-  //   nose, tail, doorL (x>0), doorR (x<0), bumper (front ram bumper)
-  const sections = {};
-  for (const id of ['cabin', 'nose', 'tail', 'doorL', 'doorR', 'bumper']) {
-    sections[id] = new THREE.Group();
-    sections[id].name = id;
-    body.add(sections[id]);
+  // --- Chassis ---
+  add(body, taperedBox(1.9, 0.5, 4.2, 0.98, 0.97), M.paint, 0, 0.15, 0);
+  add(body, taperedBox(1.8, 0.16, 1.4, 0.95, 0.9, -0.05), M.paint, 0, 0.48, 1.35);          // hood
+  add(body, new THREE.BoxGeometry(0.5, 0.18, 0.5), M.dark, 0, 0.6, 1.3);                   // hood scoop
+  add(body, taperedBox(1.7, 0.5, 2.0, 0.85, 0.6, -0.15), M.glass, 0, 0.65, -0.3);          // cabin glass
+  add(body, new THREE.BoxGeometry(1.42, 0.08, 1.15), M.paint, 0, 0.94, -0.42);             // roof
+  add(body, taperedBox(1.8, 0.14, 0.9, 0.95, 0.8, 0.05), M.paint, 0, 0.47, -1.7);          // trunk
+  add(body, new THREE.BoxGeometry(1.9, 0.08, 0.3), M.dark, 0, 0.62, -2.0);                 // spoiler wing
+  add(body, new THREE.BoxGeometry(0.08, 0.2, 0.2), M.dark, 0.7, 0.5, -2.0);
+  add(body, new THREE.BoxGeometry(0.08, 0.2, 0.2), M.dark, -0.7, 0.5, -2.0);
+
+  // Racing stripes (white with a red pinstripe)
+  for (const x of [-0.22, 0.22]) {
+    add(body, new THREE.BoxGeometry(0.22, 0.02, 1.38), M.stripe, x, 0.57, 1.35, false);
+    add(body, new THREE.BoxGeometry(0.22, 0.02, 1.12), M.stripe, x, 0.99, -0.42, false);
+    add(body, new THREE.BoxGeometry(0.22, 0.02, 0.88), M.stripe, x, 0.55, -1.7, false);
   }
-  const { cabin, nose, tail, doorL, doorR, bumper } = sections;
+  add(body, new THREE.BoxGeometry(1.92, 0.07, 3.6), M.accent, 0, 0.0, 0, false);           // side pinstripe
 
-  // Cabin: middle of the chassis, glass, roof
-  add(cabin, new THREE.BoxGeometry(1.5, 0.5, 2.0), M.paint, 0, 0.15, 0);
-  add(cabin, taperedBox(1.7, 0.5, 2.0, 0.85, 0.6, -0.15), M.glass, 0, 0.65, -0.3);
-  add(cabin, new THREE.BoxGeometry(1.42, 0.08, 1.15), M.paint, 0, 0.94, -0.42);
-  for (const x of [-0.22, 0.22]) add(cabin, new THREE.BoxGeometry(0.22, 0.02, 1.12), M.stripe, x, 0.99, -0.42, false);
-
-  // Doors: side panels with the red pinstripe
-  for (const [g, sx] of [[doorL, 1], [doorR, -1]]) {
-    add(g, new THREE.BoxGeometry(0.2, 0.48, 2.0), M.paint, sx * 0.85, 0.15, 0);
-    add(g, new THREE.BoxGeometry(0.04, 0.07, 2.0), M.accent, sx * 0.96, 0.0, 0, false);
-    add(g, new THREE.BoxGeometry(0.04, 0.05, 0.22), M.dark, sx * 0.96, 0.25, -0.2, false); // handle
+  // Fenders over each wheel
+  for (const sx of [-1, 1]) for (const z of [1.35, -1.35]) {
+    add(body, taperedBox(0.25, 0.32, 1.25, 1, 0.8), M.paint, sx * 0.98, 0.32, z);
   }
 
-  // Nose: front of the chassis, hood, scoop, headlights, front fenders
-  add(nose, taperedBox(1.9, 0.5, 1.1, 0.98, 0.95, 0.0), M.paint, 0, 0.15, 1.55);
-  add(nose, taperedBox(1.8, 0.16, 1.4, 0.95, 0.9, -0.05), M.paint, 0, 0.48, 1.35);
-  add(nose, new THREE.BoxGeometry(0.5, 0.18, 0.5), M.dark, 0, 0.6, 1.3);
-  for (const x of [-0.22, 0.22]) add(nose, new THREE.BoxGeometry(0.22, 0.02, 1.38), M.stripe, x, 0.57, 1.35, false);
-  for (const x of [-0.65, 0.65]) add(nose, new THREE.BoxGeometry(0.34, 0.14, 0.06), M.headlight, x, 0.28, 2.1, false);
-  for (const sx of [-1, 1]) add(nose, taperedBox(0.25, 0.32, 1.25, 1, 0.8), M.paint, sx * 0.98, 0.32, 1.35);
-
-  // Tail: back of the chassis, trunk, spoiler, taillights, exhausts, rear fenders
-  add(tail, taperedBox(1.9, 0.5, 1.0, 0.98, 0.95, 0.0), M.paint, 0, 0.15, -1.6);
-  add(tail, taperedBox(1.8, 0.14, 0.9, 0.95, 0.8, 0.05), M.paint, 0, 0.47, -1.7);
-  for (const x of [-0.22, 0.22]) add(tail, new THREE.BoxGeometry(0.22, 0.02, 0.88), M.stripe, x, 0.55, -1.7, false);
-  add(tail, new THREE.BoxGeometry(1.9, 0.08, 0.3), M.dark, 0, 0.62, -2.0);                 // spoiler wing
-  add(tail, new THREE.BoxGeometry(0.08, 0.2, 0.2), M.dark, 0.7, 0.5, -2.0);
-  add(tail, new THREE.BoxGeometry(0.08, 0.2, 0.2), M.dark, -0.7, 0.5, -2.0);
-  add(tail, new THREE.BoxGeometry(1.9, 0.25, 0.2), M.dark, 0, 0.0, -2.15);                 // rear bumper
-  for (const x of [-0.65, 0.65]) add(tail, new THREE.BoxGeometry(0.38, 0.12, 0.06), M.taillight, x, 0.3, -2.11, false);
-  const pipe = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6);
-  pipe.rotateX(Math.PI / 2);
-  for (const x of [-0.45, 0.45]) add(tail, pipe, M.metal, x, -0.12, -2.2);
-  for (const sx of [-1, 1]) add(tail, taperedBox(0.25, 0.32, 1.25, 1, 0.8), M.paint, sx * 0.98, 0.32, -1.35);
-
-  // Front ram bumper with spikes
-  add(bumper, new THREE.BoxGeometry(2.1, 0.32, 0.3), M.metal, 0, 0.0, 2.2);
+  // Front ram bumper with spikes (for running over demons later)
+  add(body, new THREE.BoxGeometry(2.1, 0.32, 0.3), M.metal, 0, 0.0, 2.2);
   const spikeGeo = new THREE.ConeGeometry(0.11, 0.5, 4);
   spikeGeo.rotateX(Math.PI / 2);
-  for (const x of [-0.8, -0.27, 0.27, 0.8]) add(bumper, spikeGeo, M.metal, x, 0.0, 2.55);
+  for (const x of [-0.8, -0.27, 0.27, 0.8]) add(body, spikeGeo, M.metal, x, 0.0, 2.55);
+  add(body, new THREE.BoxGeometry(1.9, 0.25, 0.2), M.dark, 0, 0.0, -2.15);                 // rear bumper
+
+  // Lights
+  for (const x of [-0.65, 0.65]) {
+    add(body, new THREE.BoxGeometry(0.34, 0.14, 0.06), M.headlight, x, 0.28, 2.1, false);
+    add(body, new THREE.BoxGeometry(0.38, 0.12, 0.06), M.taillight, x, 0.3, -2.11, false);
+  }
+
+  // Exhaust pipes
+  const pipe = new THREE.CylinderGeometry(0.08, 0.1, 0.5, 6);
+  pipe.rotateX(Math.PI / 2);
+  for (const x of [-0.45, 0.45]) add(body, pipe, M.metal, x, -0.12, -2.2);
 
   // --- Turret on the roof ---
   const turret = new THREE.Group();
   turret.position.set(0, 0.98, -0.42);
-  cabin.add(turret); // the roof gun belongs to the cabin
+  body.add(turret);
   add(turret, new THREE.CylinderGeometry(0.5, 0.58, 0.16, 8), M.dark, 0, 0.08, 0);
   const yaw = new THREE.Group();
   yaw.position.y = 0.16;
@@ -164,5 +153,5 @@ export function createCarModel() {
     wheels.push({ steer, spin, front, x, z });
   }
 
-  return { root, body, sections, wheels, turret: { yaw, pitch, barrels, muzzle, flash } };
+  return { root, body, wheels, turret: { yaw, pitch, barrels, muzzle, flash } };
 }

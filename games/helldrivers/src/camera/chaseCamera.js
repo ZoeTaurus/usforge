@@ -9,10 +9,8 @@ export class ChaseCamera {
     this.zoom = 1;
     this.lookAt = new THREE.Vector3();
     this.initialized = false;
-    this.kick = 0;
+    this.shake = 0;
   }
-
-  addShake(amount) { this.kick = Math.min(1.2, this.kick + amount); }
 
   update(car, dt, wheel) {
     const C = SETTINGS.camera;
@@ -38,14 +36,11 @@ export class ChaseCamera {
     // Look a little ahead of the car so you can see where you're going.
     this.lookAt.copy(target).addScaledVector(dir, 5).setY(target.y + 1.2);
 
-    // Shake: a little at high speed, plus a jolt on hits (decays quickly).
-    this.kick = Math.max(0, this.kick - dt * 2.5);
-    const shake = (speedRatio > 0.7 ? (speedRatio - 0.7) * 0.12 : 0) + this.kick * this.kick;
-    if (shake > 0) {
-      this.camera.position.x += (Math.random() - 0.5) * shake;
-      this.camera.position.y += (Math.random() - 0.5) * shake;
-      this.lookAt.x += (Math.random() - 0.5) * shake * 0.5;
-      this.lookAt.y += (Math.random() - 0.5) * shake * 0.5;
+    // Tiny shake at high speed.
+    this.shake = speedRatio > 0.7 ? (speedRatio - 0.7) * 0.12 : 0;
+    if (this.shake > 0) {
+      this.camera.position.x += (Math.random() - 0.5) * this.shake;
+      this.camera.position.y += (Math.random() - 0.5) * this.shake;
     }
     this.camera.lookAt(this.lookAt);
 

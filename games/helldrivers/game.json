@@ -5,5 +5,7 @@
   "blurb": "Invade hell as a proud aquarium",
   "languages": [
     "en"
-  ]
+  ],
+  "dev": true,
+  "progress": 10
 }

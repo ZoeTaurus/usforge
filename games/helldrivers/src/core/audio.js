@@ -77,57 +77,6 @@ export class Audio {
     this.screechFilter.frequency.setTargetAtTime(1500 + drift * 800, t, 0.1);
   }
 
-  // A short burst of filtered noise with a quick fade (most effects use this).
-  #burst({ freq = 1000, type = 'lowpass', q = 1, endFreq, gain = 0.5, length = 0.15, delay = 0 }) {
-    if (!this.ctx || this.muted) return;
-    const ctx = this.ctx;
-    const t = ctx.currentTime + delay;
-    const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer;
-    const f = ctx.createBiquadFilter();
-    f.type = type;
-    f.Q.value = q;
-    f.frequency.setValueAtTime(freq, t);
-    if (endFreq) f.frequency.exponentialRampToValueAtTime(endFreq, t + length);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + length);
-    src.connect(f).connect(g).connect(this.master);
-    src.start(t, Math.random() * 0.5, length + 0.05);
-  }
-
-  // A low "thud" tone.
-  #thud(freq, length, gain, delay = 0) {
-    if (!this.ctx || this.muted) return;
-    const ctx = this.ctx;
-    const t = ctx.currentTime + delay;
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    o.frequency.setValueAtTime(freq, t);
-    o.frequency.exponentialRampToValueAtTime(freq * 0.4, t + length);
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(gain, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + length);
-    o.connect(g).connect(this.master);
-    o.start(t);
-    o.stop(t + length + 0.05);
-  }
-
-  // Demon goes SPLAT: wet crunch + thump. size 0..1
-  splat(size = 1) {
-    this.#thud(90 + Math.random() * 40, 0.25, 0.7 * size);
-    this.#burst({ freq: 900 + Math.random() * 600, type: 'bandpass', q: 0.8, endFreq: 150, gain: 0.8 * size, length: 0.22 });
-    this.#burst({ freq: 3000, type: 'highpass', gain: 0.25 * size, length: 0.06, delay: 0.02 }); // crunch
-  }
-
-  thump() { this.#thud(120, 0.15, 0.5); this.#burst({ freq: 600, gain: 0.3, length: 0.08 }); }
-  hit() { this.#burst({ freq: 1800, type: 'bandpass', q: 2, gain: 0.25, length: 0.05 }); }
-  claw() { this.#burst({ freq: 4200, type: 'bandpass', q: 4, endFreq: 2000, gain: 0.25, length: 0.12 }); }
-  wreck() {
-    this.#thud(60, 0.9, 1.0);
-    this.#burst({ freq: 1200, endFreq: 80, gain: 1.0, length: 0.9 });
-  }
-
   gunshot() {
     if (!this.ctx || this.muted) return;
     const ctx = this.ctx;

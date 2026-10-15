@@ -7,8 +7,7 @@
     "start": "vite --open",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "build:single": "node scripts/build-single.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
@@ -16,7 +15,6 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
-    "vite": "^8.3.4",
-    "vite-plugin-singlefile": "^2.3.3"
+    "vite": "^8.3.4"
   }
 }

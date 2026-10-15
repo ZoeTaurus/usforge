@@ -8,19 +8,16 @@ export function createTuningPanel() {
   const gui = new GUI({ title: 'Tuning (T to hide)' });
   const original = JSON.parse(JSON.stringify(SETTINGS));
 
-  // One folder per group; groups inside groups (like each part) get sub-folders.
-  const addGroup = (parent, name, group) => {
-    const folder = parent.addFolder(name);
+  for (const [groupName, group] of Object.entries(SETTINGS)) {
+    const folder = gui.addFolder(groupName);
     for (const [key, value] of Object.entries(group)) {
-      if (value && typeof value === 'object') { addGroup(folder, key, value); continue; }
       if (typeof value !== 'number') continue;
       const max = value === 0 ? 1 : Math.abs(value) * 3;
       const step = max > 100 ? 10 : max > 10 ? 0.5 : 0.01;
       folder.add(group, key, 0, max, step);
     }
     folder.close();
-  };
-  for (const [groupName, group] of Object.entries(SETTINGS)) addGroup(gui, groupName, group);
+  }
 
   gui.add({
     copy: () => {
@@ -32,12 +29,7 @@ export function createTuningPanel() {
 
   gui.add({
     reset: () => {
-      const restore = (target, src) => {
-        for (const [k, v] of Object.entries(src)) {
-          if (v && typeof v === 'object') restore(target[k], v); else target[k] = v;
-        }
-      };
-      restore(SETTINGS, original);
+      for (const [g, group] of Object.entries(original)) Object.assign(SETTINGS[g], group);
       gui.controllersRecursive().forEach((c) => c.updateDisplay());
     },
   }, 'reset').name('↺ Reset to file values');

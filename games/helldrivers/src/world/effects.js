@@ -4,11 +4,11 @@ import * as THREE from 'three';
 
 // ---------------- Dust puffs kicked up by the tires ----------------
 export class Dust {
-  constructor(scene, max = 220, color = 0xb8aaa0, opacity = 0.45) {
+  constructor(scene, max = 220) {
     this.max = max;
     this.mesh = new THREE.InstancedMesh(
       new THREE.IcosahedronGeometry(1, 0),
-      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: 0xb8aaa0, transparent: true, opacity: 0.45, depthWrite: false }),
       max
     );
     this.mesh.frustumCulled = false;
@@ -50,6 +50,52 @@ export class Dust {
     this.dummy.rotation.set(i, i * 2, 0);
     this.dummy.updateMatrix();
     this.mesh.setMatrixAt(i, this.dummy.matrix);
+  }
+}
+
+// ---------------- Tracer rounds (visual only for now) ----------------
+export class Tracers {
+  constructor(scene, dust, max = 40) {
+    this.dust = dust;
+    const geo = new THREE.BoxGeometry(0.08, 0.08, 2.2);
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffe080 });
+    this.pool = Array.from({ length: max }, () => {
+      const m = new THREE.Mesh(geo, mat);
+      m.visible = false;
+      scene.add(m);
+      return { mesh: m, dir: new THREE.Vector3(), remaining: 0 };
+    });
+    this.next = 0;
+    this.speed = 220;
+  }
+
+  fire(from, to) {
+    const t = this.pool[this.next];
+    this.next = (this.next + 1) % this.pool.length;
+    t.mesh.position.copy(from);
+    t.dir.subVectors(to, from);
+    t.remaining = t.dir.length();
+    t.dir.normalize();
+    t.mesh.lookAt(to);
+    t.mesh.visible = true;
+  }
+
+  update(dt) {
+    for (const t of this.pool) {
+      if (!t.mesh.visible) continue;
+      const step = this.speed * dt;
+      if (step >= t.remaining) {
+        t.mesh.position.addScaledVector(t.dir, t.remaining);
+        t.mesh.visible = false;
+        // Little puff of ash where it lands.
+        for (let i = 0; i < 3; i++) {
+          this.dust.spawn(t.mesh.position, new THREE.Vector3((Math.random() - 0.5) * 4, 2 + Math.random() * 3, (Math.random() - 0.5) * 4), 0.35, 0.6);
+        }
+      } else {
+        t.mesh.position.addScaledVector(t.dir, step);
+        t.remaining -= step;
+      }
+    }
   }
 }
 

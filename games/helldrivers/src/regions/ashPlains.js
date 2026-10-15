@@ -43,8 +43,7 @@ export default {
   clearRadiusAtStart: 40,
 
   // --- Filled in during later milestones ---
-  // Which demons live here. "weight" = how common (bigger = more often).
-  demons: [{ type: 'imp', weight: 1 }],
+  demons: [],          // e.g. [{ type: 'imp', weight: 10 }, ...]
   gatingRule: null,    // e.g. { requires: 'none' }  (starter region)
   boss: null,          // e.g. { type: 'ashTitan' }
 };

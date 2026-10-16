@@ -32,6 +32,10 @@
     "cover": "games/generic-fps/cover.png",
     "pixel": false,
     "url": null,
+    "whatsnew": {
+      "text": "Fixed",
+      "at": 1792182406
+    },
     "genres": [
       "Action",
       "Shooter",
@@ -44,7 +48,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1792181144
+    "added": 1792181144,
+    "updated": 1792182406
   },
   {
     "slug": "turbo-tokens",

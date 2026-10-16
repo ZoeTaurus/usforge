@@ -10,5 +10,9 @@
   ],
   "languages": [
     "en"
-  ]
+  ],
+  "whatsnew": {
+    "text": "Fixed",
+    "at": 1792182406
+  }
 }

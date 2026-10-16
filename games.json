@@ -1,5 +1,28 @@
 [
   {
+    "slug": "generic-fps",
+    "title": "Generic FPS",
+    "author": "Henrique",
+    "owner": "Henrique",
+    "blurb": "Pew. Pew. Pew",
+    "cover": "games/generic-fps/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Action",
+      "Shooter",
+      "Strategy"
+    ],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1792181144
+  },
+  {
     "slug": "turbo-tokens",
     "title": "Turbo Tokens",
     "author": "Alex",

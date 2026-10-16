@@ -1,25 +1,5 @@
 [
   {
-    "slug": "helldrivers",
-    "title": "HellDrivers",
-    "author": "Henrique",
-    "owner": "Henrique",
-    "blurb": "Invade hell as a proud aquarium",
-    "cover": null,
-    "pixel": false,
-    "url": null,
-    "genres": [],
-    "languages": [
-      "en"
-    ],
-    "dev": true,
-    "progress": 10,
-    "next": "",
-    "build": true,
-    "added": 1792067970,
-    "updated": 1792068153
-  },
-  {
     "slug": "turbo-tokens",
     "title": "Turbo Tokens",
     "author": "Alex",

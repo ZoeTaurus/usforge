@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HellDrivers</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script>
+      // This is the DEVELOPER version of the page: it only runs through the
+      // dev server (npm start). If a website or a double-click opens it
+      // directly, jump to the real, ready-to-play game one folder up.
+      document.addEventListener('DOMContentLoaded', function () {
+        var raw = document.querySelector('script[src$="main.js"]');       // un-built source
+        var devServer = document.querySelector('script[src*="@vite/client"]');
+        if (raw && !devServer) location.replace('../index.html' + location.search + location.hash);
+      });
+    </script>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <div id="start">
+      <div class="t-shade"></div>
+      <div class="t-side"></div>
+      <div class="t-grain"></div>
+      <div class="t-bar top"></div><div class="t-bar bottom"></div>
+      <h1 class="t-logo">HELLDRIVERS</h1>
+      <div class="t-tag">Build a car. Invade Hell. <b>Never get out.</b></div>
+      <div class="t-click"><span class="t-loading">Summoning demons…</span><span class="t-go">CLICK ANYWHERE</span></div>
+      <div class="t-col"><div class="t-menu"></div></div>
+      <div class="t-run"></div>
+      <div class="t-panel"></div>
+      <div class="t-foot"><span>Milestone 7 · Regions</span><span class="t-keys">↑ ↓ choose · ENTER select</span></div>
+    </div>
+    <div id="cut"></div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

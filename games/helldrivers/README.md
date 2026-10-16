@@ -30,9 +30,13 @@ bolt it back on in the garage (**G**), anywhere you like.
 ## How to play (easiest)
 
 Double-click **`HELLDRIVERS.html`**. That's it: no install, works offline.
-(The developer version of the page lives in `src/index.html`; it only works through `npm start`.)
+**On a website:** upload the main folder (or just `index.html`). `index.html`
+is the same ready-to-play game as `HELLDRIVERS.html`, so a website that opens
+`index.html` by default gets the game. (The developer page in `src/index.html`
+only runs through `npm start`; if anything opens it directly, it jumps to the
+game.)
 
-To rebuild `HELLDRIVERS.html` after changing code: `npm run build:single`.
+To rebuild `HELLDRIVERS.html` and `index.html` after changing code: `npm run build:single`.
 
 ## How to run it (developer mode, live-reloads when you edit settings)
 

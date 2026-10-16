@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HellDrivers</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script>
+      // If this page was opened by double-clicking the file, the game code
+      // can't load. Explain what to do instead of showing a blank page.
+      if (location.protocol === 'file:') {
+        document.addEventListener('DOMContentLoaded', function () {
+          if (document.querySelector('script[type=module]:not([src])')) return; // packed version: fine
+          document.body.innerHTML = '<div style="font:18px/1.6 system-ui,sans-serif;max-width:640px;margin:60px auto;padding:24px;color:#222">' +
+            '<h1 style="color:#c22">HELLDRIVERS can\'t start from this file</h1>' +
+            '<p>This <b>index.html</b> is the developer version and needs the local server.</p>' +
+            '<p><b>Easiest:</b> double-click <b>HELLDRIVERS.html</b> in the main game folder instead.</p>' +
+            '<p><b>Or:</b> open a terminal in the main game folder and run <code>npm install &amp;&amp; npm start</code>.</p></div>';
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="hud"></div>
+    <div id="start">
+      <div class="t-shade"></div>
+      <div class="t-side"></div>
+      <div class="t-grain"></div>
+      <div class="t-bar top"></div><div class="t-bar bottom"></div>
+      <h1 class="t-logo">HELLDRIVERS</h1>
+      <div class="t-tag">Build a car. Invade Hell. <b>Never get out.</b></div>
+      <div class="t-click"><span class="t-loading">Summoning demons…</span><span class="t-go">CLICK ANYWHERE</span></div>
+      <div class="t-col"><div class="t-menu"></div></div>
+      <div class="t-run"></div>
+      <div class="t-panel"></div>
+      <div class="t-foot"><span>Milestone 7 · Regions</span><span class="t-keys">↑ ↓ choose · ENTER select</span></div>
+    </div>
+    <div id="cut"></div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

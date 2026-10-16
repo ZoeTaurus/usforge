@@ -1,5 +1,28 @@
 [
   {
+    "slug": "helldrivers",
+    "title": "Helldrivers",
+    "author": "Henrique",
+    "owner": "Henrique",
+    "blurb": "Invade Hell as a proud American",
+    "cover": "games/helldrivers/cover.png",
+    "pixel": false,
+    "url": null,
+    "genres": [
+      "Action",
+      "Open world",
+      "Physics"
+    ],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1792181705
+  },
+  {
     "slug": "generic-fps",
     "title": "Generic FPS",
     "author": "Henrique",

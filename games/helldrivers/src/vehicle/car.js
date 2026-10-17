@@ -12,7 +12,7 @@
 //  - Steering spins the car directly; weight makes that spin lazier.
 import * as THREE from 'three';
 import { SETTINGS } from '../settings.js';
-import { createCarModel, CAR_DIMENSIONS } from './carModel.js';
+import { createCarModel, CAR_DIMENSIONS, carLightMaterials } from './carModel.js';
 import { Build, cellCenter, SECTION_CELLS, sectionCenter, pieceInfo, pieceStats, isSectionPiece } from './build.js';
 import { makePieceModel } from './pieceModel.js';
 import { PART_TYPES, createGunTurret } from './parts.js';
@@ -77,6 +77,12 @@ export class Car {
     // Visual wobble springs
     this.roll = { x: 0, v: 0 };
     this.pitch = { x: 0, v: 0 };
+    this.heave = { x: 0, v: 0 };  // suspension bounce (landings, bumps)
+    this.wasGrounded = true;
+    this.lastThrottle = 0;
+    this.backfire = 0;            // > 0 = flames out of the exhaust (read by main)
+    this.braking = false;
+    this.clock = 0;
     this.wheelSpin = 0;
 
     // Damage: there's no health bar. Every body section and part has its
@@ -595,7 +601,25 @@ export class Car {
     const pitchTarget = -THREE.MathUtils.clamp(this.longAccel / 25, -1, 1) * THREE.MathUtils.degToRad(S.body.pitch);
     spring(this.roll, this.grounded ? rollTarget : 0, S.body.stiffness, dt);
     spring(this.pitch, this.grounded ? pitchTarget : 0, S.body.stiffness, dt);
-    this.model.body.rotation.set(this.pitch.x, 0, this.roll.x);
+
+    // --- Suspension: bounce on landing, little bumps at speed, engine shake at idle ---
+    this.clock += dt;
+    if (this.grounded && !this.wasGrounded) this.heave.v -= Math.min(6, Math.abs(this.vBefore.y) * 0.6 + 1.5);
+    this.wasGrounded = this.grounded;
+    if (this.grounded && this.speed > 5 && Math.random() < dt * this.speed * 0.15) this.heave.v += (Math.random() - 0.5) * 0.8;
+    spring(this.heave, 0, 9, dt);
+    const idle = this.speed < 1.5 && !this.wrecked ? 1 : 0;
+    const rumble = Math.sin(this.clock * 70) * 0.006 * idle;
+    this.model.body.position.y = THREE.MathUtils.clamp(this.heave.x, -0.15, 0.12) + rumble;
+    this.model.body.rotation.set(this.pitch.x + rumble * 0.4, 0, this.roll.x + Math.sin(this.clock * 53) * 0.004 * idle);
+
+    // --- Brake lights flare when braking; exhaust backfires when you lift off ---
+    this.braking = !this.wrecked && ((this.throttle < 0 && this.forwardSpeed > 0.5) || (this.handbrake && this.speed > 2));
+    const L = carLightMaterials();
+    L.tail.emissiveIntensity += ((this.braking ? 4 : 1.2) - L.tail.emissiveIntensity) * Math.min(1, dt * 15);
+    if (this.lastThrottle > 0 && this.throttle <= 0 && this.forwardSpeed > 14 && Math.random() < 0.7) this.backfire = 0.25;
+    this.lastThrottle = this.throttle;
+    this.backfire = Math.max(0, this.backfire - dt);
 
     // --- Wheels: spin with speed, front wheels turn with steering ---
     this.wheelSpin += (this.forwardSpeed / CAR_DIMENSIONS.wheelRadius) * dt;
@@ -636,6 +660,12 @@ export class Car {
       f.visible = on;
       f.scale.set(1, 0.7 + Math.random() * 0.6, 1);
     }
+  }
+
+  // World positions of the exhaust pipes (none if the tail fell off).
+  exhaustPoints() {
+    if (this.build.missing.has('tail')) return [];
+    return [-0.45, 0.45].map((x) => this.model.body.localToWorld(new THREE.Vector3(x, -0.1, -2.5)));
   }
 
   // Muzzle flash + recoil on one gun.

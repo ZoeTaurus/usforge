@@ -7,6 +7,7 @@
 //   │   └─ parts you bolted on
 //   └─ wheels     stay planted on the ground
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 
 export const CAR_DIMENSIONS = {
   halfWidth: 0.95,
@@ -28,7 +29,7 @@ const COLORS = {
 };
 
 const mat = (color, extra = {}) =>
-  new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.6, metalness: 0.1, ...extra });
+  litMaterial({ color, flatShading: true, roughness: 0.6, metalness: 0.1, ...extra });
 
 // A box whose top face is shrunk/shifted, for wedge-y low-poly shapes.
 function taperedBox(w, h, l, topScaleX = 1, topScaleZ = 1, topShiftZ = 0) {
@@ -64,6 +65,9 @@ function materials() {
   M.taillight = mat(COLORS.taillight, { emissive: COLORS.taillight, emissiveIntensity: 1.2 });
   return (_M = M);
 }
+
+// The light materials (brake lights brighten when braking).
+export function carLightMaterials() { const M = materials(); return { head: M.headlight, tail: M.taillight }; }
 
 // Adds one body section's shapes to group g, in the car's own coordinates.
 // Used for the car itself, and for loose pieces you bolt on elsewhere.

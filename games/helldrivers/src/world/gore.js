@@ -1,6 +1,7 @@
 // Cartoon gore: chunks that fly and bounce, goo splats left on the ground,
 // and a red mist puff. Fixed-size pools so it never slows the game down.
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 import { Dust } from './effects.js';
 
 const GRAVITY = 22;
@@ -10,7 +11,7 @@ export class Gore {
     // ---- Flying chunks ----
     this.chunks = new THREE.InstancedMesh(
       new THREE.IcosahedronGeometry(1, 0),
-      new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.5 }),
+      litMaterial({ flatShading: true, roughness: 0.5 }),
       maxChunks
     );
     this.chunks.frustumCulled = false;
@@ -29,7 +30,7 @@ export class Gore {
     splatGeo.rotateX(-Math.PI / 2);
     this.splats = new THREE.InstancedMesh(
       splatGeo,
-      new THREE.MeshStandardMaterial({ color: 0x8a0c08, roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -2 }),
+      litMaterial({ color: 0x8a0c08, roughness: 0.3, polygonOffset: true, polygonOffsetFactor: -2 }),
       maxSplats
     );
     this.splats.frustumCulled = false;

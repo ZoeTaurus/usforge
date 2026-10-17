@@ -15,6 +15,12 @@ drag, 4 = immune). Cross on the dark crust bridges. New demons: **Fire Imps**
 front). The boss, **the Magma Colossus**, waits on an island in a lake of lava
 and throws lava bombs that leave burning pools.
 
+**Graphics:** pick **Low / Medium / High** in the main menu. Low is the
+fastest (simple lighting, no shadows). Medium adds shadows, headlights, gun
+flashes and glowing eyes/lava. High adds soft shadows, bloom and explosion
+flashes. Demons are animated on the graphics card (legs, arms, heads, tails
+and wings all move), so hundreds of them stay cheap to draw.
+
 Souls from kills buy parts and chassis upgrades in the garage (**G**):
 Muscle Car → Armored Car → Half-Track → **HELL TANK**.
 
@@ -85,9 +91,9 @@ src/
   main.js             starts the game and runs the main loop
   settings.js         ALL the tweakable feel numbers
   style.css           look of the on-screen text
-  core/               input, physics setup, sound, random numbers
+  core/               input, physics setup, sound, random numbers, graphics quality
   regions/            one data file per region (Ash Plains, Lava Rivers) + the travel order
-  world/              sky, ground, scenery, lava (hazards), Hellgates, effects, gore, scrap
+  world/              sky, ground, scenery, lava (hazards), Hellgates, lighting, effects, gore, scrap
   vehicle/            the car's driving physics, 3D model, parts + build grid
   demons/             demon types (data), 3D models, spawning + AI, the boss, fireballs
   combat/             bullets and the damage-per-minute tracker

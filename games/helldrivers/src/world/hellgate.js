@@ -2,6 +2,7 @@
 // Drive through it to travel to the next region. If the next region isn't
 // built yet, the gate stands there sealed (dark, no swirl).
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 
 export class Hellgate {
   constructor(scene, position, faceToward, leadsTo) {
@@ -13,8 +14,8 @@ export class Hellgate {
     const g = new THREE.Group();
     g.position.copy(this.pos);
     g.rotation.y = Math.atan2(faceToward.x - this.pos.x, faceToward.z - this.pos.z);
-    const stone = new THREE.MeshStandardMaterial({ color: 0x2a1a18, flatShading: true, roughness: 0.9 });
-    const bone = new THREE.MeshStandardMaterial({ color: 0xd8cfb8, flatShading: true });
+    const stone = litMaterial({ color: 0x2a1a18, flatShading: true, roughness: 0.9 });
+    const bone = litMaterial({ color: 0xd8cfb8, flatShading: true });
     this.glowMat = new THREE.MeshBasicMaterial({ color: leadsTo ? 0xff3010 : 0x40302c });
     this.swirlMat = new THREE.MeshBasicMaterial({ color: 0xff6020, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
 

@@ -16,6 +16,7 @@
 //  - Drive too far from the arena and it gives up, goes back, and heals.
 // It's a solid physics body: ram it and you'll bounce off (and hurt it).
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 import { SETTINGS } from '../settings.js';
 import { raySphere } from './demons.js';
 
@@ -351,6 +352,7 @@ export class Boss {
     m.armR.rotation.x += (armR - m.armR.rotation.x) * k;
     m.upper.position.y += (lower - m.upper.position.y) * k;
     m.upper.rotation.x += (lean - m.upper.rotation.x) * k;
+    m.upper.scale.y = 1 + Math.sin(performance.now() / 650) * 0.015; // breathing
 
     if (this.wave) {
       this.ring.scale.setScalar(this.wave.r);
@@ -361,10 +363,10 @@ export class Boss {
   // ------------------------------------------------------------------ model
   #buildModel(scene) {
     const L = { skin: 0x5a5450, dark: 0x2e2a28, glow: 0xff5a10, horn: 0xe0d6bc, eye: 0xffe040, ...this.cfg.look };
-    this.matAsh = new THREE.MeshStandardMaterial({ color: L.skin, flatShading: true, roughness: 0.9 });
-    const dark = new THREE.MeshStandardMaterial({ color: L.dark, flatShading: true, roughness: 0.9 });
-    this.matLava = new THREE.MeshStandardMaterial({ color: L.glow, emissive: L.glow, emissiveIntensity: 1.4, flatShading: true });
-    const bone = new THREE.MeshStandardMaterial({ color: L.horn, flatShading: true });
+    this.matAsh = litMaterial({ color: L.skin, flatShading: true, roughness: 0.9 });
+    const dark = litMaterial({ color: L.dark, flatShading: true, roughness: 0.9 });
+    this.matLava = litMaterial({ color: L.glow, emissive: L.glow, emissiveIntensity: 1.4, flatShading: true });
+    const bone = litMaterial({ color: L.horn, flatShading: true });
     const eye = new THREE.MeshBasicMaterial({ color: L.eye });
     const add = (parent, geo, mat, x, y, z) => {
       const mesh = new THREE.Mesh(geo, mat);

@@ -3,8 +3,9 @@
 // bolted to); the builder turns it to face outward from that surface.
 // Weights and effects are in settings.js -> parts.
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 
-const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.6, metalness: 0.2, ...extra });
+const mat = (color, extra = {}) => litMaterial({ color, flatShading: true, roughness: 0.6, metalness: 0.2, ...extra });
 const M = {
   steel: mat(0x6a6e75, { metalness: 0.5 }),
   dark: mat(0x232326),

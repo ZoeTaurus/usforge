@@ -1,13 +1,8 @@
 // ATTRACT MODE: the movie that plays behind the title screen and the menu.
 // The car drives itself (invincible) through the demons with its guns
 // blazing, filmed like a trailer: camera cuts between low chase shots,
-// fly-bys and crane shots, with darker, moodier lighting, headlights and a
-// glow effect on everything bright (lava, fire, muzzle flashes).
+// fly-bys and crane shots. (The moody lighting is in world/lighting.js.)
 import * as THREE from 'three';
-import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const ROAM = 320; // stay this close to the start (well away from the boss)
@@ -121,71 +116,6 @@ export class Director {
     this.camera.lookAt(this.look);
     // If a fixed camera has lost the car, move on.
     if (s.fixed && this.t > 1.5 && this.pos.distanceTo(c) > 60) this.cut(this.index + 1);
-  }
-}
-
-// ------------------------------------------------------------------ lighting
-// Moodier light for the movie: a low red sun for long shadows, darker
-// fill, headlights, a hot rim light, and glow on everything bright.
-export class CinemaLook {
-  constructor({ renderer, scene, camera, lights, car, dimmed = [] }) {
-    this.renderer = renderer;
-    this.dimmed = dimmed.map((m) => ({ m, color: m.color.clone() })); // e.g. tire dust: darker on film
-    this.lights = lights;
-    this.saved = {
-      hemi: lights.hemi.intensity, sun: lights.sun.intensity, sunColor: lights.sun.color.clone(),
-      offset: lights.sunOffset.clone(), exposure: renderer.toneMappingExposure, tone: renderer.toneMapping,
-    };
-
-    // Headlights + a fiery glow under the car
-    this.rig = new THREE.Group();
-    for (const x of [-0.65, 0.65]) {
-      const spot = new THREE.SpotLight(0xfff0c8, 14, 45, 0.38, 0.6, 1.5);
-      spot.position.set(x, 0.7, 2.1);
-      spot.target.position.set(x * 1.5, 0, 14);
-      this.rig.add(spot, spot.target);
-    }
-    this.glow = new THREE.PointLight(0xff4a10, 6, 9, 1.6);
-    this.glow.position.set(0, 1.4, -3.2);
-    this.rig.add(this.glow);
-    car.model.root.add(this.rig);
-
-    this.composer = new EffectComposer(renderer);
-    this.composer.addPass(new RenderPass(scene, camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.55, 0.45, 0.88);
-    this.composer.addPass(this.bloom);
-    this.composer.addPass(new OutputPass());
-    window.addEventListener('resize', () => this.composer.setSize(window.innerWidth, window.innerHeight));
-    this.on = false;
-  }
-
-  set(on) {
-    this.on = on;
-    const L = this.lights, S = this.saved;
-    this.rig.visible = on;
-    for (const d of this.dimmed) d.m.color.copy(d.color).multiplyScalar(on ? 0.45 : 1);
-    if (on) {
-      L.hemi.intensity = S.hemi * 0.35;
-      L.sun.intensity = S.sun * 1.6;
-      L.sun.color.copy(S.sunColor).lerp(new THREE.Color(0xff4a20), 0.35);
-      L.sunOffset.set(-110, 38, -70); // low sun = long dramatic shadows
-      this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      this.renderer.toneMappingExposure = 0.78;
-    } else {
-      L.hemi.intensity = S.hemi;
-      L.sun.intensity = S.sun;
-      L.sun.color.copy(S.sunColor);
-      L.sunOffset.copy(S.offset);
-      this.renderer.toneMapping = S.tone;
-      this.renderer.toneMappingExposure = S.exposure;
-    }
-  }
-
-  render(scene, camera) {
-    if (this.on) {
-      this.glow.intensity = 5 + Math.random() * 2.5; // flicker
-      this.composer.render();
-    } else this.renderer.render(scene, camera);
   }
 }
 

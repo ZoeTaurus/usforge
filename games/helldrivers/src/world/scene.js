@@ -1,15 +1,21 @@
 // Renderer, scene, sky, fog and lights.
 import * as THREE from 'three';
+import { GFX } from '../core/graphics.js';
 
 export function createScene(region) {
   const p = region.palette;
 
-  const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  // Graphics quality (Low / Medium / High) decides sharpness, shadows and color.
+  const renderer = new THREE.WebGLRenderer({ antialias: GFX.antialias && !GFX.bloom, powerPreference: 'high-performance', stencil: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, GFX.pixelRatio));
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.enabled = GFX.shadows;
+  renderer.shadowMap.type = GFX.softShadows ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+  // Filmic colors (Medium/High). Set once and never changed, so the
+  // materials' shaders never have to be rebuilt mid-game.
+  renderer.toneMapping = GFX.toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping;
+  renderer.toneMappingExposure = GFX.toneMapping ? 1.35 : 1;
   document.body.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
@@ -24,8 +30,9 @@ export function createScene(region) {
 
   const sun = new THREE.DirectionalLight(p.sun, 2.4);
   sun.position.set(-60, 90, -40);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.castShadow = GFX.shadows;
+  sun.shadow.mapSize.set(GFX.shadowSize, GFX.shadowSize);
+  if (GFX.softShadows) sun.shadow.radius = 3;
   const sc = sun.shadow.camera;
   sc.left = -60; sc.right = 60; sc.top = 60; sc.bottom = -60; sc.near = 1; sc.far = 300;
   sun.shadow.bias = -0.0005;

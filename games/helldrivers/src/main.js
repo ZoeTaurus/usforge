@@ -21,7 +21,9 @@ import { Car } from './vehicle/car.js';
 import { ChaseCamera } from './camera/chaseCamera.js';
 import { Hud } from './ui/hud.js';
 import { showTitleScreen } from './ui/titleScreen.js';
-import { Autopilot, Director, CinemaLook } from './ui/attract.js';
+import { Autopilot, Director } from './ui/attract.js';
+import { Lighting } from './world/lighting.js';
+import { GFX } from './core/graphics.js';
 import { createTuningPanel } from './ui/tuning.js';
 import { Garage } from './ui/garage.js';
 import { Progress } from './core/progress.js';
@@ -55,7 +57,7 @@ async function main() {
   const hud = new Hud();
   const tuning = createTuningPanel();
   const dust = new Dust(scene);
-  const embers = new Embers(scene);
+  const embers = new Embers(scene, GFX.embers);
   const aim = new AimMarker(scene);
   const smoke = new Dust(scene, 120, 0x1a1414, 0.7);
   const flames = new Dust(scene, 200, 0xff6a10, 0.9);
@@ -81,6 +83,7 @@ async function main() {
   progress.onChange((p) => hud.souls(p.souls));
   // Every kill drops souls (ram kills pay extra).
   demons.onKill = (d, source) => {
+    lighting.flash(d.pos, d.def.heavy ? 1.5 : 0.6);
     if (mode === 'title') return; // the title-screen movie doesn't earn souls
     const P = SETTINGS.progression;
     souls.burst(d.pos, (P.souls[d.type] || 1) * (source === 'ram' ? P.ramBonus : 1));
@@ -198,18 +201,20 @@ async function main() {
   const cutEl = document.getElementById('cut');
   const flashCut = () => { cutEl.className = ''; void cutEl.offsetWidth; cutEl.className = 'flash'; };
   const director = new Director(camera, car, flashCut);
-  const cinema = new CinemaLook({ renderer, scene, camera, lights, car, dimmed: [dust.mesh.material] });
-  cinema.set(true);
+  const lighting = new Lighting({ renderer, scene, camera, lights, car });
+  lighting.dim([dust.mesh.material]);
+  lighting.setCinema(true);
   let intro = { t: 1, pos: new THREE.Vector3(), look: new THREE.Vector3() };
   const introLook = new THREE.Vector3();
 
   // DRIVE pressed: cut to black, reset the world, swoop into the chase camera.
   function startPlaying() {
+    audio.start();
     cutEl.className = 'black';
     setTimeout(() => {
       mode = 'play';
       car.invulnerable = false;
-      cinema.set(false);
+      lighting.setCinema(false);
       car.reset(true);
       car.burns.clear();
       car.build.repairAll();
@@ -270,7 +275,7 @@ async function main() {
         // Paused: only the garage camera moves.
         aim.mesh.visible = false;
         garage.update(dt);
-        renderer.render(scene, camera);
+        lighting.render();
         input.endFrame();
         requestAnimationFrame(frame);
         return;
@@ -363,6 +368,7 @@ async function main() {
       car.fireVisual(t);
       bullets.fire(car.muzzleWorld(t), aimPoint, t.weapon);
       if (t.weapon === 'cannon') { boomed = true; chase.addShake(0.15); } else shot = true;
+      lighting.gunFlash(t.weapon === 'cannon');
     }
     if (shot) audio.gunshot();
     if (boomed) audio.cannon();
@@ -393,6 +399,19 @@ async function main() {
       // Burning pieces (lava, fire claws...)
       for (const p of car.burningPoints()) {
         for (let n = 0; n < 2; n++) flames.spawn(p, new THREE.Vector3((Math.random() - 0.5) * 1.2, 2.5 + Math.random() * 2, (Math.random() - 0.5) * 1.2), 0.18 + Math.random() * 0.22, 0.5);
+      }
+      // Exhaust: smoke when you floor it, flames when it backfires
+      if (!car.wrecked) {
+        const pipes = car.exhaustPoints();
+        const back = car.heading.clone().multiplyScalar(-1);
+        for (const p of pipes) {
+          if (car.backfire > 0) {
+            for (let n = 0; n < 3; n++) flames.spawn(p, back.clone().multiplyScalar(4 + Math.random() * 4).add(new THREE.Vector3(0, Math.random(), 0)), 0.18 + Math.random() * 0.15, 0.25);
+          } else if (car.throttle > 0 && Math.random() < 0.5) {
+            smoke.spawn(p, back.clone().multiplyScalar(1.5).add(new THREE.Vector3(0, 0.8, 0)), 0.12 + Math.random() * 0.1, 0.7);
+          }
+        }
+        if (car.backfire > 0.2) { audio.thump(); lighting.gunFlash(false); car.backfire = 0.19; }
       }
       // Lava splashing up from under the car
       if (car.onLava > 0 && car.grounded && car.speed > 2) {
@@ -461,15 +480,17 @@ async function main() {
     hud.update(car, SETTINGS.car.topSpeed, dt, input.mouse);
     hud.combat(car, stats);
 
-    cinema.render(scene, camera);
+    lighting.update(dt, boss);
+    lighting.render();
     input.endFrame();
     requestAnimationFrame(frame);
   }
+  await lighting.precompile(); // build every shader now, not mid-game
   requestAnimationFrame(frame);
   showTitleScreen({ region, progress, onMenu: () => audio.start() }).then(startPlaying);
 
   // Handy for debugging in the browser console.
-  window.HELLDRIVERS = { dev, progress, souls, boss, projectiles, car, SETTINGS, physics, scene, camera, demons, stats, garage, scrap, region, hazards, gate, travelTo };
+  window.HELLDRIVERS = { dev, progress, souls, boss, projectiles, car, chase, lighting, SETTINGS, physics, scene, camera, demons, stats, garage, scrap, region, hazards, gate, travelTo };
 }
 
 main().catch((err) => {

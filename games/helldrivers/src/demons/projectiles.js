@@ -2,6 +2,7 @@
 // Ash Titan) and lava bombs (the Magma Colossus: they leave a lava pool). They fly in an arc and explode where they land; any piece of
 // your car caught in the blast takes damage.
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 
 const GRAVITY = 22;
 
@@ -18,7 +19,7 @@ export class Projectiles {
       },
       boulder: {
         geo: new THREE.IcosahedronGeometry(1.1, 0),
-        mat: new THREE.MeshStandardMaterial({ color: 0x4a4440, flatShading: true }),
+        mat: litMaterial({ color: 0x4a4440, flatShading: true }),
         trail: 0x6a6460,
       },
       lavaBomb: {

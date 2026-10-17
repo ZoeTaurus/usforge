@@ -8,6 +8,13 @@
 // the promise resolves when you start driving.
 import { SETTINGS } from '../settings.js';
 import { REGIONS, PLANNED_REGIONS } from '../regions/index.js';
+import { GFX, QUALITY_LEVELS, QUALITY_ORDER, setQuality } from '../core/graphics.js';
+
+const GFX_SUB = {
+  low: 'Fastest. No shadows, simple lighting',
+  medium: 'Shadows, headlights, glowing eyes & lava',
+  high: 'Soft shadows, bloom, explosion flashes',
+};
 
 const HOW_TO = `
   <h3>HOW TO PLAY</h3>
@@ -48,6 +55,7 @@ export function showTitleScreen({ region, progress, onMenu }) {
   const items = [
     { id: 'drive', label: fresh ? 'DRIVE INTO HELL' : 'CONTINUE', sub: fresh ? 'Start your engine' : `Back to ${region.name}`, primary: true },
     { id: 'how', label: 'HOW TO PLAY', sub: 'Controls & the basics' },
+    { id: 'gfx', label: `GRAPHICS: ${GFX.label}`, sub: GFX_SUB[GFX.name] },
   ];
   if (!fresh && !SETTINGS.dev.creative) items.push({ id: 'new', label: 'NEW RUN', sub: 'Wipe everything, start over' });
   const menu = el.querySelector('.t-menu');
@@ -90,6 +98,13 @@ export function showTitleScreen({ region, progress, onMenu }) {
       } else if (it.id === 'how') {
         panel.innerHTML = HOW_TO;
         el.classList.toggle('panel-open', panel.classList.toggle('on'));
+      } else if (it.id === 'gfx') {
+        // Next quality level. It needs a restart; come straight back to the menu.
+        const next = QUALITY_ORDER[(QUALITY_ORDER.indexOf(GFX.name) + 1) % QUALITY_ORDER.length];
+        setQuality(next);
+        buttons[i].querySelector('.t-label').innerHTML = `GRAPHICS: ${QUALITY_LEVELS[next].label}<small>Restarting…</small>`;
+        try { sessionStorage.setItem('helldrive.toMenu', '1'); } catch { /* ignore */ }
+        setTimeout(() => location.reload(), 150);
       } else if (it.id === 'new') {
         const b = buttons[i];
         if (!confirmNew) {
@@ -124,6 +139,9 @@ export function showTitleScreen({ region, progress, onMenu }) {
       el.removeEventListener('mouseover', onHover);
       window.removeEventListener('keydown', onKey);
     };
+    let skip = false;
+    try { skip = sessionStorage.getItem('helldrive.toMenu') === '1'; sessionStorage.removeItem('helldrive.toMenu'); } catch { /* ignore */ }
+    if (skip) { el.classList.add('menu'); toMenu({ type: 'skip' }); return; }
     el.addEventListener('click', toMenu);
     window.addEventListener('keydown', toMenu);
   });

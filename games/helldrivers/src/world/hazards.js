@@ -4,6 +4,7 @@
 //  - pools: temporary puddles (the Magma Colossus spits lava bombs)
 // lavaAt(x, z) answers "is this spot lava?" so the car knows when to burn.
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 import { makeRandom } from '../core/random.js';
 
 const STEP = 8;  // meters between points along a river
@@ -20,7 +21,7 @@ export class Hazards {
     this.time = 0;
     const lava = new THREE.Color(region.palette.lava);
     this.lavaMat = new THREE.MeshBasicMaterial({ vertexColors: true, polygonOffset: true, polygonOffsetFactor: -2 });
-    this.crustMat = new THREE.MeshStandardMaterial({ color: 0x120c0a, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 });
+    this.crustMat = litMaterial({ color: 0x120c0a, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 });
     this.hot = lava.clone().lerp(new THREE.Color(0xffd040), 0.6); // bright middle of the flow
     this.edge = lava.clone().multiplyScalar(0.75);                 // darker edges
     const rand = makeRandom(region.id.length * 31337);
@@ -209,7 +210,7 @@ export class Hazards {
     g.position.set(b.x, 0, b.z);
     g.rotation.y = Math.atan2(b.tx, b.tz); // local z = along the river
     const slab = new THREE.Mesh(new THREE.BoxGeometry(b.across * 2, 0.24, b.along * 2),
-      new THREE.MeshStandardMaterial({ color: 0x2c2624, flatShading: true, roughness: 1 }));
+      litMaterial({ color: 0x2c2624, flatShading: true, roughness: 1 }));
     slab.position.y = 0.04;
     slab.receiveShadow = true;
     g.add(slab);
@@ -221,7 +222,7 @@ export class Hazards {
       crack.rotation.y = (rand() - 0.5) * 0.6;
       g.add(crack);
     }
-    const lumpMat = new THREE.MeshStandardMaterial({ color: 0x1c1816, flatShading: true });
+    const lumpMat = litMaterial({ color: 0x1c1816, flatShading: true });
     for (let n = 0; n < 10; n++) {
       const lump = new THREE.Mesh(new THREE.IcosahedronGeometry(0.4 + rand() * 0.5, 0), lumpMat);
       lump.position.set((rand() - 0.5) * b.across * 2, 0.15, (n % 2 ? 1 : -1) * b.along);

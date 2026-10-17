@@ -7,8 +7,10 @@
 //   thorns:   true = ramming it hurts your car too
 //   ramBurn:  true = ramming it sets the side you hit it with on fire
 //   (stats with burnDps/burnTime = its attacks set your car on fire)
-//   anim:     how it moves ('waddle', 'gallop', 'stomp', 'sway')
+//   anim:     how it moves ('waddle', 'gallop', 'stomp', 'sway', 'roll'):
+//             the demon shader swings its legs/arms/head/tail to match
 import { SETTINGS } from '../settings.js';
+import { STYLE } from './demonShader.js';
 import { createImpGeometry, IMP_GORE_COLORS, createFireImpGeometry, FIRE_IMP_GORE } from './impModel.js';
 import {
   createHoundGeometry, HOUND_GORE, createSpikerGeometry, SPIKER_GORE,
@@ -30,7 +32,7 @@ export const DEMON_TYPES = {
     radius: 0.6, height: 1.2, poolSize: 60,
   },
   spiker: {
-    name: 'Pincushion', behavior: 'melee', anim: 'waddle', thorns: true,
+    name: 'Pincushion', behavior: 'melee', anim: 'roll', thorns: true,
     stats: () => SETTINGS.demons.spiker,
     createGeometry: createSpikerGeometry, goreColors: SPIKER_GORE,
     radius: 1.0, height: 1.8, poolSize: 40,
@@ -61,3 +63,4 @@ export const DEMON_TYPES = {
     radius: 1.1, height: 3.0, poolSize: 10,
   },
 };
+for (const t of Object.values(DEMON_TYPES)) t.style = STYLE[t.anim];

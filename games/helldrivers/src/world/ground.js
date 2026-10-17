@@ -1,5 +1,6 @@
 // Builds the ground and scatters scenery, all from the region data file.
 import * as THREE from 'three';
+import { litMaterial } from '../core/graphics.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { makeRandom } from '../core/random.js';
 
@@ -28,7 +29,7 @@ export function createGround(scene, physics, region, hazards = null) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
   geo.computeVertexNormals();
-  const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }));
+  const ground = new THREE.Mesh(geo, litMaterial({ vertexColors: true, flatShading: true, roughness: 1 }));
   ground.receiveShadow = true;
   scene.add(ground);
 
@@ -70,7 +71,7 @@ const ROCK_GEO = new THREE.IcosahedronGeometry(1, 0);
 const PROP_BUILDERS = {
   rock: (p) => ({
     geometry: ROCK_GEO,
-    material: new THREE.MeshStandardMaterial({ color: p.rock, flatShading: true, roughness: 0.95 }),
+    material: litMaterial({ color: p.rock, flatShading: true, roughness: 0.95 }),
     shadows: true,
     place: (m, s, rand) => {
       m.scale.set(s * rand.range(0.8, 1.4), s * rand.range(0.5, 0.9), s * rand.range(0.8, 1.4));
@@ -97,7 +98,7 @@ const PROP_BUILDERS = {
     g.translate(0, 2, 0);
     return {
       geometry: g,
-      material: new THREE.MeshStandardMaterial({ color: p.bone, flatShading: true, roughness: 0.8 }),
+      material: litMaterial({ color: p.bone, flatShading: true, roughness: 0.8 }),
       shadows: true,
       place: (m, s, rand) => {
         m.scale.setScalar(s);
@@ -119,7 +120,7 @@ const PROP_BUILDERS = {
     b3.rotateX(0.8); b3.translate(0, 2.8, 0.6);
     return {
       geometry: mergeGeometries([trunk, b1, b2, b3]),
-      material: new THREE.MeshStandardMaterial({ color: p.deadTree, flatShading: true, roughness: 1 }),
+      material: litMaterial({ color: p.deadTree, flatShading: true, roughness: 1 }),
       shadows: true,
       place: (m, s, rand) => {
         m.scale.setScalar(s);
@@ -157,7 +158,7 @@ const PROP_BUILDERS = {
     }
     return {
       geometry: mergeGeometries(parts),
-      material: new THREE.MeshStandardMaterial({ color: p.rock, flatShading: true, roughness: 0.85 }),
+      material: litMaterial({ color: p.rock, flatShading: true, roughness: 0.85 }),
       shadows: true,
       place: (m, s, rand) => { m.scale.set(s, s * rand.range(0.8, 1.5), s); m.rotation.y = rand() * 6; },
       collider: (RAPIER, m) => RAPIER.ColliderDesc.cylinder(2 * m.scale.y, 1.2 * m.scale.x).setTranslation(0, 2 * m.scale.y, 0),
@@ -175,7 +176,7 @@ const PROP_BUILDERS = {
     }
     return {
       geometry: mergeGeometries(parts),
-      material: new THREE.MeshStandardMaterial({ color: p.obsidian ?? 0x15121c, flatShading: true, roughness: 0.15, metalness: 0.6 }),
+      material: litMaterial({ color: p.obsidian ?? 0x15121c, flatShading: true, roughness: 0.15, metalness: 0.6 }),
       shadows: true,
       place: (m, s, rand) => { m.scale.setScalar(s); m.rotation.y = rand() * 6; },
       collider: (RAPIER, m) => RAPIER.ColliderDesc.cylinder(1.4 * m.scale.y, 0.55 * m.scale.x).setTranslation(0, 1.4 * m.scale.y, 0),
@@ -185,7 +186,7 @@ const PROP_BUILDERS = {
 
   pebble: (p) => ({
     geometry: new THREE.IcosahedronGeometry(1, 0),
-    material: new THREE.MeshStandardMaterial({ color: p.rock, flatShading: true }),
+    material: litMaterial({ color: p.rock, flatShading: true }),
     shadows: false,
     place: (m, s, rand) => {
       m.scale.set(s, s * 0.6, s);
@@ -247,7 +248,7 @@ function createArena(scene, physics, arena, p, rand) {
 
   // Scorched floor
   const floor = new THREE.Mesh(new THREE.CircleGeometry(R + 6, 40).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0x2a2220, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
+    litMaterial({ color: 0x2a2220, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
   floor.position.y = 0.05;
   floor.receiveShadow = true;
   group.add(floor);
@@ -264,7 +265,7 @@ function createArena(scene, physics, arena, p, rand) {
   }
 
   // Ring of giant bone spikes, with four gaps to get in
-  const boneMat = new THREE.MeshStandardMaterial({ color: p.bone, flatShading: true, roughness: 0.8 });
+  const boneMat = litMaterial({ color: p.bone, flatShading: true, roughness: 0.8 });
   const spikeGeo = new THREE.ConeGeometry(1.4, 14, 6).translate(0, 7, 0);
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(ax, 0, az));
   const count = 36;
@@ -304,7 +305,7 @@ function createIsland(scene, physics, arena, p, rand) {
   scene.add(group);
 
   const floor = new THREE.Mesh(new THREE.CircleGeometry(R + 6, 40).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: 0x1c1818, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
+    litMaterial({ color: 0x1c1818, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
   floor.position.y = 0.05;
   floor.receiveShadow = true;
   group.add(floor);
@@ -320,7 +321,7 @@ function createIsland(scene, physics, arena, p, rand) {
   }
 
   // Basalt columns around the shore (gaps to drive through)
-  const colMat = new THREE.MeshStandardMaterial({ color: p.rock, flatShading: true, roughness: 0.85 });
+  const colMat = litMaterial({ color: p.rock, flatShading: true, roughness: 0.85 });
   const colGeo = new THREE.CylinderGeometry(1.1, 1.3, 1, 6).translate(0, 0.5, 0);
   const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(ax, 0, az));
   const count = 40;
@@ -340,7 +341,7 @@ function createIsland(scene, physics, arena, p, rand) {
   const away = Math.atan2(ax, az);
   const vx = Math.sin(away) * (R - 14), vz = Math.cos(away) * (R - 14);
   const cone = new THREE.Mesh(new THREE.CylinderGeometry(3, 13, 16, 9),
-    new THREE.MeshStandardMaterial({ color: 0x1a1414, flatShading: true, roughness: 1 }));
+    litMaterial({ color: 0x1a1414, flatShading: true, roughness: 1 }));
   cone.position.set(vx, 8, vz);
   cone.castShadow = true;
   group.add(cone);

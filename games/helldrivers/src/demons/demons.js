@@ -11,6 +11,8 @@
 import * as THREE from 'three';
 import { SETTINGS } from '../settings.js';
 import { DEMON_TYPES } from './demonTypes.js';
+import { createDemonMaterials, demonTime } from './demonShader.js';
+import { GFX } from '../core/graphics.js';
 
 const GRAVITY = 22;
 const KMH = 1 / 3.6; // 1 km/h in m/s
@@ -41,13 +43,17 @@ export class Demons {
     this.all = [];
     this.weights = region.demons.map((d) => ({ minDistance: 0, ...d, def: DEMON_TYPES[d.type] }));
     for (const { type, def } of this.weights) {
-      const mesh = new THREE.InstancedMesh(
-        def.createGeometry(),
-        new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.7 }),
-        def.poolSize
-      );
-      mesh.castShadow = true;
+      // One shape for the whole pool, animated on the graphics card.
+      const geometry = def.createGeometry();
+      const anim = new THREE.InstancedBufferAttribute(new Float32Array(def.poolSize * 4), 4);
+      anim.setUsage(THREE.DynamicDrawUsage);
+      geometry.setAttribute('iAnim', anim);
+      const { material, depth } = createDemonMaterials(def.style);
+      const mesh = new THREE.InstancedMesh(geometry, material, def.poolSize);
+      mesh.customDepthMaterial = depth;
+      mesh.castShadow = GFX.shadows;
       mesh.frustumCulled = false;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       scene.add(mesh);
       const pool = [];
       for (let i = 0; i < def.poolSize; i++) {
@@ -57,10 +63,15 @@ export class Demons {
           yaw: 0, hp: 0, stun: 0, attackCd: 0, ramCd: 0, flash: 0, phase: Math.random() * 6,
           wander: new THREE.Vector3(), speedJitter: 0.85 + Math.random() * 0.3, lunge: 0,
           strafe: Math.random() < 0.5 ? -1 : 1, body: null,
+          size: 1, tint: new THREE.Color(),
         };
         pool.push(d);
         this.all.push(d);
-        mesh.setColorAt(i, _col.setRGB(1, 1, 1));
+        // Every demon looks a little different: slightly bigger or smaller, lighter or darker.
+        d.size = 0.9 + Math.random() * 0.22;
+        const shade = 0.82 + Math.random() * 0.3;
+        d.tint.setRGB(shade * (0.95 + Math.random() * 0.1), shade, shade * (0.95 + Math.random() * 0.1));
+        mesh.setColorAt(i, d.tint);
         this.#remove(d); // start hidden
       }
       this.types[type] = { def, mesh, pool };
@@ -403,33 +414,42 @@ export class Demons {
   }
 
   // ---------------------------------------------------------------- drawing
+  // Positions + animation numbers for the graphics card. The limbs
+  // themselves are swung by the demon shader (demonShader.js).
   render(alpha, dt) {
+    demonTime.value += dt;
     for (const t of Object.values(this.types)) {
       const { mesh } = t;
+      const anim = mesh.geometry.attributes.iAnim;
+      const style = t.def.anim;
+      const stride = STRIDE[style] || 3;
       for (const d of t.pool) {
         if (!d.alive) continue;
         const speed = Math.hypot(d.vel.x, d.vel.z);
-        const anim = d.def.anim;
-        d.phase += dt * (anim === 'stomp' ? 1 + speed * 1.2 : 2 + speed * 2.2);
+        // Legs cycle with distance covered, so feet don't slide.
+        d.phase += dt * (speed * stride + 0.3);
+        d.moveAmt = (d.moveAmt || 0) + (Math.min(speed / 3, 1) - (d.moveAmt || 0)) * Math.min(1, dt * 6);
+        const m = d.moveAmt;
         const airborne = d.pos.y > 0.01;
-        const moving = Math.min(speed / 2, 1);
         _dummy.position.lerpVectors(d.prev, d.pos, alpha);
-        let rx = d.lunge * 0.6, rz = 0, bob = 0;
-        if (anim === 'waddle') { rz = Math.sin(d.phase) * 0.18 * moving; bob = Math.abs(Math.sin(d.phase)) * 0.12 * moving; }
-        if (anim === 'gallop') { rx += Math.sin(d.phase) * 0.22 * moving; bob = Math.abs(Math.sin(d.phase)) * 0.25 * moving; }
-        if (anim === 'stomp') { rz = Math.sin(d.phase) * 0.08 * moving; bob = Math.abs(Math.sin(d.phase)) * 0.12 * moving; }
-        if (anim === 'sway') { rz = Math.sin(d.phase * 0.6) * 0.1; rx -= d.lunge * 0.9; }
+        // Whole-body motion: lean into the run, bob with each step, sway.
+        let rx = 0.12 * m + d.lunge * 0.25, rz = 0, bob = 0;
+        const s = Math.sin(d.phase);
+        if (style === 'waddle') { rz = s * 0.12 * m; bob = Math.abs(s) * 0.09 * m; }
+        if (style === 'gallop') { rx = 0.06 * m + Math.sin(d.phase * 1.1) * 0.12 * m; bob = Math.abs(Math.sin(d.phase * 1.1)) * 0.2 * m; }
+        if (style === 'stomp') { rz = s * 0.07 * m; bob = -Math.abs(s) * 0.1 * m; rx = 0.1 * m + d.lunge * 0.3; }
+        if (style === 'sway') { rz = Math.sin(demonTime.value * 0.9 + d.index) * 0.07; rx = 0.05 * m - d.lunge * 0.2; }
+        if (style === 'roll') { rz = s * 0.2 * m; bob = Math.abs(s) * 0.12 * m; }
         if (airborne) { rx = d.phase * 2; rz = d.phase; bob = 0; } // tumble when flying
         _dummy.position.y += bob;
-        _dummy.rotation.set(rx, d.yaw, rz);
-        _dummy.scale.setScalar(1 + d.flash * 0.15);
+        _dummy.rotation.set(rx, d.yaw, rz, 'YXZ');
+        _dummy.scale.setScalar(d.size * (1 + d.flash * 0.12));
         _dummy.updateMatrix();
         mesh.setMatrixAt(d.index, _dummy.matrix);
-        const f = 1 + d.flash * 3; // flash bright when hit
-        mesh.setColorAt(d.index, _col.setRGB(f, f, f));
+        anim.setXYZW(d.index, d.phase, airborne ? 1 : m, d.lunge, d.flash);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor.needsUpdate = true;
+      anim.needsUpdate = true;
     }
   }
 
@@ -475,6 +495,9 @@ export function raySphere(o, dir, c, radius) {
   const t = -b - Math.sqrt(disc);
   return t >= 0 ? t : (cc < 0 ? 0 : null);
 }
+
+// How fast the legs cycle per m/s of speed, per walking style.
+const STRIDE = { waddle: 3.6, gallop: 1.5, stomp: 1.7, sway: 2.4, roll: 4.2 };
 
 function lerpAngle(a, b, k) {
   return a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * k;

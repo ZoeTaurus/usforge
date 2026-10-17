@@ -19,11 +19,12 @@
     "languages": [
       "en"
     ],
-    "dev": true,
-    "progress": 90,
-    "next": "More levels and better graphics.",
+    "dev": false,
+    "progress": null,
+    "next": "",
     "build": true,
-    "added": 1792223061
+    "added": 1792223061,
+    "updated": 1792228228
   },
   {
     "slug": "helldrivers",

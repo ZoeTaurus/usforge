@@ -1,5 +1,24 @@
 [
   {
+    "slug": "kitchenria",
+    "title": "Kitchenria",
+    "author": "Henrique",
+    "owner": "Henrique",
+    "blurb": "Infinite Craft but in your kitchen.",
+    "cover": null,
+    "pixel": false,
+    "url": null,
+    "genres": [],
+    "languages": [
+      "en"
+    ],
+    "dev": false,
+    "progress": null,
+    "next": "",
+    "build": true,
+    "added": 1792262527
+  },
+  {
     "slug": "last-light",
     "title": "Last Light",
     "author": "Igor",

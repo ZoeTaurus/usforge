@@ -1,0 +1,17 @@
+{
+  "title": "Last Light",
+  "author": "Igor",
+  "owner": "Igor",
+  "blurb": "Escape a haunted hotel, navigate dark streets, and survive a spider-infested cave, while also avoiding whatever triggers your worst fears.",
+  "genres": [
+    "Survival",
+    "Horror",
+    "Mystery"
+  ],
+  "languages": [
+    "en"
+  ],
+  "dev": true,
+  "progress": 90,
+  "next": "More levels and better graphics."
+}

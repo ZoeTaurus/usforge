@@ -1,0 +1,207 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>HOTEL - Get Out</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+:root{color-scheme:dark;--fg:#e8dfc0;--bg:#000;--red:#a22;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);font-family:Georgia,'Times New Roman',serif;overflow:hidden}
+canvas{display:block}
+#ov{position:fixed;inset:0;background:#000d;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;z-index:5}
+#ov h1{letter-spacing:.3em;font-weight:400;font-size:2.2rem;margin:0 0 8px}
+.note{font-size:1.25rem;color:#ffd77a;margin:18px 0;animation:p 2.5s infinite}
+@keyframes p{50%{opacity:.4}}
+#ov p{max-width:520px;line-height:1.5;opacity:.85;margin:6px}
+button{background:none;border:1px solid var(--fg);color:var(--fg);padding:12px 32px;font:inherit;font-size:1.1rem;letter-spacing:.2em;cursor:pointer;margin-top:18px}
+button:hover{background:var(--fg);color:#000}
+#hud{position:fixed;left:16px;top:16px;pointer-events:none;text-shadow:0 0 6px #000;font-size:1rem;line-height:1.5}
+#bar{width:160px;height:8px;border:1px solid var(--fg);margin-top:6px}#fear{height:100%;width:0;background:var(--red)}
+#msg{position:fixed;left:0;right:0;bottom:14%;text-align:center;font-size:1.3rem;pointer-events:none;text-shadow:0 0 8px #000;transition:opacity .6s;opacity:0}
+#cut{position:fixed;inset:0;background:#000;display:none;align-items:center;justify-content:center;z-index:9;transition:opacity .9s;text-align:center;padding:24px}#ct{font-size:clamp(2rem,7vw,5rem);letter-spacing:.2em;max-width:760px;line-height:1.4}#js{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:#000b;z-index:8;pointer-events:none}#js svg{width:min(92vw,92vh);animation:zm .9s ease-out}@keyframes zm{from{transform:scale(.2)}to{transform:scale(1.15)}}#vig{position:fixed;inset:0;pointer-events:none;box-shadow:inset 0 0 160px #000;transition:background .3s}
+</style></head><body>
+<div id="ov"><h1>PHOBIA</h1>
+<div class="note">Use headphones for a better experience.</div>
+<p id="intro">You are trapped in a hotel. Get out fast.</p>
+<p id="intro1">Daylight is safer, but the dark wing, flickering corridors, poolrooms and basement can still kill you. At night, find a bedroom with a working light and stay inside until dawn.</p><p id="intro2">Hotel workers roam the halls by day. If you see the creature's glowing eyes, your vision blurs until you look away. In a lit bedroom at night, press E to sleep.</p>
+<p style="font-size:.9rem;opacity:.6">WASD move &middot; Mouse look &middot; Shift sprint &middot; F flashlight &middot; E sleep</p>
+<button id="go">ENTER</button> <button id="rs" style="display:none">RESTART</button></div>
+<div id="hud"><div id="zone"></div><div id="clock"></div><div id="bar"><div id="fear"></div></div></div>
+<div id="msg"></div><div id="vig"></div><div id="cut"><div id="ct"></div></div><div id="js"><svg viewBox="0 0 200 200"><g stroke="#241414" stroke-width="7" fill="none" stroke-linecap="round"><path d="M70 90L20 40L5 70M70 110L10 110L5 150M75 130L30 180L50 195M85 140L70 195M130 90L180 40L195 70M130 110L190 110L195 150M125 130L170 180L150 195M115 140L130 195"/></g><ellipse cx="100" cy="110" rx="52" ry="58" fill="#150c0c"/><g fill="#e00"><circle cx="78" cy="90" r="11"/><circle cx="122" cy="90" r="11"/><circle cx="90" cy="76" r="6"/><circle cx="110" cy="76" r="6"/><circle cx="66" cy="108" r="5"/><circle cx="134" cy="108" r="5"/></g><path d="M80 130L90 165L96 132M104 132L110 165L120 130" fill="#eee"/></svg></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id),W=31,H=19,CS=4,WH=3.2,D=[[1,0],[-1,0],[0,1],[0,-1]];
+let SV={lvl:1,mem:0};try{SV=Object.assign(SV,JSON.parse(localStorage.getItem('phobia')||'{}'))}catch(e){}
+const L=Math.min(3,Math.max(1,SV.lvl|0));function save(){try{localStorage.setItem('phobia',JSON.stringify(SV))}catch(e){}}
+const ZN=L==1?['Lobby','Hallway','Flickering Corridor','Dark Wing','Poolrooms','Basement']:L==2?['Dark Street']:['Spider Cave'];
+const zn=x=>L>1?0:x<6?0:x<11?1:x<16?2:x<21?3:x<26?4:5;
+// ---- maze
+const g=[];for(let y=0;y<H;y++)g.push(new Array(W).fill(1));
+(()=>{const st=[[1,1]];g[1][1]=0;while(st.length){const[x,y]=st[st.length-1];const n=D.map(([a,b])=>[x+a*2,y+b*2,a,b]).filter(([a,b])=>a>0&&b>0&&a<W-1&&b<H-1&&g[b][a]);if(!n.length){st.pop();continue}const[a,b,dx,dy]=n[Math.random()*n.length|0];g[y+dy][x+dx]=0;g[b][a]=0;st.push([a,b])}})();
+for(let i=0;i<60;i++){const x=1+(Math.random()*(W-2)|0),y=1+(Math.random()*(H-2)|0);if(g[y][x]&&((g[y][x-1]===0&&g[y][x+1]===0)!==(g[y-1][x]===0&&g[y+1][x]===0)))g[y][x]=0}
+const rooms=[],roomAt={},blk={},zOK={};
+for(let y=1;y<H-1;y++)for(let x=1;x<W-1;x++){if(g[y][x]||(x==1&&y==1)||(x==W-2&&y==H-2))continue;
+ if(D.filter(([a,b])=>!g[y+b][x+a]).length==1){const z=zn(x);let ok=Math.random()<(L>1?.8:.9);if(!zOK[z]){ok=true;zOK[z]=1}
+ const r={x,y,ok,cx:(x+.5)*CS,cz:(y+.5)*CS};rooms.push(r);roomAt[y*W+x]=r;if(ok)blk[y*W+x]=1}}
+// ---- three setup
+const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,.1,60);
+const rd=new THREE.WebGLRenderer({antialias:true});rd.setSize(innerWidth,innerHeight);rd.setPixelRatio(Math.min(devicePixelRatio,1.5));document.body.prepend(rd.domElement);
+sc.fog=new THREE.FogExp2(0x1a1608,.06);sc.add(cam);
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rd.setSize(innerWidth,innerHeight)});
+function tex(f){const c=document.createElement('canvas');c.width=c.height=128;f(c.getContext('2d'));const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t}
+const wallT=tex(c=>{c.fillStyle='#f4f4f2';c.fillRect(0,0,128,128);for(let i=0;i<128;i+=32){c.fillStyle='#e2e2de';c.fillRect(i,0,2,128)}for(let i=0;i<30;i++){c.fillStyle='rgba(40,40,40,.06)';c.beginPath();c.arc(Math.random()*128,Math.random()*128,5+Math.random()*14,0,7);c.fill()}});
+const floorT=tex(c=>{c.fillStyle='#888';c.fillRect(0,0,128,128);for(let i=0;i<500;i++){c.fillStyle=`rgba(${Math.random()*80},${Math.random()*60},0,.25)`;c.fillRect(Math.random()*128,Math.random()*128,3,3)}c.strokeStyle='#0005';c.strokeRect(0,0,128,128)});
+const tileT=tex(c=>{for(let i=0;i<4;i++)for(let j=0;j<4;j++){c.fillStyle=(i+j)%2?'#e8f4f4':'#bfe0e6';c.fillRect(i*32,j*32,32,32)}});
+const WC=L==1?[0xf4f4f0,0xeeeeea,0xf0f2f0,0xc8c8c8,0xffffff,0x070707]:L==2?[0x33333b]:[0x4a3b30],FC=L==1?[0x6a3a2a,0x4a3a2a,0x777777,0x1e1e1e,0x6fb3c8,0x222222]:L==2?[0x1b1b20]:[0x2a2119];
+const wM=WC.map((c,i)=>new THREE.MeshLambertMaterial({map:i==4?tileT:wallT,color:c}));
+const fM=FC.map((c,i)=>new THREE.MeshLambertMaterial({map:i==4?tileT:floorT,color:c}));
+const cM=new THREE.MeshLambertMaterial({color:L==3?0x2a2018:0xe6e6e2});
+const gw=new THREE.BoxGeometry(CS,WH,CS),gf=new THREE.PlaneGeometry(CS,CS).rotateX(-Math.PI/2),gc=new THREE.PlaneGeometry(CS,CS).rotateX(Math.PI/2),gp=new THREE.PlaneGeometry(1.6,.6).rotateX(Math.PI/2);
+const pn={s:new THREE.MeshBasicMaterial(),f:new THREE.MeshBasicMaterial(),p:new THREE.MeshBasicMaterial()};
+const pBase={s:new THREE.Color(0xfff2c0),f:new THREE.Color(0xeeffee),p:new THREE.Color(0xbfffff)};
+function add(geo,mat,x,y,z){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);sc.add(m);return m}
+for(let y=0;y<H;y++)for(let x=0;x<W;x++){const z=zn(x),cx=(x+.5)*CS,cz=(y+.5)*CS;
+ if(g[y][x]===0){add(gf,fM[z],cx,0,cz);if(L!=2)add(gc,cM,cx,WH,cz);if(L==1&&(x+y)%2==0&&z!=3&&z!=5)add(gp,z==2?pn.f:z==4?pn.p:pn.s,cx,WH-.02,cz)}
+ else if(D.some(([a,b])=>g[y+b]&&g[y+b][x+a]===0))add(gw,wM[z],cx,WH/2,cz)}
+// bedrooms
+const lampM=[];
+rooms.forEach(r=>{if(L>1){const m=new THREE.MeshBasicMaterial({color:r.ok?0xffd890:0x1a1a1a});r.lamp=m;add(new THREE.CylinderGeometry(.06,.08,3,6),new THREE.MeshLambertMaterial({color:0x222222}),r.cx,1.5,r.cz);add(new THREE.SphereGeometry(.25,8,8),m,r.cx,3.05,r.cz);return}add(new THREE.BoxGeometry(1.7,.4,2.5),new THREE.MeshLambertMaterial({color:0x4a2c14}),r.cx-.6,.2,r.cz);add(new THREE.BoxGeometry(1.6,.25,2.3),new THREE.MeshLambertMaterial({color:0xddd8cc}),r.cx-.6,.5,r.cz);
+ add(new THREE.BoxGeometry(.5,.7,.5),new THREE.MeshLambertMaterial({color:0x3a2210}),r.cx+.9,.35,r.cz-.9);
+ const m=new THREE.MeshBasicMaterial({color:r.ok?0xffcc66:0x1a1a1a});r.lamp=m;add(new THREE.SphereGeometry(.2,8,8),m,r.cx+.9,.95,r.cz-.9)});
+// exit
+const ex=add(new THREE.BoxGeometry(2.4,2.8,.2),new THREE.MeshBasicMaterial({color:[0,0x44ff77,0xffcc77,0xb8f0ff][L]}),(W-1.5)*CS+CS*.5-.2,1.4,(H-1.5)*CS);ex.position.x=(W-2+.5)*CS+1.7;
+const exL=new THREE.PointLight([0,0x44ff77,0xffcc77,0xb8f0ff][L],L==2?2.5:1.2,L==2?24:16);exL.position.set((W-1.5)*CS,1.8,(H-1.5)*CS);sc.add(exL);
+// lights
+const amb=new THREE.AmbientLight(0xffe8b0,1);sc.add(amb);
+const fl=new THREE.SpotLight(0xfff5dd,1.6,30,.5,.4,1);fl.position.set(0,0,0);cam.add(fl);const flT=new THREE.Object3D();flT.position.z=-1;cam.add(flT);fl.target=flT;
+const rl=new THREE.PointLight(0xffaa55,0,13,2);sc.add(rl);
+// entity
+const ent=new THREE.Group(),bm=new THREE.MeshBasicMaterial({color:0x020202}),em=new THREE.MeshBasicMaterial({color:0xffffff,fog:false});
+[[.7,2,.35,0,1,0],[.15,1.6,.15,-.5,1.1,0],[.15,1.6,.15,.5,1.1,0]].forEach(([a,b,c,x,y,z])=>{const m=new THREE.Mesh(new THREE.BoxGeometry(a,b,c),bm);m.position.set(x,y,z);ent.add(m)});
+const hd=new THREE.Mesh(new THREE.SphereGeometry(.28,8,8),bm);hd.position.y=2.25;ent.add(hd);
+const hm=new THREE.MeshBasicMaterial({color:0xffffff,fog:false,transparent:true,opacity:.28,depthWrite:false}),eL=new THREE.PointLight(0xffffff,.7,7);eL.position.set(0,2.2,.6);ent.add(eL);
+[-.13,.13].forEach(x=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.085,8,8),em);e.position.set(x,2.28,.24);ent.add(e);const h=new THREE.Mesh(new THREE.SphereGeometry(.2,8,8),hm);h.position.copy(e.position);ent.add(h)});
+ent.visible=false;sc.add(ent);ent.on=false;ent.t=0;ent.n=null;
+// workers
+function crackTex(base){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d');x.fillStyle=base;x.fillRect(0,0,128,128);x.strokeStyle='#000';x.lineCap='round';for(let i=0;i<10;i++){x.lineWidth=3+Math.random()*4;x.beginPath();let px=Math.random()*128,py=Math.random()*128;x.moveTo(px,py);for(let j=0;j<5;j++){px+=Math.random()*34-17;py+=Math.random()*34-10;x.lineTo(px,py)}x.stroke()}return new THREE.CanvasTexture(c)}
+const skinN=new THREE.MeshLambertMaterial({color:0xe0b08c}),skinP=new THREE.MeshLambertMaterial({map:crackTex('#b9b4aa')}),uni=new THREE.MeshLambertMaterial({color:0x1b2a5a}),dk=new THREE.MeshLambertMaterial({color:0x15151c}),hatM=new THREE.MeshLambertMaterial({color:0x992222}),blkM=new THREE.MeshBasicMaterial({color:0});
+const workers=[],SAY=['Worker: "Checkout is east, past the pool. Hurry."','Worker: "If their skin is cracked, keep your eyes on them."','Worker: "Some room lights still work. Stay inside until dawn."','Worker: "Do not linger in the dark wing."','Worker: "A lit bedroom is safe. Press E and sleep until dawn."'];
+function mkW(p){const gr=new THREE.Group(),sk=p?skinP:skinN;const part=(geo,m,x,y,z)=>{const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);gr.add(o);return o};
+ part(new THREE.BoxGeometry(.5,.9,.3),dk,0,.45,0);part(new THREE.BoxGeometry(.7,.85,.38),uni,0,1.3,0);const hd=part(new THREE.SphereGeometry(.23,12,10),sk,0,1.95,0);part(new THREE.BoxGeometry(.34,.14,.34),hatM,0,2.2,0);[-.08,.08].forEach(x=>part(new THREE.SphereGeometry(.03,6,6),blkM,x,1.98,.2));
+ const arms=[-1,1].map(s=>{const a=new THREE.Group();a.position.set(s*.45,1.65,0);gr.add(a);const m=new THREE.Mesh(new THREE.BoxGeometry(.12,.75,.12),p?skinP:uni);m.position.y=-.38;a.add(m);const h=new THREE.Mesh(new THREE.BoxGeometry(.14,.14,.14),sk);h.position.y=-.8;a.add(h);return a});
+ if(p){arms.forEach(a=>a.rotation.x=-1.4);hd.rotation.z=.3}return gr}
+const jtr=[];if(L==3){const sp=new THREE.MeshBasicMaterial({color:0x080505}),ey=new THREE.MeshBasicMaterial({color:0xff2222,fog:false});
+ for(let i=0,n=0;n<34&&i<600;i++){const x=1+(Math.random()*(W-2)|0),y=1+(Math.random()*(H-2)|0);if(g[y][x]||blk[y*W+x]||Math.hypot((x+.5)*CS-6,(y+.5)*CS-6)<14)continue;
+  const s=new THREE.Group();s.add(new THREE.Mesh(new THREE.SphereGeometry(.22,8,8),sp));const a=new THREE.Mesh(new THREE.SphereGeometry(.32,8,8),sp);a.position.z=-.4;s.add(a);
+  for(let k=0;k<8;k++){const l=new THREE.Mesh(new THREE.CylinderGeometry(.015,.015,.8,4),sp),sd=k<4?1:-1;l.position.set(sd*.4,.1,(k%4-1.5)*.25);l.rotation.z=sd*1.1;s.add(l)}
+  [-.08,.08].forEach(ex=>{const e=new THREE.Mesh(new THREE.SphereGeometry(.03,6,6),ey);e.position.set(ex,.08,.19);s.add(e)});
+  const k=.6+Math.random()*1.2;s.scale.setScalar(k);s.position.set((x+.5)*CS+(Math.random()-.5)*2,.25*k,(y+.5)*CS+(Math.random()-.5)*2);s.rotation.y=Math.random()*6.28;sc.add(s);n++;if(n%3==0)jtr.push({x,y,d:0})}}
+for(let i=0,n=0;n<(L==1?12:0)&&i<400;i++){const x=1+(Math.random()*(W-2)|0),y=1+(Math.random()*(H-2)|0);if(g[y][x]||blk[y*W+x])continue;const px=(x+.5)*CS,pz=(y+.5)*CS;if(Math.hypot(px-6,pz-6)<22)continue;const p=false,m=mkW(p);m.position.set(px,0,pz);sc.add(m);workers.push({m,p,t:0,n:null,say:0,pause:0});n++}
+// ---- audio
+let AC,mg,eo,eg,ep,nb;
+function audio(){AC=new(window.AudioContext||window.webkitAudioContext)();mg=AC.createGain();mg.gain.value=.9;mg.connect(AC.destination);
+ const lp=AC.createBiquadFilter();lp.frequency.value=220;lp.connect(mg);[55,55.7,82.4].forEach(f=>{const o=AC.createOscillator();o.type='sawtooth';o.frequency.value=f;const q=AC.createGain();q.gain.value=.04;o.connect(q);q.connect(lp);o.start()});
+ eo=AC.createOscillator();eo.type='sawtooth';eo.frequency.value=38;const lf=AC.createBiquadFilter();lf.frequency.value=160;eg=AC.createGain();eg.gain.value=0;ep=AC.createStereoPanner();eo.connect(lf);lf.connect(eg);eg.connect(ep);ep.connect(mg);eo.start();
+ nb=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=nb.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1}
+function thump(f,v,dur,pan){if(!AC)return;const o=AC.createOscillator(),q=AC.createGain(),p=AC.createStereoPanner();o.frequency.setValueAtTime(f,AC.currentTime);o.frequency.exponentialRampToValueAtTime(f/2,AC.currentTime+dur);q.gain.setValueAtTime(v,AC.currentTime);q.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);p.pan.value=pan||0;o.connect(q);q.connect(p);p.connect(mg);o.start();o.stop(AC.currentTime+dur)}
+function noise(v,dur,fr,pan){if(!AC)return;const s=AC.createBufferSource(),q=AC.createGain(),f=AC.createBiquadFilter(),p=AC.createStereoPanner();s.buffer=nb;f.frequency.value=fr;q.gain.setValueAtTime(v,AC.currentTime);q.gain.exponentialRampToValueAtTime(.001,AC.currentTime+dur);p.pan.value=pan||0;s.connect(f);f.connect(q);q.connect(p);p.connect(mg);s.start();s.stop(AC.currentTime+dur)}
+// ---- state
+const keys={};let hintS=0,sleeping=0,wantSleep=0,shake=0,seenMsg=0,seenW=0,blur=0,yaw=0,pitch=0,run=false,over=false,flOn=true,clock=0,dread=0,stam=1,stepD=0,hb=0,flk=0,flkNext=6,creak=10,lastNight=false,days=1,msgT=0;
+const P=cam.position;P.set(CS*1.5,1.6,CS*1.5);cam.rotation.order='YXZ';
+addEventListener('keydown',e=>{keys[e.code]=1;if(e.code=='KeyF')flOn=!flOn;if(e.code=='KeyE')wantSleep=1});addEventListener('keyup',e=>keys[e.code]=0);
+addEventListener('mousemove',e=>{if(document.pointerLockElement){yaw-=e.movementX*.0022;pitch=Math.max(-1.4,Math.min(1.4,pitch-e.movementY*.0022))}});
+if(L==2){$('intro').textContent='You made it out of the hotel... into a dark street. Find the warm light of the cave at the far end.';$('intro1').textContent='The streetlamp alcoves are your only refuge. The longer you walk in the dark, the more the fear grows.';$('intro2').textContent='Keep your flashlight on.'}
+if(L==3){$('intro').textContent='The cave is lit, but you are not alone. Something moves on the walls.';$('intro1').textContent='Reach the bright light at the far end. Lit lanterns calm you.';$('intro2').textContent='Do not scream.'}
+if(SV.started){$('go').textContent='CONTINUE - LEVEL '+L;$('rs').style.display='inline-block'}
+$('rs').onclick=()=>{SV={lvl:1,mem:0};save();location.reload()};
+const LV=[['Level One:','NYCTOPHOBIA'],['Level Two:','AGORAPHOBIA'],['Level Three:','ARACHNOPHOBIA']],HINT=['','Find the exit. The green glow is far to the east.','Find the lit cave far to the east.','Reach the light at the far end.'];
+const MEM=['You remember rain on a dark road, and a hotel sign flickering: VACANCY. You only wanted to get out of the storm.','You remember the clerk smiling, handing you a key without asking your name. The key was warm.','You remember turning off every light at home, because you were tired of being afraid. Something in the hallway learned your name.','You remember the front door locking behind you. Not from outside. From inside.','You remember why you came here. You were running from the dark in your own house. It followed you.'];
+let cutting=0;
+function cutscene(cb){const c=$('cut'),t=$('ct');c.style.display='flex';c.style.opacity=1;t.style.cssText='color:#fff';t.textContent=LV[L-1][0];
+ setTimeout(()=>{t.style.color='#d00';t.textContent=LV[L-1][1];thump(45,1,2);noise(.3,.8,200)},2600);
+ setTimeout(()=>{c.style.opacity=0;setTimeout(()=>{c.style.display='none';cb()},900)},6200)}
+function sleep(){sleeping=1;wantSleep=0;const c=$('cut'),t=$('ct');t.style.cssText='color:#ccc;font-size:clamp(1rem,2.4vw,1.5rem);letter-spacing:.05em';t.textContent='Sleeping...';c.style.display='flex';c.style.opacity=0;requestAnimationFrame(()=>c.style.opacity=1);
+ setTimeout(()=>{t.textContent=MEM[Math.min(SV.mem,MEM.length-1)];SV.mem++;save()},2200);
+ setTimeout(()=>{clock=Math.ceil(clock/CYC)*CYC;dread=0;ent.on=false;ent.visible=false;c.style.opacity=0;setTimeout(()=>{c.style.display='none';t.style.cssText='';sleeping=0;last=performance.now()},900)},9500)}
+function scream(){if(!AC)return;const t=AC.currentTime,g2=AC.createGain();g2.gain.setValueAtTime(1.2,t);g2.gain.exponentialRampToValueAtTime(.001,t+1.4);g2.connect(mg);
+ [0,1].forEach(i=>{const o=AC.createOscillator();o.type='sawtooth';o.frequency.setValueAtTime(500+i*90,t);o.frequency.linearRampToValueAtTime(1500+i*200,t+.25);o.frequency.linearRampToValueAtTime(900,t+1.2);const lf=AC.createOscillator();lf.frequency.value=22;const lg=AC.createGain();lg.gain.value=120;lf.connect(lg);lg.connect(o.frequency);lf.start(t);lf.stop(t+1.4);o.connect(g2);o.start(t);o.stop(t+1.4)});noise(1,1,4000);thump(90,1,.8)}
+function scare(){dread=Math.min(95,dread+25);shake=1.5;const j=$('js');j.style.display='flex';scream();setTimeout(()=>j.style.display='none',900)}
+function finish(){over=true;rd.domElement.style.filter='';document.exitPointerLock();
+ if(L<3){SV.lvl=L+1;save();$('ov').innerHTML='<h1>ESCAPED</h1><p>'+['You push through the doors into the cold night.','You stumble into the lit cave. But something is moving on the walls...'][L-1]+'</p><button onclick="location.reload()">NEXT LEVEL</button>'}
+ else{SV={lvl:1,mem:0};save();$('ov').innerHTML='<h1>YOU ESCAPED</h1><p>Sunlight. You survived all three fears... for now.</p><button onclick="location.reload()">PLAY AGAIN</button>'}
+ $('ov').style.display='flex'}
+$('go').onclick=()=>{if(!AC)audio();AC.resume();rd.domElement.requestPointerLock();$('ov').style.display='none';
+ if(!run&&!cutting){cutting=1;SV.started=1;save();cutscene(()=>{run=true;cutting=0;msg(HINT[L],5000);if(!document.pointerLockElement){$('ov').style.display='flex';$('go').textContent='RESUME'}})}};
+document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement&&run&&!over){$('ov').style.display='flex';$('go').textContent='RESUME'}});
+function msg(t,ms){const m=$('msg');m.textContent=t;m.style.opacity=1;clearTimeout(msgT);msgT=setTimeout(()=>m.style.opacity=0,ms||3000)}
+function hit(x,z){const r=.4;for(const[a,b]of[[-r,-r],[r,-r],[-r,r],[r,r]]){const gx=Math.floor((x+a)/CS),gz=Math.floor((z+b)/CS);if(!g[gz]||g[gz][gx]!==0)return 1}return 0}
+function bfs(sx,sy,tx,ty){const q=[[sx,sy]],pr=new Map([[sy*W+sx,-1]]);while(q.length){const[x,y]=q.shift();if(x==tx&&y==ty)break;for(const[a,b]of D){const nx=x+a,ny=y+b,k=ny*W+nx;if(g[ny][nx]||pr.has(k)||blk[k])continue;pr.set(k,y*W+x);q.push([nx,ny])}}
+ let p=ty*W+tx;if(!pr.has(p))return null;while(pr.get(p)!==sy*W+sx&&pr.get(p)!==-1)p=pr.get(p);return[p%W,p/W|0]}
+function los(ax,az,bx,bz){const n=Math.ceil(Math.hypot(bx-ax,bz-az));for(let i=1;i<n;i++){const t=i/n,x=ax+(bx-ax)*t,z=az+(bz-az)*t;const r=g[z/CS|0];if(!r||r[x/CS|0]!==0)return 0}return 1}
+function view(x,z,maxD){const dx=x-P.x,dz=z-P.z,d=Math.hypot(dx,dz);if(d>maxD)return 0;return (dx*-Math.sin(yaw)+dz*-Math.cos(yaw))/(d||1)>.72&&los(P.x,P.z,x,z)}
+function end(win,why){over=true;rd.domElement.style.filter='';document.exitPointerLock();$('ov').innerHTML=win?`<h1>YOU ESCAPED</h1><p>You pushed through the doors into the light. You survived ${days} day${days>1?'s':''} in the hotel.</p><button onclick="location.reload()">PLAY AGAIN</button>`:`<h1 style="color:#c33">YOU DIED</h1><p>${why}</p><button onclick="location.reload()">TRY AGAIN</button>`;$('ov').style.display='flex';if(!win){noise(1,1.2,3000);thump(120,1,1)}}
+const AMB=L==1?[1.1,.8,.55,.05,.6,.14]:L==2?[.05]:[.16],FOG=L==1?[.05,.06,.07,.11,.07,.09]:L==2?[.09]:[.07],FC2=(L==1?[0x2a2410,0x252010,0x1c1d1a,0x020202,0x0a2530,0x120404]:L==2?[0x04050a]:[0x120a06]).map(c=>new THREE.Color(c));
+const RATE=L==1?[-6,-6,2.5,5,3.5,5.5]:L==2?[2.2]:[1.4],DAY=110,CYC=145;
+let last=performance.now();
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(.05,(now-last)/1000);last=now;if(run&&!over&&!sleeping&&document.pointerLockElement)step(dt);rd.render(sc,cam)}
+function step(dt){clock+=dt;const ph=clock%CYC,night=L==1&&ph>=DAY;
+ if(night!=lastNight){lastNight=night;if(night){msg('NIGHT FALLS. Find a bedroom with a working light!',5000);thump(50,1,1.5)}else{days++;msg('Dawn. You survived the night.',4000);ent.on=false;ent.visible=false}}
+ // move
+ let f=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0),s=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
+ const sprint=keys.ShiftLeft&&stam>0&&(f||s);stam=Math.max(0,Math.min(1,stam+(sprint?-dt/3:dt/5)));
+ const sp=(sprint?6.8:4)*dt,l=Math.hypot(f,s)||1,sx=Math.sin(yaw),cz=Math.cos(yaw);
+ const dx=(-sx*f+cz*s)/l*sp,dz=(-cz*f-sx*s)/l*sp;
+ if(!hit(P.x+dx,P.z))P.x+=dx;if(!hit(P.x,P.z+dz))P.z+=dz;
+ const mv=Math.hypot(dx,dz);stepD+=mv;if(stepD>(sprint?2.2:1.8)){stepD=0;noise(.25,.09,450,Math.random()*.2-.1)}
+ P.y=1.6+Math.sin(clock*(sprint?14:9))*(mv>0?.05:.008);cam.rotation.set(pitch,yaw,(Math.random()-.5)*shake*.2);shake*=.92;
+ const pcx=P.x/CS|0,pcz=P.z/CS|0,z=zn(pcx),room=roomAt[pcz*W+pcx],safe=!!(room&&room.ok&&night);
+ const safeDay=!!(room&&room.ok);
+ // light
+ const fk=(Math.sin(clock*23)*Math.sin(clock*7.3)+Math.sin(clock*3.1))>.9?.08:1;const zf=z==2?fk:1;
+ const ta=AMB[z]*zf*(night?.1:1);amb.intensity+=(ta-amb.intensity)*Math.min(1,dt*8);
+ sc.fog.color.lerp(FC2[z],dt*2);sc.background=sc.fog.color;sc.fog.density+=(FOG[z]*(night?1.1:1)-sc.fog.density)*dt*2;
+ const pk=night?.08:1;pn.s.color.copy(pBase.s).multiplyScalar(pk);pn.p.color.copy(pBase.p).multiplyScalar(pk);pn.f.color.copy(pBase.f).multiplyScalar(night?.05:fk);
+ flkNext-=dt;if(flkNext<0){flk=.3;flkNext=5+Math.random()*9}
+ if(flk>0){flk-=dt;fl.intensity=Math.random()<.5?0:.8;if(AC)noise(.05,.05,3000)}else fl.intensity=1.6;fl.visible=flOn;
+ let near=null,nd=15;rooms.forEach(r=>{if(!r.ok)return;const d=Math.hypot(r.cx-P.x,r.cz-P.z);if(d<nd){nd=d;near=r}});
+ if(near){rl.position.set(near.cx,2.4,near.cz);rl.intensity=night?2:1}else rl.intensity=0;
+ rooms.forEach(r=>{if(!r.ok&&Math.random()<.02)r.lamp.color.setHex(Math.random()<.5?0x553311:0x1a1a1a)});
+ // dread
+ let rate=night?(safe?-10:3):RATE[z];if(!night&&z==3&&!flOn)rate+=3;if(L>1&&!flOn)rate+=2;if(safeDay&&rate>0)rate=-4;
+ dread=Math.max(0,Math.min(100,dread+rate*dt));
+ if(dread>=100)return end(0,'The dread finally took you.');
+ if(dread>55&&!ent.on&&(night||z>=2||L>1)){for(let i=0;i<80;i++){const x=1+(Math.random()*(W-2)|0),y=1+(Math.random()*(H-2)|0);const d=Math.hypot((x+.5)*CS-P.x,(y+.5)*CS-P.z);if(!g[y][x]&&!blk[y*W+x]&&d>16&&d<32){ent.position.set((x+.5)*CS,0,(y+.5)*CS);ent.on=true;ent.visible=true;ent.t=0;ent.n=null;msg('Something is here...',2500);break}}}
+ if(ent.on&&dread<20&&!night){ent.on=false;ent.visible=false}
+ if(ent.on){ent.t-=dt;const ecx=ent.position.x/CS|0,ecz=ent.position.z/CS|0;
+  if(ent.t<=0){ent.t=.35;let tx=pcx,ty=pcz;if(safe){D.forEach(([a,b])=>{if(!g[pcz+b][pcx+a]){tx=pcx+a;ty=pcz+b}})}ent.n=bfs(ecx,ecz,tx,ty)}
+  if(ent.n){const nx=(ent.n[0]+.5)*CS,nz=(ent.n[1]+.5)*CS,ddx=nx-ent.position.x,ddz=nz-ent.position.z,d=Math.hypot(ddx,ddz);if(d>.05){const v=Math.min(d,(night?3.7:3.2)*dt);ent.position.x+=ddx/d*v;ent.position.z+=ddz/d*v}}
+  ent.lookAt(P.x,0,P.z);const ed=Math.hypot(ent.position.x-P.x,ent.position.z-P.z);
+  if(AC){eg.gain.value=Math.min(.35,1.8/(ed+2));const a=Math.atan2(ent.position.x-P.x,ent.position.z-P.z)-(Math.PI-yaw);ep.pan.value=Math.sin(a)*-1;eo.frequency.value=38+Math.max(0,25-ed)*1.2}
+  if(ed<1.1&&!safe)return end(0,'It found you in the '+ZN[z].toLowerCase()+'.');
+ }else if(AC)eg.gain.value=0;
+ // eyes + fear (blur)
+ const ec=night||L>1?0xff1111:0xffffff;em.color.setHex(ec);hm.color.setHex(ec);eL.color.setHex(ec);
+ const seen=ent.on&&view(ent.position.x,ent.position.z,26);
+ if(seen){dread=Math.min(100,dread+7*dt);if(!seenMsg){seenMsg=1;msg('Its eyes... look away!',2500)}if(AC&&Math.random()<.05)noise(.12,.15,2500)}
+ blur=Math.max(0,Math.min(1,blur+(seen?1.2:-1)*dt));rd.domElement.style.filter=blur>.02?'blur('+(blur*9).toFixed(1)+'px)':'';
+ // workers
+ workers.forEach(w=>{const m=w.m;m.visible=!night;if(night)return;const mx=m.position.x,mz=m.position.z,d=Math.hypot(mx-P.x,mz-P.z),wc=mx/CS|0,wz=mz/CS|0;
+  if(w.p){if(view(mx,mz,40)){m.lookAt(P.x,0,P.z);if(!seenW&&d<30){seenW=1;msg('Black cracks in its skin... it only moves when you look away.',4500)}}
+   else if(d<34){w.t-=dt;if(w.t<=0){w.t=.4;let tx=pcx,ty=pcz;if(safeDay){D.forEach(([a,b])=>{if(!g[pcz+b][pcx+a]){tx=pcx+a;ty=pcz+b}})}w.n=bfs(wc,wz,tx,ty)}
+    if(w.n){const nx=(w.n[0]+.5)*CS,nz=(w.n[1]+.5)*CS,ddx=nx-mx,ddz=nz-mz,dd=Math.hypot(ddx,ddz);if(dd>.05){const v=Math.min(dd,3.4*dt);m.position.x+=ddx/dd*v;m.position.z+=ddz/dd*v;m.lookAt(nx,0,nz)}}
+    if(AC&&d<12&&Math.random()<dt*2)noise(.06,.1,1200,-Math.sin(Math.atan2(mx-P.x,mz-P.z)-(Math.PI-yaw)))}
+   if(d<1&&!safeDay)end(0,'A possessed worker caught you.')}
+  else{if(!w.n||Math.hypot((w.n[0]+.5)*CS-mx,(w.n[1]+.5)*CS-mz)<.1){const o=D.map(([a,b])=>[wc+a,wz+b]).filter(([a,b])=>!g[b][a]&&!blk[b*W+a]);w.n=o.length?o[Math.random()*o.length|0]:null;if(Math.random()<.3)w.pause=2}
+   if(w.pause>0)w.pause-=dt;else if(w.n){const nx=(w.n[0]+.5)*CS,nz=(w.n[1]+.5)*CS,ddx=nx-mx,ddz=nz-mz,dd=Math.hypot(ddx,ddz);if(dd>.05){const v=Math.min(dd,1.1*dt);m.position.x+=ddx/dd*v;m.position.z+=ddz/dd*v;m.lookAt(nx,0,nz)}}
+   w.say-=dt;if(d<3.5&&w.say<=0){w.say=25;msg(SAY[Math.random()*SAY.length|0],4500)}}
+ });
+ if(over)return;
+ // heartbeat + creaks
+ if(dread>20){hb-=dt;if(hb<=0){hb=1.3-dread/100*.8;thump(60,.5+dread/200,.18);setTimeout(()=>thump(55,.35,.18),170)}}
+ creak-=dt;if(creak<0){creak=8+Math.random()*14;const pn2=Math.random()*2-1;thump(180+Math.random()*100,.15,1.2,pn2);noise(.08,.6,900,pn2)}
+ // win
+ jtr.forEach(t=>{if(!t.d&&pcx==t.x&&pcz==t.y){t.d=1;scare()}});if(pcx==W-2&&pcz==H-2)return finish();
+ // HUD
+ $('zone').textContent=ZN[z]+(safe?' - SAFE':'');$('fear').style.width=dread+'%';
+ const left=Math.ceil(night?CYC-ph:DAY-ph);$('clock').textContent=L>1?'Level '+L:(night?'NIGHT':'DAY '+days)+' - '+(night?'dawn':'dusk')+' in '+Math.floor(left/60)+':'+String(left%60).padStart(2,'0');
+ if(wantSleep){wantSleep=0;if(safe&&!sleeping)sleep()}if(safe){if(!hintS){hintS=1;msg('Press E to sleep until dawn.',4500)}}else hintS=0;
+ $('vig').style.boxShadow='inset 0 0 '+(160+dread*2)+'px '+(dread*.6)+'px rgba(120,0,0,'+(dread/130)+')';
+}
+requestAnimationFrame(loop);
+</script></body></html>

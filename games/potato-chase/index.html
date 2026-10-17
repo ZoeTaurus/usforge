@@ -1,4 +1,4 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Potato Chase</title>
 <style>
   :root { --bg: #1a1020; color-scheme: dark; }
@@ -407,6 +407,7 @@ function potBody(sk, taunt) {
   if (sk.tophat) b = ['....kkkkkk....', '....kkkkkk....', '....kffffk....', '..kkkkkkkkkk..', ...b];
   if (sk.crown) b = ['....z.zz.z....', '....zfzzfz....', ...b];
   if (sk.hair) b = ['....kkkkkk....', ...b];
+  if (sk.rays) b = ['..O...OO...O..', '...O..OO..O...', ...b];
   return b;
 }
 function buildPotato(sk) {
@@ -464,7 +465,10 @@ const THEMES = {
     water: true, sea: '#2a6ab8', seaDark: '#1c4f94', foam: '#9ad6ff', clouds: true },
   moon: { sky: ['#06040d', '#0a0716', '#0e0a1e', '#130e28'], stars: true, earth: true,
     far: '#3a3a4c', mid: '#565668', midTop: '#6c6c80', grass: '#b4b4c0', grass2: '#8c8c9a',
-    dirt: '#7c7c8a', dirt2: '#5c5c6a', deco: 'none', craters: true }
+    dirt: '#7c7c8a', dirt2: '#5c5c6a', deco: 'none', craters: true },
+  scorch: { sky: ['#ff4a24', '#ff6a32', '#ff9440', '#ffc864'], sun: [160, 44, 26, '#fffbe0'],
+    far: '#c8482a', mid: '#e0743a', midTop: '#f4a050', grass: '#f0b860', grass2: '#d88c40',
+    dirt: '#c87838', dirt2: '#a05a28', deco: 'cactus', mesa: true }
 };
 function pixelCircle(g, cx, cy, r, col) {
   g.fillStyle = col;
@@ -943,10 +947,21 @@ const BOSSES = [
       taunt: ['MWAHAHAHA!', 'I NEVER SLEEP. I JUST SPROUT.', 'THE NIGHT IS YOUNG. YOU ARE SLOW.', 'NO GARLIC? NO CHANCE.'],
       attack: ['POOF!', 'NOW YOU SEE ME...', 'RISE, MY TATER TOTS!', 'ATTACK, MY TOTS!'],
       hit: ['CURSES! GARLIC HANDS!', 'YOU WILL PAY FOR THAT, MORTAL!'],
-      defeat: ['THE FRYER... NOOOO!', 'I SHALL RETURN... AS A HASH BROWN.'] } }
+      defeat: ['THE FRYER... NOOOO!', 'I SHALL RETURN... AS A HASH BROWN.'] } },
+  { name: 'SUN POTATO', title: 'THE BLAZING SPUD', hp: 5, reward: 250, theme: 'scorch', scale: 1, speed: 1, attack: 'sun',
+    desc: 'FAST AND SLIPPERY. DODGE THE SOLAR FLARES!',
+    // harder to catch than the rest: bolts sooner, reacts faster, shorter taunts
+    tough: { burstGap: 54, startle: 0.17, taunt: [1.2, 1.7], burstCd: [1.8, 2.6] },
+    skin: { pal: { y: '#ffb020', Y: '#ffe870', o: '#c84a10', d: '#ff8a30', f: '#ff3a1a', l: '#a83a10' }, shades: true, rays: true },
+    lines: {
+      intro: ['I AM THE SUN POTATO. BOW, OR BURN!', 'IT IS ABOUT TO GET VERY HOT IN HERE.'],
+      taunt: ['TOO HOT TO HANDLE!', 'YOU NEED SUNSCREEN. AND LEGS.', 'I SHINE. YOU WHINE.', 'FIVE BILLION YEARS OF CARDIO, BABY.', 'HAVE A HEATSTROKE, ON ME!'],
+      attack: ['SOLAR FLARE!', 'LOOK UP, LOSER!', 'IT IS RAINING FIRE!', 'FEEL THE HEAT!', 'SUPERNOVA!'],
+      hit: ['OUCH! YOU BURNED YOUR HANDS, RIGHT?', 'A LUCKY GRAB! I AM STILL ON FIRE!', 'YOU CANNOT HOLD THE SUN!', 'GRR! NOW I AM EXTRA CRISPY!'],
+      defeat: ['NOOO! MY LIGHT... IS GOING... OUT...', 'FINE. YOU MAY CALL ME... BAKED POTATO.'] } }
 ];
 BOSSES.forEach(b => { b.spr = buildPotato(b.skin); });
-let lastMode = null; // null = regular chase, 0..2 = boss index
+let lastMode = null; // null = regular chase, otherwise a boss index
 
 function hurt(p, text) {
   if (helmetSave(p)) return;
@@ -1008,6 +1023,26 @@ function updateBoss(dt) {
       b.cd = rand(4, 6) - b.hits * 0.4;
       tone(900, 0.2, 'triangle', 0.05, -700); shout(); recover(1.3);
     }
+  } else if (b.def.attack === 'sun') {
+    if (ready) {
+      // solar flares aimed where you're headed, with a warning on the ground first
+      const n = 2 + Math.floor(b.hits / 3);
+      for (let i = 0; i < n; i++) {
+        const fx = p.x + 6 + p.vx * (0.9 + i * 0.25) + rand(-12, 12) + i * 18;
+        G.hazards.push({ kind: 'flare', x: fx, y: 190, warn: 0.85 + i * 0.12, life: 4 });
+      }
+      b.cd = rand(2.6, 3.4) - b.hits * 0.15;
+      tone(1200, 0.3, 'square', 0.04, -900); shout(); recover(1.2);
+      if (b.hits >= 2 && Math.random() < 0.5) b.dashNext = true;
+    }
+    if (b.dashNext && pot.state === 'run' && !busy) { // flame-trail dash: leaves fire behind
+      b.dashNext = false; b.trail = 1.1; b.trailT = 0;
+      pot.state = 'burst'; pot.t = 1.1; say('potato', 'SUPERNOVA!', true); sfx.zoom();
+    }
+    if (b.trail > 0) {
+      b.trail -= dt; b.trailT -= dt;
+      if (b.trailT <= 0 && pot.vy === 0 && pot.y >= 0) { b.trailT = 0.14; G.hazards.push({ kind: 'fire', x: pot.x + 4, y: pot.y, life: 1.3 }); }
+    }
   }
   // the boss's mess
   for (const h of G.hazards) {
@@ -1022,6 +1057,19 @@ function updateBoss(dt) {
       const s = surfaceAt(h.x, h.x + 2);
       if (h.vy < 0 && h.y <= Math.max(0, s)) { h.stuck = true; h.y = Math.max(0, s); h.life = Math.min(h.life, 1); }
       else if (h.x > p.x + 2 && h.x < p.x + 11 && h.y > p.y && h.y < p.y + 15 && p.stun <= 0) { h.life = 0; hurt(p, 'FRIED!'); }
+    } else if (h.kind === 'flare') {
+      if (h.warn > 0) { h.warn -= dt; continue; }
+      h.y -= 420 * dt;
+      const s = Math.max(0, surfaceAt(h.x - 2, h.x + 2));
+      if (h.y <= s) { // boom
+        h.life = 0; G.shake = Math.max(G.shake, 0.15); noise(0.2, 0.1); tone(80, 0.25, 'square', 0.07, -30);
+        for (let i = 0; i < 14; i++) part(h.x, GROUND - s - 2, rand(-70, 70), rand(-110, -20), 0.6, pick(['#ff3a1a', '#ff9a2a', '#ffe04a']), 260, 2);
+        if (p.stun <= 0 && Math.abs(p.x + 6 - h.x) < 10 && Math.abs(p.y - s) < 12) hurt(p, 'SCORCHED!');
+        G.hazards.push({ kind: 'fire', x: h.x - 3, y: s, life: 0.6, harmless: true }); // embers
+      }
+    } else if (h.kind === 'fire') {
+      if (Math.random() < 0.3) part(h.x + rand(0, 6), GROUND - h.y - 3, rand(-8, 8), rand(-50, -20), 0.35, pick(['#ff9a2a', '#ffe04a']), 0);
+      if (!h.harmless && !h.hit && p.stun <= 0 && p.x + 9 > h.x && p.x + 3 < h.x + 6 && Math.abs(p.y - h.y) < 2) { h.hit = true; hurt(p, 'HOT HOT HOT!'); }
     } else if (h.kind === 'tot') {
       h.x += h.vx * dt;
       const s = surfaceAt(h.x + 1, h.x + 7);
@@ -1048,6 +1096,25 @@ function drawHazards(cx) {
       ctx.fillStyle = '#c88a20';
       if (h.stuck) { ctx.fillRect(x, gy - 6, 2, 6); ctx.fillStyle = '#ffd860'; ctx.fillRect(x, gy - 6, 1, 5); }
       else { ctx.fillRect(x, gy - 1, 2, 2); ctx.fillRect(x + 1, gy - 3, 2, 2); ctx.fillRect(x + 2, gy - 5, 2, 2); ctx.fillStyle = '#ffd860'; ctx.fillRect(x + 1, gy - 2, 1, 1); ctx.fillRect(x + 2, gy - 4, 1, 1); }
+    } else if (h.kind === 'flare') {
+      if (h.warn > 0) { // blinking target on the ground
+        const s = Math.max(0, surfaceAt(h.x - 2, h.x + 2)), ty = GROUND - Math.floor(s);
+        const on = Math.floor(TT * 12) & 1;
+        ctx.fillStyle = on ? '#fff4a0' : '#ffd040'; // a beam of sunlight marks where it lands
+        for (let yy = 15 + (on ? 0 : 2); yy < ty - 4; yy += 4) ctx.fillRect(x, yy, 1, 2);
+        ctx.fillStyle = on ? '#ffffff' : '#ff2a1a';
+        ctx.fillRect(x - 6, ty - 1, 4, 2); ctx.fillRect(x + 3, ty - 1, 4, 2); ctx.fillRect(x - 1, ty - 4, 3, 2);
+        ctx.fillStyle = '#1a1020'; ctx.fillRect(x - 6, ty + 1, 4, 1); ctx.fillRect(x + 3, ty + 1, 4, 1);
+      } else {
+        ctx.fillStyle = '#ff9a2a'; ctx.fillRect(x - 1, gy - 10, 3, 8);
+        ctx.fillStyle = '#ffe04a'; ctx.fillRect(x - 2, gy - 4, 5, 4); ctx.fillRect(x - 1, gy - 5, 3, 6);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(x, gy - 3, 1, 2);
+      }
+    } else if (h.kind === 'fire') {
+      const f = Math.floor(TT * 10 + h.x) & 1;
+      ctx.fillStyle = '#ff3a1a'; ctx.fillRect(x, gy - 3, 6, 3);
+      ctx.fillStyle = '#ff9a2a'; ctx.fillRect(x + 1, gy - 5 - f, 2, 3); ctx.fillRect(x + 4, gy - 4 + f, 1, 2);
+      ctx.fillStyle = '#ffe04a'; ctx.fillRect(x + 1, gy - 2, 4, 1);
     } else if (h.kind === 'tot') {
       ctx.drawImage(S.tot, x, gy - 6 - (Math.floor(TT * 12) & 1));
     }
@@ -1500,11 +1567,11 @@ function updatePot(dt) {
   switch (pot.state) {
     case 'run':
       target = base + Math.sin(G.time * 1.7) * 7;
-      if (gap < CFG.burstGap && pot.burstCd <= 0) {
-        pot.state = 'burst'; pot.t = CFG.burstDur; pot.burstCd = rand(...CFG.burstCd); sfx.zoom();
+      if (gap < (G.boss && G.boss.def.tough ? G.boss.def.tough.burstGap : CFG.burstGap) && pot.burstCd <= 0) {
+        pot.state = 'burst'; pot.t = CFG.burstDur; pot.burstCd = rand(...(G.boss && G.boss.def.tough ? G.boss.def.tough.burstCd : CFG.burstCd)); sfx.zoom();
         if (Math.random() < 0.55) say('potato', pick(LINES.close), true);
       } else if (pot.nextTaunt <= 0 && pot.vy === 0 && gap > CFG.tauntGap && clearAhead) {
-        pot.state = 'taunt'; pot.t = G.boss ? rand(1.3, 1.9) : rand(...CFG.tauntDur);
+        pot.state = 'taunt'; pot.t = G.boss ? rand(...(G.boss.def.tough ? G.boss.def.tough.taunt : [1.3, 1.9])) : rand(...CFG.tauntDur);
         say('potato', pick(G.boss && Math.random() < 0.7 ? G.boss.def.lines.taunt : !G.boss && SAVE.skinP === 'business' && Math.random() < 0.5 ? LINES.business : gap > 170 ? LINES.far : [LINES.taunt, LINES.taunt2, LINES.taunt3][Math.floor(Math.random() * 3)]), true);
         pot.nextTaunt = gap > 170 ? rand(2.5, 4.5) : G.boss ? rand(3.5, 5.5) : rand(...CFG.tauntEvery);
       }
@@ -1515,7 +1582,7 @@ function updatePot(dt) {
       break;
     case 'taunt':
       target = 4;
-      if (gap < CFG.startleGap) { pot.state = 'startled'; pot.t = CFG.startleDelay; say('potato', pick(LINES.startled), true); sfx.startle(); }
+      if (gap < CFG.startleGap) { pot.state = 'startled'; pot.t = G.boss && G.boss.def.tough ? G.boss.def.tough.startle : CFG.startleDelay; say('potato', pick(LINES.startled), true); sfx.startle(); }
       else if (pot.t <= 0) pot.state = 'run';
       break;
     case 'startled':
@@ -1602,9 +1669,21 @@ function updatePlay(dt) {
   if (G.state === 'over') { G.endT += dt; }
 }
 
+// UsForge leaderboard: report the final score to the page hosting the game.
+// Only does something when running inside UsForge's iframe; standalone play is untouched.
+function sendScoreToUsForge(score) {
+  if (window.parent === window) return;
+  if (!Number.isFinite(score) || score < 0 || score >= 1e12) return;
+  try {
+    window.parent.postMessage({ usforge: 'score', score: Math.round(score), unit: 'seconds', order: 'low' }, '*');
+  } catch (e) { /* host page unavailable */ }
+}
+
 function caught() {
   G.state = 'caught'; G.endT = 0;
   const t = G.time;
+  // the leaderboard is fastest catch in the regular chase (bosses excluded), sent once per run
+  if (!G.boss && !G.scoreSent) { G.scoreSent = true; sendScoreToUsForge(t); }
   G.result = { time: t, record: !G.boss && (best === null || t < best) };
   let coins;
   if (G.boss) {
@@ -1701,7 +1780,8 @@ const inRect = (p, r) => !!p && p.x >= r.x && p.x < r.x + r.w && p.y >= r.y && p
 const TITLE_BTNS = [['chase', 'CHASE'], ['bosses', 'BOSSES'], ['shop', 'SHOP']].map(([id, label], i) => ({ id, label, x: 65 + i * 66, y: 88, w: 58, h: 11 }));
 const BACK_BTN = { x: 4, y: 14, w: 34, h: 11 };
 const MENU_BTN = { x: W - 46, y: H - 15, w: 42, h: 12 };
-const BOSS_CARDS = BOSSES.map((b, i) => ({ x: 12 + i * 102, y: 30, w: 94, h: 114 }));
+const BOSS_CARD_W = BOSSES.length > 3 ? 72 : 94;
+const BOSS_CARDS = BOSSES.map((b, i) => ({ x: Math.round((W - (BOSSES.length * (BOSS_CARD_W + 6) - 6)) / 2) + i * (BOSS_CARD_W + 6), y: 30, w: BOSS_CARD_W, h: 114 }));
 const SHOP_ROWS = [
   { label: 'YOU', list: HUMAN_SKINS, own: 'ownH', eq: 'skinH', y: 36, kind: 'h' },
   { label: 'THE POTATO', list: POT_SKINS, own: 'ownP', eq: 'skinP', y: 104, kind: 'p' }
@@ -1742,8 +1822,8 @@ function updateTitleMenu() {
   else if (tapped) { const b = TITLE_BTNS.find(r => inRect(tapPos, r)); if (b) { menuSel = TITLE_BTNS.indexOf(b); menuPick(b.id); } }
 }
 function updateBossMenu() {
-  if (pressed.ArrowLeft || pressed.KeyA) { bossSel = (bossSel + 2) % 3; ui.move(); }
-  if (pressed.ArrowRight || pressed.KeyD) { bossSel = (bossSel + 1) % 3; ui.move(); }
+  if (pressed.ArrowLeft || pressed.KeyA) { bossSel = (bossSel + BOSSES.length - 1) % BOSSES.length; ui.move(); }
+  if (pressed.ArrowRight || pressed.KeyD) { bossSel = (bossSel + 1) % BOSSES.length; ui.move(); }
   let fight = pressed.Space || pressed.Enter;
   if (pressed.Escape || pressed.Backspace) { state = 'title'; ui.move(); return; }
   if (tapped) {
@@ -1807,17 +1887,17 @@ function renderBossMenu() {
     const lift = sel ? (Math.floor(TT * 3) & 1) : 0, y = r.y - lift;
     ctx.fillStyle = sel ? '#ffd060' : '#4a2450'; ctx.fillRect(r.x + 1, y, r.w - 2, r.h); ctx.fillRect(r.x, y + 1, r.w, r.h - 2);
     ctx.fillStyle = '#1e0c24'; ctx.fillRect(r.x + 2, y + 2, r.w - 4, r.h - 4);
-    ctx.fillStyle = locked ? '#241428' : ['#2f4a3a', '#5a3a1e', '#1e1e3a'][i]; ctx.fillRect(r.x + 2, y + 2, r.w - 4, 58);
+    ctx.fillStyle = locked ? '#241428' : ['#2f4a3a', '#5a3a1e', '#1e1e3a', '#6a2a12'][i]; ctx.fillRect(r.x + 2, y + 2, r.w - 4, 58);
     const spr = b.spr.pRun[sel && !locked ? Math.floor(TT * 8) & 1 : 0], sc = 3;
     const img = locked ? silhouette(spr) : spr;
     ctx.drawImage(img, r.x + Math.round((r.w - spr.width * sc) / 2), y + 58 - spr.height * sc, spr.width * sc, spr.height * sc);
     if (locked) ctx.drawImage(S.lock, r.x + r.w / 2 - 7, y + 22, 14, 14);
-    drawText('BOSS ' + (i + 1), r.x + 5, y + 5, '#c8a0d8');
+    drawTextO('BOSS ' + (i + 1), r.x + 5, y + 5, '#c8a0d8');
     if (beaten) drawTextO('BEATEN', r.x + r.w - 29, y + 5, '#6af06a');
     const nm = locked ? '???' : b.name;
     drawText(nm, r.x + Math.round((r.w - textW(nm)) / 2), y + 64, sel ? '#ffd060' : '#ffffff');
     const tl = locked ? 'BEAT BOSS ' + i + ' FIRST' : b.title;
-    wrap(tl, 22).forEach((l, k) => drawText(l, r.x + Math.round((r.w - textW(l)) / 2), y + 72 + k * 7, '#a898b8'));
+    wrap(tl, Math.floor((r.w - 6) / 4)).forEach((l, k) => drawText(l, r.x + Math.round((r.w - textW(l)) / 2), y + 72 + k * 7, '#a898b8'));
     for (let h = 0; h < b.hp; h++) ctx.drawImage(locked ? S.heartOff : S.heart, r.x + Math.round(r.w / 2 - b.hp * 4.5) + h * 9, y + 88);
     const rw = beaten ? Math.round(b.reward / 3) : b.reward, rt = String(rw);
     const rx = r.x + Math.round((r.w - (textW(rt) + 10)) / 2);
@@ -2120,6 +2200,7 @@ function drawHUD() {
   if (G.boss) {
     const b = G.boss, nm = b.def.name;
     drawTextO(nm, W - 4 - textW(nm), 17, '#ff8a6a');
+    ctx.fillStyle = '#1a1020'; ctx.fillRect(W - 6 - b.def.hp * 9, 24, b.def.hp * 9 + 3, 8);
     for (let i = 0; i < b.def.hp; i++) ctx.drawImage(i < b.hp ? S.heart : S.heartOff, W - 4 - (b.def.hp - i) * 9, 25);
   }
   if (G.banner) {
@@ -2147,6 +2228,13 @@ function renderWorld() {
   const blink = G.boss && G.boss.inv > 0 && (Math.floor(TT * 16) & 1);
   if (G.state !== 'caught') {
     shadow(potX, pot);
+    if (G.boss && G.boss.def.attack === 'sun') { // spinning sun rays
+      ctx.fillStyle = Math.floor(TT * 8) & 1 ? '#ffe04a' : '#ff9a2a';
+      for (let k = 0; k < 8; k++) {
+        const a = TT * 2 + k * Math.PI / 4;
+        ctx.fillRect(potX + 7 + Math.round(Math.cos(a) * 11), potY + 7 + Math.round(Math.sin(a) * 10), 2, 2);
+      }
+    }
     if (!blink) ctx.drawImage(ps, potX + (pot.state === 'scared' ? (Math.floor(TT * 30) & 1) * 2 - 1 : 0), potY, ps.width * psc, ps.height * psc);
     if (pot.state === 'startled') drawTextO('!', potX + 6, potY - 9, '#ff5a5a', 2);
     if (pot.state === 'scared') drawTextO('!!', potX + 2, potY - 9, '#ff9a2a', 2);

@@ -10,5 +10,9 @@
   ],
   "languages": [
     "en"
-  ]
+  ],
+  "whatsnew": {
+    "text": "Shaders",
+    "at": 1792222813
+  }
 }

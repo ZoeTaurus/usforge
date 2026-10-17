@@ -8,6 +8,10 @@
     "cover": "games/helldrivers/cover.png",
     "pixel": false,
     "url": null,
+    "whatsnew": {
+      "text": "Shaders",
+      "at": 1792222813
+    },
     "genres": [
       "Action",
       "Open world",
@@ -21,7 +25,7 @@
     "next": "",
     "build": true,
     "added": 1792181705,
-    "updated": 1792222773
+    "updated": 1792222813
   },
   {
     "slug": "generic-fps",

@@ -4,11 +4,15 @@
     "title": "Kitchenria",
     "author": "Henrique",
     "owner": "Henrique",
-    "blurb": "Infinite Craft but in your kitchen.",
+    "blurb": "Infinite Craft but in Kitchenized",
     "cover": null,
     "pixel": false,
     "url": null,
-    "genres": [],
+    "genres": [
+      "Casual",
+      "Crafting",
+      "Sandbox"
+    ],
     "languages": [
       "en"
     ],
@@ -16,7 +20,8 @@
     "progress": null,
     "next": "",
     "build": true,
-    "added": 1792262527
+    "added": 1792262527,
+    "updated": 1792262701
   },
   {
     "slug": "last-light",

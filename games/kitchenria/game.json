@@ -2,7 +2,12 @@
   "title": "Kitchenria",
   "author": "Henrique",
   "owner": "Henrique",
-  "blurb": "Infinite Craft but in your kitchen.",
+  "blurb": "Infinite Craft but in Kitchenized",
+  "genres": [
+    "Casual",
+    "Crafting",
+    "Sandbox"
+  ],
   "languages": [
     "en"
   ]
